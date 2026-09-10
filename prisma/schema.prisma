@@ -396,6 +396,8 @@ model IngresoFruta {
   id              String          @id @default(cuid())
   numero          String          @unique // ej. IF-0001
   proveedorId     String
+  modulo          String // bloque/sector del fundo de origen
+  turno           String // sub-división del módulo (no es turno de trabajo)
   lote            String
   variedad        String
   fechaCosecha    DateTime
@@ -419,7 +421,7 @@ model IngresoFrutaPallet {
   id               String   @id @default(cuid())
   ingresoFrutaId   String
   numeroPallet     Int
-  tipoPalletId     String
+  tipoPalletId     String? // opcional: este flujo calcula el neto solo con tara de bandeja
   tipoBandejaId    String
   cantidadBandejas Int
   pesoBrutoTotalKg Decimal  @db.Decimal(10, 3)
@@ -429,7 +431,7 @@ model IngresoFrutaPallet {
   updatedAt        DateTime @updatedAt
 
   ingresoFruta  IngresoFruta               @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
-  tipoPallet    TipoPallet                 @relation(fields: [tipoPalletId], references: [id])
+  tipoPallet    TipoPallet?                @relation(fields: [tipoPalletId], references: [id])
   tipoBandeja   TipoBandeja                @relation(fields: [tipoBandejaId], references: [id])
   bandejas      IngresoFrutaBandejaPeso[]
   tarja         Tarja?

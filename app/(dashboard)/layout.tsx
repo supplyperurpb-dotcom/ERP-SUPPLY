@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { SidebarNav } from "@/components/shared/sidebar-nav";
-import { Topbar } from "@/components/shared/topbar";
+import { DashboardShell } from "@/components/shared/dashboard-shell";
 import { getUsuarioActual } from "@/lib/auth/session";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,12 +13,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <SidebarNav roles={usuario.roles} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar usuario={usuario} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
-      </div>
-    </div>
+    <DashboardShell roles={usuario.roles} usuario={usuario}>
+      {children}
+    </DashboardShell>
   );
 }

@@ -139,7 +139,44 @@ datos reales de cada documento es trabajo de fase 2.
 completo de SUNAT (que tiene cientos de códigos) — fase 2 debería reemplazarlo por el catálogo 03
 completo si se requiere selección exhaustiva.
 
-## 11. Entorno de desarrollo usado para este scaffold
+## 11. Módulo de Ingresos de fruta: `tipoPalletId` opcional, `modulo`/`turno` como texto libre
+
+El primer flujo funcional real de Acopio ("Nuevo ingreso de materia prima") se construyó según lo
+pedido explícitamente por el usuario, que difiere un poco del diseño original de
+`IngresoFrutaPallet`:
+
+- **`tipoPalletId` pasó a ser opcional** (`String?` / relación opcional). El cálculo de peso neto
+  de este flujo es `peso bruto − (cantidad de bandejas × tara de la bandeja según catálogo)`, sin
+  descontar tara de pallet/parihuela — el usuario fue explícito en que la fruta "viene en bandeja"
+  y no mencionó pallets en la fórmula. El campo se mantiene en el modelo (no se eliminó) porque
+  `Tarja` y `GuiaRemisionDetalle` ya referencian `IngresoFrutaPallet`, y podría volver a ser
+  relevante para packing/logística más adelante.
+- **`modulo` y `turno`** se agregaron a `IngresoFruta` como texto libre (`String`, obligatorios).
+  Aclarado con el usuario: "módulo" es el bloque/sector del fundo de origen, y "turno" es una
+  sub-división de ese módulo (no un turno de trabajo). No existe todavía un catálogo formal
+  Módulo → Turno por fundo — si se necesita más adelante, se puede modelar como una tabla propia
+  con FK desde `Proveedor`, sin romper estos dos campos (se podrían migrar a IDs).
+- El número correlativo (`IF-0001`, `IF-0002`, …) se genera contando filas existentes
+  (`prisma.ingresoFruta.count() + 1`) en el propio server action — no es resistente a condiciones
+  de carrera con escrituras concurrentes; aceptable para esta fase, pero antes de tener múltiples
+  usuarios de Acopio registrando ingresos en simultáneo conviene mover la numeración a una
+  secuencia de base de datos o una transacción con bloqueo.
+- El registro de "varios pallets por ingreso" se implementó como líneas de pesaje dinámicas
+  (`useFieldArray` de react-hook-form) dentro de un único formulario/submit — no como un flujo de
+  "crear ingreso, luego agregar pallets uno por uno". El server action recibe el objeto completo
+  (cabecera + arreglo de líneas) y hace un solo `prisma.ingresoFruta.create` con `pallets: { create: [...] }`
+  anidado.
+
+## 12. Menú móvil del dashboard
+
+El sidebar original era `hidden md:flex` (oculto por completo debajo de 768px) sin ninguna forma de
+abrirlo — el botón ☰ del topbar no tenía `onClick`. Se detectó al usar la app real en una ventana
+angosta: la página cargaba bien, pero no había manera de ver la navegación. Se resolvió con
+`components/shared/dashboard-shell.tsx` (Client Component que envuelve sidebar + topbar + contenido
+y mantiene el estado `menuAbierto`), convirtiendo el sidebar en un panel deslizante con backdrop en
+mobile, y que se cierra solo al navegar a un link.
+
+## 13. Entorno de desarrollo usado para este scaffold
 
 El scaffold se escribió a mano, archivo por archivo (incluidos los tres CRUD de referencia y las
 páginas placeholder, generados por agentes siguiendo ese mismo patrón), en una máquina que

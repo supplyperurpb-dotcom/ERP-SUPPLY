@@ -13,12 +13,18 @@ import { ROL_LABELS, type RolNombre } from "@/lib/auth/constants";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import type { UsuarioActual } from "@/lib/auth/session";
 
-export function Topbar({ usuario }: { usuario: UsuarioActual }) {
+export function Topbar({
+  usuario,
+  onAbrirMenu,
+}: {
+  usuario: UsuarioActual;
+  onAbrirMenu?: () => void;
+}) {
   const iniciales = `${usuario.nombres[0] ?? ""}${usuario.apellidos[0] ?? ""}`.toUpperCase();
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-4">
-      <Button variant="ghost" size="icon" className="md:hidden">
+      <Button variant="ghost" size="icon" className="md:hidden" onClick={onAbrirMenu}>
         <Menu className="h-5 w-5" />
       </Button>
 
