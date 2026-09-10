@@ -93,15 +93,33 @@ Catálogo de taras solo hacen create/update/delete directos. Antes de fase 2, co
 auditoría se centraliza en un helper compartido (ej. un wrapper alrededor de `prisma.$transaction`)
 en vez de repetir el `prisma.logAuditoria.create(...)` en cada acción.
 
-## 8. Generación de PDF: `@react-pdf/renderer` en un route handler Node
+## 8. Generación de PDF: `pdf-lib` (se descartó `@react-pdf/renderer` tras probarlo)
 
-Se eligió `@react-pdf/renderer` (en vez de `pdf-lib`) porque permite describir el documento como
-componentes React (`Document`, `Page`, `View`, `Text`), lo cual encaja mejor con reutilizar
-estilos/estructura entre Tarja, Guía de Remisión y Packing List más adelante. Se probó el pipeline
-completo con una plantilla genérica (`lib/pdf/documento-base.tsx`) servida desde
-`app/api/pdf/test/route.ts` con `export const runtime = "nodejs"` (esta librería no corre en Edge
-Runtime). Los datos que arma ese endpoint son de ejemplo (hardcodeados), no vienen de la base de
-datos — la conexión con datos reales de cada documento es trabajo de fase 2.
+La primera versión de este módulo usaba `@react-pdf/renderer`, que describe el documento como
+componentes React (`Document`, `Page`, `View`, `Text`). Al conectar un proyecto de Supabase real y
+probar el botón "Generar PDF de prueba" de punta a punta en el navegador, la generación fallaba
+siempre con `Error: Minified React error #31` ("Objects are not valid as a React child") al llamar
+`renderToBuffer` **solo** cuando el código corría dentro del route handler de Next.js — un script
+de Node ejecutado directo, con el mismo `@react-pdf/renderer`, la misma plantilla y el mismo React,
+funcionaba sin problemas. Se probaron cuatro correcciones distintas antes de descartar la librería:
+construir el elemento con `createElement` vs. invocar el componente como función plana, actualizar
+`@react-pdf/renderer` de 3.4.5 a 4.9.0, excluirla del bundling de Next con
+`serverExternalPackages`, y reescribir la plantilla sin JSX (usando `React.createElement`
+explícito para forzar que resolviera la misma copia de `react` que la app). Ninguna cambió el
+resultado — el reconciler interno de `@react-pdf/renderer` resuelve una copia de React distinta a
+la que usa el resto de la app cuando el bundler de Next.js empaqueta el route handler, y no se
+encontró una combinación de configuración que lo evitara en este entorno (Next 15.5.25 + webpack
+en modo dev, Windows).
+
+Dado que el propio enunciado original ya contemplaba `pdf-lib` como alternativa válida, se migró el
+módulo a esa librería: no depende de React en absoluto (construye el PDF con una API imperativa —
+`PDFDocument.create()`, `page.drawText()`, etc.), así que no puede sufrir este tipo de conflicto de
+bundling, y es la opción más liviana y probada en funciones serverless de Vercel. Se probó el
+pipeline completo con una plantilla genérica (`lib/pdf/documento-base.ts`) servida desde
+`app/api/pdf/test/route.ts`, confirmando los 3 documentos de ejemplo (guía, tarja, packing list)
+con `curl`/`Invoke-WebRequest` contra el servidor de desarrollo real. Los datos que arma ese
+endpoint siguen siendo de ejemplo (hardcodeados), no vienen de la base de datos — la conexión con
+datos reales de cada documento es trabajo de fase 2.
 
 ## 9. Entidades no listadas explícitamente que se agregaron
 

@@ -16,7 +16,7 @@ y **Comex**.
 - **Prisma** como ORM sobre el Postgres de Supabase
 - **Tailwind CSS** + componentes propios de estilo shadcn/ui
 - **Zod** + **react-hook-form** para validación de formularios
-- **@react-pdf/renderer** para generación de PDF (tarjas, guías, packing list)
+- **pdf-lib** para generación de PDF (tarjas, guías, packing list)
 - Despliegue en **Vercel**, CI en **GitHub Actions** (lint + typecheck + build)
 
 ## Requisitos previos

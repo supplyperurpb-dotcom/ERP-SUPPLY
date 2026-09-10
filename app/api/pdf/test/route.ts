@@ -1,7 +1,5 @@
-import { createElement } from "react";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse, type NextRequest } from "next/server";
-import { DocumentoPruebaPdf } from "@/lib/pdf/documento-base";
+import { generarDocumentoPruebaPdf } from "@/lib/pdf/documento-base";
 
 // Ruta de prueba para validar el pipeline de generación de PDF en entorno
 // serverless (Vercel). En fases siguientes cada módulo (Tarja, Guía de
@@ -50,21 +48,16 @@ export async function GET(request: NextRequest) {
   const tipo = request.nextUrl.searchParams.get("tipo") ?? "guia";
   const documento = DOCUMENTOS_DEMO[tipo] ?? DOCUMENTOS_DEMO.guia;
 
-  // @react-pdf/renderer tipa renderToBuffer para aceptar únicamente un
-  // elemento <Document> directo, no un componente que internamente renderiza
-  // uno. En runtime es válido (DocumentoPruebaPdf renderiza un <Document> en
-  // su raíz); el cast solo alinea el tipo con la firma de la librería.
-  const elemento = createElement(DocumentoPruebaPdf, {
+  const bytes = await generarDocumentoPruebaPdf({
     titulo: documento.titulo,
     numero: documento.numero,
     filas: documento.filas,
-  }) as unknown as Parameters<typeof renderToBuffer>[0];
+  });
 
-  const buffer = await renderToBuffer(elemento);
-
-  // Node's Buffer doesn't structurally satisfy the DOM BodyInit typing in
-  // all TS/lib versions; a plain Uint8Array view over it does.
-  return new NextResponse(new Uint8Array(buffer), {
+  // pdf-lib tipa save() como Uint8Array<ArrayBufferLike>, que en esta versión
+  // de TS no coincide estructuralmente con el BodyInit del lib DOM; una
+  // copia a un Uint8Array plano sí.
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${tipo}-prueba.pdf"`,
