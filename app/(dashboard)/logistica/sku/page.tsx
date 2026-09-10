@@ -2,11 +2,12 @@ import { Package } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
+import { serializar } from "@/lib/utils";
 import { SkuFormDialog } from "./sku-form-dialog";
 import { SkuTable } from "./sku-table";
 
 export default async function SkuPage() {
-  const skus = await prisma.sku.findMany({ orderBy: { createdAt: "desc" } });
+  const skus = serializar(await prisma.sku.findMany({ orderBy: { createdAt: "desc" } }));
 
   return (
     <div>

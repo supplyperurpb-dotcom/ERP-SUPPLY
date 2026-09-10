@@ -5,9 +5,15 @@ import { usePathname } from "next/navigation";
 import { Sprout } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_GRUPOS, NAV_INICIO, type NavGrupo } from "@/lib/nav-config";
+import { tienePermiso, type Modulo, type RolNombre } from "@/lib/auth/constants";
 
-export function SidebarNav({ gruposVisibles }: { gruposVisibles: NavGrupo[] }) {
+// Recibe solo los roles (datos planos, serializables) y calcula acá los
+// grupos visibles. NAV_GRUPOS incluye componentes de ícono de lucide-react,
+// que no se pueden pasar como prop desde un Server Component a este Client
+// Component (React solo permite objetos planos a través de esa frontera).
+export function SidebarNav({ roles }: { roles: RolNombre[] }) {
   const pathname = usePathname();
+  const gruposVisibles = NAV_GRUPOS.filter((grupo) => tienePermiso(roles, grupo.modulo as Modulo));
 
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-card md:flex md:flex-col">

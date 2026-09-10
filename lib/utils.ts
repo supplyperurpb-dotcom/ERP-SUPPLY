@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Los campos `Decimal` de Prisma son instancias de clase (decimal.js), no
+// objetos planos, así que React no permite pasarlos como prop de un Server
+// Component a un Client Component ("Only plain objects can be passed...").
+// Se usa antes de pasar resultados de Prisma con campos Decimal a un Client
+// Component (p. ej. las tablas/diálogos de SKU y Catálogo de taras).
+export function serializar<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data));
+}
+
 export function formatDate(date: Date | string) {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("es-PE", {
