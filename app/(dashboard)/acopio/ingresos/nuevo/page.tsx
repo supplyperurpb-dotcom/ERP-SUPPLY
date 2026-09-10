@@ -24,7 +24,7 @@ export default async function NuevoIngresoPage() {
     <div>
       <PageHeader
         titulo="Nuevo ingreso de materia prima"
-        descripcion="Registra el ingreso de arándano fresco a planta: trazabilidad de origen y pesaje por bandejas. El peso neto se calcula automáticamente (peso bruto − cantidad de bandejas × tara de la bandeja)."
+        descripcion="Registra la llegada de un camión a planta: se ingresa una sola vez (placa, hora de recepción) y puede tener varias líneas de pesaje, cada una con su propio módulo, turno y variedad. El peso neto de cada línea se calcula automáticamente (peso bruto − cantidad de bandejas × tara de la bandeja)."
       />
       <IngresoFrutaForm proveedores={proveedores} tiposBandeja={tiposBandeja} />
     </div>

@@ -392,14 +392,15 @@ model TipoPallet {
   @@map("tipos_pallet")
 }
 
+// Representa la llegada de un camión con materia prima: se registra una
+// sola vez por camión (placa, hora de recepción) y agrupa una o más líneas
+// de pesaje (IngresoFrutaPallet), porque un mismo camión puede traer fruta
+// de varios módulos/turnos/variedades del fundo.
 model IngresoFruta {
   id              String          @id @default(cuid())
   numero          String          @unique // ej. IF-0001
   proveedorId     String
-  modulo          String // bloque/sector del fundo de origen
-  turno           String // sub-división del módulo (no es turno de trabajo)
   lote            String
-  variedad        String
   fechaCosecha    DateTime
   fechaIngreso    DateTime        @default(now())
   horaIngreso     String?
@@ -421,6 +422,9 @@ model IngresoFrutaPallet {
   id               String   @id @default(cuid())
   ingresoFrutaId   String
   numeroPallet     Int
+  modulo           String // bloque/sector del fundo de origen de esta línea
+  turno            String // sub-división del módulo (no es turno de trabajo)
+  variedad         String
   tipoPalletId     String? // opcional: este flujo calcula el neto solo con tara de bandeja
   tipoBandejaId    String
   cantidadBandejas Int

@@ -25,12 +25,16 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     }
   }
 
-  // Peso neto = peso bruto - (cantidad de bandejas × peso tara de la bandeja
-  // según el catálogo). No se descuenta tara de pallet: este flujo no la usa.
+  // Peso neto por línea = peso bruto - (cantidad de bandejas × tara de la
+  // bandeja según el catálogo). No se descuenta tara de pallet: este flujo
+  // no la usa.
   const pallets = parsed.data.pallets.map((pallet, index) => {
     const pesoTaraTotalKg = pallet.cantidadBandejas * (taraPorTipo.get(pallet.tipoBandejaId) ?? 0);
     return {
       numeroPallet: index + 1,
+      modulo: pallet.modulo,
+      turno: pallet.turno,
+      variedad: pallet.variedad,
       tipoBandejaId: pallet.tipoBandejaId,
       cantidadBandejas: pallet.cantidadBandejas,
       pesoBrutoTotalKg: pallet.pesoBrutoTotalKg,
@@ -47,13 +51,10 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     data: {
       numero,
       proveedorId: parsed.data.proveedorId,
-      modulo: parsed.data.modulo,
-      turno: parsed.data.turno,
       lote: parsed.data.lote,
-      variedad: parsed.data.variedad,
       fechaCosecha: parsed.data.fechaCosecha,
       horaIngreso: parsed.data.horaIngreso,
-      placaTransporte: parsed.data.placaTransporte || null,
+      placaTransporte: parsed.data.placaTransporte,
       observaciones: parsed.data.observaciones || null,
       creadoPorId: usuario?.id,
       pallets: { create: pallets },

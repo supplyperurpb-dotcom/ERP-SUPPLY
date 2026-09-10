@@ -10,15 +10,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatKg } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
 
 type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
+
+const LINEA_VACIA = {
+  modulo: "",
+  turno: "",
+  variedad: "",
+  tipoBandejaId: "",
+  cantidadBandejas: 0,
+  pesoBrutoTotalKg: 0,
+};
 
 export function IngresoFrutaForm({
   proveedores,
@@ -34,14 +43,11 @@ export function IngresoFrutaForm({
     resolver: zodResolver(ingresoFrutaSchema),
     defaultValues: {
       proveedorId: "",
-      modulo: "",
-      turno: "",
       lote: "",
-      variedad: "",
       horaIngreso: "",
       placaTransporte: "",
       observaciones: "",
-      pallets: [{ tipoBandejaId: "", cantidadBandejas: 0, pesoBrutoTotalKg: 0 }],
+      pallets: [LINEA_VACIA],
     },
   });
 
@@ -67,8 +73,9 @@ export function IngresoFrutaForm({
   );
 
   useEffect(() => {
-    if (form.formState.errors.pallets?.root || form.formState.errors.pallets?.message) {
-      toast.error(form.formState.errors.pallets.message ?? form.formState.errors.pallets.root?.message);
+    const errorPallets = form.formState.errors.pallets;
+    if (errorPallets && !Array.isArray(errorPallets)) {
+      toast.error(errorPallets.message ?? "Revisa las líneas de pesaje");
     }
   }, [form.formState.errors.pallets]);
 
@@ -86,7 +93,7 @@ export function IngresoFrutaForm({
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Trazabilidad de origen</CardTitle>
+          <CardTitle className="text-base">Datos del camión</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
@@ -115,26 +122,18 @@ export function IngresoFrutaForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="modulo">Módulo</Label>
-            <Input id="modulo" placeholder="Ej. Módulo 3" {...form.register("modulo")} />
-            {form.formState.errors.modulo && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.modulo.message}</p>
+            <Label htmlFor="placaTransporte">Placa del vehículo</Label>
+            <Input id="placaTransporte" placeholder="Ej. ABC-123" {...form.register("placaTransporte")} />
+            {form.formState.errors.placaTransporte && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.placaTransporte.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="turno">Turno</Label>
-            <Input id="turno" placeholder="Ej. Turno 2" {...form.register("turno")} />
-            {form.formState.errors.turno && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.turno.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="variedad">Variedad</Label>
-            <Input id="variedad" placeholder="Ej. Biloxi" {...form.register("variedad")} />
-            {form.formState.errors.variedad && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.variedad.message}</p>
+            <Label htmlFor="horaIngreso">Hora de recepción</Label>
+            <Input id="horaIngreso" type="time" {...form.register("horaIngreso")} />
+            {form.formState.errors.horaIngreso && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.horaIngreso.message}</p>
             )}
           </div>
 
@@ -154,19 +153,6 @@ export function IngresoFrutaForm({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="horaIngreso">Hora de recepción</Label>
-            <Input id="horaIngreso" type="time" {...form.register("horaIngreso")} />
-            {form.formState.errors.horaIngreso && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.horaIngreso.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="placaTransporte">Placa del vehículo</Label>
-            <Input id="placaTransporte" placeholder="Ej. ABC-123" {...form.register("placaTransporte")} />
-          </div>
-
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>
             <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
@@ -176,93 +162,135 @@ export function IngresoFrutaForm({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Pesaje por bandejas</CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append({ tipoBandejaId: "", cantidadBandejas: 0, pesoBrutoTotalKg: 0 })}
-          >
+          <div>
+            <CardTitle className="text-base">Líneas de pesaje</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Un camión puede traer fruta de más de un módulo, turno o variedad — agrega una línea por
+              cada grupo de bandejas con su propia trazabilidad.
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => append(LINEA_VACIA)}>
             <Plus className="mr-2 h-4 w-4" />
             Agregar línea
           </Button>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-14">#</TableHead>
-                <TableHead>Tipo de bandeja</TableHead>
-                <TableHead>Cant. bandejas</TableHead>
-                <TableHead>Peso bruto (kg)</TableHead>
-                <TableHead>Tara (kg)</TableHead>
-                <TableHead>Peso neto (kg)</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fields.map((field, index) => (
-                <TableRow key={field.id}>
-                  <TableCell className="text-muted-foreground">{index + 1}</TableCell>
-                  <TableCell>
-                    <Controller
-                      control={form.control}
-                      name={`pallets.${index}.tipoBandejaId`}
-                      render={({ field: selectField }) => (
-                        <Select value={selectField.value} onValueChange={selectField.onChange}>
-                          <SelectTrigger className="min-w-[10rem]">
-                            <SelectValue placeholder="Selecciona..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {tiposBandeja.map((t) => (
-                              <SelectItem key={t.id} value={t.id}>
-                                {t.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min={1}
-                      step="1"
-                      className="w-24"
-                      {...form.register(`pallets.${index}.cantidadBandejas`)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.001"
-                      className="w-28"
-                      {...form.register(`pallets.${index}.pesoBrutoTotalKg`)}
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatKg(filasCalculadas[index]?.pesoTara ?? 0)}
-                  </TableCell>
-                  <TableCell className="font-medium">{formatKg(filasCalculadas[index]?.pesoNeto ?? 0)}</TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={fields.length === 1}
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="space-y-4">
+          {fields.map((field, index) => (
+            <div key={field.id} className="rounded-lg border p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-semibold">Línea {index + 1}</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={fields.length === 1}
+                  onClick={() => remove(index)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
 
-          <div className="mt-4 flex flex-col items-end gap-1 border-t pt-4 text-sm">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Módulo</Label>
+                  <Input placeholder="Ej. Módulo 3" {...form.register(`pallets.${index}.modulo`)} />
+                  {form.formState.errors.pallets?.[index]?.modulo && (
+                    <p className="text-xs font-medium text-destructive">
+                      {form.formState.errors.pallets[index]?.modulo?.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Turno</Label>
+                  <Input placeholder="Ej. Turno 2" {...form.register(`pallets.${index}.turno`)} />
+                  {form.formState.errors.pallets?.[index]?.turno && (
+                    <p className="text-xs font-medium text-destructive">
+                      {form.formState.errors.pallets[index]?.turno?.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Variedad</Label>
+                  <Input placeholder="Ej. Biloxi" {...form.register(`pallets.${index}.variedad`)} />
+                  {form.formState.errors.pallets?.[index]?.variedad && (
+                    <p className="text-xs font-medium text-destructive">
+                      {form.formState.errors.pallets[index]?.variedad?.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <Separator className="my-3" />
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Tipo de bandeja</Label>
+                  <Controller
+                    control={form.control}
+                    name={`pallets.${index}.tipoBandejaId`}
+                    render={({ field: selectField }) => (
+                      <Select value={selectField.value} onValueChange={selectField.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tiposBandeja.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {form.formState.errors.pallets?.[index]?.tipoBandejaId && (
+                    <p className="text-xs font-medium text-destructive">
+                      {form.formState.errors.pallets[index]?.tipoBandejaId?.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Cant. bandejas</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    step="1"
+                    {...form.register(`pallets.${index}.cantidadBandejas`)}
+                  />
+                  {form.formState.errors.pallets?.[index]?.cantidadBandejas && (
+                    <p className="text-xs font-medium text-destructive">
+                      {form.formState.errors.pallets[index]?.cantidadBandejas?.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Peso bruto (kg)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.001"
+                    {...form.register(`pallets.${index}.pesoBrutoTotalKg`)}
+                  />
+                  {form.formState.errors.pallets?.[index]?.pesoBrutoTotalKg && (
+                    <p className="text-xs font-medium text-destructive">
+                      {form.formState.errors.pallets[index]?.pesoBrutoTotalKg?.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Peso neto</Label>
+                  <p className="flex h-10 items-center text-sm font-semibold text-primary">
+                    {formatKg(filasCalculadas[index]?.pesoNeto ?? 0)}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Tara: {formatKg(filasCalculadas[index]?.pesoTara ?? 0)}
+              </p>
+            </div>
+          ))}
+
+          <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
             <p>
               Total de bandejas: <span className="font-medium">{totales.cantidadBandejas}</span>
             </p>

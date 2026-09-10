@@ -151,9 +151,16 @@ pedido explícitamente por el usuario, que difiere un poco del diseño original 
   y no mencionó pallets en la fórmula. El campo se mantiene en el modelo (no se eliminó) porque
   `Tarja` y `GuiaRemisionDetalle` ya referencian `IngresoFrutaPallet`, y podría volver a ser
   relevante para packing/logística más adelante.
-- **`modulo` y `turno`** se agregaron a `IngresoFruta` como texto libre (`String`, obligatorios).
-  Aclarado con el usuario: "módulo" es el bloque/sector del fundo de origen, y "turno" es una
-  sub-división de ese módulo (no un turno de trabajo). No existe todavía un catálogo formal
+- **`modulo`, `turno` y `variedad` viven en `IngresoFrutaPallet` (por línea), no en `IngresoFruta`
+  (cabecera).** Se movieron ahí en una segunda vuelta: el usuario aclaró que `IngresoFruta`
+  representa la llegada de **un camión**, registrada una sola vez (placa, hora de recepción), y que
+  un mismo camión puede traer fruta de varios módulos/turnos/variedades del fundo — cada uno se
+  captura como una línea de pesaje independiente, con su propia tara y peso neto calculados. Por
+  eso `placaTransporte` pasó de opcional a obligatorio en la cabecera (es el identificador natural
+  del camión). El formulario (`ingreso-fruta-form.tsx`) usa `useFieldArray` de react-hook-form para
+  las líneas dinámicas, y la tabla de "Ingresos" resume el conjunto de módulos únicos por camión en
+  una sola columna (no hay todavía una vista de detalle por ingreso que liste cada línea).
+- Texto libre, no catálogo: no existe todavía un catálogo formal
   Módulo → Turno por fundo — si se necesita más adelante, se puede modelar como una tabla propia
   con FK desde `Proveedor`, sin romper estos dos campos (se podrían migrar a IDs).
 - El número correlativo (`IF-0001`, `IF-0002`, …) se genera contando filas existentes

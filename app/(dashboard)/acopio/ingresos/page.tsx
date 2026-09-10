@@ -29,7 +29,7 @@ export default async function IngresosFrutaPage() {
   const ingresos = await prisma.ingresoFruta.findMany({
     include: {
       proveedor: true,
-      pallets: { select: { pesoNetoKg: true } },
+      pallets: { select: { modulo: true, variedad: true, pesoNetoKg: true } },
       _count: { select: { pallets: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -40,7 +40,7 @@ export default async function IngresosFrutaPage() {
     <div>
       <PageHeader
         titulo="Ingresos de fruta"
-        descripcion="Registro de ingreso de fruta fresca por lote, proveedor/fundo y variedad. Cada ingreso agrupa uno o más registros de pesaje por bandejas, con tara y peso neto calculados automáticamente."
+        descripcion="Registro de llegada de camiones con arándano fresco. Cada camión agrupa una o más líneas de pesaje por módulo/turno/variedad, con tara y peso neto calculados automáticamente."
         acciones={
           <Button asChild>
             <Link href="/acopio/ingresos/nuevo">
@@ -63,9 +63,9 @@ export default async function IngresosFrutaPage() {
             <TableRow>
               <TableHead>Número</TableHead>
               <TableHead>Proveedor / Fundo</TableHead>
-              <TableHead>Módulo / Turno</TableHead>
+              <TableHead>Placa</TableHead>
               <TableHead>Lote</TableHead>
-              <TableHead>Variedad</TableHead>
+              <TableHead>Módulos</TableHead>
               <TableHead>Fecha de ingreso</TableHead>
               <TableHead>N.º de líneas</TableHead>
               <TableHead>Peso neto</TableHead>
@@ -75,15 +75,16 @@ export default async function IngresosFrutaPage() {
           <TableBody>
             {ingresos.map((ingreso) => {
               const pesoNetoTotal = ingreso.pallets.reduce((acc, p) => acc + Number(p.pesoNetoKg), 0);
+              const modulos = Array.from(new Set(ingreso.pallets.map((p) => p.modulo))).join(", ");
               return (
                 <TableRow key={ingreso.id}>
                   <TableCell className="font-medium">{ingreso.numero}</TableCell>
                   <TableCell>{ingreso.proveedor.razonSocial}</TableCell>
-                  <TableCell>
-                    {ingreso.modulo} / {ingreso.turno}
-                  </TableCell>
+                  <TableCell>{ingreso.placaTransporte ?? "—"}</TableCell>
                   <TableCell>{ingreso.lote}</TableCell>
-                  <TableCell>{ingreso.variedad}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={modulos}>
+                    {modulos || "—"}
+                  </TableCell>
                   <TableCell>{formatDate(ingreso.fechaIngreso)}</TableCell>
                   <TableCell>{ingreso._count.pallets}</TableCell>
                   <TableCell>{formatKg(pesoNetoTotal)}</TableCell>
