@@ -1,0 +1,644 @@
+// Schema inicial (fase de scaffold) del sistema de gestión para productora
+// y exportadora de arándanos. Ver docs/DECISIONES-TECNICAS.md para el
+// razonamiento detrás de las decisiones tomadas en este modelo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =========================================================================
+// ENUMS
+// =========================================================================
+
+enum RolNombre {
+  ADMIN
+  LOGISTICA_COMPRAS
+  ACOPIO
+  COMEX
+  APROBADOR
+  SOLO_LECTURA
+}
+
+enum AccionPermiso {
+  VER
+  CREAR
+  EDITAR
+  APROBAR
+  ELIMINAR
+}
+
+enum TipoDocumentoIdentidad {
+  RUC
+  DNI
+}
+
+enum TipoProveedor {
+  INSUMOS
+  FUNDO
+  AMBOS
+}
+
+enum TipoSku {
+  INSUMO
+  PRODUCTO_TERMINADO
+}
+
+enum TipoAlmacen {
+  INSUMOS
+  AGROQUIMICOS
+  MATERIAL_EMPAQUE
+  CAMARA_FRIO
+  OTRO
+}
+
+enum TipoMovimientoStock {
+  INGRESO
+  SALIDA
+  TRANSFERENCIA
+}
+
+enum EstadoDocumento {
+  BORRADOR
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+  ANULADO
+}
+
+enum TipoDocumentoAprobacion {
+  SOLICITUD_PEDIDO
+  ORDEN_COMPRA
+}
+
+enum EstadoAprobacionItem {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum TipoGuiaRemision {
+  REMITENTE
+  TRANSPORTISTA
+}
+
+enum EstadoGuiaRemision {
+  EMITIDA
+  ANULADA
+}
+
+enum EstadoEmbarque {
+  PLANIFICADO
+  EN_PROCESO
+  EMBARCADO
+  CERRADO
+}
+
+enum EstadoPackingList {
+  BORRADOR
+  EMITIDO
+  ANULADO
+}
+
+// =========================================================================
+// USUARIOS, ROLES Y PERMISOS
+// =========================================================================
+
+model Usuario {
+  id             String   @id @default(cuid())
+  supabaseAuthId String   @unique
+  nombres        String
+  apellidos      String
+  email          String   @unique
+  telefono       String?
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  asignacionesRol AsignacionRol[]
+  logsAuditoria   LogAuditoria[]
+
+  @@map("usuarios")
+}
+
+model Rol {
+  id          String   @id @default(cuid())
+  nombre      RolNombre @unique
+  descripcion String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  asignaciones     AsignacionRol[]
+  permisos         Permiso[]
+  reglasAprobacion ReglaAprobacion[]
+
+  @@map("roles")
+}
+
+model Permiso {
+  id      String        @id @default(cuid())
+  rolId   String
+  modulo  String // "logistica" | "acopio" | "comex" | "usuarios"
+  accion  AccionPermiso
+
+  rol Rol @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, modulo, accion])
+  @@map("permisos")
+}
+
+model AsignacionRol {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  rolId        String
+  asignadoPorId String?
+  createdAt    DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rol     Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, rolId])
+  @@map("asignaciones_rol")
+}
+
+// =========================================================================
+// PROVEEDORES (insumos y/o fundos proveedores de fruta)
+// =========================================================================
+
+model Proveedor {
+  id               String                 @id @default(cuid())
+  tipoDocumento    TipoDocumentoIdentidad
+  numeroDocumento  String
+  razonSocial      String
+  nombreComercial  String?
+  tipo             TipoProveedor
+  direccion        String?
+  distrito         String?
+  provincia        String?
+  departamento     String?
+  telefono         String?
+  email            String?
+  contactoNombre   String?
+  activo           Boolean                @default(true)
+  creadoPorId      String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  ordenesCompra OrdenCompra[]
+  ingresosFruta IngresoFruta[]
+
+  @@unique([tipoDocumento, numeroDocumento])
+  @@map("proveedores")
+}
+
+// =========================================================================
+// LOGÍSTICA / COMPRAS / ABASTECIMIENTO
+// =========================================================================
+
+model Sku {
+  id           String   @id @default(cuid())
+  codigo       String   @unique
+  descripcion  String
+  categoria    String
+  unidadMedida String // catálogo SUNAT simplificado (KGM, NIU, BX, LTR, ...)
+  tipo         TipoSku
+  stockMinimo  Decimal? @db.Decimal(12, 3)
+  activo       Boolean  @default(true)
+  creadoPorId  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  movimientosStock    MovimientoStock[]
+  solicitudPedidoItem SolicitudPedidoItem[]
+  ordenCompraItem     OrdenCompraItem[]
+  stockCamara         StockCamara[]
+
+  @@map("skus")
+}
+
+model Almacen {
+  id        String      @id @default(cuid())
+  codigo    String      @unique
+  nombre    String
+  tipo      TipoAlmacen
+  ubicacion String?
+  activo    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  movimientosOrigen  MovimientoStock[] @relation("MovimientoOrigen")
+  movimientosDestino MovimientoStock[] @relation("MovimientoDestino")
+  stockCamara        StockCamara[]
+
+  @@map("almacenes")
+}
+
+model MovimientoStock {
+  id                  String              @id @default(cuid())
+  skuId               String
+  almacenOrigenId     String?
+  almacenDestinoId    String?
+  tipo                TipoMovimientoStock
+  cantidad            Decimal             @db.Decimal(12, 3)
+  unidadMedida        String
+  documentoOrigenTipo String? // referencia polimórfica simple, ej. "ORDEN_COMPRA" | "INGRESO_FRUTA"
+  documentoOrigenId   String?
+  fecha               DateTime            @default(now())
+  observaciones       String?
+  creadoPorId         String?
+  createdAt           DateTime            @default(now())
+
+  sku             Sku      @relation(fields: [skuId], references: [id])
+  almacenOrigen   Almacen? @relation("MovimientoOrigen", fields: [almacenOrigenId], references: [id])
+  almacenDestino  Almacen? @relation("MovimientoDestino", fields: [almacenDestinoId], references: [id])
+
+  @@map("movimientos_stock")
+}
+
+model SolicitudPedido {
+  id            String          @id @default(cuid())
+  numero        String          @unique // serie-número interno, ej. SP-0001
+  solicitanteId String?
+  area          String?
+  estado        EstadoDocumento @default(BORRADOR)
+  fecha         DateTime        @default(now())
+  justificacion String?
+  creadoPorId   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  items         SolicitudPedidoItem[]
+  ordenesCompra OrdenCompra[]
+
+  @@map("solicitudes_pedido")
+}
+
+model SolicitudPedidoItem {
+  id                String  @id @default(cuid())
+  solicitudPedidoId String
+  skuId             String
+  cantidad          Decimal @db.Decimal(12, 3)
+  unidadMedida      String
+  observaciones     String?
+
+  solicitudPedido SolicitudPedido @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
+  sku             Sku             @relation(fields: [skuId], references: [id])
+
+  @@map("solicitud_pedido_items")
+}
+
+model OrdenCompra {
+  id                String          @id @default(cuid())
+  numero            String          @unique // serie-número interno, ej. OC-0001
+  proveedorId       String
+  solicitudPedidoId String?
+  estado            EstadoDocumento @default(BORRADOR)
+  fecha             DateTime        @default(now())
+  moneda            String          @default("PEN")
+  montoTotal        Decimal         @default(0) @db.Decimal(12, 2)
+  creadoPorId       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  proveedor       Proveedor        @relation(fields: [proveedorId], references: [id])
+  solicitudPedido SolicitudPedido? @relation(fields: [solicitudPedidoId], references: [id])
+  items           OrdenCompraItem[]
+
+  @@map("ordenes_compra")
+}
+
+model OrdenCompraItem {
+  id             String  @id @default(cuid())
+  ordenCompraId  String
+  skuId          String
+  cantidad       Decimal @db.Decimal(12, 3)
+  precioUnitario Decimal @db.Decimal(12, 2)
+  subtotal       Decimal @db.Decimal(12, 2)
+
+  ordenCompra OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  sku         Sku         @relation(fields: [skuId], references: [id])
+
+  @@map("orden_compra_items")
+}
+
+// =========================================================================
+// APROBACIONES (config + historial, genérico por tipo de documento)
+// =========================================================================
+
+model ReglaAprobacion {
+  id            String                  @id @default(cuid())
+  tipoDocumento TipoDocumentoAprobacion
+  montoUmbral   Decimal?                @db.Decimal(12, 2)
+  rolAprobadorId String
+  orden         Int                     @default(1)
+  activo        Boolean                 @default(true)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  rolAprobador Rol @relation(fields: [rolAprobadorId], references: [id])
+
+  @@map("reglas_aprobacion")
+}
+
+model Aprobacion {
+  id              String                  @id @default(cuid())
+  tipoDocumento   TipoDocumentoAprobacion
+  documentoId     String
+  documentoNumero String?
+  aprobadorId     String?
+  estado          EstadoAprobacionItem    @default(PENDIENTE)
+  comentario      String?
+  fecha           DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([tipoDocumento, documentoId])
+  @@index([aprobadorId, estado])
+  @@map("aprobaciones")
+}
+
+// =========================================================================
+// ACOPIO
+// =========================================================================
+
+model TipoBandeja {
+  id         String   @id @default(cuid())
+  nombre     String   @unique
+  pesoTaraKg Decimal  @db.Decimal(8, 3)
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pallets IngresoFrutaPallet[]
+
+  @@map("tipos_bandeja")
+}
+
+model TipoPallet {
+  id         String   @id @default(cuid())
+  nombre     String   @unique
+  pesoTaraKg Decimal  @db.Decimal(8, 3)
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pallets IngresoFrutaPallet[]
+
+  @@map("tipos_pallet")
+}
+
+model IngresoFruta {
+  id              String          @id @default(cuid())
+  numero          String          @unique // ej. IF-0001
+  proveedorId     String
+  lote            String
+  variedad        String
+  fechaCosecha    DateTime
+  fechaIngreso    DateTime        @default(now())
+  horaIngreso     String?
+  placaTransporte String?
+  observaciones   String?
+  estado          EstadoDocumento @default(BORRADOR)
+  creadoPorId     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  proveedor     Proveedor            @relation(fields: [proveedorId], references: [id])
+  pallets       IngresoFrutaPallet[]
+  guiasRemision GuiaRemision[]
+
+  @@map("ingresos_fruta")
+}
+
+model IngresoFrutaPallet {
+  id               String   @id @default(cuid())
+  ingresoFrutaId   String
+  numeroPallet     Int
+  tipoPalletId     String
+  tipoBandejaId    String
+  cantidadBandejas Int
+  pesoBrutoTotalKg Decimal  @db.Decimal(10, 3)
+  pesoTaraTotalKg  Decimal  @db.Decimal(10, 3)
+  pesoNetoKg       Decimal  @db.Decimal(10, 3)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ingresoFruta  IngresoFruta               @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
+  tipoPallet    TipoPallet                 @relation(fields: [tipoPalletId], references: [id])
+  tipoBandeja   TipoBandeja                @relation(fields: [tipoBandejaId], references: [id])
+  bandejas      IngresoFrutaBandejaPeso[]
+  tarja         Tarja?
+  guiaDetalles  GuiaRemisionDetalle[]
+
+  @@unique([ingresoFrutaId, numeroPallet])
+  @@map("ingreso_fruta_pallets")
+}
+
+model IngresoFrutaBandejaPeso {
+  id            String  @id @default(cuid())
+  palletId      String
+  numeroBandeja Int
+  pesoBrutoKg   Decimal @db.Decimal(8, 3)
+
+  pallet IngresoFrutaPallet @relation(fields: [palletId], references: [id], onDelete: Cascade)
+
+  @@unique([palletId, numeroBandeja])
+  @@map("ingreso_fruta_bandeja_pesos")
+}
+
+model Tarja {
+  id            String   @id @default(cuid())
+  numero        String   @unique // ej. TJ-0001
+  palletId      String   @unique
+  fechaEmision  DateTime @default(now())
+  pdfUrl        String?
+  creadoPorId   String?
+  createdAt     DateTime @default(now())
+
+  pallet IngresoFrutaPallet @relation(fields: [palletId], references: [id])
+
+  @@map("tarjas")
+}
+
+model GuiaRemision {
+  id                     String             @id @default(cuid())
+  serie                  String
+  numero                 String
+  tipoGuia               TipoGuiaRemision
+  motivoTraslado         String
+  fechaTraslado          DateTime
+  puntoPartida           String
+  puntoLlegada           String
+  pesoBrutoTotalKg       Decimal            @db.Decimal(10, 3)
+  unidadMedidaPeso       String             @default("KGM")
+  transportistaRazonSocial String?
+  transportistaDocumento String?
+  placaVehiculo          String?
+  licenciaConductor      String?
+  conductorNombre        String?
+  conductorDocumento     String?
+  ingresoFrutaId         String
+  estado                 EstadoGuiaRemision @default(EMITIDA)
+  pdfUrl                 String?
+  creadoPorId            String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  ingresoFruta IngresoFruta          @relation(fields: [ingresoFrutaId], references: [id])
+  detalles     GuiaRemisionDetalle[]
+
+  @@unique([serie, numero])
+  @@map("guias_remision")
+}
+
+model GuiaRemisionDetalle {
+  id             String  @id @default(cuid())
+  guiaRemisionId String
+  palletId       String
+  descripcion    String?
+  cantidadBultos Int?
+  pesoKg         Decimal @db.Decimal(10, 3)
+
+  guiaRemision GuiaRemision       @relation(fields: [guiaRemisionId], references: [id], onDelete: Cascade)
+  pallet       IngresoFrutaPallet @relation(fields: [palletId], references: [id])
+
+  @@map("guia_remision_detalles")
+}
+
+// =========================================================================
+// COMEX
+// =========================================================================
+
+model FormatoExportacion {
+  id                String   @id @default(cuid())
+  codigo            String   @unique
+  nombre            String // ej. "Clamshell 125g", "6oz", "18oz", "Granel"
+  pesoNetoUnitarioG Decimal? @db.Decimal(10, 2)
+  unidadesPorCaja   Int?
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  stockCamara       StockCamara[]
+  packingListItems  PackingListItem[]
+
+  @@map("formatos_exportacion")
+}
+
+model Cliente {
+  id                         String   @id @default(cuid())
+  razonSocial                String
+  pais                       String?
+  numeroIdentificacionFiscal String?
+  contactoNombre             String?
+  email                      String?
+  telefono                   String?
+  activo                     Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  embarques   Embarque[]
+  stockCamara StockCamara[]
+
+  @@map("clientes")
+}
+
+model StockCamara {
+  id                   String   @id @default(cuid())
+  skuId                String?
+  formatoExportacionId String
+  almacenId            String
+  lote                 String
+  clienteId            String?
+  cantidadDisponible   Decimal  @db.Decimal(12, 3)
+  unidadMedida         String   @default("NIU")
+  fechaIngreso         DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  sku                Sku?               @relation(fields: [skuId], references: [id])
+  formatoExportacion FormatoExportacion @relation(fields: [formatoExportacionId], references: [id])
+  almacen            Almacen            @relation(fields: [almacenId], references: [id])
+  cliente            Cliente?           @relation(fields: [clienteId], references: [id])
+
+  @@index([formatoExportacionId, lote])
+  @@map("stock_camara")
+}
+
+model Embarque {
+  id            String         @id @default(cuid())
+  numero        String         @unique // ej. EMB-0001
+  fechaEmbarque DateTime?
+  contenedor    String?
+  naviera       String?
+  destinoPais   String?
+  destinoPuerto String?
+  clienteId     String?
+  estado        EstadoEmbarque @default(PLANIFICADO)
+  creadoPorId   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  cliente      Cliente?      @relation(fields: [clienteId], references: [id])
+  packingLists PackingList[]
+
+  @@map("embarques")
+}
+
+model PackingList {
+  id           String            @id @default(cuid())
+  numero       String            @unique // ej. PL-0001
+  embarqueId   String
+  fechaEmision DateTime          @default(now())
+  pdfUrl       String?
+  estado       EstadoPackingList @default(BORRADOR)
+  creadoPorId  String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  embarque Embarque          @relation(fields: [embarqueId], references: [id])
+  items    PackingListItem[]
+
+  @@map("packing_lists")
+}
+
+model PackingListItem {
+  id                   String  @id @default(cuid())
+  packingListId        String
+  formatoExportacionId String
+  lote                 String?
+  numeroPallet         String?
+  cantidadCajas        Int
+  pesoNetoKg           Decimal @db.Decimal(10, 3)
+  pesoBrutoKg          Decimal @db.Decimal(10, 3)
+
+  packingList        PackingList        @relation(fields: [packingListId], references: [id], onDelete: Cascade)
+  formatoExportacion FormatoExportacion @relation(fields: [formatoExportacionId], references: [id])
+
+  @@map("packing_list_items")
+}
+
+// =========================================================================
+// AUDITORÍA
+// =========================================================================
+
+model LogAuditoria {
+  id             String   @id @default(cuid())
+  usuarioId      String?
+  accion         String // ej. "CREAR" | "EDITAR" | "APROBAR" | "RECHAZAR" | "ANULAR"
+  entidad        String // nombre del modelo afectado
+  entidadId      String
+  valoresAntes   Json?
+  valoresDespues Json?
+  fecha          DateTime @default(now())
+  ipAddress      String?
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidad, entidadId])
+  @@map("logs_auditoria")
+}

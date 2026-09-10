@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    env:
+      # El build de Next.js necesita poder generar el cliente de Prisma y
+      # tipar el código contra `@prisma/client`, pero no necesita una base
+      # de datos real (no se ejecutan migraciones en este workflow).
+      DATABASE_URL: "postgresql://user:password@localhost:5432/placeholder"
+      DIRECT_URL: "postgresql://user:password@localhost:5432/placeholder"
+      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key"
+      SUPABASE_SERVICE_ROLE_KEY: "placeholder-service-role-key"
+      NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET: "documentos"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Verificar tipos
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
