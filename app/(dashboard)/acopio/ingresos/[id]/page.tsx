@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Boxes } from "lucide-react";
+import { ArrowLeft, Boxes, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +66,17 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
       <PageHeader
         titulo={`Ingreso ${ingreso.numero}`}
         descripcion="Detalle del camión y sus líneas de pesaje."
-        acciones={<Badge variant={ESTADO_VARIANT[ingreso.estado]}>{ESTADO_LABEL[ingreso.estado]}</Badge>}
+        acciones={
+          <div className="flex items-center gap-2">
+            <Badge variant={ESTADO_VARIANT[ingreso.estado]}>{ESTADO_LABEL[ingreso.estado]}</Badge>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/acopio/ingresos/${ingreso.id}/editar`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Link>
+            </Button>
+          </div>
+        }
       />
 
       <Card className="mb-6">

@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatKg } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
-import { crearIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
+import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
 import { MODULOS_ACOPIO, VARIEDADES_POR_MODULO } from "@/lib/constants/modulos";
 
@@ -67,15 +67,25 @@ export function IngresoFrutaForm({
   tiposBandeja,
   tiposPallet,
   palletsAbiertos,
+  edicion,
 }: {
   proveedores: ProveedorOption[];
   tiposBandeja: TipoBandejaOption[];
   tiposPallet: TipoPalletOption[];
   palletsAbiertos: PalletAbierto[];
+  /** Presente solo cuando el formulario edita un ingreso ya existente. */
+  edicion?: {
+    ingresoId: string;
+    valoresIniciales: IngresoFrutaInput;
+    /** bandejas que este mismo ingreso ya aportaba a cada pallet (para
+     * "liberar" ese espacio en el cálculo de capacidad mientras se edita). */
+    contribucionOriginalPorPallet: Record<string, number>;
+  };
 }) {
   const router = useRouter();
   const taraPorTipo = new Map(tiposBandeja.map((t) => [t.id, Number(t.pesoTaraKg)]));
   const taraPorTipoPallet = new Map(tiposPallet.map((t) => [t.id, Number(t.pesoTaraKg)]));
+  const contribucionOriginal = edicion?.contribucionOriginalPorPallet ?? {};
 
   const [palletsNuevos, setPalletsNuevos] = useState<PalletNuevo[]>([]);
   const [lineaDialogoAbierto, setLineaDialogoAbierto] = useState<number | null>(null);
@@ -83,7 +93,7 @@ export function IngresoFrutaForm({
 
   const form = useForm<IngresoFrutaInput>({
     resolver: zodResolver(ingresoFrutaSchema),
-    defaultValues: {
+    defaultValues: edicion?.valoresIniciales ?? {
       proveedorId: "",
       // El <input type="date"> trabaja con un string "YYYY-MM-DD" en la fecha
       // LOCAL del navegador (toISOString() da la fecha en UTC, que puede caer
@@ -174,13 +184,20 @@ export function IngresoFrutaForm({
   }, [form.formState.errors.pallets]);
 
   async function onSubmit(data: IngresoFrutaInput) {
-    const resultado = await crearIngresoFrutaAction(data);
+    const resultado = edicion
+      ? await actualizarIngresoFrutaAction(edicion.ingresoId, data)
+      : await crearIngresoFrutaAction(data);
     if (resultado?.error) {
       toast.error(resultado.error);
       return;
     }
-    toast.success("Ingreso de materia prima registrado");
-    router.push("/acopio/ingresos");
+    if (edicion) {
+      toast.success("Ingreso actualizado");
+      router.push(`/acopio/ingresos/${edicion.ingresoId}`);
+    } else {
+      toast.success("Ingreso de materia prima registrado");
+      router.push("/acopio/ingresos");
+    }
   }
 
   // Opciones disponibles para el diálogo de "asignar a pallet existente":
@@ -192,8 +209,14 @@ export function IngresoFrutaForm({
         abiertos: palletsAbiertos
           .map((p) => ({
             ...p,
+            // Se suma de vuelta lo que este mismo ingreso ya le había
+            // aportado a este pallet: mientras se edita, ese espacio está
+            // "liberado" hasta que se guarde de nuevo.
             restante:
-              CAPACIDAD_MAXIMA - p.cantidadBandejas - bandejasAsignadasEnFormulario(`existente:${p.id}`, lineaDialogoAbierto),
+              CAPACIDAD_MAXIMA -
+              p.cantidadBandejas +
+              (contribucionOriginal[p.id] ?? 0) -
+              bandejasAsignadasEnFormulario(`existente:${p.id}`, lineaDialogoAbierto),
           }))
           .filter((p) => p.restante > 0),
         nuevos: palletsNuevos
@@ -596,7 +619,7 @@ export function IngresoFrutaForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : "Registrar ingreso"}
+          {form.formState.isSubmitting ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar ingreso"}
         </Button>
       </div>
     </form>

@@ -416,3 +416,42 @@ action como función directa en vez de `<form action={...}>`, como este y cualqu
 con arreglos dinámicos): la action nunca debe llamar `redirect()` — debe devolver un estado de
 éxito/error, y la navegación posterior a un éxito la hace el componente cliente con
 `useRouter().push(...)`.
+
+## 21. Editar un Ingreso: revertir y volver a aplicar contra los pallets, no solo actualizar la línea
+
+El usuario pidió poder volver a entrar a un ingreso ya guardado y editarlo (cabecera y líneas de
+pesaje), no solo verlo. Lo delicado no es la cabecera (campos simples) sino las líneas: cada una ya
+había sumado sus bandejas/pesos al `Pallet` físico que tiene asignado, con esos totales
+denormalizados (sección 13) usados también para generar la tarja. Sobrescribir la línea sin tocar
+esos totales los habría dejado desincronizados.
+
+- **`actualizarIngresoFrutaAction`** (nueva, en `lib/actions/ingreso-fruta-actions.ts`) hace, dentro
+  de una sola transacción: (1) revierte la contribución de cada línea **anterior** en su pallet
+  (`decrement` de bandejas/bruto/tara/neto, recalcula `estado`), (2) borra esas líneas viejas, (3)
+  valida capacidad de los pallets existentes **contra su estado ya revertido** (si la edición vuelve
+  a usar el mismo pallet, el espacio que ella misma liberó en el paso 1 ya cuenta como disponible),
+  (4) crea pallets nuevos / incrementa los existentes y crea las líneas nuevas — mismo patrón que
+  `crearIngresoFrutaAction`, factorizado en helpers compartidos (`calcularLineas`, `agruparPorDestino`,
+  `sumar`, `datosLineaCrear`) para no duplicar la lógica de cálculo de tara/neto y agrupamiento por
+  pallet. Los errores de validación se lanzan como `ErrorValidacion` dentro del callback de la
+  transacción (Prisma hace rollback automático) y se capturan afuera para devolver el mensaje.
+- **El formulario es el mismo componente que "Nuevo ingreso"** (`IngresoFrutaForm`), con una prop
+  opcional `edicion` (`ingresoId`, `valoresIniciales`, `contribucionOriginalPorPallet`). En modo
+  edición, cada línea arranca con `palletAsignado: "existente:<idReal>"` (no hay pallets "nuevos"
+  temporales al cargar). El diálogo de "asignar a pallet existente" necesita saber cuánto le había
+  aportado **este mismo ingreso** a cada pallet para calcular bien la capacidad disponible mientras
+  se edita — sin eso, un pallet que este ingreso dejó en 240/240 se vería con 0 de espacio aunque se
+  esté reduciendo su propia línea. `contribucionOriginalPorPallet` (sumado por pallet, por si dos
+  líneas del mismo ingreso apuntaban al mismo pallet) se sube de vuelta en el cálculo de "restante".
+- La página `app/(dashboard)/acopio/ingresos/[id]/editar/page.tsx` arma `palletsAbiertos` como la
+  unión de los pallets `ABIERTO` en BD **más** los pallets que este ingreso ya usa aunque estén
+  `CERRADO` por su propia culpa — si no se incluyen, el formulario no podría mostrarle al usuario a
+  qué pallet está asignada cada línea existente.
+- Como la tarja (sección 18) se genera al vuelo desde los datos vivos del pallet, no se
+  pre-renderiza ni se guarda, **una tarja ya impresa queda desactualizada automáticamente si se
+  edita una línea que aporta a ese pallet** — la próxima vez que alguien abra el PDF verá los datos
+  nuevos. No se bloqueó la edición de líneas que ya tienen tarja generada; queda como algo a
+  reconsiderar si en el futuro se necesita "sellar" un pallet una vez impresa su etiqueta.
+- Probado end-to-end con Playwright contra datos reales: precarga de un ingreso con una línea de
+  200 bandejas, edición a 150, guardado, y verificación directa en base de datos de que el pallet
+  quedó en `cantidadBandejas=150`, `pesoNetoKg` recalculado y `estado` correcto.
