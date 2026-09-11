@@ -334,6 +334,8 @@ neto.
   end-to-end con Playwright (crear tarja → descargar PDF → verificar contenido) contra datos reales
   antes de darlo por bueno.
 
+## 19. Entorno de desarrollo usado para este scaffold
+
 El scaffold se escribió a mano, archivo por archivo (incluidos los tres CRUD de referencia y las
 páginas placeholder, generados por agentes siguiendo ese mismo patrón), en una máquina que
 inicialmente **no tenía Node.js ni Git instalados**. Una vez instalados ambos, se corrió la
@@ -388,3 +390,29 @@ Next, no el `postcss` de nivel raíz de este proyecto, y solo se resuelve saltan
 vector de explotación (procesar CSS con comentarios `sourceMappingURL` maliciosos durante el build)
 no aplica al tráfico HTTP normal de la aplicación en producción. Se documenta aquí para que quede
 trazado y se revise junto con la eventual migración a Next 16.
+
+## 20. Server action que hace `redirect()` invocada como función directa: se queda colgada
+
+Al probar "Registrar ingreso" en el navegador, el botón se quedaba en "Guardando..." sin avanzar
+nunca (reproducido con Playwright: el mismo escenario, mismo resultado). `crearIngresoFrutaAction`
+terminaba con `redirect("/acopio/ingresos")` del lado del servidor — un patrón que funciona bien
+cuando la action es el `action` de un `<form>`, pero acá se invoca como una función `async` normal
+dentro de un `onSubmit` manual (porque el formulario necesita mandar datos estructurados —
+cabecera + arreglo de líneas — no `FormData` plano). Invocada así, el `redirect()` interno no se
+propaga como navegación del lado del cliente; la promesa de la llamada a la action nunca se resuelve
+de forma limpia para el código que la espera.
+
+Arreglo: la action ya no llama `redirect()` — solo hace `revalidatePath` y devuelve
+`{ success: true }`; el componente cliente (que ya tenía el código para eso) hace
+`router.push("/acopio/ingresos")` él mismo al recibir una respuesta exitosa. Confirmado con
+Playwright esperando explícitamente la navegación (`waitForURL`) en vez de un `waitForTimeout` fijo
+— la primera vuelta de la prueba tenía un timeout corto y por eso parecía que seguía "colgado"
+cuando en realidad el POST ya había completado, solo que la recompilación en modo desarrollo de la
+ruta de destino tomaba unos segundos más (no ocurre en producción, donde las rutas ya están
+compiladas).
+
+**Regla para el resto de los formularios de "envío estructurado"** (los que llaman a su server
+action como función directa en vez de `<form action={...}>`, como este y cualquier futuro formulario
+con arreglos dinámicos): la action nunca debe llamar `redirect()` — debe devolver un estado de
+éxito/error, y la navegación posterior a un éxito la hace el componente cliente con
+`useRouter().push(...)`.

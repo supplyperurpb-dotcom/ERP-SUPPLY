@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
@@ -210,5 +209,5 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
   });
 
   revalidatePath("/acopio/ingresos");
-  redirect("/acopio/ingresos");
+  return { success: true };
 }
