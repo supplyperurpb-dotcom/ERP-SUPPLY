@@ -15,6 +15,9 @@ export const palletFormSchema = z.object({
   turno: z.string().min(1, "El turno es obligatorio").max(50),
   variedad: z.string().min(1, "La variedad es obligatoria").max(50),
   tipoBandejaId: z.string().min(1, "Selecciona el tipo de bandeja"),
+  // Opcional: algunas líneas se pesan sin parihuela/pallet físico debajo. Si
+  // se indica, su tara también se descuenta del peso neto.
+  tipoPalletId: z.string().optional().or(z.literal("")),
   cantidadBandejas: z.coerce
     .number({ invalid_type_error: "Ingresa la cantidad de bandejas" })
     .int("Debe ser un número entero")

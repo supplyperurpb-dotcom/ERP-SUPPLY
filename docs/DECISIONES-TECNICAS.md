@@ -225,7 +225,42 @@ de camiones distintos, en entregas separadas).
 - No se construyó una página de listado de `Pallet` en esta vuelta (no se pidió); el único punto de
   visibilidad hoy es el diálogo de asignación dentro de "Nuevo ingreso".
 
-## 14. Entorno de desarrollo usado para este scaffold
+## 14. Catálogo de taras corregido, tara de pallet opcional en el cálculo de neto
+
+El catálogo inicial (sembrado por `prisma/seed.ts`) tenía datos de ejemplo genéricos ("Jaba
+plástica estándar" 0.65 kg, "Parihuela madera estándar" 22 kg). El usuario dio los valores reales:
+
+- `TipoBandeja`: **Bandeja Plástica Blanca** (0.285 kg) y **Jaba Plástica** (1.4 kg) — reemplazan a
+  la jaba genérica.
+- `TipoPallet`: se agregó **Pallet Plástico Azul** (18.5 kg) junto a la parihuela de madera ya
+  existente (esa no se pidió quitar).
+
+Como todavía no había ningún `IngresoFruta`/`Pallet` real en la base de datos (se verificó antes de
+tocar nada), la corrección se aplicó directo con un script puntual de Prisma contra la base real, y
+`seed.ts` se actualizó para que coincida en instalaciones nuevas.
+
+Además, el usuario aclaró que **algunas líneas se pesan sobre una parihuela/pallet físico y otras
+no** ("hay pallets que se pesan sin pallet"), así que el selector de `TipoPallet` por línea (el
+campo `tipoPalletId`, ya opcional en el modelo desde la primera vuelta de Acopio) se expuso por fin
+en el formulario de "Nuevo ingreso" como una casilla opcional ("Sin pallet" por defecto). Cuando se
+elige uno, su tara se suma a la de las bandejas en el cálculo de peso neto:
+`peso neto = peso bruto − (cantidad de bandejas × tara de bandeja) − tara del pallet (si se eligió uno)`.
+
+## 15. Bug de estabilidad: `require()` en `tailwind.config.ts` tumbaba el servidor de desarrollo
+
+Se detectó que `next dev` podía morir espontáneamente con `ReferenceError: require is not defined`
+apuntando a `tailwind.config.ts:61` (`plugins: [require("tailwindcss-animate")]`). El archivo usa
+`export default`, así que en este toolchain (Next 15.5.25 + Node 24) se carga por una ruta ESM
+(`ModuleLoader.importSyncForRequire`) donde `require` no está disponible como global — a diferencia
+de un `tailwind.config.js` en CommonJS clásico, donde sí lo estaría. Curiosamente `npm run build`
+nunca lo disparó (la ruta de carga en el build de producción es distinta); solo aparecía en `next
+dev`, de forma intermitente, cuando PostCSS necesitaba releer la config de Tailwind.
+
+Fix: reemplazar el `require()` por un `import tailwindcssAnimate from "tailwindcss-animate"` normal
+al inicio del archivo. Si en el futuro se agregan más plugins de Tailwind en este archivo, deben
+importarse igual (nunca con `require`).
+
+## 16. Entorno de desarrollo usado para este scaffold
 
 El scaffold se escribió a mano, archivo por archivo (incluidos los tres CRUD de referencia y las
 páginas placeholder, generados por agentes siguiendo ese mismo patrón), en una máquina que

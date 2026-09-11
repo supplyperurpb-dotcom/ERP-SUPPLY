@@ -15,6 +15,7 @@ type LineaCalculada = {
   turno: string;
   variedad: string;
   tipoBandejaId: string;
+  tipoPalletId: string | null;
   cantidadBandejas: number;
   pesoBrutoTotalKg: number;
   pesoTaraTotalKg: number;
@@ -31,25 +32,38 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
   const tiposBandeja = await prisma.tipoBandeja.findMany({
     where: { id: { in: parsed.data.pallets.map((p) => p.tipoBandejaId) } },
   });
-  const taraPorTipo = new Map(tiposBandeja.map((t) => [t.id, Number(t.pesoTaraKg)]));
+  const taraPorTipoBandeja = new Map(tiposBandeja.map((t) => [t.id, Number(t.pesoTaraKg)]));
+
+  const idsTipoPallet = parsed.data.pallets.map((p) => p.tipoPalletId).filter((id): id is string => !!id);
+  const tiposPallet = idsTipoPallet.length
+    ? await prisma.tipoPallet.findMany({ where: { id: { in: idsTipoPallet } } })
+    : [];
+  const taraPorTipoPallet = new Map(tiposPallet.map((t) => [t.id, Number(t.pesoTaraKg)]));
 
   for (const linea of parsed.data.pallets) {
-    if (!taraPorTipo.has(linea.tipoBandejaId)) {
+    if (!taraPorTipoBandeja.has(linea.tipoBandejaId)) {
       return { error: "Uno de los tipos de bandeja seleccionados ya no existe. Actualiza la página e intenta de nuevo." };
+    }
+    if (linea.tipoPalletId && !taraPorTipoPallet.has(linea.tipoPalletId)) {
+      return { error: "Uno de los tipos de pallet seleccionados ya no existe. Actualiza la página e intenta de nuevo." };
     }
   }
 
-  // Peso neto por línea = peso bruto - (cantidad de bandejas × tara de la
-  // bandeja según el catálogo). No se descuenta tara de pallet: este flujo
-  // no la usa.
+  // Peso neto por línea = peso bruto - tara de las bandejas (cantidad ×
+  // tara del catálogo) - tara del pallet/parihuela si se pesó con uno
+  // (algunas líneas se pesan sin pallet físico debajo, de ahí que sea
+  // opcional).
   const lineasCalculadas: LineaCalculada[] = parsed.data.pallets.map((linea, index) => {
-    const pesoTaraTotalKg = linea.cantidadBandejas * (taraPorTipo.get(linea.tipoBandejaId) ?? 0);
+    const taraBandejas = linea.cantidadBandejas * (taraPorTipoBandeja.get(linea.tipoBandejaId) ?? 0);
+    const taraPallet = linea.tipoPalletId ? taraPorTipoPallet.get(linea.tipoPalletId) ?? 0 : 0;
+    const pesoTaraTotalKg = taraBandejas + taraPallet;
     return {
       numeroPallet: index + 1,
       modulo: linea.modulo,
       turno: linea.turno,
       variedad: linea.variedad,
       tipoBandejaId: linea.tipoBandejaId,
+      tipoPalletId: linea.tipoPalletId || null,
       cantidadBandejas: linea.cantidadBandejas,
       pesoBrutoTotalKg: linea.pesoBrutoTotalKg,
       pesoTaraTotalKg,
@@ -184,6 +198,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
               turno: linea.turno,
               variedad: linea.variedad,
               tipoBandejaId: linea.tipoBandejaId,
+              tipoPalletId: linea.tipoPalletId,
               cantidadBandejas: linea.cantidadBandejas,
               pesoBrutoTotalKg: linea.pesoBrutoTotalKg,
               pesoTaraTotalKg: linea.pesoTaraTotalKg,

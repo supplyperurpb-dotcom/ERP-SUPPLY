@@ -29,14 +29,20 @@ import { MODULOS_ACOPIO, VARIEDADES_POR_MODULO } from "@/lib/constants/modulos";
 
 type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
+type TipoPalletOption = { id: string; nombre: string; pesoTaraKg: string };
 type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
 type PalletNuevo = { tempId: string; etiqueta: string };
+
+// Radix Select no permite un SelectItem con value="" (lo reserva para el
+// placeholder), así que se usa este sentinel para representar "sin pallet".
+const SIN_PALLET = "__sin_pallet__";
 
 const LINEA_VACIA = {
   modulo: "",
   turno: "",
   variedad: "",
   tipoBandejaId: "",
+  tipoPalletId: "",
   cantidadBandejas: 0,
   pesoBrutoTotalKg: 0,
   palletAsignado: "",
@@ -45,14 +51,17 @@ const LINEA_VACIA = {
 export function IngresoFrutaForm({
   proveedores,
   tiposBandeja,
+  tiposPallet,
   palletsAbiertos,
 }: {
   proveedores: ProveedorOption[];
   tiposBandeja: TipoBandejaOption[];
+  tiposPallet: TipoPalletOption[];
   palletsAbiertos: PalletAbierto[];
 }) {
   const router = useRouter();
   const taraPorTipo = new Map(tiposBandeja.map((t) => [t.id, Number(t.pesoTaraKg)]));
+  const taraPorTipoPallet = new Map(tiposPallet.map((t) => [t.id, Number(t.pesoTaraKg)]));
 
   const [palletsNuevos, setPalletsNuevos] = useState<PalletNuevo[]>([]);
   const [lineaDialogoAbierto, setLineaDialogoAbierto] = useState<number | null>(null);
@@ -75,9 +84,10 @@ export function IngresoFrutaForm({
 
   const filasCalculadas = pallets.map((pallet) => {
     const taraUnitaria = taraPorTipo.get(pallet?.tipoBandejaId ?? "") ?? 0;
+    const taraPallet = pallet?.tipoPalletId ? taraPorTipoPallet.get(pallet.tipoPalletId) ?? 0 : 0;
     const cantidad = Number(pallet?.cantidadBandejas) || 0;
     const pesoBruto = Number(pallet?.pesoBrutoTotalKg) || 0;
-    const pesoTara = cantidad * taraUnitaria;
+    const pesoTara = cantidad * taraUnitaria + taraPallet;
     const pesoNeto = pesoBruto - pesoTara;
     return { pesoTara, pesoNeto };
   });
@@ -347,7 +357,7 @@ export function IngresoFrutaForm({
 
                 <Separator className="my-3" />
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                   <div className="space-y-1 sm:col-span-2">
                     <Label className="text-xs">Tipo de bandeja</Label>
                     <Controller
@@ -373,6 +383,31 @@ export function IngresoFrutaForm({
                         {form.formState.errors.pallets[index]?.tipoBandejaId?.message}
                       </p>
                     )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo de pallet (opcional)</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.tipoPalletId`}
+                      render={({ field: selectField }) => (
+                        <Select
+                          value={selectField.value || SIN_PALLET}
+                          onValueChange={(valor) => selectField.onChange(valor === SIN_PALLET ? "" : valor)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sin pallet" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SIN_PALLET}>Sin pallet</SelectItem>
+                            {tiposPallet.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Cant. bandejas</Label>

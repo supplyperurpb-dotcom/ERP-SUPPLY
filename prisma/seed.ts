@@ -12,15 +12,27 @@ async function main() {
   }
 
   await prisma.tipoBandeja.upsert({
-    where: { nombre: "Jaba plástica estándar" },
+    where: { nombre: "Bandeja Plástica Blanca" },
     update: {},
-    create: { nombre: "Jaba plástica estándar", pesoTaraKg: 0.65 },
+    create: { nombre: "Bandeja Plástica Blanca", pesoTaraKg: 0.285 },
+  });
+
+  await prisma.tipoBandeja.upsert({
+    where: { nombre: "Jaba Plástica" },
+    update: {},
+    create: { nombre: "Jaba Plástica", pesoTaraKg: 1.4 },
   });
 
   await prisma.tipoPallet.upsert({
     where: { nombre: "Parihuela madera estándar" },
     update: {},
     create: { nombre: "Parihuela madera estándar", pesoTaraKg: 22 },
+  });
+
+  await prisma.tipoPallet.upsert({
+    where: { nombre: "Pallet Plástico Azul" },
+    update: {},
+    create: { nombre: "Pallet Plástico Azul", pesoTaraKg: 18.5 },
   });
 
   await prisma.formatoExportacion.upsert({
