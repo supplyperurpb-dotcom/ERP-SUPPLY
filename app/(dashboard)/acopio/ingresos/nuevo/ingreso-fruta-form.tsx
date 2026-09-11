@@ -25,6 +25,7 @@ import { formatKg } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
+import { MODULOS_ACOPIO, VARIEDADES_POR_MODULO } from "@/lib/constants/modulos";
 
 type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
@@ -264,7 +265,34 @@ export function IngresoFrutaForm({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Módulo</Label>
-                    <Input placeholder="Ej. Módulo 3" {...form.register(`pallets.${index}.modulo`)} />
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.modulo`}
+                      render={({ field: selectField }) => (
+                        <Select
+                          value={selectField.value}
+                          onValueChange={(valor) => {
+                            selectField.onChange(valor);
+                            const variedadActual = form.getValues(`pallets.${index}.variedad`);
+                            const opciones = VARIEDADES_POR_MODULO[valor] ?? [];
+                            if (!opciones.includes(variedadActual)) {
+                              form.setValue(`pallets.${index}.variedad`, "", { shouldValidate: true });
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MODULOS_ACOPIO.map((m) => (
+                              <SelectItem key={m} value={m}>
+                                {m}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                     {form.formState.errors.pallets?.[index]?.modulo && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.modulo?.message}
@@ -282,7 +310,33 @@ export function IngresoFrutaForm({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Variedad</Label>
-                    <Input placeholder="Ej. Biloxi" {...form.register(`pallets.${index}.variedad`)} />
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.variedad`}
+                      render={({ field: selectField }) => {
+                        const opciones = VARIEDADES_POR_MODULO[pallets[index]?.modulo ?? ""] ?? [];
+                        return (
+                          <Select
+                            value={selectField.value}
+                            onValueChange={selectField.onChange}
+                            disabled={opciones.length === 0}
+                          >
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={opciones.length === 0 ? "Elige un módulo primero" : "Selecciona..."}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {opciones.map((v) => (
+                                <SelectItem key={v} value={v}>
+                                  {v}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }}
+                    />
                     {form.formState.errors.pallets?.[index]?.variedad && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.variedad?.message}
