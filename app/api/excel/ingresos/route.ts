@@ -12,6 +12,14 @@ const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   ANULADO: "Anulado",
 };
 
+// El "proveedor" del modelo Proveedor es, en este flujo, el fundo de origen
+// de la fruta (ej. "Achirana Blue"), no una empresa externa — el productor
+// real es siempre REITER PERUVIAN BERRY SA. Se muestra fijo solo en el
+// Excel (no hay nada que elegir por ingreso, así que no se agrega un campo
+// al formulario de Ingresos para esto).
+const PRODUCTOR = "REITER PERUVIAN BERRY SA";
+const RUC_PRODUCTOR = "20610390341";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const desde = searchParams.get("desde") ?? undefined;
@@ -33,8 +41,9 @@ export async function GET(request: Request) {
 
   type Fila = {
     "Número de ingreso": string;
-    "Proveedor / Fundo": string;
-    "Doc. proveedor": string;
+    Productor: string;
+    RUC: string;
+    Fundo: string;
     Placa: string;
     "Fecha de cosecha": string;
     "Fecha de ingreso": string;
@@ -56,12 +65,12 @@ export async function GET(request: Request) {
   const filas: Fila[] = [];
 
   for (const ingreso of ingresos) {
-    const docProveedor = `${ingreso.proveedor.tipoDocumento} ${ingreso.proveedor.numeroDocumento}`;
     if (ingreso.pallets.length === 0) {
       filas.push({
         "Número de ingreso": ingreso.numero,
-        "Proveedor / Fundo": ingreso.proveedor.razonSocial,
-        "Doc. proveedor": docProveedor,
+        Productor: PRODUCTOR,
+        RUC: RUC_PRODUCTOR,
+        Fundo: ingreso.proveedor.razonSocial,
         Placa: ingreso.placaTransporte ?? "",
         "Fecha de cosecha": formatDate(ingreso.fechaCosecha),
         "Fecha de ingreso": formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" }),
@@ -85,8 +94,9 @@ export async function GET(request: Request) {
     for (const linea of ingreso.pallets) {
       filas.push({
         "Número de ingreso": ingreso.numero,
-        "Proveedor / Fundo": ingreso.proveedor.razonSocial,
-        "Doc. proveedor": docProveedor,
+        Productor: PRODUCTOR,
+        RUC: RUC_PRODUCTOR,
+        Fundo: ingreso.proveedor.razonSocial,
         Placa: ingreso.placaTransporte ?? "",
         "Fecha de cosecha": formatDate(ingreso.fechaCosecha),
         "Fecha de ingreso": formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" }),
@@ -110,8 +120,9 @@ export async function GET(request: Request) {
   const hoja = XLSX.utils.json_to_sheet(filas);
   hoja["!cols"] = [
     { wch: 16 }, // Número de ingreso
-    { wch: 28 }, // Proveedor / Fundo
-    { wch: 16 }, // Doc. proveedor
+    { wch: 26 }, // Productor
+    { wch: 14 }, // RUC
+    { wch: 20 }, // Fundo
     { wch: 10 }, // Placa
     { wch: 14 }, // Fecha de cosecha
     { wch: 14 }, // Fecha de ingreso

@@ -579,3 +579,25 @@ seleccionada en el formulario (eligiendo 11/09/2026, se veía 10/09/2026). Causa
   a `2026-09-11T00:00:00Z`, hoy en el momento de la prueba): tanto la vista de detalle como el Excel
   exportado muestran `11/09/2026`, no `10/09/2026`. Usuario de prueba y el registro creado se
   eliminaron después.
+
+## 25. Excel de Ingresos: "Productor" y "RUC" fijos (REITER), la columna "Proveedor" en realidad es el fundo
+
+El usuario aclaró que el modelo `Proveedor` no representa un proveedor externo en este flujo: es el
+**fundo** de origen de la fruta (ej. "Achirana Blue"), y el RUC que traía la columna `Doc. proveedor`
+(el del fundo) no es el dato que importa en el documento — el productor real, para efectos del
+Excel, siempre es **REITER PERUVIAN BERRY SA** (RUC `20610390341`), la empresa dueña de este
+sistema.
+
+Cambios solo en `app/api/excel/ingresos/route.ts` (no se tocó el modelo `Proveedor` ni el formulario
+de Ingresos — "Productor" y "RUC" son un dato fijo de la empresa, no algo que varíe por ingreso, así
+que no tiene sentido un selector para esto):
+
+- Columna `Proveedor / Fundo` → renombrada a **`Fundo`** (mismo dato: `ingreso.proveedor.razonSocial`).
+- Columna `Doc. proveedor` (RUC/DNI del fundo) → **eliminada**.
+- Dos columnas nuevas, con valor constante en cada fila: **`Productor`** (`"REITER PERUVIAN BERRY
+  SA"`) y **`RUC`** (`"20610390341"`), definidas como constantes al inicio del archivo
+  (`PRODUCTOR`, `RUC_PRODUCTOR`) — mismo patrón de nombre de empresa hardcodeado que ya existía en
+  `lib/pdf/tarja-pdf.ts` y `lib/pdf/documento-base.ts` (sección 18).
+- Verificado con Playwright + `xlsx`: se descargó el Excel real contra la base de datos actual y se
+  confirmó que las columnas `Productor`/`RUC`/`Fundo` existen con los valores esperados en todas las
+  filas, y que las columnas viejas (`Proveedor / Fundo`, `Doc. proveedor`) ya no aparecen.
