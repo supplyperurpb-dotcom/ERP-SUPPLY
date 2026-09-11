@@ -363,43 +363,6 @@ export function IngresoFrutaForm({
                     )}
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Turno</Label>
-                    <Controller
-                      control={form.control}
-                      name={`pallets.${index}.turno`}
-                      render={({ field: selectField }) => {
-                        const opciones =
-                          TURNOS_POR_MODULO_VARIEDAD[pallets[index]?.modulo ?? ""]?.[pallets[index]?.variedad ?? ""] ??
-                          [];
-                        return (
-                          <Select
-                            value={selectField.value}
-                            onValueChange={selectField.onChange}
-                            disabled={opciones.length === 0}
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={opciones.length === 0 ? "Elige módulo y variedad primero" : "Selecciona..."}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {opciones.map((t) => (
-                                <SelectItem key={t} value={t}>
-                                  {t}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        );
-                      }}
-                    />
-                    {form.formState.errors.pallets?.[index]?.turno && (
-                      <p className="text-xs font-medium text-destructive">
-                        {form.formState.errors.pallets[index]?.turno?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-1">
                     <Label className="text-xs">Variedad</Label>
                     <Controller
                       control={form.control}
@@ -438,6 +401,43 @@ export function IngresoFrutaForm({
                     {form.formState.errors.pallets?.[index]?.variedad && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.variedad?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Turno</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.turno`}
+                      render={({ field: selectField }) => {
+                        const opciones =
+                          TURNOS_POR_MODULO_VARIEDAD[pallets[index]?.modulo ?? ""]?.[pallets[index]?.variedad ?? ""] ??
+                          [];
+                        return (
+                          <Select
+                            value={selectField.value}
+                            onValueChange={selectField.onChange}
+                            disabled={opciones.length === 0}
+                          >
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={opciones.length === 0 ? "Elige módulo y variedad primero" : "Selecciona..."}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {opciones.map((t) => (
+                                <SelectItem key={t} value={t}>
+                                  {t}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }}
+                    />
+                    {form.formState.errors.pallets?.[index]?.turno && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.turno?.message}
                       </p>
                     )}
                   </div>
