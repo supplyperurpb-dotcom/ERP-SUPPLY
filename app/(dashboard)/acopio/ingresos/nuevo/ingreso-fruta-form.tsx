@@ -149,6 +149,23 @@ export function IngresoFrutaForm({
     setLineaDialogoAbierto(null);
   }
 
+  // "Cambiar" quita la asignación de esta línea. Si esa línea era la única
+  // que apuntaba a un pallet nuevo (creado con "Crear pallet nuevo" pero
+  // recién) el pallet temporal se descarta en vez de quedar huérfano en la
+  // lista de "nuevos en este formulario".
+  function quitarAsignacion(index: number) {
+    const valorActual = pallets[index]?.palletAsignado;
+    form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true });
+
+    if (valorActual?.startsWith("nuevo:")) {
+      const tempId = valorActual.slice("nuevo:".length);
+      const otraLineaLoUsa = pallets.some((p, i) => i !== index && p?.palletAsignado === valorActual);
+      if (!otraLineaLoUsa) {
+        setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
+      }
+    }
+  }
+
   useEffect(() => {
     const errorPallets = form.formState.errors.pallets;
     if (errorPallets && !Array.isArray(errorPallets)) {
@@ -276,7 +293,17 @@ export function IngresoFrutaForm({
                     variant="ghost"
                     size="icon"
                     disabled={fields.length === 1}
-                    onClick={() => remove(index)}
+                    onClick={() => {
+                      const valorActual = pallets[index]?.palletAsignado;
+                      if (valorActual?.startsWith("nuevo:")) {
+                        const tempId = valorActual.slice("nuevo:".length);
+                        const otraLineaLoUsa = pallets.some((p, i) => i !== index && p?.palletAsignado === valorActual);
+                        if (!otraLineaLoUsa) {
+                          setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
+                        }
+                      }
+                      remove(index);
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -465,7 +492,7 @@ export function IngresoFrutaForm({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true })}
+                        onClick={() => quitarAsignacion(index)}
                       >
                         Cambiar
                       </Button>
