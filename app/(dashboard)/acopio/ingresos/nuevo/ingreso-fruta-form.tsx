@@ -44,6 +44,13 @@ function fechaLocalHoy(): string {
   return `${hoy.getFullYear()}-${mes}-${dia}`;
 }
 
+function horaLocalAhora(): string {
+  const ahora = new Date();
+  const horas = String(ahora.getHours()).padStart(2, "0");
+  const minutos = String(ahora.getMinutes()).padStart(2, "0");
+  return `${horas}:${minutos}`;
+}
+
 const LINEA_VACIA = {
   modulo: "",
   turno: "",
@@ -83,7 +90,7 @@ export function IngresoFrutaForm({
       // un día antes o después según la hora); react-hook-form lo deja pasar
       // tal cual y zod lo convierte a Date recién al validar.
       fechaCosecha: fechaLocalHoy() as unknown as Date,
-      horaIngreso: "",
+      horaIngreso: horaLocalAhora(),
       placaTransporte: "",
       observaciones: "",
       pallets: [LINEA_VACIA],
