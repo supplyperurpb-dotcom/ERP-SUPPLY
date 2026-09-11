@@ -643,3 +643,36 @@ filtrado igual que ya ocurría con Variedad respecto de Módulo (sección 6).
   MODULO 2/RAYMI trae exactamente 6 turnos, MODULO 4/RAYMI trae 10, MODULO 4/CASCADE trae solo T10 y
   limpia el turno previamente elegido (T03) al cambiar de variedad, MODULO 1/ARANA trae 10, y el
   turno persiste correctamente al cambiar de MODULO 2 a MODULO 4 manteniendo RAYMI.
+
+## 27. Bug: `connection_limit=1` agotaba el pool de Prisma ("Timed out fetching a new connection")
+
+El usuario reportó un error 500 en `/acopio/ingresos/nuevo`:
+`PrismaClientKnownRequestError: Timed out fetching a new connection from the connection pool
+(Current connection pool timeout: 10, connection limit: 1)`.
+
+Causa raíz: `DATABASE_URL` (tanto en `.env.local` real como en el `.env.example` de referencia,
+ambos desde el scaffold inicial) traía `connection_limit=1` — un valor típico para *cada instancia*
+de una función serverless (donde muchas instancias corren en paralelo y cada una debe abrir pocas
+conexiones), pero demasiado restrictivo para un solo proceso de Node de larga duración (el dev
+server, o un deploy tradicional) que si necesita ejecutar consultas Prisma realmente en paralelo.
+Varias páginas de este proyecto sí lo hacen a propósito — ej. `app/(dashboard)/acopio/ingresos/nuevo/page.tsx`
+dispara 4 queries con `Promise.all` (proveedores, tipos de bandeja, tipos de pallet, pallets
+abiertos), más la consulta de `getUsuarioActual()` que corre en el layout del dashboard en la misma
+request. Con `connection_limit=1`, Prisma solo puede abrir una conexión a la vez hacia el pooler de
+Supabase, así que esas queries "paralelas" en realidad se sirven de a una, en cola; si la latencia
+acumulada de la cola supera el timeout del pool (10s por defecto), Prisma lanza este error en vez de
+esperar indefinidamente.
+
+Fix: se subió `connection_limit` a `5` en `DATABASE_URL`, tanto en `.env.local` (no versionado, solo
+en esta máquina) como en `.env.example` (para que una instalación nueva no repita el mismo problema),
+con un comentario explicando la diferencia entre el pool de PgBouncer (el pooler de Supabase en sí,
+que soporta muchas más conexiones a nivel de proyecto) y este `connection_limit` (cuántas conexiones
+puede abrir *este proceso de Prisma* a la vez). No se tocó el singleton de `lib/db/prisma.ts` — ya
+seguía el patrón correcto (`globalForPrisma`) para evitar crear un `PrismaClient` nuevo en cada
+recarga de Fast Refresh, que es la otra causa común de agotar pools de conexión en dev con Next.js.
+
+Verificado con Playwright haciendo tres rondas de estrés contra el servidor real: (1) visita
+secuencial en frío de 6 rutas que hacen consultas Prisma (incluidas las que usan `Promise.all`), (2)
+las mismas 6 rutas cargadas en paralelo desde pestañas distintas del mismo navegador, y (3) 3
+pestañas cargando `/acopio/ingresos/nuevo` simultáneamente — sin ningún error 500 ni el mensaje de
+"Timed out fetching a new connection" en ningún caso.
