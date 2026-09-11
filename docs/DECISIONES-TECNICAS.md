@@ -260,7 +260,27 @@ Fix: reemplazar el `require()` por un `import tailwindcssAnimate from "tailwindc
 al inicio del archivo. Si en el futuro se agregan más plugins de Tailwind en este archivo, deben
 importarse igual (nunca con `require`).
 
-## 16. Entorno de desarrollo usado para este scaffold
+## 16. Segundo bug de estabilidad del dev server: `experimental.devtoolSegmentExplorer`
+
+Tras el fix de `tailwind.config.ts`, `next dev` volvió a caerse dos veces más con errores
+distintos pero del mismo estilo ("Could not find the module ...segment-explorer-node.js
+#SegmentViewNode in the React Client Manifest", luego "`__webpack_modules__[moduleId] is not a
+function`"), siempre después de varios ciclos de Fast Refresh seguidos, terminando en `/login`
+respondiendo 500. Revisando `node_modules/next/dist/server/config-shared.js` se confirmó que Next
+15.5.25 trae una función experimental, **`experimental.devtoolSegmentExplorer`, activada por
+defecto (`true`)**, cuyo nombre coincide exactamente con el módulo que fallaba
+(`SegmentViewNode`/"segment explorer"). Se desactivó explícitamente en `next.config.mjs`
+(`experimental: { devtoolSegmentExplorer: false }`). Es una herramienta de UI de DevTools (explorador
+de segmentos de rutas dentro del overlay de desarrollo) — no afecta el build de producción ni
+ninguna funcionalidad de la aplicación, solo se apaga esa pieza del overlay.
+
+**Nota operativa**: cuando el dev server quede en este estado (errores de webpack/manifest sin
+relación con el código que se acaba de editar, `/login` u otra ruta respondiendo 500), el arreglo
+es: detener el proceso, borrar la carpeta `.next` y volver a levantar `npm run dev`. Ocurrió varias
+veces durante esta sesión, probablemente agravado por los múltiples reinicios abruptos del servidor
+(`TaskStop` en medio de una escritura de caché de webpack).
+
+## 17. Entorno de desarrollo usado para este scaffold
 
 El scaffold se escribió a mano, archivo por archivo (incluidos los tres CRUD de referencia y las
 páginas placeholder, generados por agentes siguiendo ese mismo patrón), en una máquina que
