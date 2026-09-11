@@ -25,7 +25,7 @@ import { formatKg, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
-import { MODULOS_ACOPIO, VARIEDADES_POR_MODULO } from "@/lib/constants/modulos";
+import { MODULOS_ACOPIO, VARIEDADES_POR_MODULO, TURNOS_POR_MODULO_VARIEDAD } from "@/lib/constants/modulos";
 
 type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
@@ -330,9 +330,16 @@ export function IngresoFrutaForm({
                           onValueChange={(valor) => {
                             selectField.onChange(valor);
                             const variedadActual = form.getValues(`pallets.${index}.variedad`);
-                            const opciones = VARIEDADES_POR_MODULO[valor] ?? [];
-                            if (!opciones.includes(variedadActual)) {
+                            const opcionesVariedad = VARIEDADES_POR_MODULO[valor] ?? [];
+                            if (!opcionesVariedad.includes(variedadActual)) {
                               form.setValue(`pallets.${index}.variedad`, "", { shouldValidate: true });
+                              form.setValue(`pallets.${index}.turno`, "", { shouldValidate: true });
+                            } else {
+                              const opcionesTurno = TURNOS_POR_MODULO_VARIEDAD[valor]?.[variedadActual] ?? [];
+                              const turnoActual = form.getValues(`pallets.${index}.turno`);
+                              if (!opcionesTurno.includes(turnoActual)) {
+                                form.setValue(`pallets.${index}.turno`, "", { shouldValidate: true });
+                              }
                             }
                           }}
                         >
@@ -357,7 +364,35 @@ export function IngresoFrutaForm({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Turno</Label>
-                    <Input placeholder="Ej. Turno 2" {...form.register(`pallets.${index}.turno`)} />
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.turno`}
+                      render={({ field: selectField }) => {
+                        const opciones =
+                          TURNOS_POR_MODULO_VARIEDAD[pallets[index]?.modulo ?? ""]?.[pallets[index]?.variedad ?? ""] ??
+                          [];
+                        return (
+                          <Select
+                            value={selectField.value}
+                            onValueChange={selectField.onChange}
+                            disabled={opciones.length === 0}
+                          >
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={opciones.length === 0 ? "Elige módulo y variedad primero" : "Selecciona..."}
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {opciones.map((t) => (
+                                <SelectItem key={t} value={t}>
+                                  {t}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }}
+                    />
                     {form.formState.errors.pallets?.[index]?.turno && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.turno?.message}
@@ -374,7 +409,14 @@ export function IngresoFrutaForm({
                         return (
                           <Select
                             value={selectField.value}
-                            onValueChange={selectField.onChange}
+                            onValueChange={(valor) => {
+                              selectField.onChange(valor);
+                              const opcionesTurno = TURNOS_POR_MODULO_VARIEDAD[pallets[index]?.modulo ?? ""]?.[valor] ?? [];
+                              const turnoActual = form.getValues(`pallets.${index}.turno`);
+                              if (!opcionesTurno.includes(turnoActual)) {
+                                form.setValue(`pallets.${index}.turno`, "", { shouldValidate: true });
+                              }
+                            }}
                             disabled={opciones.length === 0}
                           >
                             <SelectTrigger>

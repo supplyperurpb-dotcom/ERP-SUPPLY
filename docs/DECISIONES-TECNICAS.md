@@ -610,3 +610,36 @@ pasan a decir simplemente **"Fundo"**. **No** se tocó `/logistica/proveedores` 
 AMBOS` — así que "Proveedor" sigue siendo el término correcto ahí) ni el endpoint de ejemplo
 `app/api/pdf/test/route.ts` (datos de PDF genéricos sin relación con el modelo real). Verificado con
 Playwright navegando a las tres pantallas reales y confirmando ausencia del texto viejo.
+
+## 26. Turno pasa de texto libre a `<select>` dependiente de Módulo + Variedad
+
+El usuario compartió un cuadro real (Módulo → Variedad → lista de Turnos válidos) y pidió reemplazar
+el campo `turno` de cada línea de pesaje, que hasta ahora era texto libre, por un desplegable
+filtrado igual que ya ocurría con Variedad respecto de Módulo (sección 6).
+
+- **`lib/constants/modulos.ts`**: nuevo catálogo `TURNOS_POR_MODULO_VARIEDAD` (`Record<módulo,
+  Record<variedad, string[]>>`), leído directamente del cuadro del usuario. No es un rango uniforme
+  de T01 a T10 para todas las combinaciones: MODULO 2/RAYMI solo llega hasta T06, y MODULO
+  4/CASCADE y MODULO 4/BREEZE tienen un único turno válido (T10) cada uno, mientras que MODULO
+  4/RAYMI sí tiene los diez. Se transcribió tal cual el cuadro, sin asumir un patrón regular.
+- **`ingreso-fruta-form.tsx`**: el campo Turno de cada línea pasa de `<Input>` (`form.register`) a
+  un `<Select>` controlado por `Controller`, con sus opciones calculadas en vivo a partir de
+  `TURNOS_POR_MODULO_VARIEDAD[moduloDeEstaLínea]?.[variedadDeEstaLínea]`. Deshabilitado (con
+  placeholder "Elige módulo y variedad primero") hasta que ambos estén elegidos.
+- **Reseteo en cascada, en ambos sentidos** (no solo Módulo → Variedad, como antes): cambiar el
+  Módulo limpia Variedad si ya no es válida para el nuevo módulo, y limpia Turno si el turno actual
+  no está en la lista del nuevo módulo+variedad (verificado contra la variedad que quede después del
+  propio reseteo, no la anterior). Cambiar la Variedad (con el mismo Módulo) limpia Turno con el
+  mismo criterio. Si el turno ya elegido sigue siendo válido tras el cambio (ej. T03 al pasar de
+  MODULO 2/RAYMI a MODULO 4/RAYMI, donde T03 existe en ambos) se conserva — no se limpia a ciegas
+  cada vez que cambia algo aguas arriba.
+- Los ingresos ya guardados en base de datos antes de este cambio pueden tener valores de `turno`
+  fuera de este catálogo (texto libre histórico, ej. `"3"`, `"5"` en vez de `"T0x"` — el campo sigue
+  siendo `String` en el schema, no se migró nada). Al editar uno de esos ingresos, el `<Select>`
+  simplemente no encuentra ese valor entre sus opciones y muestra el placeholder — pero **no lo
+  borra del formulario** a menos que el usuario cambie explícitamente Módulo o Variedad de esa
+  línea; si guarda sin tocarlos, el valor histórico se conserva tal cual.
+- Verificado con Playwright interactuando con los `<Select>` reales (Radix, no un `<select>` nativo):
+  MODULO 2/RAYMI trae exactamente 6 turnos, MODULO 4/RAYMI trae 10, MODULO 4/CASCADE trae solo T10 y
+  limpia el turno previamente elegido (T03) al cambiar de variedad, MODULO 1/ARANA trae 10, y el
+  turno persiste correctamente al cambiar de MODULO 2 a MODULO 4 manteniendo RAYMI.
