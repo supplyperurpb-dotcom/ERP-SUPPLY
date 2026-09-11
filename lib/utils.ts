@@ -14,16 +14,31 @@ export function serializar<T>(data: T): T {
   return JSON.parse(JSON.stringify(data));
 }
 
-export function formatDate(date: Date | string) {
+// Los campos de fecha "de calendario" (fechaCosecha, fechaDespacho, fecha de
+// solicitud/orden, fechaEmision, fechaTraslado, ...) se capturan con
+// <input type="date"> ("2026-09-11") y se guardan vía z.coerce.date(), que
+// los ancla a medianoche UTC de ese día. Por eso se formatean en UTC por
+// defecto: formatearlos en la zona horaria local del servidor (Node no usa
+// UTC por defecto salvo que el SO/proceso esté configurado así) los movería
+// un día para atrás en cualquier huso horario detrás de UTC, incluido Perú.
+// Los timestamps reales (createdAt, fechaIngreso, movimiento.fecha, ...) no
+// deben usar este default — se les pasa { timeZone: "America/Lima" }.
+export function formatDate(date: Date | string, opciones: { timeZone?: string } = {}) {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("es-PE", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    timeZone: opciones.timeZone ?? "UTC",
   }).format(d);
 }
 
-export function formatDateTime(date: Date | string) {
+// A diferencia de formatDate, esto se usa para timestamps reales (momentos,
+// no fechas de calendario elegidas en un <input type="date">), así que se
+// fija a la zona horaria de la empresa (Perú, UTC-5 todo el año, sin
+// horario de verano) en vez de UTC — de lo contrario un ingreso registrado
+// de noche (hora Perú) podría mostrar el día siguiente.
+export function formatDateTime(date: Date | string, opciones: { timeZone?: string } = {}) {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("es-PE", {
     year: "numeric",
@@ -31,6 +46,7 @@ export function formatDateTime(date: Date | string) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: opciones.timeZone ?? "America/Lima",
   }).format(d);
 }
 
@@ -60,4 +76,17 @@ export function horaLocalAhora(): string {
   const horas = String(ahora.getHours()).padStart(2, "0");
   const minutos = String(ahora.getMinutes()).padStart(2, "0");
   return `${horas}:${minutos}`;
+}
+
+// Convierte un filtro "desde"/"hasta" (valores de <input type="date">, ej.
+// "2026-09-11") en límites gte/lte para Prisma, anclados al día calendario
+// en Perú ("-05:00") en vez de la hora local del proceso de Node — mismo
+// criterio que formatDateTime() para fechaIngreso, para que el filtro y lo
+// que se muestra en pantalla siempre coincidan sin importar dónde corra el
+// servidor.
+export function rangoFechaIngreso(desde?: string, hasta?: string): { gte?: Date; lte?: Date } | undefined {
+  const rango: { gte?: Date; lte?: Date } = {};
+  if (desde) rango.gte = new Date(`${desde}T00:00:00-05:00`);
+  if (hasta) rango.lte = new Date(`${hasta}T23:59:59.999-05:00`);
+  return Object.keys(rango).length > 0 ? rango : undefined;
 }

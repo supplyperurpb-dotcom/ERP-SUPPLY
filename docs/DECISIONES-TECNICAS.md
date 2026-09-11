@@ -537,3 +537,45 @@ Dos pedidos del usuario sobre el listado de Ingresos: exportar todo lo ingresado
   esperadas. Tanto el usuario de prueba (Auth + Prisma) como los scripts temporales se eliminaron al
   terminar; no se creó ni modificó ningún `IngresoFruta`/`Pallet` real (todo el flujo probado es de
   solo lectura).
+
+## 24. Bug: `formatDate` mostraba la fecha de cosecha un día antes
+
+El usuario reportó que, exportando el Excel, la "Fecha de cosecha" salía un día antes de la
+seleccionada en el formulario (eligiendo 11/09/2026, se veía 10/09/2026). Causa raíz confirmada:
+
+- Los campos de fecha de calendario (`fechaCosecha`, `fechaDespacho`, `fecha` de solicitud/orden,
+  `fechaEmision`, `fechaTraslado`, ...) se capturan con `<input type="date">` (ej. `"2026-09-11"`) y
+  se validan con `z.coerce.date()`, que convierte ese string a **medianoche UTC** de ese día
+  (`new Date("2026-09-11")` → `2026-09-11T00:00:00.000Z`).
+- `formatDate()` (`lib/utils.ts`) llamaba a `Intl.DateTimeFormat` **sin especificar `timeZone`**, así
+  que usaba el huso horario por defecto del proceso de Node. En esta máquina ese default es
+  `America/Lima` (confirmado con `Intl.DateTimeFormat().resolvedOptions().timeZone`) — UTC-5. Al
+  formatear `2026-09-11T00:00:00Z` en UTC-5, cae en `2026-09-10 19:00:00` hora local, mostrando el
+  día anterior. El mismo problema existiría, en sentido inverso, si el proceso corriera en un huso
+  horario adelantado a UTC.
+- **Fix**: `formatDate()` ahora fija `timeZone: "UTC"` por defecto (parámetro `opciones.timeZone`
+  para casos que necesiten otra cosa) — como estos campos se anclan a medianoche UTC precisamente
+  para representar "solo una fecha, sin hora", formatearlos en UTC siempre reproduce el día
+  literalmente elegido, sin importar en qué huso horario corra el servidor (dev en esta máquina,
+  o producción en Vercel, que por defecto corre en UTC).
+- **Caso aparte: `fechaIngreso`**. A diferencia de los campos anteriores, `IngresoFruta.fechaIngreso`
+  no viene de un `<input type="date">` — es un timestamp real (`@default(now())`, sin campo en el
+  formulario) que representa el momento exacto en que se registró el camión. Para ese campo el
+  default a UTC habría sido igual de incorrecto en sentido opuesto (un ingreso registrado de noche,
+  hora Perú, podría "saltar" al día siguiente en UTC). Por eso: (a) `formatDateTime()` ahora fija
+  `timeZone: "America/Lima"` por defecto (se usa para timestamps reales: `createdAt`,
+  `movimiento.fecha`, `fechaIngreso` en el detalle del ingreso), y (b) los dos usos de
+  `formatDate(ingreso.fechaIngreso, ...)` (listado y Excel) pasan explícitamente
+  `{ timeZone: "America/Lima" }` en vez de aceptar el default UTC de `formatDate`.
+- De paso, se detectó y corrigió el mismo tipo de fragilidad en el filtro de fechas de la sección 23:
+  `rangoFechas()` armaba los límites `gte`/`lte` con `new Date(`${desde}T00:00:00`)` (sin offset),
+  que también se interpreta en hora local del proceso — mismo riesgo que el bug de arriba, solo que
+  no se había manifestado aún como error visible. Se extrajo a un helper compartido
+  `rangoFechaIngreso()` en `lib/utils.ts` (usado tanto por la página de listado como por la ruta de
+  Excel, eliminando la duplicación que tenían antes) que ancla los límites con `"-05:00"` explícito
+  (`${desde}T00:00:00-05:00` / `${hasta}T23:59:59.999-05:00`), consistente con que `fechaIngreso` se
+  interpreta en hora de Perú.
+- Verificado con Playwright + un `IngresoFruta` de prueba real (`fechaCosecha` fijada explícitamente
+  a `2026-09-11T00:00:00Z`, hoy en el momento de la prueba): tanto la vista de detalle como el Excel
+  exportado muestran `11/09/2026`, no `10/09/2026`. Usuario de prueba y el registro creado se
+  eliminaron después.

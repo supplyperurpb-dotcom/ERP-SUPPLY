@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate } from "@/lib/utils";
-import type { EstadoDocumento, Prisma } from "@prisma/client";
+import { formatDate, rangoFechaIngreso } from "@/lib/utils";
+import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
@@ -17,12 +17,10 @@ export async function GET(request: Request) {
   const desde = searchParams.get("desde") ?? undefined;
   const hasta = searchParams.get("hasta") ?? undefined;
 
-  const fechaIngreso: Prisma.IngresoFrutaWhereInput["fechaIngreso"] = {};
-  if (desde) fechaIngreso.gte = new Date(`${desde}T00:00:00`);
-  if (hasta) fechaIngreso.lte = new Date(`${hasta}T23:59:59.999`);
+  const fechaIngreso = rangoFechaIngreso(desde, hasta);
 
   const ingresos = await prisma.ingresoFruta.findMany({
-    where: Object.keys(fechaIngreso).length > 0 ? { fechaIngreso } : undefined,
+    where: fechaIngreso ? { fechaIngreso } : undefined,
     include: {
       proveedor: true,
       pallets: {
@@ -66,7 +64,7 @@ export async function GET(request: Request) {
         "Doc. proveedor": docProveedor,
         Placa: ingreso.placaTransporte ?? "",
         "Fecha de cosecha": formatDate(ingreso.fechaCosecha),
-        "Fecha de ingreso": formatDate(ingreso.fechaIngreso),
+        "Fecha de ingreso": formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" }),
         "Hora de ingreso": ingreso.horaIngreso ?? "",
         Estado: ESTADO_LABEL[ingreso.estado],
         "Módulo": "",
@@ -91,7 +89,7 @@ export async function GET(request: Request) {
         "Doc. proveedor": docProveedor,
         Placa: ingreso.placaTransporte ?? "",
         "Fecha de cosecha": formatDate(ingreso.fechaCosecha),
-        "Fecha de ingreso": formatDate(ingreso.fechaIngreso),
+        "Fecha de ingreso": formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" }),
         "Hora de ingreso": ingreso.horaIngreso ?? "",
         Estado: ESTADO_LABEL[ingreso.estado],
         "Módulo": linea.modulo,

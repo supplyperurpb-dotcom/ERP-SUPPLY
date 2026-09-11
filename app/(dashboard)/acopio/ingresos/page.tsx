@@ -8,8 +8,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatKg } from "@/lib/utils";
-import type { EstadoDocumento, Prisma } from "@prisma/client";
+import { formatDate, formatKg, rangoFechaIngreso } from "@/lib/utils";
+import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
@@ -27,20 +27,13 @@ const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secon
   ANULADO: "destructive",
 };
 
-function rangoFechas(desde?: string, hasta?: string) {
-  const fechaIngreso: Prisma.IngresoFrutaWhereInput["fechaIngreso"] = {};
-  if (desde) fechaIngreso.gte = new Date(`${desde}T00:00:00`);
-  if (hasta) fechaIngreso.lte = new Date(`${hasta}T23:59:59.999`);
-  return Object.keys(fechaIngreso).length > 0 ? fechaIngreso : undefined;
-}
-
 export default async function IngresosFrutaPage({
   searchParams,
 }: {
   searchParams: Promise<{ desde?: string; hasta?: string }>;
 }) {
   const { desde, hasta } = await searchParams;
-  const fechaIngreso = rangoFechas(desde, hasta);
+  const fechaIngreso = rangoFechaIngreso(desde, hasta);
 
   const ingresos = await prisma.ingresoFruta.findMany({
     where: fechaIngreso ? { fechaIngreso } : undefined,
@@ -141,7 +134,7 @@ export default async function IngresosFrutaPage({
                   <TableCell className="max-w-[200px] truncate" title={modulos}>
                     {modulos || "—"}
                   </TableCell>
-                  <TableCell>{formatDate(ingreso.fechaIngreso)}</TableCell>
+                  <TableCell>{formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" })}</TableCell>
                   <TableCell>{ingreso._count.pallets}</TableCell>
                   <TableCell>{totalBandejas}</TableCell>
                   <TableCell>{formatKg(pesoNetoTotal)}</TableCell>
