@@ -84,7 +84,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
           <CardTitle className="text-base">Datos del camión</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <Dato label="Proveedor / Fundo" valor={ingreso.proveedor.razonSocial} />
+          <Dato label="Fundo" valor={ingreso.proveedor.razonSocial} />
           <Dato label="Placa del vehículo" valor={ingreso.placaTransporte ?? "—"} />
           <Dato label="Hora de recepción" valor={ingreso.horaIngreso ?? "—"} />
           <Dato label="Fecha de cosecha" valor={formatDate(ingreso.fechaCosecha)} />

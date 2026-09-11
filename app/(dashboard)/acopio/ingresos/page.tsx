@@ -107,7 +107,7 @@ export default async function IngresosFrutaPage({
           <TableHeader>
             <TableRow>
               <TableHead>Número</TableHead>
-              <TableHead>Proveedor / Fundo</TableHead>
+              <TableHead>Fundo</TableHead>
               <TableHead>Placa</TableHead>
               <TableHead>Módulos</TableHead>
               <TableHead>Fecha de ingreso</TableHead>

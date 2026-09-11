@@ -601,3 +601,12 @@ que no tiene sentido un selector para esto):
 - Verificado con Playwright + `xlsx`: se descargó el Excel real contra la base de datos actual y se
   confirmó que las columnas `Productor`/`RUC`/`Fundo` existen con los valores esperados en todas las
   filas, y que las columnas viejas (`Proveedor / Fundo`, `Doc. proveedor`) ya no aparecen.
+
+El mismo cambio de etiqueta se propagó a las pantallas reales de Acopio (el usuario señaló que en el
+formulario de "Nuevo ingreso" seguía diciendo "Proveedor / Fundo"): `ingreso-fruta-form.tsx` (label
+del selector), listado de Ingresos, Tarjas, Guías de remisión y el detalle de un Ingreso — todos
+pasan a decir simplemente **"Fundo"**. **No** se tocó `/logistica/proveedores` (el CRUD real de
+`Proveedor`, que sí incluye proveedores de insumos además de fundos — `tipo: INSUMOS | FUNDO |
+AMBOS` — así que "Proveedor" sigue siendo el término correcto ahí) ni el endpoint de ejemplo
+`app/api/pdf/test/route.ts` (datos de PDF genéricos sin relación con el modelo real). Verificado con
+Playwright navegando a las tres pantallas reales y confirmando ausencia del texto viejo.

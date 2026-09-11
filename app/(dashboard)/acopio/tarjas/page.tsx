@@ -36,7 +36,7 @@ export default async function TarjasPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Pallet</TableHead>
-              <TableHead>Proveedor / Fundo</TableHead>
+              <TableHead>Fundo</TableHead>
               <TableHead>Módulos / Variedades</TableHead>
               <TableHead>Bandejas</TableHead>
               <TableHead>Peso neto</TableHead>

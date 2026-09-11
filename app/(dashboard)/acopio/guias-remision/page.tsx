@@ -41,7 +41,7 @@ export default async function GuiasRemisionPage() {
             <TableRow>
               <TableHead>Serie-número</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead>Proveedor / Fundo</TableHead>
+              <TableHead>Fundo</TableHead>
               <TableHead>Fecha de traslado</TableHead>
               <TableHead>Peso bruto total</TableHead>
               <TableHead>Estado</TableHead>
