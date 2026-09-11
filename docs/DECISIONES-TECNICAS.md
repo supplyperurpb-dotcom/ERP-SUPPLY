@@ -486,3 +486,54 @@ generadas):
   base de datos que `Tarja.despachoId` quedó vinculado al despacho correcto. El despacho y el
   vínculo de prueba se revirtieron después (`despachoId` a `null` + `delete` del despacho) para no
   dejar datos de prueba mezclados con los reales del usuario.
+
+## 23. Filtro por fecha y exportación a Excel en Ingreso de Materia Prima
+
+Dos pedidos del usuario sobre el listado de Ingresos: exportar todo lo ingresado a Excel, y poder
+"firmar por fecha" en la vista de listado — se confirmó con el usuario (pregunta directa) que esto
+último significaba **filtrar**, no una firma/sello literal.
+
+- **Filtro de fecha**: `app/(dashboard)/acopio/ingresos/page.tsx` ahora acepta
+  `searchParams: Promise<{ desde?: string; hasta?: string }>` (mismo patrón async que `params` en
+  la sección 18) y arma un `where: { fechaIngreso: { gte, lte } }` de Prisma. Es un `<form>` GET
+  nativo sin JavaScript (sin `onSubmit`, sin Client Component): los `<input type="date">` se llaman
+  `name="desde"`/`name="hasta"`, el navegador arma el querystring solo al enviar. `desde` se ancla a
+  `T00:00:00` y `hasta` a `T23:59:59.999` (hora del servidor) para que el filtro sea inclusivo en
+  ambos extremos sin depender de zona horaria explícita — coherente con `fechaLocalHoy()` en
+  `lib/utils.ts`, que también asume hora local del servidor/navegador, no UTC estricto.
+- **Exportación a Excel**: nueva ruta `GET /api/excel/ingresos` (`app/api/excel/ingresos/route.ts`),
+  usando `xlsx` (SheetJS) para armar el `.xlsx` en memoria (`XLSX.write(..., { type: "buffer",
+  bookType: "xlsx" })`) y devolverlo como `NextResponse` con `Content-Disposition: attachment`
+  — mismo patrón que `GET /api/pdf/tarja/[palletId]` (sección 18), pero de descarga en vez de
+  visualización inline. Respeta los mismos `desde`/`hasta` que el listado (se lee el `href` del
+  botón "Exportar a Excel" armado con las mismas query params activas en la página). **Una fila por
+  línea de pesaje** (`IngresoFrutaPallet`), no una fila por ingreso/camión — un ingreso con dos
+  líneas (dos módulos/pallets distintos en el mismo camión) genera dos filas, repitiendo los campos
+  de cabecera (número, proveedor, placa, fechas, estado). Se decidió así porque el dato "de negocio"
+  granular vive a nivel de línea (módulo, turno, variedad, tara, peso neto, pallet asignado) — una
+  fila por ingreso habría obligado a concatenar esos campos en una sola celda, perdiendo la
+  posibilidad de sumar/filtrar por módulo o variedad directamente en Excel.
+- Se evaluó el paquete `xlsx` con `npm audit`: tiene dos advisories conocidas (prototype pollution y
+  ReDoS), ambas en el **parser de lectura** de archivos `.xlsx`/`.csv` arbitrarios y sin fix
+  publicado por SheetJS vía npm. No aplican aquí: esta ruta solo **escribe** (`json_to_sheet` +
+  `XLSX.utils.book_append_sheet` + `XLSX.write`) a partir de datos propios que vienen de Prisma, no
+  parsea ningún archivo subido por un usuario. Se documenta para que quede claro que el uso actual
+  no está expuesto al vector de esas advisories, y que si en el futuro se agrega un flujo de
+  **importar** Excel (leer un archivo subido), hay que reevaluar la librería o sanitizar/limitar esa
+  ruta específica.
+- **Verificación end-to-end**: como el login de la app es con contraseña contra Supabase Auth (no
+  hay credenciales de prueba guardadas en el repo, y el único usuario real en la base es la cuenta
+  del propio usuario), se creó un usuario temporal completo para la prueba — fila en Supabase Auth
+  (`admin.createUser`, vía `SUPABASE_SERVICE_ROLE_KEY`) **más** su fila correspondiente en `Usuario`
+  + `AsignacionRol(ADMIN)` en Prisma (`getUsuarioActual()`, sección 2, exige que exista la fila de
+  `Usuario` vinculada por `supabaseAuthId`; sin ella el layout del dashboard hace `redirect("/login")`
+  y, como el usuario sí tiene sesión de Supabase válida, el middleware lo rebota de `/login` hacia
+  `/`, entrando en un loop de `ERR_TOO_MANY_REDIRECTS` — se reprodujo este loop en el primer intento
+  de la prueba antes de crear la fila de `Usuario`). Con Playwright: login real, filtro con rango sin
+  datos (verifica el estado vacío), filtro con el día real (verifica que trae las mismas filas que
+  sin filtro), y descarga del Excel vía `context.request.get` reutilizando la sesión del navegador —
+  se parseó la respuesta con `xlsx` para confirmar cantidad exacta de filas (9, una por cada
+  `IngresoFrutaPallet` real en la base en ese momento, repartidas en 7 ingresos) y las columnas
+  esperadas. Tanto el usuario de prueba (Auth + Prisma) como los scripts temporales se eliminaron al
+  terminar; no se creó ni modificó ningún `IngresoFruta`/`Pallet` real (todo el flujo probado es de
+  solo lectura).
