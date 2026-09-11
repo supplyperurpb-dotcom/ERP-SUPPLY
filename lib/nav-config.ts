@@ -52,8 +52,9 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: "Acopio",
     icono: Layers,
     items: [
-      { titulo: "Ingresos de fruta", href: "/acopio/ingresos", icono: Boxes },
+      { titulo: "Ingreso de Materia Prima", href: "/acopio/ingresos", icono: Boxes },
       { titulo: "Tarjas", href: "/acopio/tarjas", icono: Receipt },
+      { titulo: "Despacho", href: "/acopio/despacho", icono: Truck },
       { titulo: "Guías de remisión", href: "/acopio/guias-remision", icono: FileText },
       { titulo: "Catálogo de taras", href: "/acopio/catalogo-taras", icono: Ruler },
     ],

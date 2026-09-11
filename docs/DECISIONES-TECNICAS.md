@@ -455,3 +455,34 @@ esos totales los habría dejado desincronizados.
 - Probado end-to-end con Playwright contra datos reales: precarga de un ingreso con una línea de
   200 bandejas, edición a 150, guardado, y verificación directa en base de datos de que el pallet
   quedó en `cantidadBandejas=150`, `pesoNetoKg` recalculado y `estado` correcto.
+
+## 22. Módulo de Despacho + renombre "Ingresos de fruta" → "Ingreso de Materia Prima"
+
+Renombre simple de etiquetas en la navegación, títulos de página y textos que mencionaban
+"Ingresos/Ingreso de fruta" (no tocó el modelo de datos: `IngresoFruta` sigue llamándose así
+internamente, es solo el texto visible el que cambió).
+
+Módulo nuevo, dentro de Acopio (entre Tarjas y Guías de remisión, ya que opera sobre tarjas ya
+generadas):
+
+- **Modelo `Despacho`** (`numero` correlativo `DESP-0001`, `placaCamion`, `conductor`,
+  `fechaDespacho`, `horaDespacho`) con relación uno-a-muchos hacia `Tarja` (`Tarja.despachoId`,
+  opcional). Una tarja despachada queda vinculada a su despacho para siempre — no hay "des-despachar"
+  en esta fase.
+- **"Disponible para despachar" = `Tarja` con `despachoId: null`.** La página `/acopio/despacho/nuevo`
+  solo lista esas; una vez creado el despacho, esas tarjas dejan de aparecer en cualquier despacho
+  futuro automáticamente (la condición del `where` ya las excluye, no hace falta lógica adicional).
+- `crearDespachoAction` valida, dentro de la misma función (antes de la transacción), que ninguna de
+  las tarjas seleccionadas ya tenga `despachoId` — cubre el caso de que el snapshot que vio el
+  usuario en el formulario haya quedado desactualizado por otro despacho hecho mientras tanto.
+- Selección de tarjas: en vez de reutilizar el patrón de `useFieldArray` (pensado para filas que se
+  crean/editan), es una tabla con checkboxes nativos controlados por un solo campo `tarjaIds:
+  string[]` del formulario — más simple para "elegir de una lista existente" que para "armar líneas
+  nuevas".
+- Se agregó una columna "Despacho" en la página de Tarjas (número de despacho si ya salió, "—" si
+  no) para que quede visible desde ahí también, no solo al armar un despacho nuevo.
+- Probado end-to-end con Playwright: crear despacho seleccionando una tarja real, confirmar que
+  desaparece de "disponibles" en una visita posterior a `/acopio/despacho/nuevo`, y verificar en
+  base de datos que `Tarja.despachoId` quedó vinculado al despacho correcto. El despacho y el
+  vínculo de prueba se revirtieron después (`despachoId` a `null` + `delete` del despacho) para no
+  dejar datos de prueba mezclados con los reales del usuario.

@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatKg } from "@/lib/utils";
+import { formatKg, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
@@ -36,20 +36,6 @@ type PalletNuevo = { tempId: string; etiqueta: string };
 // Radix Select no permite un SelectItem con value="" (lo reserva para el
 // placeholder), así que se usa este sentinel para representar "sin pallet".
 const SIN_PALLET = "__sin_pallet__";
-
-function fechaLocalHoy(): string {
-  const hoy = new Date();
-  const mes = String(hoy.getMonth() + 1).padStart(2, "0");
-  const dia = String(hoy.getDate()).padStart(2, "0");
-  return `${hoy.getFullYear()}-${mes}-${dia}`;
-}
-
-function horaLocalAhora(): string {
-  const ahora = new Date();
-  const horas = String(ahora.getHours()).padStart(2, "0");
-  const minutos = String(ahora.getMinutes()).padStart(2, "0");
-  return `${horas}:${minutos}`;
-}
 
 const LINEA_VACIA = {
   modulo: "",

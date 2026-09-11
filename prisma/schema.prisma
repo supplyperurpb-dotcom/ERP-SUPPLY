@@ -502,10 +502,34 @@ model Tarja {
   pdfUrl        String?
   creadoPorId   String?
   createdAt     DateTime @default(now())
+  // Una vez despachada, la tarja (y su pallet) ya no está disponible para
+  // un despacho futuro.
+  despachoId    String?
 
-  pallet Pallet @relation(fields: [palletId], references: [id])
+  pallet   Pallet    @relation(fields: [palletId], references: [id])
+  despacho Despacho? @relation(fields: [despachoId], references: [id])
 
   @@map("tarjas")
+}
+
+// Despacho de pallets ya armados y con tarja generada (p. ej. hacia la
+// planta de proceso o para preparar un embarque). Al despachar, las tarjas
+// seleccionadas quedan vinculadas a este registro y dejan de estar
+// disponibles para un despacho futuro.
+model Despacho {
+  id            String   @id @default(cuid())
+  numero        String   @unique // ej. DESP-0001
+  placaCamion   String
+  conductor     String
+  fechaDespacho DateTime
+  horaDespacho  String?
+  creadoPorId   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tarjas Tarja[]
+
+  @@map("despachos")
 }
 
 model GuiaRemision {

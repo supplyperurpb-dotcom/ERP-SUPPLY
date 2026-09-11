@@ -43,3 +43,21 @@ export function formatMoneda(value: number | string, moneda: string = "PEN") {
   const n = typeof value === "string" ? Number(value) : value;
   return new Intl.NumberFormat("es-PE", { style: "currency", currency: moneda }).format(n);
 }
+
+// Fecha/hora LOCALES del navegador en formato "YYYY-MM-DD" / "HH:MM", listas
+// para precargar un <input type="date"> o <input type="time">.
+// toISOString() no sirve para esto: da la fecha en UTC, que puede caer un
+// día antes o después según la hora local.
+export function fechaLocalHoy(): string {
+  const hoy = new Date();
+  const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoy.getDate()).padStart(2, "0");
+  return `${hoy.getFullYear()}-${mes}-${dia}`;
+}
+
+export function horaLocalAhora(): string {
+  const ahora = new Date();
+  const horas = String(ahora.getHours()).padStart(2, "0");
+  const minutos = String(ahora.getMinutes()).padStart(2, "0");
+  return `${horas}:${minutos}`;
+}

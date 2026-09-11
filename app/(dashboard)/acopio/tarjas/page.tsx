@@ -11,7 +11,7 @@ import { TarjaBoton } from "./tarja-boton";
 export default async function TarjasPage() {
   const pallets = await prisma.pallet.findMany({
     include: {
-      tarja: true,
+      tarja: { include: { despacho: true } },
       lineas: { select: { modulo: true, variedad: true, ingresoFruta: { select: { proveedor: { select: { razonSocial: true } } } } } },
     },
     orderBy: { createdAt: "desc" },
@@ -22,7 +22,7 @@ export default async function TarjasPage() {
     <div>
       <PageHeader
         titulo="Tarjas"
-        descripcion="Etiqueta impresa (10 × 15 cm) de un pallet armado: módulo, variedad, cantidad de bandejas y peso neto. Se genera a partir de los pallets registrados en Ingresos de fruta."
+        descripcion="Etiqueta impresa (10 × 15 cm) de un pallet armado: módulo, variedad, cantidad de bandejas y peso neto. Se genera a partir de los pallets registrados en Ingreso de Materia Prima."
       />
 
       {pallets.length === 0 ? (
@@ -41,6 +41,7 @@ export default async function TarjasPage() {
               <TableHead>Bandejas</TableHead>
               <TableHead>Peso neto</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Despacho</TableHead>
               <TableHead className="text-right">Tarja</TableHead>
             </TableRow>
           </TableHeader>
@@ -67,6 +68,13 @@ export default async function TarjasPage() {
                     <Badge variant={pallet.estado === "CERRADO" ? "success" : "secondary"}>
                       {pallet.estado === "CERRADO" ? "Cerrado" : "Abierto"}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {pallet.tarja?.despacho ? (
+                      <Badge variant="success">{pallet.tarja.despacho.numero}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <TarjaBoton palletId={pallet.id} tarjaNumero={pallet.tarja?.numero ?? null} />

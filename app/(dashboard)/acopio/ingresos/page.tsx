@@ -39,7 +39,7 @@ export default async function IngresosFrutaPage() {
   return (
     <div>
       <PageHeader
-        titulo="Ingresos de fruta"
+        titulo="Ingreso de Materia Prima"
         descripcion="Registro de llegada de camiones con arándano fresco. Cada camión agrupa una o más líneas de pesaje por módulo/turno/variedad, con tara y peso neto calculados automáticamente."
         acciones={
           <Button asChild>

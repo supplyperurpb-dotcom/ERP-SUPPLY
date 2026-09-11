@@ -60,7 +60,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Volver a Ingresos de fruta
+        Volver a Ingreso de Materia Prima
       </Link>
 
       <PageHeader
