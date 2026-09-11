@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Package, PackagePlus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -16,9 +24,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatKg } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
+import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
 
 type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
+type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
+type PalletNuevo = { tempId: string; etiqueta: string };
 
 const LINEA_VACIA = {
   modulo: "",
@@ -27,17 +38,24 @@ const LINEA_VACIA = {
   tipoBandejaId: "",
   cantidadBandejas: 0,
   pesoBrutoTotalKg: 0,
+  palletAsignado: "",
 };
 
 export function IngresoFrutaForm({
   proveedores,
   tiposBandeja,
+  palletsAbiertos,
 }: {
   proveedores: ProveedorOption[];
   tiposBandeja: TipoBandejaOption[];
+  palletsAbiertos: PalletAbierto[];
 }) {
   const router = useRouter();
   const taraPorTipo = new Map(tiposBandeja.map((t) => [t.id, Number(t.pesoTaraKg)]));
+
+  const [palletsNuevos, setPalletsNuevos] = useState<PalletNuevo[]>([]);
+  const [lineaDialogoAbierto, setLineaDialogoAbierto] = useState<number | null>(null);
+  const contadorPalletNuevo = useRef(0);
 
   const form = useForm<IngresoFrutaInput>({
     resolver: zodResolver(ingresoFrutaSchema),
@@ -52,9 +70,9 @@ export function IngresoFrutaForm({
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "pallets" });
-  const pallets = useWatch({ control: form.control, name: "pallets" });
+  const pallets = useWatch({ control: form.control, name: "pallets" }) ?? [];
 
-  const filasCalculadas = (pallets ?? []).map((pallet) => {
+  const filasCalculadas = pallets.map((pallet) => {
     const taraUnitaria = taraPorTipo.get(pallet?.tipoBandejaId ?? "") ?? 0;
     const cantidad = Number(pallet?.cantidadBandejas) || 0;
     const pesoBruto = Number(pallet?.pesoBrutoTotalKg) || 0;
@@ -65,12 +83,42 @@ export function IngresoFrutaForm({
 
   const totales = filasCalculadas.reduce(
     (acc, fila, i) => ({
-      cantidadBandejas: acc.cantidadBandejas + (Number(pallets?.[i]?.cantidadBandejas) || 0),
-      pesoBruto: acc.pesoBruto + (Number(pallets?.[i]?.pesoBrutoTotalKg) || 0),
+      cantidadBandejas: acc.cantidadBandejas + (Number(pallets[i]?.cantidadBandejas) || 0),
+      pesoBruto: acc.pesoBruto + (Number(pallets[i]?.pesoBrutoTotalKg) || 0),
       pesoNeto: acc.pesoNeto + fila.pesoNeto,
     }),
     { cantidadBandejas: 0, pesoBruto: 0, pesoNeto: 0 }
   );
+
+  // Bandejas ya asignadas a cada pallet abierto/nuevo *dentro de este mismo
+  // formulario* (para calcular cuánto espacio le queda a cada uno en vivo).
+  function bandejasAsignadasEnFormulario(destino: string, excluirIndex?: number) {
+    return pallets.reduce((acc, p, i) => {
+      if (i === excluirIndex) return acc;
+      return p?.palletAsignado === destino ? acc + (Number(p.cantidadBandejas) || 0) : acc;
+    }, 0);
+  }
+
+  function etiquetaAsignacion(valor: string | undefined): string | null {
+    if (!valor) return null;
+    const [tipo, id] = valor.split(":");
+    if (tipo === "nuevo") return palletsNuevos.find((p) => p.tempId === id)?.etiqueta ?? null;
+    if (tipo === "existente") return palletsAbiertos.find((p) => p.id === id)?.numero ?? null;
+    return null;
+  }
+
+  function crearPalletNuevo(index: number) {
+    contadorPalletNuevo.current += 1;
+    const tempId = `t${contadorPalletNuevo.current}`;
+    const etiqueta = `Pallet nuevo #${contadorPalletNuevo.current}`;
+    setPalletsNuevos((prev) => [...prev, { tempId, etiqueta }]);
+    form.setValue(`pallets.${index}.palletAsignado`, `nuevo:${tempId}`, { shouldValidate: true });
+  }
+
+  function asignarPalletExistente(index: number, destino: string) {
+    form.setValue(`pallets.${index}.palletAsignado`, destino, { shouldValidate: true });
+    setLineaDialogoAbierto(null);
+  }
 
   useEffect(() => {
     const errorPallets = form.formState.errors.pallets;
@@ -88,6 +136,27 @@ export function IngresoFrutaForm({
     toast.success("Ingreso de materia prima registrado");
     router.push("/acopio/ingresos");
   }
+
+  // Opciones disponibles para el diálogo de "asignar a pallet existente":
+  // pallets abiertos en BD + pallets nuevos creados en este mismo formulario,
+  // con la capacidad restante calculada en vivo.
+  const opcionesDialogo = lineaDialogoAbierto === null
+    ? { abiertos: [], nuevos: [] }
+    : {
+        abiertos: palletsAbiertos
+          .map((p) => ({
+            ...p,
+            restante:
+              CAPACIDAD_MAXIMA - p.cantidadBandejas - bandejasAsignadasEnFormulario(`existente:${p.id}`, lineaDialogoAbierto),
+          }))
+          .filter((p) => p.restante > 0),
+        nuevos: palletsNuevos
+          .map((p) => ({
+            ...p,
+            restante: CAPACIDAD_MAXIMA - bandejasAsignadasEnFormulario(`nuevo:${p.tempId}`, lineaDialogoAbierto),
+          }))
+          .filter((p) => p.restante > 0),
+      };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -165,8 +234,8 @@ export function IngresoFrutaForm({
           <div>
             <CardTitle className="text-base">Líneas de pesaje</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Un camión puede traer fruta de más de un módulo, turno o variedad — agrega una línea por
-              cada grupo de bandejas con su propia trazabilidad.
+              Un camión puede traer fruta de más de un módulo, turno o variedad, y cada grupo se asigna a
+              un pallet físico (máximo {CAPACIDAD_MAXIMA} bandejas por pallet).
             </p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => append(LINEA_VACIA)}>
@@ -175,120 +244,159 @@ export function IngresoFrutaForm({
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {fields.map((field, index) => (
-            <div key={field.id} className="rounded-lg border p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold">Línea {index + 1}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={fields.length === 1}
-                  onClick={() => remove(index)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Módulo</Label>
-                  <Input placeholder="Ej. Módulo 3" {...form.register(`pallets.${index}.modulo`)} />
-                  {form.formState.errors.pallets?.[index]?.modulo && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.pallets[index]?.modulo?.message}
-                    </p>
-                  )}
+          {fields.map((field, index) => {
+            const asignacion = etiquetaAsignacion(pallets[index]?.palletAsignado);
+            return (
+              <div key={field.id} className="rounded-lg border p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Línea {index + 1}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={fields.length === 1}
+                    onClick={() => remove(index)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Turno</Label>
-                  <Input placeholder="Ej. Turno 2" {...form.register(`pallets.${index}.turno`)} />
-                  {form.formState.errors.pallets?.[index]?.turno && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.pallets[index]?.turno?.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Variedad</Label>
-                  <Input placeholder="Ej. Biloxi" {...form.register(`pallets.${index}.variedad`)} />
-                  {form.formState.errors.pallets?.[index]?.variedad && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.pallets[index]?.variedad?.message}
-                    </p>
-                  )}
-                </div>
-              </div>
 
-              <Separator className="my-3" />
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs">Tipo de bandeja</Label>
-                  <Controller
-                    control={form.control}
-                    name={`pallets.${index}.tipoBandejaId`}
-                    render={({ field: selectField }) => (
-                      <Select value={selectField.value} onValueChange={selectField.onChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tiposBandeja.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Módulo</Label>
+                    <Input placeholder="Ej. Módulo 3" {...form.register(`pallets.${index}.modulo`)} />
+                    {form.formState.errors.pallets?.[index]?.modulo && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.modulo?.message}
+                      </p>
                     )}
-                  />
-                  {form.formState.errors.pallets?.[index]?.tipoBandejaId && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.pallets[index]?.tipoBandejaId?.message}
-                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Turno</Label>
+                    <Input placeholder="Ej. Turno 2" {...form.register(`pallets.${index}.turno`)} />
+                    {form.formState.errors.pallets?.[index]?.turno && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.turno?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Variedad</Label>
+                    <Input placeholder="Ej. Biloxi" {...form.register(`pallets.${index}.variedad`)} />
+                    {form.formState.errors.pallets?.[index]?.variedad && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.variedad?.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <Separator className="my-3" />
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs">Tipo de bandeja</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.tipoBandejaId`}
+                      render={({ field: selectField }) => (
+                        <Select value={selectField.value} onValueChange={selectField.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tiposBandeja.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.pallets?.[index]?.tipoBandejaId && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.tipoBandejaId?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Cant. bandejas</Label>
+                    <Input type="number" min={1} step="1" {...form.register(`pallets.${index}.cantidadBandejas`)} />
+                    {form.formState.errors.pallets?.[index]?.cantidadBandejas && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.cantidadBandejas?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Peso bruto (kg)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.001"
+                      {...form.register(`pallets.${index}.pesoBrutoTotalKg`)}
+                    />
+                    {form.formState.errors.pallets?.[index]?.pesoBrutoTotalKg && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.pesoBrutoTotalKg?.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span>Tara: {formatKg(filasCalculadas[index]?.pesoTara ?? 0)}</span>
+                  <span className="font-semibold text-primary">
+                    Peso neto: {formatKg(filasCalculadas[index]?.pesoNeto ?? 0)}
+                  </span>
+                </div>
+
+                <Separator className="my-3" />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label className="text-xs">Pallet asignado</Label>
+                  {asignacion ? (
+                    <>
+                      <Badge variant="outline" className="gap-1">
+                        <Package className="h-3 w-3" />
+                        {asignacion}
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true })}
+                      >
+                        Cambiar
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button type="button" variant="outline" size="sm" onClick={() => crearPalletNuevo(index)}>
+                        <PackagePlus className="mr-2 h-4 w-4" />
+                        Crear pallet nuevo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLineaDialogoAbierto(index)}
+                      >
+                        <Package className="mr-2 h-4 w-4" />
+                        Asignar a pallet existente
+                      </Button>
+                    </>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Cant. bandejas</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    step="1"
-                    {...form.register(`pallets.${index}.cantidadBandejas`)}
-                  />
-                  {form.formState.errors.pallets?.[index]?.cantidadBandejas && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.pallets[index]?.cantidadBandejas?.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Peso bruto (kg)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.001"
-                    {...form.register(`pallets.${index}.pesoBrutoTotalKg`)}
-                  />
-                  {form.formState.errors.pallets?.[index]?.pesoBrutoTotalKg && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.pallets[index]?.pesoBrutoTotalKg?.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Peso neto</Label>
-                  <p className="flex h-10 items-center text-sm font-semibold text-primary">
-                    {formatKg(filasCalculadas[index]?.pesoNeto ?? 0)}
+                {form.formState.errors.pallets?.[index]?.palletAsignado && (
+                  <p className="mt-1 text-xs font-medium text-destructive">
+                    {form.formState.errors.pallets[index]?.palletAsignado?.message}
                   </p>
-                </div>
+                )}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Tara: {formatKg(filasCalculadas[index]?.pesoTara ?? 0)}
-              </p>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
             <p>
@@ -303,6 +411,59 @@ export function IngresoFrutaForm({
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={lineaDialogoAbierto !== null} onOpenChange={(open) => !open && setLineaDialogoAbierto(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar a pallet existente</DialogTitle>
+            <DialogDescription>Solo se muestran pallets abiertos con espacio disponible.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {opcionesDialogo.nuevos.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                  Nuevos en este formulario
+                </p>
+                <div className="space-y-1">
+                  {opcionesDialogo.nuevos.map((p) => (
+                    <button
+                      key={p.tempId}
+                      type="button"
+                      onClick={() => lineaDialogoAbierto !== null && asignarPalletExistente(lineaDialogoAbierto, `nuevo:${p.tempId}`)}
+                      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span>{p.etiqueta}</span>
+                      <span className="text-muted-foreground">quedan {p.restante}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Pallets abiertos</p>
+              {opcionesDialogo.abiertos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay pallets abiertos con espacio disponible.</p>
+              ) : (
+                <div className="space-y-1">
+                  {opcionesDialogo.abiertos.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => lineaDialogoAbierto !== null && asignarPalletExistente(lineaDialogoAbierto, `existente:${p.id}`)}
+                      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span>{p.numero}</span>
+                      <span className="text-muted-foreground">quedan {p.restante}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>

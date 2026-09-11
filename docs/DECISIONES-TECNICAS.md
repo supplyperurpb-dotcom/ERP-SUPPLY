@@ -183,7 +183,49 @@ angosta: la página cargaba bien, pero no había manera de ver la navegación. S
 y mantiene el estado `menuAbierto`), convirtiendo el sidebar en un panel deslizante con backdrop en
 mobile, y que se cierra solo al navegar a un link.
 
-## 13. Entorno de desarrollo usado para este scaffold
+## 13. Pallets físicos como entidad propia, con asignación manual desde el formulario
+
+Segunda vuelta de cambios al flujo de Ingresos: el usuario aclaró que las bandejas no se quedan
+"sueltas" por línea de pesaje — se van apilando en **pallets físicos reales**, con una capacidad
+máxima fija de 240 bandejas, y un mismo pallet puede recibir bandejas de más de una línea (incluso
+de camiones distintos, en entregas separadas).
+
+- Se agregó el modelo `Pallet` (tabla `pallets`): `numero` correlativo (`PAL-0001`, …),
+  `cantidadBandejas`/`pesoBrutoTotalKg`/`pesoTaraTotalKg`/`pesoNetoKg` **denormalizados** (se
+  actualizan en cada asignación, no se recalculan agregando en cada lectura — igual que
+  `OrdenCompra.montoTotal`), y `estado` (`ABIERTO`/`CERRADO`, se cierra solo al llegar a 240 o
+  manualmente si el flujo lo permite en una fase futura). Es una entidad distinta de `TipoPallet`
+  (el catálogo de tipos de parihuela con su tara, ya existente) — `Pallet` es la instancia física,
+  `TipoPallet` es el tipo/catálogo.
+- `CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET = 240` es una constante fija en código
+  (`lib/constants/pallet.ts`), no un campo configurable por tipo de pallet — el usuario fue
+  explícito en que es un techo único ("puedo tener pallets de 200 o 100, pero no más de 240"), no
+  algo que varíe por catálogo.
+- `IngresoFrutaPallet` (la línea de pesaje) ahora tiene `palletId` obligatorio: cada línea se
+  asigna a **un** pallet físico. Si una entrega de bandejas debe repartirse entre dos pallets (p.
+  ej. 40 para completar uno existente + 160 para uno nuevo), el usuario crea dos líneas — una por
+  destino — cada una con su propio peso bruto pesado por separado (confirmado con el usuario: el
+  peso **no** se prorratea automáticamente, se pesa cada porción).
+- El formulario ofrece, por línea, dos botones: **"Crear pallet nuevo"** (reserva un id temporal en
+  el cliente — el número correlativo real se asigna recién en el server action, dentro de la
+  transacción, para no generar huecos ni duplicados) y **"Asignar a pallet existente"** (abre un
+  diálogo con los pallets abiertos en BD y los pallets nuevos creados en ese mismo formulario, cada
+  uno mostrando cuántas bandejas le quedan — calculado en vivo restando lo ya asignado dentro del
+  formulario, no solo lo que hay en BD).
+- El server action (`crearIngresoFrutaAction`) agrupa las líneas por destino, valida capacidad
+  (contra 240 para pallets nuevos, y contra `240 - cantidadBandejas actual en BD` para existentes —
+  esta segunda validación es la autoridad real, por si el snapshot que vio el usuario en el
+  formulario quedó desactualizado), y dentro de una única `prisma.$transaction` crea los pallets
+  nuevos con su correlativo, incrementa los totales de los existentes, y crea el `IngresoFruta` con
+  sus líneas ya apuntando al `palletId` real.
+- **Pendiente, fuera de alcance de este cambio**: `Tarja` y `GuiaRemisionDetalle` todavía referencian
+  `IngresoFrutaPallet` (la línea), no `Pallet` (el pallet físico). Conceptualmente una tarja se
+  pega a un pallet físico, no a una línea de pesaje — antes de construir los módulos de Tarjas y
+  Guías de remisión, esas relaciones deberían apuntar a `Pallet`.
+- No se construyó una página de listado de `Pallet` en esta vuelta (no se pidió); el único punto de
+  visibilidad hoy es el diálogo de asignación dentro de "Nuevo ingreso".
+
+## 14. Entorno de desarrollo usado para este scaffold
 
 El scaffold se escribió a mano, archivo por archivo (incluidos los tres CRUD de referencia y las
 páginas placeholder, generados por agentes siguiendo ese mismo patrón), en una máquina que

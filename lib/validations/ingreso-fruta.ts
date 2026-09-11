@@ -2,7 +2,14 @@ import { z } from "zod";
 
 // Una línea = un grupo de bandejas pesado, con su propia trazabilidad de
 // origen (un mismo camión puede traer fruta de varios módulos/turnos del
-// fundo, y hasta de más de una variedad).
+// fundo, y hasta de más de una variedad), asignado a un pallet físico.
+//
+// `palletAsignado` codifica el destino elegido en el formulario:
+//   "nuevo:<idTemporal>"     -> crea un pallet nuevo (o se une a uno recién
+//                                creado por otra línea de este mismo envío)
+//   "existente:<idDePallet>" -> se suma a un pallet físico ya existente
+// El id real del pallet nuevo se genera en el server action, no en el
+// cliente (para asegurar el correlativo).
 export const palletFormSchema = z.object({
   modulo: z.string().min(1, "El módulo es obligatorio").max(50),
   turno: z.string().min(1, "El turno es obligatorio").max(50),
@@ -15,6 +22,7 @@ export const palletFormSchema = z.object({
   pesoBrutoTotalKg: z.coerce
     .number({ invalid_type_error: "Ingresa el peso bruto" })
     .positive("Debe ser mayor a 0"),
+  palletAsignado: z.string().min(1, "Asigna esta línea a un pallet (nuevo o existente)"),
 });
 
 export type PalletFormInput = z.infer<typeof palletFormSchema>;

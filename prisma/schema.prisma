@@ -92,6 +92,11 @@ enum EstadoGuiaRemision {
   ANULADA
 }
 
+enum EstadoPallet {
+  ABIERTO // sigue aceptando bandejas (no ha llegado a la capacidad máxima)
+  CERRADO // llegó a la capacidad máxima o se cerró manualmente
+}
+
 enum EstadoEmbarque {
   PLANIFICADO
   EN_PROCESO
@@ -418,14 +423,43 @@ model IngresoFruta {
   @@map("ingresos_fruta")
 }
 
+// Pallet físico real (capacidad máxima fija de bandejas). Un pallet puede
+// recibir bandejas de más de una línea de pesaje (incluso de distintos
+// camiones), hasta llegar a CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET
+// (ver lib/constants/pallet.ts). Los totales se guardan denormalizados
+// (se actualizan en cada asignación) para no tener que re-agregar en cada
+// lectura al mostrar la capacidad disponible.
+model Pallet {
+  id               String       @id @default(cuid())
+  numero           String       @unique // ej. PAL-0001
+  cantidadBandejas Int          @default(0)
+  pesoBrutoTotalKg Decimal      @default(0) @db.Decimal(10, 3)
+  pesoTaraTotalKg  Decimal      @default(0) @db.Decimal(10, 3)
+  pesoNetoKg       Decimal      @default(0) @db.Decimal(10, 3)
+  estado           EstadoPallet @default(ABIERTO)
+  creadoPorId      String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  lineas IngresoFrutaPallet[]
+
+  @@map("pallets")
+}
+
+// Una línea de pesaje: trazabilidad (módulo/turno/variedad) + cantidad de
+// bandejas de un tipo, asignadas a UN pallet físico (`Pallet`, no
+// `TipoPallet`, que es el catálogo de tipos de parihuela). Si un mismo
+// camión trae bandejas para más de un pallet, se registra una línea por
+// cada destino.
 model IngresoFrutaPallet {
   id               String   @id @default(cuid())
   ingresoFrutaId   String
-  numeroPallet     Int
+  numeroPallet     Int // correlativo de la línea dentro de este ingreso (no es el número del Pallet físico)
+  palletId         String
   modulo           String // bloque/sector del fundo de origen de esta línea
   turno            String // sub-división del módulo (no es turno de trabajo)
   variedad         String
-  tipoPalletId     String? // opcional: este flujo calcula el neto solo con tara de bandeja
+  tipoPalletId     String? // opcional: catálogo de tipo de parihuela, no se usa en el cálculo de neto
   tipoBandejaId    String
   cantidadBandejas Int
   pesoBrutoTotalKg Decimal  @db.Decimal(10, 3)
@@ -435,6 +469,7 @@ model IngresoFrutaPallet {
   updatedAt        DateTime @updatedAt
 
   ingresoFruta  IngresoFruta               @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
+  pallet        Pallet                     @relation(fields: [palletId], references: [id])
   tipoPallet    TipoPallet?                @relation(fields: [tipoPalletId], references: [id])
   tipoBandeja   TipoBandeja                @relation(fields: [tipoBandejaId], references: [id])
   bandejas      IngresoFrutaBandejaPeso[]
