@@ -17,6 +17,18 @@ const nextConfig = {
       },
     ],
   },
+  webpack: (config, { dev }) => {
+    // El caché persistente de webpack en disco (.next/cache/webpack) se
+    // corrompió varias veces en este entorno durante `next dev`
+    // ("Cannot find module './NNN.js'", manifests desincronizados),
+    // tumbando rutas con 500 sin relación con los cambios de código.
+    // Desactivarlo en dev cambia recompilar-desde-cero por no volver a
+    // caerse — un cambio razonable frente a crashes recurrentes.
+    if (dev) {
+      config.cache = false;
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

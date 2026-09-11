@@ -280,7 +280,33 @@ es: detener el proceso, borrar la carpeta `.next` y volver a levantar `npm run d
 veces durante esta sesión, probablemente agravado por los múltiples reinicios abruptos del servidor
 (`TaskStop` en medio de una escritura de caché de webpack).
 
-## 17. Entorno de desarrollo usado para este scaffold
+## 17. Tercer bug de estabilidad: se desactiva el caché de webpack en dev
+
+Con `devtoolSegmentExplorer` ya desactivado, `next dev` volvió a caerse con el mismo error que en
+el primer bug de esta serie (`Cannot find module './331.js'`, `.next/server/webpack-runtime.js`),
+esta vez al recompilar `/login` después de varias rutas ya visitadas — confirmado reproduciendo el
+fallo con un script de Playwright real. Esto descarta que el problema fuera un solo flag
+experimental: es el **caché persistente de webpack en disco** (`.next/cache/webpack`) el que se
+corrompe en este entorno tras suficientes recompilaciones dentro de una misma sesión de `next dev`
+(no se determinó la causa exacta — sospecha: interacción con los reinicios abruptos del proceso
+via `TaskStop`, o alguna particularidad de Node 24 / Windows con el filesystem cache de webpack 5).
+
+Se desactivó ese caché en modo desarrollo agregando a `next.config.mjs`:
+
+```js
+webpack: (config, { dev }) => {
+  if (dev) config.cache = false;
+  return config;
+},
+```
+
+Esto vuelve cada recompilación un poco más lenta (no reutiliza el caché en disco entre reinicios
+del proceso), pero **no afecta el build de producción** (el `if (dev)` lo deja intacto) ni ninguna
+funcionalidad de la app. Verificado con una prueba de estrés (3 rondas navegando 7 rutas distintas,
+21 requests) sin ningún error 5xx, después de que el mismo escenario reprodujera el crash antes del
+cambio.
+
+## 18. Entorno de desarrollo usado para este scaffold
 
 El scaffold se escribió a mano, archivo por archivo (incluidos los tres CRUD de referencia y las
 páginas placeholder, generados por agentes siguiendo ese mismo patrón), en una máquina que
