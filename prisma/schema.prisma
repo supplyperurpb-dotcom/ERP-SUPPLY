@@ -441,6 +441,7 @@ model Pallet {
   updatedAt        DateTime     @updatedAt
 
   lineas IngresoFrutaPallet[]
+  tarja  Tarja?
 
   @@map("pallets")
 }
@@ -472,7 +473,6 @@ model IngresoFrutaPallet {
   tipoPallet    TipoPallet?                @relation(fields: [tipoPalletId], references: [id])
   tipoBandeja   TipoBandeja                @relation(fields: [tipoBandejaId], references: [id])
   bandejas      IngresoFrutaBandejaPeso[]
-  tarja         Tarja?
   guiaDetalles  GuiaRemisionDetalle[]
 
   @@unique([ingresoFrutaId, numeroPallet])
@@ -491,6 +491,9 @@ model IngresoFrutaBandejaPeso {
   @@map("ingreso_fruta_bandeja_pesos")
 }
 
+// Etiqueta/ticket impreso de un pallet físico armado (no de una línea de
+// pesaje individual): un pallet puede reunir bandejas de más de una línea
+// (incluso de distintos camiones), y la tarja resume ese conjunto.
 model Tarja {
   id            String   @id @default(cuid())
   numero        String   @unique // ej. TJ-0001
@@ -500,7 +503,7 @@ model Tarja {
   creadoPorId   String?
   createdAt     DateTime @default(now())
 
-  pallet IngresoFrutaPallet @relation(fields: [palletId], references: [id])
+  pallet Pallet @relation(fields: [palletId], references: [id])
 
   @@map("tarjas")
 }

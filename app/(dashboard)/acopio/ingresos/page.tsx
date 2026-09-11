@@ -29,7 +29,7 @@ export default async function IngresosFrutaPage() {
   const ingresos = await prisma.ingresoFruta.findMany({
     include: {
       proveedor: true,
-      pallets: { select: { modulo: true, variedad: true, pesoNetoKg: true } },
+      pallets: { select: { modulo: true, variedad: true, cantidadBandejas: true, pesoNetoKg: true } },
       _count: { select: { pallets: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -67,6 +67,7 @@ export default async function IngresosFrutaPage() {
               <TableHead>Módulos</TableHead>
               <TableHead>Fecha de ingreso</TableHead>
               <TableHead>N.º de líneas</TableHead>
+              <TableHead>N.º de bandejas</TableHead>
               <TableHead>Peso neto</TableHead>
               <TableHead>Estado</TableHead>
             </TableRow>
@@ -74,10 +75,15 @@ export default async function IngresosFrutaPage() {
           <TableBody>
             {ingresos.map((ingreso) => {
               const pesoNetoTotal = ingreso.pallets.reduce((acc, p) => acc + Number(p.pesoNetoKg), 0);
+              const totalBandejas = ingreso.pallets.reduce((acc, p) => acc + p.cantidadBandejas, 0);
               const modulos = Array.from(new Set(ingreso.pallets.map((p) => p.modulo))).join(", ");
               return (
-                <TableRow key={ingreso.id}>
-                  <TableCell className="font-medium">{ingreso.numero}</TableCell>
+                <TableRow key={ingreso.id} className="cursor-pointer">
+                  <TableCell className="font-medium">
+                    <Link href={`/acopio/ingresos/${ingreso.id}`} className="text-primary hover:underline">
+                      {ingreso.numero}
+                    </Link>
+                  </TableCell>
                   <TableCell>{ingreso.proveedor.razonSocial}</TableCell>
                   <TableCell>{ingreso.placaTransporte ?? "—"}</TableCell>
                   <TableCell className="max-w-[200px] truncate" title={modulos}>
@@ -85,6 +91,7 @@ export default async function IngresosFrutaPage() {
                   </TableCell>
                   <TableCell>{formatDate(ingreso.fechaIngreso)}</TableCell>
                   <TableCell>{ingreso._count.pallets}</TableCell>
+                  <TableCell>{totalBandejas}</TableCell>
                   <TableCell>{formatKg(pesoNetoTotal)}</TableCell>
                   <TableCell>
                     <Badge variant={ESTADO_VARIANT[ingreso.estado]}>{ESTADO_LABEL[ingreso.estado]}</Badge>

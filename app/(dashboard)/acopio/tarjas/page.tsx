@@ -1,13 +1,19 @@
-import { Receipt } from "lucide-react";
+import { Package } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
-import { formatDateTime } from "@/lib/utils";
+import { formatKg } from "@/lib/utils";
+import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
+import { TarjaBoton } from "./tarja-boton";
 
 export default async function TarjasPage() {
-  const tarjas = await prisma.tarja.findMany({
-    include: { pallet: { include: { ingresoFruta: { include: { proveedor: true } } } } },
+  const pallets = await prisma.pallet.findMany({
+    include: {
+      tarja: true,
+      lineas: { select: { modulo: true, variedad: true, ingresoFruta: { select: { proveedor: { select: { razonSocial: true } } } } } },
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -16,36 +22,58 @@ export default async function TarjasPage() {
     <div>
       <PageHeader
         titulo="Tarjas"
-        descripcion="Ticket interno de pallet: detalle de bandejas, pesos, proveedor y variedad, generado a partir de un pallet registrado en Acopio."
+        descripcion="Etiqueta impresa (10 × 15 cm) de un pallet armado: módulo, variedad, cantidad de bandejas y peso neto. Se genera a partir de los pallets registrados en Ingresos de fruta."
       />
 
-      {tarjas.length === 0 ? (
+      {pallets.length === 0 ? (
         <EmptyState
-          icono={Receipt}
-          titulo="Aún no hay tarjas generadas"
-          descripcion="Las tarjas se generan a partir de un pallet registrado dentro de un ingreso de fruta."
+          icono={Package}
+          titulo="Aún no hay pallets armados"
+          descripcion="Los pallets se crean al registrar un ingreso de materia prima en Acopio."
         />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Fecha de emisión</TableHead>
+              <TableHead>Pallet</TableHead>
               <TableHead>Proveedor / Fundo</TableHead>
-              <TableHead>Módulo / Variedad</TableHead>
-              <TableHead>Peso neto del pallet</TableHead>
+              <TableHead>Módulos / Variedades</TableHead>
+              <TableHead>Bandejas</TableHead>
+              <TableHead>Peso neto</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="text-right">Tarja</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tarjas.map((tarja) => (
-              <TableRow key={tarja.id}>
-                <TableCell className="font-medium">{tarja.numero}</TableCell>
-                <TableCell>{formatDateTime(tarja.fechaEmision)}</TableCell>
-                <TableCell>{tarja.pallet.ingresoFruta.proveedor.razonSocial}</TableCell>
-                <TableCell>{tarja.pallet.modulo} / {tarja.pallet.variedad}</TableCell>
-                <TableCell>{tarja.pallet.pesoNetoKg.toString()} kg</TableCell>
-              </TableRow>
-            ))}
+            {pallets.map((pallet) => {
+              const proveedores = Array.from(
+                new Set(pallet.lineas.map((l) => l.ingresoFruta.proveedor.razonSocial))
+              ).join(", ");
+              const detalle = Array.from(
+                new Set(pallet.lineas.map((l) => `${l.modulo} / ${l.variedad}`))
+              ).join(", ");
+              return (
+                <TableRow key={pallet.id}>
+                  <TableCell className="font-medium">{pallet.numero}</TableCell>
+                  <TableCell>{proveedores || "—"}</TableCell>
+                  <TableCell className="max-w-[220px] truncate" title={detalle}>
+                    {detalle || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {pallet.cantidadBandejas} / {CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET}
+                  </TableCell>
+                  <TableCell>{formatKg(Number(pallet.pesoNetoKg))}</TableCell>
+                  <TableCell>
+                    <Badge variant={pallet.estado === "CERRADO" ? "success" : "secondary"}>
+                      {pallet.estado === "CERRADO" ? "Cerrado" : "Abierto"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <TarjaBoton palletId={pallet.id} tarjaNumero={pallet.tarja?.numero ?? null} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

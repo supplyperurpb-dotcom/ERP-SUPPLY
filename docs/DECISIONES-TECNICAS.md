@@ -306,7 +306,33 @@ funcionalidad de la app. Verificado con una prueba de estrés (3 rondas navegand
 21 requests) sin ningún error 5xx, después de que el mismo escenario reprodujera el crash antes del
 cambio.
 
-## 18. Entorno de desarrollo usado para este scaffold
+## 18. Vista de detalle de Ingreso y Tarjas reales (PDF de etiqueta 10×15 cm)
+
+Dos features pedidas juntas: (a) poder ver el detalle de un ingreso (sus líneas de pesaje) desde el
+listado, y (b) generar una etiqueta imprimible por pallet armado, con módulo/variedad/bandejas/peso
+neto.
+
+- **`app/(dashboard)/acopio/ingresos/[id]/page.tsx`**: primera ruta dinámica del proyecto. Next
+  15 volvió asíncrono el `params` de páginas y route handlers (`params: Promise<{ id: string }>`,
+  `const { id } = await params`) — no había hecho falta notarlo antes porque ninguna otra página
+  usa segmentos dinámicos.
+- **Tarja pasa a referenciar `Pallet` (físico), no `IngresoFrutaPallet` (línea)** — corrige la
+  relación "pendiente" que había quedado documentada en la sección 13. Tenía sentido esperar: recién
+  con la vista de detalle y el flujo de generación de etiqueta quedó claro que la tarja es por
+  pallet armado (que puede reunir líneas de más de un módulo/variedad, incluso de más de un
+  camión), no por línea de pesaje individual. Migración aplicada contra la base real.
+- **`app/(dashboard)/acopio/tarjas/page.tsx`** dejó de ser un listado de `Tarja` (que empezaba
+  vacío siempre) y pasa a listar **`Pallet`**: cada fila muestra bandejas/240, estado, peso neto, y
+  un botón que es "Generar tarja" si el pallet todavía no tiene una, o "Ver PDF (TJ-000X)" si ya la
+  tiene — la generación de la tarja (`crearTarjaAction`) solo crea la fila en BD con el correlativo;
+  el PDF se arma al vuelo en `GET /api/pdf/tarja/[palletId]`, no se sube a Supabase Storage todavía
+  (el campo `pdfUrl` de `Tarja` queda sin usar por ahora — coherente con no implementar Storage en
+  esta fase).
+- **Etiqueta de 10×15 cm** (`lib/pdf/tarja-pdf.ts`, con `pdf-lib`, tamaño de página en puntos:
+  `10 * 28.3465` × `15 * 28.3465`): una línea por cada línea de pesaje que aportó al pallet
+  (módulo/turno/variedad, tipo de bandeja, cantidad, peso neto) más los totales del pallet. Probado
+  end-to-end con Playwright (crear tarja → descargar PDF → verificar contenido) contra datos reales
+  antes de darlo por bueno.
 
 El scaffold se escribió a mano, archivo por archivo (incluidos los tres CRUD de referencia y las
 páginas placeholder, generados por agentes siguiendo ese mismo patrón), en una máquina que
