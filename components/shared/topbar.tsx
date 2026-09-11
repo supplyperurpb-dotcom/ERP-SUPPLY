@@ -1,4 +1,5 @@
-import { LogOut, Menu } from "lucide-react";
+import Link from "next/link";
+import { Home, LogOut, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,12 +25,18 @@ export function Topbar({
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-4">
-      <Button variant="ghost" size="icon" className="md:hidden" onClick={onAbrirMenu}>
-        <Menu className="h-5 w-5" />
-      </Button>
-
-      <div className="hidden text-sm text-muted-foreground md:block">
-        {usuario.roles.map((rol) => ROL_LABELS[rol as RolNombre]).join(", ") || "Sin rol asignado"}
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={onAbrirMenu}>
+          <Menu className="h-5 w-5" />
+        </Button>
+        <Button variant="ghost" size="icon" asChild title="Ir al inicio">
+          <Link href="/inicio">
+            <Home className="h-5 w-5" />
+          </Link>
+        </Button>
+        <div className="hidden text-sm text-muted-foreground md:block">
+          {usuario.roles.map((rol) => ROL_LABELS[rol as RolNombre]).join(", ") || "Sin rol asignado"}
+        </div>
       </div>
 
       <DropdownMenu>
