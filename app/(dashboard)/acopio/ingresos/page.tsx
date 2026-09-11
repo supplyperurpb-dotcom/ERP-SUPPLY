@@ -64,7 +64,6 @@ export default async function IngresosFrutaPage() {
               <TableHead>Número</TableHead>
               <TableHead>Proveedor / Fundo</TableHead>
               <TableHead>Placa</TableHead>
-              <TableHead>Lote</TableHead>
               <TableHead>Módulos</TableHead>
               <TableHead>Fecha de ingreso</TableHead>
               <TableHead>N.º de líneas</TableHead>
@@ -81,7 +80,6 @@ export default async function IngresosFrutaPage() {
                   <TableCell className="font-medium">{ingreso.numero}</TableCell>
                   <TableCell>{ingreso.proveedor.razonSocial}</TableCell>
                   <TableCell>{ingreso.placaTransporte ?? "—"}</TableCell>
-                  <TableCell>{ingreso.lote}</TableCell>
                   <TableCell className="max-w-[200px] truncate" title={modulos}>
                     {modulos || "—"}
                   </TableCell>

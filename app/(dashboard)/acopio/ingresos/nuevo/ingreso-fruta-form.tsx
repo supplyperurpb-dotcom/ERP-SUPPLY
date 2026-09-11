@@ -37,6 +37,13 @@ type PalletNuevo = { tempId: string; etiqueta: string };
 // placeholder), así que se usa este sentinel para representar "sin pallet".
 const SIN_PALLET = "__sin_pallet__";
 
+function fechaLocalHoy(): string {
+  const hoy = new Date();
+  const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoy.getDate()).padStart(2, "0");
+  return `${hoy.getFullYear()}-${mes}-${dia}`;
+}
+
 const LINEA_VACIA = {
   modulo: "",
   turno: "",
@@ -71,7 +78,11 @@ export function IngresoFrutaForm({
     resolver: zodResolver(ingresoFrutaSchema),
     defaultValues: {
       proveedorId: "",
-      lote: "",
+      // El <input type="date"> trabaja con un string "YYYY-MM-DD" en la fecha
+      // LOCAL del navegador (toISOString() da la fecha en UTC, que puede caer
+      // un día antes o después según la hora); react-hook-form lo deja pasar
+      // tal cual y zod lo convierte a Date recién al validar.
+      fechaCosecha: fechaLocalHoy() as unknown as Date,
       horaIngreso: "",
       placaTransporte: "",
       observaciones: "",
@@ -214,14 +225,6 @@ export function IngresoFrutaForm({
             <Input id="horaIngreso" type="time" {...form.register("horaIngreso")} />
             {form.formState.errors.horaIngreso && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaIngreso.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="lote">Lote</Label>
-            <Input id="lote" placeholder="Ej. L-2026-0001" {...form.register("lote")} />
-            {form.formState.errors.lote && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.lote.message}</p>
             )}
           </div>
 

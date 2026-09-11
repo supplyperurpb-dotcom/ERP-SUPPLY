@@ -178,7 +178,6 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
       data: {
         numero,
         proveedorId: parsed.data.proveedorId,
-        lote: parsed.data.lote,
         fechaCosecha: parsed.data.fechaCosecha,
         horaIngreso: parsed.data.horaIngreso,
         placaTransporte: parsed.data.placaTransporte,

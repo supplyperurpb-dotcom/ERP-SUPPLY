@@ -33,7 +33,6 @@ export type PalletFormInput = z.infer<typeof palletFormSchema>;
 // La cabecera representa la llegada del camión: se registra una sola vez.
 export const ingresoFrutaSchema = z.object({
   proveedorId: z.string().min(1, "Selecciona el proveedor/fundo"),
-  lote: z.string().min(1, "El lote es obligatorio").max(50),
   fechaCosecha: z.coerce.date({ invalid_type_error: "Ingresa la fecha de cosecha" }),
   horaIngreso: z.string().min(1, "La hora de recepción es obligatoria").max(10),
   placaTransporte: z.string().min(1, "La placa del vehículo es obligatoria").max(20),

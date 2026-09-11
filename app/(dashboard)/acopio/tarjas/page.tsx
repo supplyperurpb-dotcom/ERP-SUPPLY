@@ -16,7 +16,7 @@ export default async function TarjasPage() {
     <div>
       <PageHeader
         titulo="Tarjas"
-        descripcion="Ticket interno de pallet: detalle de bandejas, pesos, lote, proveedor y variedad, generado a partir de un pallet registrado en Acopio."
+        descripcion="Ticket interno de pallet: detalle de bandejas, pesos, proveedor y variedad, generado a partir de un pallet registrado en Acopio."
       />
 
       {tarjas.length === 0 ? (
@@ -32,7 +32,7 @@ export default async function TarjasPage() {
               <TableHead>Número</TableHead>
               <TableHead>Fecha de emisión</TableHead>
               <TableHead>Proveedor / Fundo</TableHead>
-              <TableHead>Lote</TableHead>
+              <TableHead>Módulo / Variedad</TableHead>
               <TableHead>Peso neto del pallet</TableHead>
             </TableRow>
           </TableHeader>
@@ -42,7 +42,7 @@ export default async function TarjasPage() {
                 <TableCell className="font-medium">{tarja.numero}</TableCell>
                 <TableCell>{formatDateTime(tarja.fechaEmision)}</TableCell>
                 <TableCell>{tarja.pallet.ingresoFruta.proveedor.razonSocial}</TableCell>
-                <TableCell>{tarja.pallet.ingresoFruta.lote}</TableCell>
+                <TableCell>{tarja.pallet.modulo} / {tarja.pallet.variedad}</TableCell>
                 <TableCell>{tarja.pallet.pesoNetoKg.toString()} kg</TableCell>
               </TableRow>
             ))}

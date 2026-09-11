@@ -405,7 +405,6 @@ model IngresoFruta {
   id              String          @id @default(cuid())
   numero          String          @unique // ej. IF-0001
   proveedorId     String
-  lote            String
   fechaCosecha    DateTime
   fechaIngreso    DateTime        @default(now())
   horaIngreso     String?
