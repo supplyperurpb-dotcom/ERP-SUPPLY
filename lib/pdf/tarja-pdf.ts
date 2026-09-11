@@ -52,7 +52,7 @@ export async function generarTarjaPdf({
     page.drawText(texto, { x: (ANCHO - ancho) / 2, y, size: tam, font, color: AZUL });
   };
 
-  centrado("Empresa Agroexportadora de Arándanos S.A.C.", 7, regular);
+  centrado("REITER PERUVIAN BERRY SA", 7, regular);
   y -= 10;
   centrado("Ica, Perú", 6, regular);
   y -= 14;

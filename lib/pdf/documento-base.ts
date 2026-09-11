@@ -26,7 +26,7 @@ export async function generarDocumentoPruebaPdf({
   const margenX = 40;
   let y = 800;
 
-  page.drawText("Empresa Agroexportadora de Arándanos S.A.C.", {
+  page.drawText("REITER PERUVIAN BERRY SA", {
     x: margenX,
     y,
     size: 12,

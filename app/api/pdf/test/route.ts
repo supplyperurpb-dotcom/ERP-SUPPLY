@@ -21,7 +21,7 @@ const DOCUMENTOS_DEMO: Record<string, { titulo: string; numero: string; filas: {
   },
   tarja: {
     titulo: "Tarja de pallet — prueba",
-    numero: "TJ-0001",
+    numero: "RPB26-0001",
     filas: [
       { label: "Lote", value: "L-2026-0001" },
       { label: "Proveedor / Fundo", value: "Fundo Los Arándanos" },

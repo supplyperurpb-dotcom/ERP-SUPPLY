@@ -17,7 +17,7 @@ export async function crearTarjaAction(palletId: string): Promise<TarjaActionSta
 
   const usuario = await getUsuarioActual();
   const totalTarjas = await prisma.tarja.count();
-  const numero = `TJ-${String(totalTarjas + 1).padStart(4, "0")}`;
+  const numero = `RPB26-${String(totalTarjas + 1).padStart(4, "0")}`;
 
   await prisma.tarja.create({
     data: { numero, palletId, creadoPorId: usuario?.id },

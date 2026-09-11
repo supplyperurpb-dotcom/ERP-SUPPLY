@@ -496,7 +496,7 @@ model IngresoFrutaBandejaPeso {
 // (incluso de distintos camiones), y la tarja resume ese conjunto.
 model Tarja {
   id            String   @id @default(cuid())
-  numero        String   @unique // ej. TJ-0001
+  numero        String   @unique // ej. RPB26-0001
   palletId      String   @unique
   fechaEmision  DateTime @default(now())
   pdfUrl        String?
