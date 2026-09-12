@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sprout } from "lucide-react";
@@ -21,6 +23,7 @@ export function SidebarNav({
   onNavegar?: () => void;
 }) {
   const pathname = usePathname();
+  const [logoError, setLogoError] = useState(false);
   const gruposVisibles = NAV_GRUPOS.filter((grupo) => tienePermiso(roles, grupo.modulo as Modulo));
 
   return (
@@ -31,9 +34,22 @@ export function SidebarNav({
       )}
     >
       <div className="flex h-16 items-center gap-2 border-b px-4">
-        <Sprout className="h-6 w-6 text-primary" />
+        <div className="relative h-10 w-10 shrink-0">
+          {logoError ? (
+            <Sprout className="h-6 w-6 text-primary" />
+          ) : (
+            <Image
+              src="/logo-rpb.jpg"
+              alt="Logo de Sistema Integral de Gestión"
+              fill
+              sizes="40px"
+              className="object-contain"
+              onError={() => setLogoError(true)}
+            />
+          )}
+        </div>
         <span className="text-sm font-semibold leading-tight">
-          Sistema Arándanos
+          Sistema Integral de Gestión
           <br />
           <span className="text-xs font-normal text-muted-foreground">Ica, Perú</span>
         </span>

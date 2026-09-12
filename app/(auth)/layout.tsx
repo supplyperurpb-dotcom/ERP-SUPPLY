@@ -6,7 +6,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <Sprout className="h-8 w-8 text-primary" />
-          <h1 className="text-lg font-semibold">Sistema Arándanos</h1>
+          <h1 className="text-lg font-semibold">Sistema Integral de Gestión</h1>
           <p className="text-sm text-muted-foreground">Gestión integral · Ica, Perú</p>
         </div>
         {children}

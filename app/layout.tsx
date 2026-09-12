@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sistema Arándanos | Ica",
+  title: "Sistema Integral de Gestión | Ica",
   description: "Sistema de gestión integral para productora y exportadora de arándanos",
 };
 
