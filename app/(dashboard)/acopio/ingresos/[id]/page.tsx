@@ -110,6 +110,8 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
                     <TableHead>Módulo</TableHead>
                     <TableHead>Turno</TableHead>
                     <TableHead>Variedad</TableHead>
+                    <TableHead>Formato</TableHead>
+                    <TableHead>Tipo de producto</TableHead>
                     <TableHead>Tipo de bandeja</TableHead>
                     <TableHead>Tipo de pallet</TableHead>
                     <TableHead>Cant.</TableHead>
@@ -125,6 +127,8 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
                       <TableCell>{linea.modulo}</TableCell>
                       <TableCell>{linea.turno}</TableCell>
                       <TableCell>{linea.variedad}</TableCell>
+                      <TableCell>{linea.formato}</TableCell>
+                      <TableCell>{linea.tipoProducto}</TableCell>
                       <TableCell>{linea.tipoBandeja.nombre}</TableCell>
                       <TableCell>{linea.tipoPallet?.nombre ?? "—"}</TableCell>
                       <TableCell>{linea.cantidadBandejas}</TableCell>

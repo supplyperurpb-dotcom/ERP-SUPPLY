@@ -13,6 +13,8 @@ type LineaCalculada = {
   modulo: string;
   turno: string;
   variedad: string;
+  formato: string;
+  tipoProducto: string;
   tipoBandejaId: string;
   tipoPalletId: string | null;
   cantidadBandejas: number;
@@ -62,6 +64,8 @@ async function calcularLineas(pallets: IngresoFrutaInput["pallets"]): Promise<Li
       modulo: linea.modulo,
       turno: linea.turno,
       variedad: linea.variedad,
+      formato: linea.formato,
+      tipoProducto: linea.tipoProducto,
       tipoBandejaId: linea.tipoBandejaId,
       tipoPalletId: linea.tipoPalletId || null,
       cantidadBandejas: linea.cantidadBandejas,
@@ -123,6 +127,8 @@ function datosLineaCrear(linea: LineaCalculada, palletId: string) {
     modulo: linea.modulo,
     turno: linea.turno,
     variedad: linea.variedad,
+    formato: linea.formato,
+    tipoProducto: linea.tipoProducto,
     tipoBandejaId: linea.tipoBandejaId,
     tipoPalletId: linea.tipoPalletId,
     cantidadBandejas: linea.cantidadBandejas,

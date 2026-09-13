@@ -25,7 +25,13 @@ import { formatKg, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
-import { MODULOS_ACOPIO, VARIEDADES_POR_MODULO, TURNOS_POR_MODULO_VARIEDAD } from "@/lib/constants/modulos";
+import {
+  MODULOS_ACOPIO,
+  VARIEDADES_POR_MODULO,
+  TURNOS_POR_MODULO_VARIEDAD,
+  FORMATOS_LINEA_PESAJE,
+  TIPOS_PRODUCTO_LINEA_PESAJE,
+} from "@/lib/constants/modulos";
 
 type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
@@ -41,6 +47,8 @@ const LINEA_VACIA = {
   modulo: "",
   turno: "",
   variedad: "",
+  formato: "",
+  tipoProducto: "",
   tipoBandejaId: "",
   tipoPalletId: "",
   cantidadBandejas: 0,
@@ -438,6 +446,61 @@ export function IngresoFrutaForm({
                     {form.formState.errors.pallets?.[index]?.turno && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.turno?.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Formato</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.formato`}
+                      render={({ field: selectField }) => (
+                        <Select value={selectField.value} onValueChange={selectField.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FORMATOS_LINEA_PESAJE.map((f) => (
+                              <SelectItem key={f} value={f}>
+                                {f}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.pallets?.[index]?.formato && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.formato?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo de producto</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.tipoProducto`}
+                      render={({ field: selectField }) => (
+                        <Select value={selectField.value} onValueChange={selectField.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TIPOS_PRODUCTO_LINEA_PESAJE.map((t) => (
+                              <SelectItem key={t} value={t}>
+                                {t}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.pallets?.[index]?.tipoProducto && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.tipoProducto?.message}
                       </p>
                     )}
                   </div>

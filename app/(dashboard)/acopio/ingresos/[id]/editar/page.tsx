@@ -63,6 +63,8 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
       modulo: linea.modulo,
       turno: linea.turno,
       variedad: linea.variedad,
+      formato: linea.formato,
+      tipoProducto: linea.tipoProducto,
       tipoBandejaId: linea.tipoBandejaId,
       tipoPalletId: linea.tipoPalletId ?? "",
       cantidadBandejas: linea.cantidadBandejas,

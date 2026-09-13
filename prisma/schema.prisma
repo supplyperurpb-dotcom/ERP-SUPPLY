@@ -459,6 +459,8 @@ model IngresoFrutaPallet {
   modulo           String // bloque/sector del fundo de origen de esta línea
   turno            String // sub-división del módulo (no es turno de trabajo)
   variedad         String
+  formato          String // presentación/línea de proceso, ej. "Sweetest Batch"
+  tipoProducto     String // ej. "Exportable" | "Descarte Campo"
   tipoPalletId     String? // opcional: catálogo de tipo de parihuela, no se usa en el cálculo de neto
   tipoBandejaId    String
   cantidadBandejas Int

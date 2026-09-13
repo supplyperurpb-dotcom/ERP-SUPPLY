@@ -52,6 +52,8 @@ export async function GET(request: Request) {
     "Módulo": string;
     Turno: string;
     Variedad: string;
+    Formato: string;
+    "Tipo de producto": string;
     "Tipo de bandeja": string;
     "Tipo de pallet": string;
     "Cantidad de bandejas": number;
@@ -79,6 +81,8 @@ export async function GET(request: Request) {
         "Módulo": "",
         Turno: "",
         Variedad: "",
+        Formato: "",
+        "Tipo de producto": "",
         "Tipo de bandeja": "",
         "Tipo de pallet": "",
         "Cantidad de bandejas": 0,
@@ -105,6 +109,8 @@ export async function GET(request: Request) {
         "Módulo": linea.modulo,
         Turno: linea.turno,
         Variedad: linea.variedad,
+        Formato: linea.formato,
+        "Tipo de producto": linea.tipoProducto,
         "Tipo de bandeja": linea.tipoBandeja.nombre,
         "Tipo de pallet": linea.tipoPallet?.nombre ?? "",
         "Cantidad de bandejas": linea.cantidadBandejas,
@@ -131,6 +137,8 @@ export async function GET(request: Request) {
     { wch: 12 }, // Módulo
     { wch: 10 }, // Turno
     { wch: 12 }, // Variedad
+    { wch: 16 }, // Formato
+    { wch: 16 }, // Tipo de producto
     { wch: 20 }, // Tipo de bandeja
     { wch: 20 }, // Tipo de pallet
     { wch: 12 }, // Cantidad de bandejas

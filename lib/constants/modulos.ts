@@ -31,3 +31,7 @@ export const TURNOS_POR_MODULO_VARIEDAD: Record<string, Record<string, string[]>
     BREEZE: ["T10"],
   },
 };
+
+export const FORMATOS_LINEA_PESAJE = ["Sweetest Batch", "Pinta", "Sweet & Crunchy"] as const;
+
+export const TIPOS_PRODUCTO_LINEA_PESAJE = ["Exportable", "Descarte Campo"] as const;
