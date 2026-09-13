@@ -7,19 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
-import { cn, formatDate, rangoFechaCosecha, semanaISO } from "@/lib/utils";
+import { rangoFechaCosecha, semanaISO } from "@/lib/utils";
 
-// Una fila por combinación (fecha de cosecha, variedad). "Aprovechable" es
-// el Exportable registrado en Ingreso de Materia Prima neto de lo que ese
-// mismo lote terminó como Descarte Planta en Ingreso IQF (fruta que se creía
-// exportable pero se descartó recién en planta). Por eso:
+// Una fila por combinación (semana ISO, variedad): se acumulan todas las
+// fechas de cosecha de esa semana en una sola fila (no se desglosa por
+// fecha exacta), siempre dentro del rango que filtre el usuario.
+// "Aprovechable" es el Exportable registrado en Ingreso de Materia Prima
+// neto de lo que ese mismo lote terminó como Descarte Planta en Ingreso IQF
+// (fruta que se creía exportable pero se descartó recién en planta). Por eso:
 //   Total Recepcionado = Aprovechable + Nacional Campo + Nacional Planta
 //                       = (Exportable - Nacional Planta) + Nacional Campo + Nacional Planta
 //                       = Exportable + Nacional Campo
 // que es exactamente el total registrado en Ingreso de Materia Prima,
 // sin importar cuánto se haya descartado después en planta.
 type Fila = {
-  fechaCosecha: Date;
+  semana: number;
   variedad: string;
   exportableCampo: number;
   nacionalCampo: number;
@@ -67,10 +69,11 @@ export default async function ReporteAcopioPage({
 
   const filasPorClave = new Map<string, Fila>();
   function obtenerFila(fecha: Date, variedad: string): Fila {
-    const clave = `${fecha.toISOString()}|${variedad}`;
+    const semana = semanaISO(fecha);
+    const clave = `${semana}|${variedad}`;
     let fila = filasPorClave.get(clave);
     if (!fila) {
-      fila = { fechaCosecha: fecha, variedad, exportableCampo: 0, nacionalCampo: 0, nacionalPlanta: 0 };
+      fila = { semana, variedad, exportableCampo: 0, nacionalCampo: 0, nacionalPlanta: 0 };
       filasPorClave.set(clave, fila);
     }
     return fila;
@@ -96,8 +99,7 @@ export default async function ReporteAcopioPage({
       const recepcionado = aprovechable + f.nacionalCampo + f.nacionalPlanta;
       const pctNacional = recepcionado > 0 ? ((f.nacionalCampo + f.nacionalPlanta) / recepcionado) * 100 : 0;
       return {
-        semana: semanaISO(f.fechaCosecha),
-        fechaCosecha: f.fechaCosecha,
+        semana: f.semana,
         variedad: f.variedad,
         aprovechable,
         nacionalCampo: f.nacionalCampo,
@@ -106,9 +108,7 @@ export default async function ReporteAcopioPage({
         pctNacional,
       };
     })
-    .sort(
-      (a, b) => a.fechaCosecha.getTime() - b.fechaCosecha.getTime() || a.variedad.localeCompare(b.variedad)
-    );
+    .sort((a, b) => a.semana - b.semana || a.variedad.localeCompare(b.variedad));
 
   type FilaTabla =
     | ({ tipo: "dato" } & (typeof filasCalculadas)[number])
@@ -213,7 +213,6 @@ export default async function ReporteAcopioPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Semana</TableHead>
-                <TableHead>F. Cosecha</TableHead>
                 <TableHead>Variedad</TableHead>
                 <TableHead className="text-right">Kg Recepcionado</TableHead>
                 <TableHead className="text-right">Kg Aprovechable</TableHead>
@@ -226,7 +225,7 @@ export default async function ReporteAcopioPage({
               {filasTabla.map((fila, index) =>
                 fila.tipo === "subtotal" ? (
                   <TableRow key={`subtotal-${fila.semana}-${index}`} className="bg-muted/50 font-semibold">
-                    <TableCell colSpan={3}>Total semana {fila.semana}</TableCell>
+                    <TableCell colSpan={2}>Total semana {fila.semana}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.recepcionado)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.aprovechable)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.nacionalCampo)}</TableCell>
@@ -234,9 +233,8 @@ export default async function ReporteAcopioPage({
                     <TableCell className="text-right">{formatPorcentaje(fila.pctNacional)}</TableCell>
                   </TableRow>
                 ) : (
-                  <TableRow key={`${fila.fechaCosecha.toISOString()}-${fila.variedad}`}>
-                    <TableCell className={cn("text-muted-foreground")}>{fila.semana}</TableCell>
-                    <TableCell>{formatDate(fila.fechaCosecha)}</TableCell>
+                  <TableRow key={`${fila.semana}-${fila.variedad}`}>
+                    <TableCell className="text-muted-foreground">{fila.semana}</TableCell>
                     <TableCell className="font-medium">{fila.variedad}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.recepcionado)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.aprovechable)}</TableCell>
