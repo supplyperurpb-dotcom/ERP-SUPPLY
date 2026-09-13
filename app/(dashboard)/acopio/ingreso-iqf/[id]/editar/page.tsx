@@ -15,7 +15,10 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
     }),
     prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.tipoPallet.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
-    prisma.palletIQF.findMany({ where: { estado: "ABIERTO" }, orderBy: { numero: "asc" } }),
+    prisma.palletIQF.findMany({
+      where: { estado: "ABIERTO", origen: "DESCARTE_PLANTA" },
+      orderBy: { numero: "asc" },
+    }),
   ]);
 
   if (!ingreso) {

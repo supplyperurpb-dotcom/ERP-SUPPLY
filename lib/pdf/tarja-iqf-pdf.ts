@@ -21,6 +21,7 @@ export async function generarTarjaIQFPdf({
   palletNumero,
   fechaEmision,
   proveedor,
+  tipoProducto,
   lineas,
   totalBandejas,
   pesoBrutoTotalKg,
@@ -31,6 +32,8 @@ export async function generarTarjaIQFPdf({
   palletNumero: string;
   fechaEmision: Date;
   proveedor: string;
+  /** "Descarte Campo" o "Descarte Planta", según el origen del pallet. */
+  tipoProducto: string;
   lineas: LineaTarjaIQF[];
   totalBandejas: number;
   pesoBrutoTotalKg: number;
@@ -74,7 +77,7 @@ export async function generarTarjaIQFPdf({
   y -= 12;
   page.drawText(`Proveedor / Fundo: ${proveedor}`, { x: margen, y, size: 8, font: regular, color: GRIS });
   y -= 12;
-  page.drawText("Tipo de producto: Descarte Planta", { x: margen, y, size: 8, font: regular, color: GRIS });
+  page.drawText(`Tipo de producto: ${tipoProducto}`, { x: margen, y, size: 8, font: regular, color: GRIS });
   y -= 16;
 
   page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 0.5, color: GRIS });

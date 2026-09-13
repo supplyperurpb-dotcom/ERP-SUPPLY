@@ -12,6 +12,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
         include: { tipoBandeja: true, ingresoIQF: { include: { proveedor: true } } },
         orderBy: { numeroPallet: "asc" },
       },
+      lineasFruta: {
+        include: { tipoBandeja: true, ingresoFruta: { include: { proveedor: true } } },
+        orderBy: { numeroPallet: "asc" },
+      },
     },
   });
 
@@ -19,19 +23,33 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
     return NextResponse.json({ error: "No se encontró la tarja de este pallet." }, { status: 404 });
   }
 
-  const proveedores = Array.from(new Set(pallet.lineas.map((l) => l.ingresoIQF.proveedor.razonSocial)));
+  const proveedores = Array.from(
+    new Set([
+      ...pallet.lineas.map((l) => l.ingresoIQF.proveedor.razonSocial),
+      ...pallet.lineasFruta.map((l) => l.ingresoFruta.proveedor.razonSocial),
+    ])
+  );
 
   const bytes = await generarTarjaIQFPdf({
     tarjaNumero: pallet.tarja.numero,
     palletNumero: pallet.numero,
     fechaEmision: pallet.tarja.fechaEmision,
     proveedor: proveedores.join(", ") || "—",
-    lineas: pallet.lineas.map((l) => ({
-      variedad: l.variedad,
-      tipoBandeja: l.tipoBandeja.nombre,
-      cantidadBandejas: l.cantidadBandejas,
-      pesoNetoKg: Number(l.pesoNetoKg),
-    })),
+    tipoProducto: pallet.origen === "DESCARTE_CAMPO" ? "Descarte Campo" : "Descarte Planta",
+    lineas: [
+      ...pallet.lineas.map((l) => ({
+        variedad: l.variedad,
+        tipoBandeja: l.tipoBandeja.nombre,
+        cantidadBandejas: l.cantidadBandejas,
+        pesoNetoKg: Number(l.pesoNetoKg),
+      })),
+      ...pallet.lineasFruta.map((l) => ({
+        variedad: l.variedad,
+        tipoBandeja: l.tipoBandeja.nombre,
+        cantidadBandejas: l.cantidadBandejas,
+        pesoNetoKg: Number(l.pesoNetoKg),
+      })),
+    ],
     totalBandejas: pallet.cantidadBandejas,
     pesoBrutoTotalKg: Number(pallet.pesoBrutoTotalKg),
     pesoTaraTotalKg: Number(pallet.pesoTaraTotalKg),

@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     include: {
       proveedor: true,
       pallets: {
-        include: { tipoBandeja: true, tipoPallet: true, pallet: true },
+        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIQF: true },
         orderBy: { numeroPallet: "asc" },
       },
     },
@@ -117,7 +117,11 @@ export async function GET(request: Request) {
         "Peso bruto (kg)": Number(linea.pesoBrutoTotalKg),
         "Tara (kg)": Number(linea.pesoTaraTotalKg),
         "Peso neto (kg)": Number(linea.pesoNetoKg),
-        "Pallet asignado": linea.pallet.numero,
+        "Pallet asignado": linea.pallet
+          ? linea.pallet.numero
+          : linea.palletIQF
+            ? `${linea.palletIQF.numero} (IQF)`
+            : "",
         Observaciones: ingreso.observaciones ?? "",
       });
     }

@@ -8,11 +8,22 @@ import { formatKg } from "@/lib/utils";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import { TarjaIQFBoton } from "./tarja-iqf-boton";
 
+const ORIGEN_LABEL: Record<"DESCARTE_CAMPO" | "DESCARTE_PLANTA", string> = {
+  DESCARTE_CAMPO: "Descarte Campo",
+  DESCARTE_PLANTA: "Descarte Planta",
+};
+
 export default async function TarjasIQFPage() {
+  // Un pallet IQF viene de Ingreso IQF (líneas en `lineas`, Descarte Planta)
+  // o de líneas "Descarte Campo" de Ingreso de Materia Prima (`lineasFruta`)
+  // — nunca de ambos a la vez (ver PalletIQF.origen).
   const pallets = await prisma.palletIQF.findMany({
     include: {
       tarja: { include: { despacho: true } },
       lineas: { select: { variedad: true, ingresoIQF: { select: { proveedor: { select: { razonSocial: true } } } } } },
+      lineasFruta: {
+        select: { variedad: true, ingresoFruta: { select: { proveedor: { select: { razonSocial: true } } } } },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -22,20 +33,21 @@ export default async function TarjasIQFPage() {
     <div>
       <PageHeader
         titulo="Tarjas IQF"
-        descripcion="Etiqueta impresa (10 × 15 cm) de un pallet de descarte de planta armado en Ingreso IQF: variedad, cantidad de bandejas y peso neto. Independiente de las Tarjas de Ingreso de Materia Prima."
+        descripcion="Etiqueta impresa (10 × 15 cm) de un pallet de descarte armado desde Ingreso IQF (Descarte Planta) o desde líneas Descarte Campo de Ingreso de Materia Prima: variedad, cantidad de bandejas y peso neto. Independiente de las Tarjas de fruta exportable."
       />
 
       {pallets.length === 0 ? (
         <EmptyState
           icono={Package}
           titulo="Aún no hay pallets IQF armados"
-          descripcion="Los pallets IQF se crean al registrar un ingreso en Ingreso IQF."
+          descripcion="Los pallets IQF se crean al registrar un ingreso en Ingreso IQF o una línea Descarte Campo en Ingreso de Materia Prima."
         />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Pallet</TableHead>
+              <TableHead>Origen</TableHead>
               <TableHead>Fundo</TableHead>
               <TableHead>Variedades</TableHead>
               <TableHead>Bandejas</TableHead>
@@ -48,12 +60,20 @@ export default async function TarjasIQFPage() {
           <TableBody>
             {pallets.map((pallet) => {
               const proveedores = Array.from(
-                new Set(pallet.lineas.map((l) => l.ingresoIQF.proveedor.razonSocial))
+                new Set([
+                  ...pallet.lineas.map((l) => l.ingresoIQF.proveedor.razonSocial),
+                  ...pallet.lineasFruta.map((l) => l.ingresoFruta.proveedor.razonSocial),
+                ])
               ).join(", ");
-              const detalle = Array.from(new Set(pallet.lineas.map((l) => l.variedad))).join(", ");
+              const detalle = Array.from(
+                new Set([...pallet.lineas.map((l) => l.variedad), ...pallet.lineasFruta.map((l) => l.variedad)])
+              ).join(", ");
               return (
                 <TableRow key={pallet.id}>
                   <TableCell className="font-medium">{pallet.numero}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{ORIGEN_LABEL[pallet.origen]}</Badge>
+                  </TableCell>
                   <TableCell>{proveedores || "—"}</TableCell>
                   <TableCell className="max-w-[220px] truncate" title={detalle}>
                     {detalle || "—"}

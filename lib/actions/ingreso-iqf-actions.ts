@@ -26,6 +26,31 @@ type LineaCalculada = {
 // amigable (Prisma hace rollback automático si el callback lanza).
 class ErrorValidacion extends Error {}
 
+// Regla de negocio: un pallet IQF nunca mezcla bandejas de distinto tipo
+// (p. ej. bandejas y jabas). Se valida entre las líneas nuevas que apuntan
+// al mismo destino y contra el tipo de bandeja que ese pallet ya tenga.
+function validarBandejaUniformeEnGrupo(lineas: LineaCalculada[]) {
+  const tipos = new Set(lineas.map((l) => l.tipoBandejaId));
+  if (tipos.size > 1) {
+    throw new ErrorValidacion(
+      "No se puede mezclar distintos tipos de bandeja (p. ej. bandejas y jabas) en un mismo pallet. Usa un pallet separado para cada tipo de bandeja."
+    );
+  }
+}
+
+async function validarBandejaContraExistente(
+  lineas: LineaCalculada[],
+  palletNumero: string,
+  lineaExistente: { tipoBandejaId: string } | null
+) {
+  validarBandejaUniformeEnGrupo(lineas);
+  if (lineaExistente && lineaExistente.tipoBandejaId !== lineas[0].tipoBandejaId) {
+    throw new ErrorValidacion(
+      `No se puede asignar esta línea al pallet ${palletNumero}: ya tiene un tipo de bandeja distinto. No se pueden mezclar tipos de bandeja en un mismo pallet.`
+    );
+  }
+}
+
 // Regla de negocio pedida por el usuario: el descarte de planta de una
 // variedad solo se puede registrar en una fecha de cosecha en la que esa
 // variedad SÍ llegó como materia prima (Ingreso de Materia Prima). Evita
@@ -125,6 +150,7 @@ function agruparPorDestino(lineasCalculadas: LineaCalculada[]) {
   }
 
   for (const lineas of gruposNuevo.values()) {
+    validarBandejaUniformeEnGrupo(lineas);
     const total = lineas.reduce((acc, l) => acc + l.cantidadBandejas, 0);
     if (total > CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET) {
       throw new ErrorValidacion(`Un pallet nuevo no puede superar ${CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET} bandejas.`);
@@ -176,7 +202,7 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
 
     for (const [palletId, lineas] of gruposExistente) {
       const pallet = palletPorId.get(palletId);
-      if (!pallet || pallet.estado !== "ABIERTO") {
+      if (!pallet || pallet.estado !== "ABIERTO" || pallet.origen !== "DESCARTE_PLANTA") {
         return {
           error: "Uno de los pallets existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo.",
         };
@@ -189,6 +215,11 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
           } bandejas más.`,
         };
       }
+      const lineaExistente = await prisma.ingresoIQFPallet.findFirst({
+        where: { palletId },
+        select: { tipoBandejaId: true },
+      });
+      await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
     }
 
     const usuario = await getUsuarioActual();
@@ -205,6 +236,7 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
         const nuevoPallet = await tx.palletIQF.create({
           data: {
             numero: `PIQF-${String(contador).padStart(4, "0")}`,
+            origen: "DESCARTE_PLANTA",
             cantidadBandejas: bandejas,
             pesoBrutoTotalKg: bruto,
             pesoTaraTotalKg: tara,
@@ -318,7 +350,7 @@ export async function actualizarIngresoIQFAction(
 
       for (const [palletId, lineas] of gruposExistente) {
         const pallet = palletPorId.get(palletId);
-        if (!pallet) {
+        if (!pallet || pallet.origen !== "DESCARTE_PLANTA") {
           throw new ErrorValidacion(
             "Uno de los pallets existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo."
           );
@@ -331,6 +363,11 @@ export async function actualizarIngresoIQFAction(
             } bandejas más.`
           );
         }
+        const lineaExistente = await tx.ingresoIQFPallet.findFirst({
+          where: { palletId },
+          select: { tipoBandejaId: true },
+        });
+        await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
       }
 
       // 4. Crear pallets nuevos e incrementar los existentes (igual que al
@@ -344,6 +381,7 @@ export async function actualizarIngresoIQFAction(
         const nuevoPallet = await tx.palletIQF.create({
           data: {
             numero: `PIQF-${String(contador).padStart(4, "0")}`,
+            origen: "DESCARTE_PLANTA",
             cantidadBandejas: bandejas,
             pesoBrutoTotalKg: bruto,
             pesoTaraTotalKg: tara,

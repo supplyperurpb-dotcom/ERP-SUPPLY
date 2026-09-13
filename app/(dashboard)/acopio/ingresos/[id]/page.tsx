@@ -38,7 +38,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
     include: {
       proveedor: true,
       pallets: {
-        include: { tipoBandeja: true, tipoPallet: true, pallet: true },
+        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIQF: true },
         orderBy: { numeroPallet: "asc" },
       },
     },
@@ -136,12 +136,24 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
                       <TableCell>{formatKg(Number(linea.pesoTaraTotalKg))}</TableCell>
                       <TableCell className="font-medium">{formatKg(Number(linea.pesoNetoKg))}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span>{linea.pallet.numero}</span>
-                          <Badge variant={linea.pallet.estado === "CERRADO" ? "success" : "secondary"}>
-                            {ESTADO_PALLET_LABEL[linea.pallet.estado]}
-                          </Badge>
-                        </div>
+                        {linea.pallet ? (
+                          <div className="flex items-center gap-2">
+                            <span>{linea.pallet.numero}</span>
+                            <Badge variant={linea.pallet.estado === "CERRADO" ? "success" : "secondary"}>
+                              {ESTADO_PALLET_LABEL[linea.pallet.estado]}
+                            </Badge>
+                          </div>
+                        ) : linea.palletIQF ? (
+                          <div className="flex items-center gap-2">
+                            <span>{linea.palletIQF.numero}</span>
+                            <Badge variant={linea.palletIQF.estado === "CERRADO" ? "success" : "secondary"}>
+                              {ESTADO_PALLET_LABEL[linea.palletIQF.estado]}
+                            </Badge>
+                            <Badge variant="outline">IQF</Badge>
+                          </div>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -167,10 +179,15 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
         </CardContent>
       </Card>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="outline" asChild>
           <Link href="/acopio/tarjas">Ir a Tarjas para generar la etiqueta del pallet</Link>
         </Button>
+        {ingreso.pallets.some((p) => p.palletIQF) && (
+          <Button variant="outline" asChild>
+            <Link href="/acopio/tarjas-iqf">Ir a Tarjas IQF (líneas de Descarte Campo)</Link>
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -110,6 +110,14 @@ enum EstadoPackingList {
   ANULADO
 }
 
+// Origen de un pallet IQF: de qué lado del proceso vino el descarte. Un
+// mismo pallet físico nunca mezcla ambos orígenes (ver PalletIQF), pero
+// ambos aparecen juntos en la pantalla de Tarjas IQF.
+enum OrigenPalletIQF {
+  DESCARTE_CAMPO
+  DESCARTE_PLANTA
+}
+
 // =========================================================================
 // USUARIOS, ROLES Y PERMISOS
 // =========================================================================
@@ -458,7 +466,12 @@ model IngresoFrutaPallet {
   id               String   @id @default(cuid())
   ingresoFrutaId   String
   numeroPallet     Int // correlativo de la línea dentro de este ingreso (no es el número del Pallet físico)
-  palletId         String
+  // Exactamente uno de los dos está presente, según tipoProducto: las líneas
+  // "Exportable" arman un Pallet normal; las líneas "Descarte Campo" arman
+  // un PalletIQF (mismo pool físico que usa Ingreso IQF) para que su tarja
+  // salga en Tarjas IQF en vez de en Tarjas. Ver PalletIQF.origen.
+  palletId         String?
+  palletIQFId      String?
   modulo           String // bloque/sector del fundo de origen de esta línea
   turno            String // sub-división del módulo (no es turno de trabajo)
   variedad         String
@@ -474,7 +487,8 @@ model IngresoFrutaPallet {
   updatedAt        DateTime @updatedAt
 
   ingresoFruta  IngresoFruta               @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
-  pallet        Pallet                     @relation(fields: [palletId], references: [id])
+  pallet        Pallet?                    @relation(fields: [palletId], references: [id])
+  palletIQF     PalletIQF?                 @relation(fields: [palletIQFId], references: [id])
   tipoPallet    TipoPallet?                @relation(fields: [tipoPalletId], references: [id])
   tipoBandeja   TipoBandeja                @relation(fields: [tipoBandejaId], references: [id])
   bandejas      IngresoFrutaBandejaPeso[]
@@ -612,19 +626,25 @@ model IngresoIQF {
 }
 
 model PalletIQF {
-  id               String       @id @default(cuid())
-  numero           String       @unique // ej. PIQF-0001
-  cantidadBandejas Int          @default(0)
-  pesoBrutoTotalKg Decimal      @default(0) @db.Decimal(10, 3)
-  pesoTaraTotalKg  Decimal      @default(0) @db.Decimal(10, 3)
-  pesoNetoKg       Decimal      @default(0) @db.Decimal(10, 3)
-  estado           EstadoPallet @default(ABIERTO)
+  id               String          @id @default(cuid())
+  numero           String          @unique // ej. PIQF-0001
+  // De qué lado vino el descarte que arma este pallet: nunca se mezclan (un
+  // pallet es 100% Descarte Campo -líneas de Ingreso de Materia Prima- o
+  // 100% Descarte Planta -líneas de Ingreso IQF-), aunque ambos orígenes
+  // comparten la misma numeración y aparecen juntos en Tarjas IQF.
+  origen           OrigenPalletIQF
+  cantidadBandejas Int             @default(0)
+  pesoBrutoTotalKg Decimal         @default(0) @db.Decimal(10, 3)
+  pesoTaraTotalKg  Decimal         @default(0) @db.Decimal(10, 3)
+  pesoNetoKg       Decimal         @default(0) @db.Decimal(10, 3)
+  estado           EstadoPallet    @default(ABIERTO)
   creadoPorId      String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
-  lineas IngresoIQFPallet[]
-  tarja  TarjaIQF?
+  lineas      IngresoIQFPallet[]
+  lineasFruta IngresoFrutaPallet[]
+  tarja       TarjaIQF?
 
   @@map("pallets_iqf")
 }

@@ -10,7 +10,10 @@ export default async function NuevoIngresoIQFPage() {
     }),
     prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.tipoPallet.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
-    prisma.palletIQF.findMany({ where: { estado: "ABIERTO" }, orderBy: { numero: "asc" } }),
+    prisma.palletIQF.findMany({
+      where: { estado: "ABIERTO", origen: "DESCARTE_PLANTA" },
+      orderBy: { numero: "asc" },
+    }),
   ]);
 
   // Se mapea explícitamente a objetos planos: el campo Decimal de Prisma no

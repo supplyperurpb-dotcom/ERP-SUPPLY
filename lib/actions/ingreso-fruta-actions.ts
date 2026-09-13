@@ -28,6 +28,32 @@ type LineaCalculada = {
 // amigable (Prisma hace rollback automático si el callback lanza).
 class ErrorValidacion extends Error {}
 
+// Regla de negocio: un pallet físico (de fruta o IQF) nunca mezcla bandejas
+// de distinto tipo (p. ej. bandejas y jabas). Se valida tanto entre las
+// líneas nuevas que apuntan al mismo destino como contra el tipo de bandeja
+// que ese pallet ya tenga en la base de datos.
+function validarBandejaUniformeEnGrupo(lineas: LineaCalculada[]) {
+  const tipos = new Set(lineas.map((l) => l.tipoBandejaId));
+  if (tipos.size > 1) {
+    throw new ErrorValidacion(
+      "No se puede mezclar distintos tipos de bandeja (p. ej. bandejas y jabas) en un mismo pallet. Usa un pallet separado para cada tipo de bandeja."
+    );
+  }
+}
+
+async function validarBandejaContraExistente(
+  lineas: LineaCalculada[],
+  palletNumero: string,
+  lineaExistente: { tipoBandejaId: string } | null
+) {
+  validarBandejaUniformeEnGrupo(lineas);
+  if (lineaExistente && lineaExistente.tipoBandejaId !== lineas[0].tipoBandejaId) {
+    throw new ErrorValidacion(
+      `No se puede asignar esta línea al pallet ${palletNumero}: ya tiene un tipo de bandeja distinto. No se pueden mezclar tipos de bandeja en un mismo pallet.`
+    );
+  }
+}
+
 // Calcula tara/neto por línea y valida que los tipos de bandeja/pallet
 // referenciados sigan existiendo. Compartido por crear y actualizar.
 async function calcularLineas(pallets: IngresoFrutaInput["pallets"]): Promise<LineaCalculada[]> {
@@ -102,6 +128,7 @@ function agruparPorDestino(lineasCalculadas: LineaCalculada[]) {
   }
 
   for (const lineas of gruposNuevo.values()) {
+    validarBandejaUniformeEnGrupo(lineas);
     const total = lineas.reduce((acc, l) => acc + l.cantidadBandejas, 0);
     if (total > CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET) {
       throw new ErrorValidacion(`Un pallet nuevo no puede superar ${CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET} bandejas.`);
@@ -109,6 +136,17 @@ function agruparPorDestino(lineasCalculadas: LineaCalculada[]) {
   }
 
   return { gruposNuevo, gruposExistente };
+}
+
+// Separa las líneas ya calculadas según a qué pool de pallet físico van:
+// "Exportable" arma un Pallet normal; "Descarte Campo" arma un PalletIQF
+// (el mismo tipo físico que usa Ingreso IQF), para que su tarja salga en
+// Tarjas IQF en vez de en Tarjas. Un mismo pallet nunca mezcla ambos
+// orígenes (ver PalletIQF.origen en el schema).
+function separarPorTipoProducto(lineasCalculadas: LineaCalculada[]) {
+  const exportable = lineasCalculadas.filter((l) => l.tipoProducto !== "Descarte Campo");
+  const descarteCampo = lineasCalculadas.filter((l) => l.tipoProducto === "Descarte Campo");
+  return { exportable, descarteCampo };
 }
 
 function sumar(lineas: LineaCalculada[]) {
@@ -120,10 +158,11 @@ function sumar(lineas: LineaCalculada[]) {
   };
 }
 
-function datosLineaCrear(linea: LineaCalculada, palletId: string) {
+function datosLineaCrear(linea: LineaCalculada, palletId: string, esDescarteCampo: boolean) {
   return {
     numeroPallet: linea.numeroPallet,
-    palletId,
+    palletId: esDescarteCampo ? null : palletId,
+    palletIQFId: esDescarteCampo ? palletId : null,
     modulo: linea.modulo,
     turno: linea.turno,
     variedad: linea.variedad,
@@ -146,7 +185,9 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
 
   try {
     const lineasCalculadas = await calcularLineas(parsed.data.pallets);
-    const { gruposNuevo, gruposExistente } = agruparPorDestino(lineasCalculadas);
+    const { exportable, descarteCampo } = separarPorTipoProducto(lineasCalculadas);
+    const { gruposNuevo, gruposExistente } = agruparPorDestino(exportable);
+    const { gruposNuevo: gruposNuevoIQF, gruposExistente: gruposExistenteIQF } = agruparPorDestino(descarteCampo);
 
     const idsExistentes = Array.from(gruposExistente.keys());
     const palletsExistentes = idsExistentes.length
@@ -169,6 +210,39 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
           } bandejas más.`,
         };
       }
+      const lineaExistente = await prisma.ingresoFrutaPallet.findFirst({
+        where: { palletId },
+        select: { tipoBandejaId: true },
+      });
+      await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
+    }
+
+    const idsExistentesIQF = Array.from(gruposExistenteIQF.keys());
+    const palletsExistentesIQF = idsExistentesIQF.length
+      ? await prisma.palletIQF.findMany({ where: { id: { in: idsExistentesIQF } } })
+      : [];
+    const palletIQFPorId = new Map(palletsExistentesIQF.map((p) => [p.id, p]));
+
+    for (const [palletId, lineas] of gruposExistenteIQF) {
+      const pallet = palletIQFPorId.get(palletId);
+      if (!pallet || pallet.estado !== "ABIERTO" || pallet.origen !== "DESCARTE_CAMPO") {
+        return {
+          error: "Uno de los pallets IQF existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo.",
+        };
+      }
+      const { bandejas } = sumar(lineas);
+      if (pallet.cantidadBandejas + bandejas > CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET) {
+        return {
+          error: `El pallet ${pallet.numero} solo tiene espacio para ${
+            CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET - pallet.cantidadBandejas
+          } bandejas más.`,
+        };
+      }
+      const lineaExistente = await prisma.ingresoFrutaPallet.findFirst({
+        where: { palletIQFId: palletId },
+        select: { tipoBandejaId: true },
+      });
+      await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
     }
 
     const usuario = await getUsuarioActual();
@@ -178,6 +252,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     await prisma.$transaction(async (tx) => {
       const tempIdAPalletId = new Map<string, string>();
       let contador = await tx.pallet.count();
+      let contadorIQF = await tx.palletIQF.count();
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;
@@ -185,6 +260,24 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
         const nuevoPallet = await tx.pallet.create({
           data: {
             numero: `PAL-${String(contador).padStart(4, "0")}`,
+            cantidadBandejas: bandejas,
+            pesoBrutoTotalKg: bruto,
+            pesoTaraTotalKg: tara,
+            pesoNetoKg: neto,
+            estado: bandejas >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO",
+            creadoPorId: usuario?.id,
+          },
+        });
+        tempIdAPalletId.set(tempId, nuevoPallet.id);
+      }
+
+      for (const [tempId, lineas] of gruposNuevoIQF) {
+        contadorIQF += 1;
+        const { bandejas, bruto, tara, neto } = sumar(lineas);
+        const nuevoPallet = await tx.palletIQF.create({
+          data: {
+            numero: `PIQF-${String(contadorIQF).padStart(4, "0")}`,
+            origen: "DESCARTE_CAMPO",
             cantidadBandejas: bandejas,
             pesoBrutoTotalKg: bruto,
             pesoTaraTotalKg: tara,
@@ -212,6 +305,22 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
         });
       }
 
+      for (const [palletId, lineas] of gruposExistenteIQF) {
+        const pallet = palletIQFPorId.get(palletId)!;
+        const { bandejas, bruto, tara, neto } = sumar(lineas);
+        const nuevaCantidad = pallet.cantidadBandejas + bandejas;
+        await tx.palletIQF.update({
+          where: { id: palletId },
+          data: {
+            cantidadBandejas: { increment: bandejas },
+            pesoBrutoTotalKg: { increment: bruto },
+            pesoTaraTotalKg: { increment: tara },
+            pesoNetoKg: { increment: neto },
+            estado: nuevaCantidad >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO",
+          },
+        });
+      }
+
       await tx.ingresoFruta.create({
         data: {
           numero,
@@ -226,8 +335,8 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
               const separador = linea.palletAsignado.indexOf(":");
               const tipo = linea.palletAsignado.slice(0, separador);
               const id = linea.palletAsignado.slice(separador + 1);
-              const palletId = tipo === "nuevo" ? tempIdAPalletId.get(id)! : id;
-              return datosLineaCrear(linea, palletId);
+              const palletId = tempIdAPalletId.get(id) ?? id;
+              return datosLineaCrear(linea, palletId, linea.tipoProducto === "Descarte Campo");
             }),
           },
         },
@@ -235,6 +344,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     });
 
     revalidatePath("/acopio/ingresos");
+    revalidatePath("/acopio/tarjas-iqf");
     return { success: true };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };
@@ -261,37 +371,57 @@ export async function actualizarIngresoFrutaAction(
 
   try {
     const lineasCalculadas = await calcularLineas(parsed.data.pallets);
-    const { gruposNuevo, gruposExistente } = agruparPorDestino(lineasCalculadas);
+    const { exportable, descarteCampo } = separarPorTipoProducto(lineasCalculadas);
+    const { gruposNuevo, gruposExistente } = agruparPorDestino(exportable);
+    const { gruposNuevo: gruposNuevoIQF, gruposExistente: gruposExistenteIQF } = agruparPorDestino(descarteCampo);
     const usuario = await getUsuarioActual();
 
     await prisma.$transaction(async (tx) => {
       // 1. Revertir la contribución de las líneas ANTERIORES de este
-      //    ingreso en sus pallets (para no arrastrar datos viejos).
-      const pallePorIdRevertido = new Map<string, { cantidadBandejas: number }>();
+      //    ingreso en sus pallets (para no arrastrar datos viejos). Cada
+      //    línea vieja pudo haber ido a un Pallet normal o a un PalletIQF
+      //    (Descarte Campo), según su tipoProducto de ese momento.
       for (const lineaVieja of ingresoExistente.pallets) {
-        const pallet = await tx.pallet.update({
-          where: { id: lineaVieja.palletId },
-          data: {
-            cantidadBandejas: { decrement: lineaVieja.cantidadBandejas },
-            pesoBrutoTotalKg: { decrement: lineaVieja.pesoBrutoTotalKg },
-            pesoTaraTotalKg: { decrement: lineaVieja.pesoTaraTotalKg },
-            pesoNetoKg: { decrement: lineaVieja.pesoNetoKg },
-          },
-        });
-        const nuevaCantidad = Math.max(0, pallet.cantidadBandejas);
-        await tx.pallet.update({
-          where: { id: lineaVieja.palletId },
-          data: { estado: nuevaCantidad >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO" },
-        });
-        pallePorIdRevertido.set(lineaVieja.palletId, { cantidadBandejas: nuevaCantidad });
+        if (lineaVieja.palletId) {
+          const pallet = await tx.pallet.update({
+            where: { id: lineaVieja.palletId },
+            data: {
+              cantidadBandejas: { decrement: lineaVieja.cantidadBandejas },
+              pesoBrutoTotalKg: { decrement: lineaVieja.pesoBrutoTotalKg },
+              pesoTaraTotalKg: { decrement: lineaVieja.pesoTaraTotalKg },
+              pesoNetoKg: { decrement: lineaVieja.pesoNetoKg },
+            },
+          });
+          const nuevaCantidad = Math.max(0, pallet.cantidadBandejas);
+          await tx.pallet.update({
+            where: { id: lineaVieja.palletId },
+            data: { estado: nuevaCantidad >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO" },
+          });
+        } else if (lineaVieja.palletIQFId) {
+          const pallet = await tx.palletIQF.update({
+            where: { id: lineaVieja.palletIQFId },
+            data: {
+              cantidadBandejas: { decrement: lineaVieja.cantidadBandejas },
+              pesoBrutoTotalKg: { decrement: lineaVieja.pesoBrutoTotalKg },
+              pesoTaraTotalKg: { decrement: lineaVieja.pesoTaraTotalKg },
+              pesoNetoKg: { decrement: lineaVieja.pesoNetoKg },
+            },
+          });
+          const nuevaCantidad = Math.max(0, pallet.cantidadBandejas);
+          await tx.palletIQF.update({
+            where: { id: lineaVieja.palletIQFId },
+            data: { estado: nuevaCantidad >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO" },
+          });
+        }
       }
 
       // 2. Borrar las líneas anteriores.
       await tx.ingresoFrutaPallet.deleteMany({ where: { ingresoFrutaId: ingresoId } });
 
-      // 3. Validar capacidad de los pallets existentes contra su estado YA
-      //    revertido (si esta edición vuelve a usar el mismo pallet, su
-      //    espacio liberado en el paso 1 ya está disponible aquí).
+      // 3. Validar capacidad y tipo de bandeja de los pallets existentes
+      //    contra su estado YA revertido (si esta edición vuelve a usar el
+      //    mismo pallet, su espacio liberado en el paso 1 ya está
+      //    disponible aquí).
       const idsExistentes = Array.from(gruposExistente.keys());
       const palletsExistentesDb = idsExistentes.length
         ? await tx.pallet.findMany({ where: { id: { in: idsExistentes } } })
@@ -313,12 +443,46 @@ export async function actualizarIngresoFrutaAction(
             } bandejas más.`
           );
         }
+        const lineaExistente = await tx.ingresoFrutaPallet.findFirst({
+          where: { palletId },
+          select: { tipoBandejaId: true },
+        });
+        await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
+      }
+
+      const idsExistentesIQF = Array.from(gruposExistenteIQF.keys());
+      const palletsExistentesIQFDb = idsExistentesIQF.length
+        ? await tx.palletIQF.findMany({ where: { id: { in: idsExistentesIQF } } })
+        : [];
+      const palletIQFPorId = new Map(palletsExistentesIQFDb.map((p) => [p.id, p]));
+
+      for (const [palletId, lineas] of gruposExistenteIQF) {
+        const pallet = palletIQFPorId.get(palletId);
+        if (!pallet || pallet.origen !== "DESCARTE_CAMPO") {
+          throw new ErrorValidacion(
+            "Uno de los pallets IQF existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo."
+          );
+        }
+        const { bandejas } = sumar(lineas);
+        if (pallet.cantidadBandejas + bandejas > CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET) {
+          throw new ErrorValidacion(
+            `El pallet ${pallet.numero} solo tiene espacio para ${
+              CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET - pallet.cantidadBandejas
+            } bandejas más.`
+          );
+        }
+        const lineaExistente = await tx.ingresoFrutaPallet.findFirst({
+          where: { palletIQFId: palletId },
+          select: { tipoBandejaId: true },
+        });
+        await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
       }
 
       // 4. Crear pallets nuevos e incrementar los existentes (igual que al
       //    crear un ingreso).
       const tempIdAPalletId = new Map<string, string>();
       let contador = await tx.pallet.count();
+      let contadorIQF = await tx.palletIQF.count();
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;
@@ -326,6 +490,24 @@ export async function actualizarIngresoFrutaAction(
         const nuevoPallet = await tx.pallet.create({
           data: {
             numero: `PAL-${String(contador).padStart(4, "0")}`,
+            cantidadBandejas: bandejas,
+            pesoBrutoTotalKg: bruto,
+            pesoTaraTotalKg: tara,
+            pesoNetoKg: neto,
+            estado: bandejas >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO",
+            creadoPorId: usuario?.id,
+          },
+        });
+        tempIdAPalletId.set(tempId, nuevoPallet.id);
+      }
+
+      for (const [tempId, lineas] of gruposNuevoIQF) {
+        contadorIQF += 1;
+        const { bandejas, bruto, tara, neto } = sumar(lineas);
+        const nuevoPallet = await tx.palletIQF.create({
+          data: {
+            numero: `PIQF-${String(contadorIQF).padStart(4, "0")}`,
+            origen: "DESCARTE_CAMPO",
             cantidadBandejas: bandejas,
             pesoBrutoTotalKg: bruto,
             pesoTaraTotalKg: tara,
@@ -353,6 +535,22 @@ export async function actualizarIngresoFrutaAction(
         });
       }
 
+      for (const [palletId, lineas] of gruposExistenteIQF) {
+        const pallet = palletIQFPorId.get(palletId)!;
+        const { bandejas, bruto, tara, neto } = sumar(lineas);
+        const nuevaCantidad = pallet.cantidadBandejas + bandejas;
+        await tx.palletIQF.update({
+          where: { id: palletId },
+          data: {
+            cantidadBandejas: { increment: bandejas },
+            pesoBrutoTotalKg: { increment: bruto },
+            pesoTaraTotalKg: { increment: tara },
+            pesoNetoKg: { increment: neto },
+            estado: nuevaCantidad >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO",
+          },
+        });
+      }
+
       // 5. Crear las líneas nuevas y actualizar la cabecera del ingreso.
       await tx.ingresoFruta.update({
         where: { id: ingresoId },
@@ -367,8 +565,8 @@ export async function actualizarIngresoFrutaAction(
               const separador = linea.palletAsignado.indexOf(":");
               const tipo = linea.palletAsignado.slice(0, separador);
               const id = linea.palletAsignado.slice(separador + 1);
-              const palletId = tipo === "nuevo" ? tempIdAPalletId.get(id)! : id;
-              return datosLineaCrear(linea, palletId);
+              const palletId = tempIdAPalletId.get(id) ?? id;
+              return datosLineaCrear(linea, palletId, linea.tipoProducto === "Descarte Campo");
             }),
           },
         },
@@ -378,6 +576,7 @@ export async function actualizarIngresoFrutaAction(
     revalidatePath("/acopio/ingresos");
     revalidatePath(`/acopio/ingresos/${ingresoId}`);
     revalidatePath("/acopio/tarjas");
+    revalidatePath("/acopio/tarjas-iqf");
     return { success: true };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };

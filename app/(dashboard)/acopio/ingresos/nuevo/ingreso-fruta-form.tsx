@@ -37,7 +37,10 @@ type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
 type TipoPalletOption = { id: string; nombre: string; pesoTaraKg: string };
 type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
-type PalletNuevo = { tempId: string; etiqueta: string };
+// "fruta" arma un Pallet normal (líneas "Exportable"); "iqf" arma un
+// PalletIQF (líneas "Descarte Campo"), para que su tarja salga en Tarjas
+// IQF. Un mismo pallet nunca mezcla ambos tipos de producto.
+type PalletNuevo = { tempId: string; etiqueta: string; tipo: "fruta" | "iqf" };
 
 // Radix Select no permite un SelectItem con value="" (lo reserva para el
 // placeholder), así que se usa este sentinel para representar "sin pallet".
@@ -61,12 +64,15 @@ export function IngresoFrutaForm({
   tiposBandeja,
   tiposPallet,
   palletsAbiertos,
+  palletsAbiertosIQF,
   edicion,
 }: {
   proveedores: ProveedorOption[];
   tiposBandeja: TipoBandejaOption[];
   tiposPallet: TipoPalletOption[];
   palletsAbiertos: PalletAbierto[];
+  /** Pallets IQF abiertos de origen "Descarte Campo" (ver PalletIQF.origen). */
+  palletsAbiertosIQF: PalletAbierto[];
   /** Presente solo cuando el formulario edita un ingreso ya existente. */
   edicion?: {
     ingresoId: string;
@@ -136,15 +142,23 @@ export function IngresoFrutaForm({
     if (!valor) return null;
     const [tipo, id] = valor.split(":");
     if (tipo === "nuevo") return palletsNuevos.find((p) => p.tempId === id)?.etiqueta ?? null;
-    if (tipo === "existente") return palletsAbiertos.find((p) => p.id === id)?.numero ?? null;
+    if (tipo === "existente")
+      return (
+        palletsAbiertos.find((p) => p.id === id)?.numero ??
+        palletsAbiertosIQF.find((p) => p.id === id)?.numero ??
+        null
+      );
     return null;
   }
 
   function crearPalletNuevo(index: number) {
+    const esDescarteCampo = pallets[index]?.tipoProducto === "Descarte Campo";
     contadorPalletNuevo.current += 1;
     const tempId = `t${contadorPalletNuevo.current}`;
-    const etiqueta = `Pallet nuevo #${contadorPalletNuevo.current}`;
-    setPalletsNuevos((prev) => [...prev, { tempId, etiqueta }]);
+    const etiqueta = esDescarteCampo
+      ? `Pallet IQF nuevo #${contadorPalletNuevo.current}`
+      : `Pallet nuevo #${contadorPalletNuevo.current}`;
+    setPalletsNuevos((prev) => [...prev, { tempId, etiqueta, tipo: esDescarteCampo ? "iqf" : "fruta" }]);
     form.setValue(`pallets.${index}.palletAsignado`, `nuevo:${tempId}`, { shouldValidate: true });
   }
 
@@ -153,21 +167,24 @@ export function IngresoFrutaForm({
     setLineaDialogoAbierto(null);
   }
 
-  // "Cambiar" quita la asignación de esta línea. Si esa línea era la única
-  // que apuntaba a un pallet nuevo (creado con "Crear pallet nuevo" pero
-  // recién) el pallet temporal se descarta en vez de quedar huérfano en la
-  // lista de "nuevos en este formulario".
+  // Si la línea que se está liberando era la única que apuntaba a un pallet
+  // nuevo (creado con "Crear pallet nuevo" pero recién), el pallet temporal
+  // se descarta en vez de quedar huérfano en la lista de "nuevos en este
+  // formulario".
+  function liberarPalletNuevoSiHuerfano(valorActual: string | undefined, indexExcluido: number) {
+    if (!valorActual?.startsWith("nuevo:")) return;
+    const tempId = valorActual.slice("nuevo:".length);
+    const otraLineaLoUsa = pallets.some((p, i) => i !== indexExcluido && p?.palletAsignado === valorActual);
+    if (!otraLineaLoUsa) {
+      setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
+    }
+  }
+
+  // "Cambiar" quita la asignación de esta línea.
   function quitarAsignacion(index: number) {
     const valorActual = pallets[index]?.palletAsignado;
     form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true });
-
-    if (valorActual?.startsWith("nuevo:")) {
-      const tempId = valorActual.slice("nuevo:".length);
-      const otraLineaLoUsa = pallets.some((p, i) => i !== index && p?.palletAsignado === valorActual);
-      if (!otraLineaLoUsa) {
-        setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
-      }
-    }
+    liberarPalletNuevoSiHuerfano(valorActual, index);
   }
 
   useEffect(() => {
@@ -196,11 +213,16 @@ export function IngresoFrutaForm({
 
   // Opciones disponibles para el diálogo de "asignar a pallet existente":
   // pallets abiertos en BD + pallets nuevos creados en este mismo formulario,
-  // con la capacidad restante calculada en vivo.
+  // con la capacidad restante calculada en vivo. El pool (fruta vs IQF)
+  // depende del tipo de producto de la línea que abrió el diálogo.
+  const poolDialogo: "fruta" | "iqf" =
+    lineaDialogoAbierto !== null && pallets[lineaDialogoAbierto]?.tipoProducto === "Descarte Campo"
+      ? "iqf"
+      : "fruta";
   const opcionesDialogo = lineaDialogoAbierto === null
     ? { abiertos: [], nuevos: [] }
     : {
-        abiertos: palletsAbiertos
+        abiertos: (poolDialogo === "iqf" ? palletsAbiertosIQF : palletsAbiertos)
           .map((p) => ({
             ...p,
             // Se suma de vuelta lo que este mismo ingreso ya le había
@@ -214,6 +236,7 @@ export function IngresoFrutaForm({
           }))
           .filter((p) => p.restante > 0),
         nuevos: palletsNuevos
+          .filter((p) => p.tipo === poolDialogo)
           .map((p) => ({
             ...p,
             restante: CAPACIDAD_MAXIMA - bandejasAsignadasEnFormulario(`nuevo:${p.tempId}`, lineaDialogoAbierto),
@@ -311,14 +334,7 @@ export function IngresoFrutaForm({
                     size="icon"
                     disabled={fields.length === 1}
                     onClick={() => {
-                      const valorActual = pallets[index]?.palletAsignado;
-                      if (valorActual?.startsWith("nuevo:")) {
-                        const tempId = valorActual.slice("nuevo:".length);
-                        const otraLineaLoUsa = pallets.some((p, i) => i !== index && p?.palletAsignado === valorActual);
-                        if (!otraLineaLoUsa) {
-                          setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
-                        }
-                      }
+                      liberarPalletNuevoSiHuerfano(pallets[index]?.palletAsignado, index);
                       remove(index);
                     }}
                   >
@@ -484,7 +500,19 @@ export function IngresoFrutaForm({
                       control={form.control}
                       name={`pallets.${index}.tipoProducto`}
                       render={({ field: selectField }) => (
-                        <Select value={selectField.value} onValueChange={selectField.onChange}>
+                        <Select
+                          value={selectField.value}
+                          onValueChange={(valor) => {
+                            // Cambiar el tipo de producto cambia de pool de
+                            // pallet físico (fruta vs IQF), así que la
+                            // asignación anterior deja de ser válida.
+                            if (valor !== selectField.value) {
+                              liberarPalletNuevoSiHuerfano(pallets[index]?.palletAsignado, index);
+                              form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true });
+                            }
+                            selectField.onChange(valor);
+                          }}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Selecciona..." />
                           </SelectTrigger>
@@ -501,6 +529,11 @@ export function IngresoFrutaForm({
                     {form.formState.errors.pallets?.[index]?.tipoProducto && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.tipoProducto?.message}
+                      </p>
+                    )}
+                    {pallets[index]?.tipoProducto === "Descarte Campo" && (
+                      <p className="text-xs text-muted-foreground">
+                        Esta línea arma un pallet IQF: su tarja saldrá en Tarjas IQF.
                       </p>
                     )}
                   </div>
@@ -613,7 +646,13 @@ export function IngresoFrutaForm({
                     </>
                   ) : (
                     <>
-                      <Button type="button" variant="outline" size="sm" onClick={() => crearPalletNuevo(index)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!pallets[index]?.tipoProducto}
+                        onClick={() => crearPalletNuevo(index)}
+                      >
                         <PackagePlus className="mr-2 h-4 w-4" />
                         Crear pallet nuevo
                       </Button>
@@ -621,11 +660,15 @@ export function IngresoFrutaForm({
                         type="button"
                         variant="outline"
                         size="sm"
+                        disabled={!pallets[index]?.tipoProducto}
                         onClick={() => setLineaDialogoAbierto(index)}
                       >
                         <Package className="mr-2 h-4 w-4" />
                         Asignar a pallet existente
                       </Button>
+                      {!pallets[index]?.tipoProducto && (
+                        <span className="text-xs text-muted-foreground">Elige primero el tipo de producto.</span>
+                      )}
                     </>
                   )}
                 </div>
@@ -655,8 +698,12 @@ export function IngresoFrutaForm({
       <Dialog open={lineaDialogoAbierto !== null} onOpenChange={(open) => !open && setLineaDialogoAbierto(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Asignar a pallet existente</DialogTitle>
-            <DialogDescription>Solo se muestran pallets abiertos con espacio disponible.</DialogDescription>
+            <DialogTitle>Asignar a pallet existente{poolDialogo === "iqf" ? " (IQF)" : ""}</DialogTitle>
+            <DialogDescription>
+              {poolDialogo === "iqf"
+                ? "Solo se muestran pallets IQF de Descarte Campo abiertos con espacio disponible."
+                : "Solo se muestran pallets abiertos con espacio disponible."}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -682,7 +729,9 @@ export function IngresoFrutaForm({
             )}
 
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Pallets abiertos</p>
+              <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                {poolDialogo === "iqf" ? "Pallets IQF abiertos" : "Pallets abiertos"}
+              </p>
               {opcionesDialogo.abiertos.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay pallets abiertos con espacio disponible.</p>
               ) : (
