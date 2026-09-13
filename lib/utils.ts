@@ -103,12 +103,36 @@ export function rangoFechaCosecha(desde?: string, hasta?: string): { gte?: Date;
   return Object.keys(rango).length > 0 ? rango : undefined;
 }
 
-// Número de semana ISO-8601 (1-53) de una fecha, usado para agrupar los
-// reportes de Acopio por semana de cosecha.
-export function semanaISO(fecha: Date): number {
+// Semana y año ISO-8601 de una fecha (el año ISO puede diferir del año
+// calendario cerca del límite de año, ej. 29-dic puede caer en la semana 1
+// del año siguiente). Se usa para agrupar y filtrar los reportes de Acopio
+// por semana de cosecha sin que semanas de años distintos choquen entre sí.
+export function semanaISOConAnio(fecha: Date): { anio: number; semana: number } {
   const d = new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate()));
   const diaSemana = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - diaSemana);
   const inicioAno = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d.getTime() - inicioAno.getTime()) / 86400000 + 1) / 7);
+  const semana = Math.ceil(((d.getTime() - inicioAno.getTime()) / 86400000 + 1) / 7);
+  return { anio: d.getUTCFullYear(), semana };
+}
+
+// Número de semana ISO-8601 (1-53) de una fecha, sin el año. Ver
+// semanaISOConAnio si además necesitas distinguir semanas de años distintos.
+export function semanaISO(fecha: Date): number {
+  return semanaISOConAnio(fecha).semana;
+}
+
+// Rango [lunes 00:00, domingo 23:59:59.999] en UTC de una semana ISO dada
+// (inverso de semanaISOConAnio), usado para filtrar el reporte de Acopio
+// por semana de cosecha. El 4 de enero siempre cae en la semana 1 del año
+// ISO correspondiente.
+export function rangoSemanaISO(anio: number, semana: number): { gte: Date; lte: Date } {
+  const enero4 = new Date(Date.UTC(anio, 0, 4));
+  const diaSemanaEnero4 = enero4.getUTCDay() || 7;
+  const lunes = new Date(enero4);
+  lunes.setUTCDate(enero4.getUTCDate() - diaSemanaEnero4 + 1 + (semana - 1) * 7);
+  const domingo = new Date(lunes);
+  domingo.setUTCDate(lunes.getUTCDate() + 6);
+  domingo.setUTCHours(23, 59, 59, 999);
+  return { gte: lunes, lte: domingo };
 }

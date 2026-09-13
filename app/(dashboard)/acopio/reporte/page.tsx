@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
-import { rangoFechaCosecha, semanaISO } from "@/lib/utils";
+import { cn, rangoFechaCosecha, rangoSemanaISO, semanaISOConAnio } from "@/lib/utils";
 
-// Una fila por combinación (semana ISO, variedad): se acumulan todas las
-// fechas de cosecha de esa semana en una sola fila (no se desglosa por
-// fecha exacta), siempre dentro del rango que filtre el usuario.
+// Una fila por combinación (año ISO, semana ISO, variedad): se acumulan
+// todas las fechas de cosecha de esa semana en una sola fila (no se
+// desglosa por fecha exacta), siempre dentro de los filtros elegidos.
 // "Aprovechable" es el Exportable registrado en Ingreso de Materia Prima
 // neto de lo que ese mismo lote terminó como Descarte Planta en Ingreso IQF
 // (fruta que se creía exportable pero se descartó recién en planta). Por eso:
@@ -21,6 +21,7 @@ import { rangoFechaCosecha, semanaISO } from "@/lib/utils";
 // que es exactamente el total registrado en Ingreso de Materia Prima,
 // sin importar cuánto se haya descartado después en planta.
 type Fila = {
+  anio: number;
   semana: number;
   variedad: string;
   exportableCampo: number;
@@ -39,12 +40,21 @@ function formatPorcentaje(n: number) {
 export default async function ReporteAcopioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string; semana?: string }>;
 }) {
-  const { desde, hasta } = await searchParams;
-  const fechaCosecha = rangoFechaCosecha(desde, hasta);
+  const { desde, hasta, semana: semanaParam } = await searchParams;
 
-  const [lineasFruta, lineasIQF] = await Promise.all([
+  let fechaCosecha = rangoFechaCosecha(desde, hasta);
+  const [anioFiltro, semanaFiltro] = (semanaParam ?? "").split("-").map(Number);
+  if (semanaParam && Number.isFinite(anioFiltro) && Number.isFinite(semanaFiltro)) {
+    const rangoSemana = rangoSemanaISO(anioFiltro, semanaFiltro);
+    fechaCosecha = {
+      gte: fechaCosecha?.gte && fechaCosecha.gte > rangoSemana.gte ? fechaCosecha.gte : rangoSemana.gte,
+      lte: fechaCosecha?.lte && fechaCosecha.lte < rangoSemana.lte ? fechaCosecha.lte : rangoSemana.lte,
+    };
+  }
+
+  const [lineasFruta, lineasIQF, fechasFruta, fechasIQF] = await Promise.all([
     prisma.ingresoFrutaPallet.findMany({
       where: fechaCosecha ? { ingresoFruta: { fechaCosecha } } : undefined,
       select: {
@@ -65,15 +75,30 @@ export default async function ReporteAcopioPage({
         ingresoIQF: { select: { fechaCosecha: true } },
       },
     }),
+    // Universo completo de fechas de cosecha (sin aplicar el filtro actual)
+    // para que el desplegable de semanas siempre muestre todas las semanas
+    // con datos, no solo las del filtro ya aplicado.
+    prisma.ingresoFruta.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
+    prisma.ingresoIQF.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
   ]);
+
+  const semanasDisponiblesMap = new Map<string, { anio: number; semana: number }>();
+  for (const { fechaCosecha: f } of [...fechasFruta, ...fechasIQF]) {
+    const { anio, semana } = semanaISOConAnio(f);
+    semanasDisponiblesMap.set(`${anio}-${semana}`, { anio, semana });
+  }
+  const semanasDisponibles = Array.from(semanasDisponiblesMap.entries())
+    .map(([valor, datos]) => ({ valor, ...datos }))
+    .sort((a, b) => a.anio - b.anio || a.semana - b.semana);
+  const mostrarAnio = new Set(semanasDisponibles.map((s) => s.anio)).size > 1;
 
   const filasPorClave = new Map<string, Fila>();
   function obtenerFila(fecha: Date, variedad: string): Fila {
-    const semana = semanaISO(fecha);
-    const clave = `${semana}|${variedad}`;
+    const { anio, semana } = semanaISOConAnio(fecha);
+    const clave = `${anio}-${semana}|${variedad}`;
     let fila = filasPorClave.get(clave);
     if (!fila) {
-      fila = { semana, variedad, exportableCampo: 0, nacionalCampo: 0, nacionalPlanta: 0 };
+      fila = { anio, semana, variedad, exportableCampo: 0, nacionalCampo: 0, nacionalPlanta: 0 };
       filasPorClave.set(clave, fila);
     }
     return fila;
@@ -99,6 +124,7 @@ export default async function ReporteAcopioPage({
       const recepcionado = aprovechable + f.nacionalCampo + f.nacionalPlanta;
       const pctNacional = recepcionado > 0 ? ((f.nacionalCampo + f.nacionalPlanta) / recepcionado) * 100 : 0;
       return {
+        anio: f.anio,
         semana: f.semana,
         variedad: f.variedad,
         aprovechable,
@@ -108,12 +134,13 @@ export default async function ReporteAcopioPage({
         pctNacional,
       };
     })
-    .sort((a, b) => a.semana - b.semana || a.variedad.localeCompare(b.variedad));
+    .sort((a, b) => a.anio - b.anio || a.semana - b.semana || a.variedad.localeCompare(b.variedad));
 
   type FilaTabla =
     | ({ tipo: "dato" } & (typeof filasCalculadas)[number])
     | {
         tipo: "subtotal";
+        anio: number;
         semana: number;
         aprovechable: number;
         nacionalCampo: number;
@@ -123,13 +150,15 @@ export default async function ReporteAcopioPage({
       };
 
   const filasTabla: FilaTabla[] = [];
-  let semanaActual: number | null = null;
+  let claveSemanaActual: string | null = null;
+  let semanaActual = { anio: 0, semana: 0 };
   let acumulado = { aprovechable: 0, nacionalCampo: 0, nacionalPlanta: 0, recepcionado: 0 };
 
-  function empujarSubtotal(semana: number) {
+  function empujarSubtotal() {
     filasTabla.push({
       tipo: "subtotal",
-      semana,
+      anio: semanaActual.anio,
+      semana: semanaActual.semana,
       ...acumulado,
       pctNacional:
         acumulado.recepcionado > 0
@@ -140,18 +169,20 @@ export default async function ReporteAcopioPage({
   }
 
   for (const fila of filasCalculadas) {
-    if (semanaActual !== null && fila.semana !== semanaActual) {
-      empujarSubtotal(semanaActual);
+    const clave = `${fila.anio}-${fila.semana}`;
+    if (claveSemanaActual !== null && clave !== claveSemanaActual) {
+      empujarSubtotal();
     }
-    semanaActual = fila.semana;
+    claveSemanaActual = clave;
+    semanaActual = { anio: fila.anio, semana: fila.semana };
     acumulado.aprovechable += fila.aprovechable;
     acumulado.nacionalCampo += fila.nacionalCampo;
     acumulado.nacionalPlanta += fila.nacionalPlanta;
     acumulado.recepcionado += fila.recepcionado;
     filasTabla.push({ tipo: "dato", ...fila });
   }
-  if (semanaActual !== null) {
-    empujarSubtotal(semanaActual);
+  if (claveSemanaActual !== null) {
+    empujarSubtotal();
   }
 
   const totalGeneral = filasCalculadas.reduce(
@@ -167,6 +198,8 @@ export default async function ReporteAcopioPage({
     totalGeneral.recepcionado > 0
       ? ((totalGeneral.nacionalCampo + totalGeneral.nacionalPlanta) / totalGeneral.recepcionado) * 100
       : 0;
+
+  const hayFiltro = Boolean(desde || hasta || semanaParam);
 
   return (
     <div>
@@ -184,6 +217,26 @@ export default async function ReporteAcopioPage({
 
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
         <div className="grid gap-1.5">
+          <Label htmlFor="semana">Semana de cosecha</Label>
+          <select
+            id="semana"
+            name="semana"
+            defaultValue={semanaParam ?? ""}
+            className={cn(
+              "flex h-10 w-[190px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            )}
+          >
+            <option value="">Todas las semanas</option>
+            {semanasDisponibles.map((s) => (
+              <option key={s.valor} value={s.valor}>
+                Semana {s.semana}
+                {mostrarAnio ? ` (${s.anio})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-1.5">
           <Label htmlFor="desde">Desde (fecha de cosecha)</Label>
           <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[170px]" />
         </div>
@@ -194,7 +247,7 @@ export default async function ReporteAcopioPage({
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>
-        {(desde || hasta) && (
+        {hayFiltro && (
           <Button type="button" variant="ghost" asChild>
             <Link href="/acopio/reporte">Limpiar filtro</Link>
           </Button>
@@ -224,8 +277,11 @@ export default async function ReporteAcopioPage({
             <TableBody>
               {filasTabla.map((fila, index) =>
                 fila.tipo === "subtotal" ? (
-                  <TableRow key={`subtotal-${fila.semana}-${index}`} className="bg-muted/50 font-semibold">
-                    <TableCell colSpan={2}>Total semana {fila.semana}</TableCell>
+                  <TableRow key={`subtotal-${fila.anio}-${fila.semana}-${index}`} className="bg-muted/50 font-semibold">
+                    <TableCell colSpan={2}>
+                      Total semana {fila.semana}
+                      {mostrarAnio ? ` (${fila.anio})` : ""}
+                    </TableCell>
                     <TableCell className="text-right">{formatNumero(fila.recepcionado)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.aprovechable)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.nacionalCampo)}</TableCell>
@@ -233,8 +289,11 @@ export default async function ReporteAcopioPage({
                     <TableCell className="text-right">{formatPorcentaje(fila.pctNacional)}</TableCell>
                   </TableRow>
                 ) : (
-                  <TableRow key={`${fila.semana}-${fila.variedad}`}>
-                    <TableCell className="text-muted-foreground">{fila.semana}</TableCell>
+                  <TableRow key={`${fila.anio}-${fila.semana}-${fila.variedad}`}>
+                    <TableCell className="text-muted-foreground">
+                      {fila.semana}
+                      {mostrarAnio ? ` (${fila.anio})` : ""}
+                    </TableCell>
                     <TableCell className="font-medium">{fila.variedad}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.recepcionado)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.aprovechable)}</TableCell>
