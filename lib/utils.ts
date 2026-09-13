@@ -90,3 +90,25 @@ export function rangoFechaIngreso(desde?: string, hasta?: string): { gte?: Date;
   if (hasta) rango.lte = new Date(`${hasta}T23:59:59.999-05:00`);
   return Object.keys(rango).length > 0 ? rango : undefined;
 }
+
+// A diferencia de rangoFechaIngreso, esto filtra fechas "de calendario"
+// (fechaCosecha), guardadas como medianoche UTC del día elegido en el
+// <input type="date"> (ver comentario de formatDate) — así que el rango se
+// ancla en UTC, no en la zona horaria de Perú, para que coincida con cómo
+// se guardó.
+export function rangoFechaCosecha(desde?: string, hasta?: string): { gte?: Date; lte?: Date } | undefined {
+  const rango: { gte?: Date; lte?: Date } = {};
+  if (desde) rango.gte = new Date(`${desde}T00:00:00.000Z`);
+  if (hasta) rango.lte = new Date(`${hasta}T23:59:59.999Z`);
+  return Object.keys(rango).length > 0 ? rango : undefined;
+}
+
+// Número de semana ISO-8601 (1-53) de una fecha, usado para agrupar los
+// reportes de Acopio por semana de cosecha.
+export function semanaISO(fecha: Date): number {
+  const d = new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate()));
+  const diaSemana = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - diaSemana);
+  const inicioAno = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - inicioAno.getTime()) / 86400000 + 1) / 7);
+}

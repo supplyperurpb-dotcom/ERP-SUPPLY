@@ -1,10 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
   Boxes,
   ClipboardList,
   FileSpreadsheet,
   FileText,
   Home,
+  LayoutGrid,
   Layers,
   Package,
   PackageSearch,
@@ -53,6 +55,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: "Acopio",
     icono: Layers,
     items: [
+      { titulo: "Inicio", href: "/acopio", icono: LayoutGrid },
       { titulo: "Ingreso de Materia Prima", href: "/acopio/ingresos", icono: Boxes },
       { titulo: "Tarjas", href: "/acopio/tarjas", icono: Receipt },
       { titulo: "Despacho", href: "/acopio/despacho", icono: Truck },
@@ -61,6 +64,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
       { titulo: "Tarjas IQF", href: "/acopio/tarjas-iqf", icono: Tag },
       { titulo: "Despacho IQF", href: "/acopio/despacho-iqf", icono: Truck },
       { titulo: "Catálogo de taras", href: "/acopio/catalogo-taras", icono: Ruler },
+      { titulo: "Reporte", href: "/acopio/reporte", icono: BarChart3 },
     ],
   },
   {
