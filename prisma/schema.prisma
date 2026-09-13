@@ -196,6 +196,7 @@ model Proveedor {
 
   ordenesCompra OrdenCompra[]
   ingresosFruta IngresoFruta[]
+  ingresosIQF   IngresoIQF[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@map("proveedores")
@@ -379,7 +380,8 @@ model TipoBandeja {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  pallets IngresoFrutaPallet[]
+  pallets    IngresoFrutaPallet[]
+  lineasIQF  IngresoIQFPallet[]
 
   @@map("tipos_bandeja")
 }
@@ -392,7 +394,8 @@ model TipoPallet {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  pallets IngresoFrutaPallet[]
+  pallets   IngresoFrutaPallet[]
+  lineasIQF IngresoIQFPallet[]
 
   @@map("tipos_pallet")
 }
@@ -577,6 +580,113 @@ model GuiaRemisionDetalle {
   pallet       IngresoFrutaPallet @relation(fields: [palletId], references: [id])
 
   @@map("guia_remision_detalles")
+}
+
+// =========================================================================
+// ACOPIO — INGRESO IQF (descarte de planta)
+// =========================================================================
+// Flujo paralelo e independiente al de Ingreso de Materia Prima: mismos
+// datos generales de camión, pero sin módulo/turno/formato por línea (el
+// descarte de planta no se organiza por bloque de fundo) y con el tipo de
+// producto fijo en "Descarte Planta". Usa sus propios Pallet/Tarja/Despacho
+// para no mezclar sus números ni sus listados con los de fruta.
+
+model IngresoIQF {
+  id              String          @id @default(cuid())
+  numero          String          @unique // ej. IQF-0001
+  proveedorId     String
+  fechaCosecha    DateTime
+  fechaIngreso    DateTime        @default(now())
+  horaIngreso     String?
+  placaTransporte String?
+  observaciones   String?
+  estado          EstadoDocumento @default(BORRADOR)
+  creadoPorId     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  proveedor Proveedor          @relation(fields: [proveedorId], references: [id])
+  pallets   IngresoIQFPallet[]
+
+  @@map("ingresos_iqf")
+}
+
+model PalletIQF {
+  id               String       @id @default(cuid())
+  numero           String       @unique // ej. PIQF-0001
+  cantidadBandejas Int          @default(0)
+  pesoBrutoTotalKg Decimal      @default(0) @db.Decimal(10, 3)
+  pesoTaraTotalKg  Decimal      @default(0) @db.Decimal(10, 3)
+  pesoNetoKg       Decimal      @default(0) @db.Decimal(10, 3)
+  estado           EstadoPallet @default(ABIERTO)
+  creadoPorId      String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  lineas IngresoIQFPallet[]
+  tarja  TarjaIQF?
+
+  @@map("pallets_iqf")
+}
+
+// Línea de pesaje de Ingreso IQF: sin modulo/turno/formato (a diferencia de
+// IngresoFrutaPallet); tipoProducto queda fijo en "Descarte Planta" desde el
+// server action, no es elegible en el formulario.
+model IngresoIQFPallet {
+  id               String   @id @default(cuid())
+  ingresoIQFId     String
+  numeroPallet     Int // correlativo de la línea dentro de este ingreso
+  palletId         String
+  variedad         String
+  tipoProducto     String // fijo: "Descarte Planta"
+  tipoPalletId     String?
+  tipoBandejaId    String
+  cantidadBandejas Int
+  pesoBrutoTotalKg Decimal  @db.Decimal(10, 3)
+  pesoTaraTotalKg  Decimal  @db.Decimal(10, 3)
+  pesoNetoKg       Decimal  @db.Decimal(10, 3)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ingresoIQF  IngresoIQF  @relation(fields: [ingresoIQFId], references: [id], onDelete: Cascade)
+  pallet      PalletIQF   @relation(fields: [palletId], references: [id])
+  tipoPallet  TipoPallet? @relation(fields: [tipoPalletId], references: [id])
+  tipoBandeja TipoBandeja @relation(fields: [tipoBandejaId], references: [id])
+
+  @@unique([ingresoIQFId, numeroPallet])
+  @@map("ingreso_iqf_pallets")
+}
+
+model TarjaIQF {
+  id           String   @id @default(cuid())
+  numero       String   @unique // ej. IQF26-0001
+  palletId     String   @unique
+  fechaEmision DateTime @default(now())
+  pdfUrl       String?
+  creadoPorId  String?
+  createdAt    DateTime @default(now())
+  despachoId   String?
+
+  pallet   PalletIQF    @relation(fields: [palletId], references: [id])
+  despacho DespachoIQF? @relation(fields: [despachoId], references: [id])
+
+  @@map("tarjas_iqf")
+}
+
+model DespachoIQF {
+  id            String   @id @default(cuid())
+  numero        String   @unique // ej. DESPIQF-0001
+  placaCamion   String
+  conductor     String
+  fechaDespacho DateTime
+  horaDespacho  String?
+  creadoPorId   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tarjas TarjaIQF[]
+
+  @@map("despachos_iqf")
 }
 
 // =========================================================================
