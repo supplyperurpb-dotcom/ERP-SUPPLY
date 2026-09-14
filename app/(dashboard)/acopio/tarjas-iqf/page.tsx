@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
 import { prisma } from "@/lib/db/prisma";
-import { formatKg } from "@/lib/utils";
+import { formatKg, rangoFechaCosecha } from "@/lib/utils";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import type { Prisma } from "@prisma/client";
 import { TarjaIQFBoton } from "./tarja-iqf-boton";
@@ -22,18 +22,33 @@ const ORIGEN_LABEL: Record<"DESCARTE_CAMPO" | "DESCARTE_PLANTA", string> = {
 export default async function TarjasIQFPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pallet?: string; variedad?: string; pagina?: string }>;
+  searchParams: Promise<{ pallet?: string; variedad?: string; desde?: string; hasta?: string; pagina?: string }>;
 }) {
-  const { pallet, variedad, pagina: paginaParam } = await searchParams;
+  const { pallet, variedad, desde, hasta, pagina: paginaParam } = await searchParams;
   const pagina = calcularPagina(paginaParam);
+  const fechaCosecha = rangoFechaCosecha(desde, hasta);
 
   const where: Prisma.PalletIQFWhereInput = {
     ...(pallet ? { numero: { contains: pallet, mode: "insensitive" } } : {}),
-    ...(variedad
+    ...(variedad || fechaCosecha
       ? {
           OR: [
-            { lineas: { some: { variedad: { contains: variedad, mode: "insensitive" } } } },
-            { lineasFruta: { some: { variedad: { contains: variedad, mode: "insensitive" } } } },
+            {
+              lineas: {
+                some: {
+                  ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
+                  ...(fechaCosecha ? { ingresoIQF: { fechaCosecha } } : {}),
+                },
+              },
+            },
+            {
+              lineasFruta: {
+                some: {
+                  ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
+                  ...(fechaCosecha ? { ingresoFruta: { fechaCosecha } } : {}),
+                },
+              },
+            },
           ],
         }
       : {}),
@@ -76,10 +91,18 @@ export default async function TarjasIQFPage({
           <Label htmlFor="variedad">Variedad</Label>
           <Input id="variedad" name="variedad" placeholder="Ej. ARANA" defaultValue={variedad ?? ""} className="w-[170px]" />
         </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="desde">Desde (fecha de cosecha)</Label>
+          <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[170px]" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="hasta">Hasta (fecha de cosecha)</Label>
+          <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[170px]" />
+        </div>
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>
-        {(pallet || variedad) && (
+        {(pallet || variedad || desde || hasta) && (
           <Button type="button" variant="ghost" asChild>
             <Link href="/acopio/tarjas-iqf">Limpiar filtro</Link>
           </Button>
@@ -89,9 +112,9 @@ export default async function TarjasIQFPage({
       {pallets.length === 0 ? (
         <EmptyState
           icono={Package}
-          titulo={pallet || variedad ? "No hay pallets IQF que coincidan con el filtro" : "Aún no hay pallets IQF armados"}
+          titulo={pallet || variedad || desde || hasta ? "No hay pallets IQF que coincidan con el filtro" : "Aún no hay pallets IQF armados"}
           descripcion={
-            pallet || variedad
+            pallet || variedad || desde || hasta
               ? "Prueba con otro criterio de búsqueda o limpia el filtro."
               : "Los pallets IQF se crean al registrar un ingreso en Ingreso IQF o una línea Descarte Campo en Ingreso de Materia Prima."
           }
@@ -158,7 +181,12 @@ export default async function TarjasIQFPage({
             </TableBody>
           </Table>
 
-          <PaginationControls paginaActual={pagina} totalPaginas={totalPaginas} total={total} searchParams={{ pallet, variedad }} />
+          <PaginationControls
+            paginaActual={pagina}
+            totalPaginas={totalPaginas}
+            total={total}
+            searchParams={{ pallet, variedad, desde, hasta }}
+          />
         </>
       )}
     </div>

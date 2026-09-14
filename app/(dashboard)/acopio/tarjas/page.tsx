@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
 import { prisma } from "@/lib/db/prisma";
-import { formatKg } from "@/lib/utils";
+import { formatKg, rangoFechaCosecha } from "@/lib/utils";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import type { Prisma } from "@prisma/client";
 import { TarjaBoton } from "./tarja-boton";
@@ -17,18 +17,24 @@ import { TarjaBoton } from "./tarja-boton";
 export default async function TarjasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pallet?: string; fundo?: string; variedad?: string; pagina?: string }>;
+  searchParams: Promise<{ pallet?: string; fundo?: string; variedad?: string; desde?: string; hasta?: string; pagina?: string }>;
 }) {
-  const { pallet, fundo, variedad, pagina: paginaParam } = await searchParams;
+  const { pallet, fundo, variedad, desde, hasta, pagina: paginaParam } = await searchParams;
   const pagina = calcularPagina(paginaParam);
+  const fechaCosecha = rangoFechaCosecha(desde, hasta);
+
+  const filtroIngresoFruta: Prisma.IngresoFrutaWhereInput = {
+    ...(fundo ? { proveedor: { razonSocial: { contains: fundo, mode: "insensitive" } } } : {}),
+    ...(fechaCosecha ? { fechaCosecha } : {}),
+  };
 
   const where: Prisma.PalletWhereInput = {
     ...(pallet ? { numero: { contains: pallet, mode: "insensitive" } } : {}),
-    ...(fundo || variedad
+    ...(fundo || variedad || fechaCosecha
       ? {
           lineas: {
             some: {
-              ...(fundo ? { ingresoFruta: { proveedor: { razonSocial: { contains: fundo, mode: "insensitive" } } } } : {}),
+              ...(Object.keys(filtroIngresoFruta).length > 0 ? { ingresoFruta: filtroIngresoFruta } : {}),
               ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
             },
           },
@@ -71,10 +77,18 @@ export default async function TarjasPage({
           <Label htmlFor="variedad">Variedad</Label>
           <Input id="variedad" name="variedad" placeholder="Ej. ARANA" defaultValue={variedad ?? ""} className="w-[170px]" />
         </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="desde">Desde (fecha de cosecha)</Label>
+          <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[170px]" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="hasta">Hasta (fecha de cosecha)</Label>
+          <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[170px]" />
+        </div>
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>
-        {(pallet || fundo || variedad) && (
+        {(pallet || fundo || variedad || desde || hasta) && (
           <Button type="button" variant="ghost" asChild>
             <Link href="/acopio/tarjas">Limpiar filtro</Link>
           </Button>
@@ -84,9 +98,9 @@ export default async function TarjasPage({
       {pallets.length === 0 ? (
         <EmptyState
           icono={Package}
-          titulo={pallet || fundo || variedad ? "No hay pallets que coincidan con el filtro" : "Aún no hay pallets armados"}
+          titulo={pallet || fundo || variedad || desde || hasta ? "No hay pallets que coincidan con el filtro" : "Aún no hay pallets armados"}
           descripcion={
-            pallet || fundo || variedad
+            pallet || fundo || variedad || desde || hasta
               ? "Prueba con otro criterio de búsqueda o limpia el filtro."
               : "Los pallets se crean al registrar un ingreso de materia prima en Acopio."
           }
@@ -150,7 +164,7 @@ export default async function TarjasPage({
             paginaActual={pagina}
             totalPaginas={totalPaginas}
             total={total}
-            searchParams={{ pallet, fundo, variedad }}
+            searchParams={{ pallet, fundo, variedad, desde, hasta }}
           />
         </>
       )}
