@@ -172,8 +172,10 @@ export function IngresoIQFForm({
       resultado = edicion
         ? await actualizarIngresoIQFAction(edicion.ingresoId, data)
         : await crearIngresoIQFAction(data);
-    } catch {
-      toast.error("No se pudo guardar. Actualiza la página (Ctrl+Shift+R) e intenta de nuevo.");
+    } catch (err) {
+      console.error("Error al guardar el ingreso IQF:", err);
+      const detalle = err instanceof Error ? err.message : String(err);
+      toast.error(`No se pudo guardar: ${detalle}`);
       return;
     }
     if (resultado?.error) {
