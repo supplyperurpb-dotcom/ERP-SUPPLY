@@ -6,7 +6,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 
-export type IngresoFrutaActionState = { error?: string; success?: boolean } | undefined;
+export type IngresoFrutaActionState = { error?: string; success?: boolean; id?: string } | undefined;
 
 type LineaCalculada = {
   numeroPallet: number;
@@ -249,7 +249,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     const totalIngresos = await prisma.ingresoFruta.count();
     const numero = `IF-${String(totalIngresos + 1).padStart(4, "0")}`;
 
-    await prisma.$transaction(async (tx) => {
+    const nuevoIngreso = await prisma.$transaction(async (tx) => {
       const tempIdAPalletId = new Map<string, string>();
       let contador = await tx.pallet.count();
       let contadorIQF = await tx.palletIQF.count();
@@ -321,7 +321,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
         });
       }
 
-      await tx.ingresoFruta.create({
+      return tx.ingresoFruta.create({
         data: {
           numero,
           proveedorId: parsed.data.proveedorId,
@@ -345,7 +345,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
 
     revalidatePath("/acopio/ingresos");
     revalidatePath("/acopio/tarjas-iqf");
-    return { success: true };
+    return { success: true, id: nuevoIngreso.id };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };
     throw e;

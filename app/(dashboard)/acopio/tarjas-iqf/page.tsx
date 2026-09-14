@@ -22,37 +22,56 @@ const ORIGEN_LABEL: Record<"DESCARTE_CAMPO" | "DESCARTE_PLANTA", string> = {
 export default async function TarjasIQFPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pallet?: string; variedad?: string; desde?: string; hasta?: string; pagina?: string }>;
+  searchParams: Promise<{
+    pallet?: string;
+    variedad?: string;
+    desde?: string;
+    hasta?: string;
+    ingresoFrutaId?: string;
+    ingresoIQFId?: string;
+    pagina?: string;
+  }>;
 }) {
-  const { pallet, variedad, desde, hasta, pagina: paginaParam } = await searchParams;
+  const { pallet, variedad, desde, hasta, ingresoFrutaId, ingresoIQFId, pagina: paginaParam } = await searchParams;
   const pagina = calcularPagina(paginaParam);
   const fechaCosecha = rangoFechaCosecha(desde, hasta);
 
-  const where: Prisma.PalletIQFWhereInput = {
-    ...(pallet ? { numero: { contains: pallet, mode: "insensitive" } } : {}),
-    ...(variedad || fechaCosecha
-      ? {
-          OR: [
-            {
-              lineas: {
-                some: {
-                  ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
-                  ...(fechaCosecha ? { ingresoIQF: { fechaCosecha } } : {}),
-                },
-              },
-            },
-            {
-              lineasFruta: {
-                some: {
-                  ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
-                  ...(fechaCosecha ? { ingresoFruta: { fechaCosecha } } : {}),
-                },
-              },
-            },
-          ],
-        }
-      : {}),
-  };
+  // Si viene de "Ir a Tarjas IQF" desde el detalle de un ingreso, se busca
+  // su número para el aviso de filtro activo (y por si el id ya no existe).
+  const [ingresoFrutaFiltrado, ingresoIQFFiltrado] = await Promise.all([
+    ingresoFrutaId ? prisma.ingresoFruta.findUnique({ where: { id: ingresoFrutaId }, select: { numero: true } }) : null,
+    ingresoIQFId ? prisma.ingresoIQF.findUnique({ where: { id: ingresoIQFId }, select: { numero: true } }) : null,
+  ]);
+
+  const where: Prisma.PalletIQFWhereInput = ingresoFrutaFiltrado
+    ? { lineasFruta: { some: { ingresoFrutaId } } }
+    : ingresoIQFFiltrado
+      ? { lineas: { some: { ingresoIQFId } } }
+      : {
+          ...(pallet ? { numero: { contains: pallet, mode: "insensitive" } } : {}),
+          ...(variedad || fechaCosecha
+            ? {
+                OR: [
+                  {
+                    lineas: {
+                      some: {
+                        ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
+                        ...(fechaCosecha ? { ingresoIQF: { fechaCosecha } } : {}),
+                      },
+                    },
+                  },
+                  {
+                    lineasFruta: {
+                      some: {
+                        ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
+                        ...(fechaCosecha ? { ingresoFruta: { fechaCosecha } } : {}),
+                      },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        };
 
   // Un pallet IQF viene de Ingreso IQF (líneas en `lineas`, Descarte Planta)
   // o de líneas "Descarte Campo" de Ingreso de Materia Prima (`lineasFruta`)
@@ -82,6 +101,18 @@ export default async function TarjasIQFPage({
         descripcion="Etiqueta impresa (10 × 15 cm) de un pallet de descarte armado desde Ingreso IQF (Descarte Planta) o desde líneas Descarte Campo de Ingreso de Materia Prima: variedad, cantidad de bandejas y peso neto. Independiente de las Tarjas de fruta exportable."
       />
 
+      {(ingresoFrutaFiltrado || ingresoIQFFiltrado) && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-2 text-sm">
+          <span>
+            Mostrando solo las tarjas del ingreso{" "}
+            <strong>{ingresoFrutaFiltrado?.numero ?? ingresoIQFFiltrado?.numero}</strong>.
+          </span>
+          <Link href="/acopio/tarjas-iqf" className="text-primary hover:underline">
+            Ver todas las tarjas IQF
+          </Link>
+        </div>
+      )}
+
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
         <div className="grid gap-1.5">
           <Label htmlFor="pallet">N.º de pallet / tarja</Label>
@@ -102,7 +133,7 @@ export default async function TarjasIQFPage({
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>
-        {(pallet || variedad || desde || hasta) && (
+        {(pallet || variedad || desde || hasta || ingresoFrutaFiltrado || ingresoIQFFiltrado) && (
           <Button type="button" variant="ghost" asChild>
             <Link href="/acopio/tarjas-iqf">Limpiar filtro</Link>
           </Button>
@@ -112,9 +143,13 @@ export default async function TarjasIQFPage({
       {pallets.length === 0 ? (
         <EmptyState
           icono={Package}
-          titulo={pallet || variedad || desde || hasta ? "No hay pallets IQF que coincidan con el filtro" : "Aún no hay pallets IQF armados"}
+          titulo={
+            pallet || variedad || desde || hasta || ingresoFrutaFiltrado || ingresoIQFFiltrado
+              ? "No hay pallets IQF que coincidan con el filtro"
+              : "Aún no hay pallets IQF armados"
+          }
           descripcion={
-            pallet || variedad || desde || hasta
+            pallet || variedad || desde || hasta || ingresoFrutaFiltrado || ingresoIQFFiltrado
               ? "Prueba con otro criterio de búsqueda o limpia el filtro."
               : "Los pallets IQF se crean al registrar un ingreso en Ingreso IQF o una línea Descarte Campo en Ingreso de Materia Prima."
           }
@@ -185,7 +220,7 @@ export default async function TarjasIQFPage({
             paginaActual={pagina}
             totalPaginas={totalPaginas}
             total={total}
-            searchParams={{ pallet, variedad, desde, hasta }}
+            searchParams={{ pallet, variedad, desde, hasta, ingresoFrutaId, ingresoIQFId }}
           />
         </>
       )}

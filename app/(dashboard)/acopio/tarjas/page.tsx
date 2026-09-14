@@ -17,20 +17,36 @@ import { TarjaBoton } from "./tarja-boton";
 export default async function TarjasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pallet?: string; fundo?: string; variedad?: string; desde?: string; hasta?: string; pagina?: string }>;
+  searchParams: Promise<{
+    pallet?: string;
+    fundo?: string;
+    variedad?: string;
+    desde?: string;
+    hasta?: string;
+    ingresoId?: string;
+    pagina?: string;
+  }>;
 }) {
-  const { pallet, fundo, variedad, desde, hasta, pagina: paginaParam } = await searchParams;
+  const { pallet, fundo, variedad, desde, hasta, ingresoId, pagina: paginaParam } = await searchParams;
   const pagina = calcularPagina(paginaParam);
   const fechaCosecha = rangoFechaCosecha(desde, hasta);
+
+  // Si viene de "Ir a Tarjas" desde el detalle de un ingreso, se busca su
+  // número para mostrar el aviso de filtro activo (y por si el id ya no
+  // existe, para no romper la página).
+  const ingresoFiltrado = ingresoId
+    ? await prisma.ingresoFruta.findUnique({ where: { id: ingresoId }, select: { numero: true } })
+    : null;
 
   const filtroIngresoFruta: Prisma.IngresoFrutaWhereInput = {
     ...(fundo ? { proveedor: { razonSocial: { contains: fundo, mode: "insensitive" } } } : {}),
     ...(fechaCosecha ? { fechaCosecha } : {}),
+    ...(ingresoFiltrado ? { id: ingresoId } : {}),
   };
 
   const where: Prisma.PalletWhereInput = {
     ...(pallet ? { numero: { contains: pallet, mode: "insensitive" } } : {}),
-    ...(fundo || variedad || fechaCosecha
+    ...(fundo || variedad || fechaCosecha || ingresoFiltrado
       ? {
           lineas: {
             some: {
@@ -64,6 +80,17 @@ export default async function TarjasPage({
         descripcion="Etiqueta impresa (10 × 15 cm) de un pallet armado: módulo, variedad, cantidad de bandejas y peso neto. Se genera a partir de los pallets registrados en Ingreso de Materia Prima."
       />
 
+      {ingresoFiltrado && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-2 text-sm">
+          <span>
+            Mostrando solo las tarjas del ingreso <strong>{ingresoFiltrado.numero}</strong>.
+          </span>
+          <Link href="/acopio/tarjas" className="text-primary hover:underline">
+            Ver todas las tarjas
+          </Link>
+        </div>
+      )}
+
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
         <div className="grid gap-1.5">
           <Label htmlFor="pallet">N.º de pallet / tarja</Label>
@@ -88,7 +115,7 @@ export default async function TarjasPage({
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>
-        {(pallet || fundo || variedad || desde || hasta) && (
+        {(pallet || fundo || variedad || desde || hasta || ingresoFiltrado) && (
           <Button type="button" variant="ghost" asChild>
             <Link href="/acopio/tarjas">Limpiar filtro</Link>
           </Button>
@@ -98,9 +125,13 @@ export default async function TarjasPage({
       {pallets.length === 0 ? (
         <EmptyState
           icono={Package}
-          titulo={pallet || fundo || variedad || desde || hasta ? "No hay pallets que coincidan con el filtro" : "Aún no hay pallets armados"}
+          titulo={
+            pallet || fundo || variedad || desde || hasta || ingresoFiltrado
+              ? "No hay pallets que coincidan con el filtro"
+              : "Aún no hay pallets armados"
+          }
           descripcion={
-            pallet || fundo || variedad || desde || hasta
+            pallet || fundo || variedad || desde || hasta || ingresoFiltrado
               ? "Prueba con otro criterio de búsqueda o limpia el filtro."
               : "Los pallets se crean al registrar un ingreso de materia prima en Acopio."
           }
@@ -164,7 +195,7 @@ export default async function TarjasPage({
             paginaActual={pagina}
             totalPaginas={totalPaginas}
             total={total}
-            searchParams={{ pallet, fundo, variedad, desde, hasta }}
+            searchParams={{ pallet, fundo, variedad, desde, hasta, ingresoId }}
           />
         </>
       )}

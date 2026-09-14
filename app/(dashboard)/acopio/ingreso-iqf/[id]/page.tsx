@@ -163,7 +163,7 @@ export default async function DetalleIngresoIQFPage({ params }: { params: Promis
 
       <div className="mt-4">
         <Button variant="outline" asChild>
-          <Link href="/acopio/tarjas-iqf">Ir a Tarjas IQF para generar la etiqueta del pallet</Link>
+          <Link href={`/acopio/tarjas-iqf?ingresoIQFId=${ingreso.id}`}>Ir a Tarjas IQF para generar la etiqueta del pallet</Link>
         </Button>
       </div>
     </div>

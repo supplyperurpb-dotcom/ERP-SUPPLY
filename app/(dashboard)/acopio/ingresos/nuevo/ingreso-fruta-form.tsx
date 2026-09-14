@@ -218,7 +218,7 @@ export function IngresoFrutaForm({
       router.push(`/acopio/ingresos/${edicion.ingresoId}`);
     } else {
       toast.success("Ingreso de materia prima registrado");
-      router.push("/acopio/ingresos");
+      router.push(resultado?.id ? `/acopio/ingresos/${resultado.id}` : "/acopio/ingresos");
     }
   }
 

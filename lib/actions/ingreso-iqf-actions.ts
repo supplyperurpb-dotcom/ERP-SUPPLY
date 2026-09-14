@@ -7,7 +7,7 @@ import { ingresoIQFSchema, type IngresoIQFInput } from "@/lib/validations/ingres
 import { TIPO_PRODUCTO_DESCARTE_PLANTA } from "@/lib/constants/iqf";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 
-export type IngresoIQFActionState = { error?: string; success?: boolean } | undefined;
+export type IngresoIQFActionState = { error?: string; success?: boolean; id?: string } | undefined;
 
 type LineaCalculada = {
   numeroPallet: number;
@@ -226,7 +226,7 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
     const totalIngresos = await prisma.ingresoIQF.count();
     const numero = `IQF-${String(totalIngresos + 1).padStart(4, "0")}`;
 
-    await prisma.$transaction(async (tx) => {
+    const nuevoIngreso = await prisma.$transaction(async (tx) => {
       const tempIdAPalletId = new Map<string, string>();
       let contador = await tx.palletIQF.count();
 
@@ -264,7 +264,7 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
         });
       }
 
-      await tx.ingresoIQF.create({
+      return tx.ingresoIQF.create({
         data: {
           numero,
           proveedorId: parsed.data.proveedorId,
@@ -287,7 +287,7 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
     });
 
     revalidatePath("/acopio/ingreso-iqf");
-    return { success: true };
+    return { success: true, id: nuevoIngreso.id };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };
     throw e;

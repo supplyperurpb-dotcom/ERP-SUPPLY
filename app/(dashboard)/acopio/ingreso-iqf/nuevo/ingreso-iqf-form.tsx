@@ -179,7 +179,7 @@ export function IngresoIQFForm({
       router.push(`/acopio/ingreso-iqf/${edicion.ingresoId}`);
     } else {
       toast.success("Ingreso IQF registrado");
-      router.push("/acopio/ingreso-iqf");
+      router.push(resultado?.id ? `/acopio/ingreso-iqf/${resultado.id}` : "/acopio/ingreso-iqf");
     }
   }
 

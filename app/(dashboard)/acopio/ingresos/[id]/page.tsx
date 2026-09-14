@@ -181,11 +181,11 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="outline" asChild>
-          <Link href="/acopio/tarjas">Ir a Tarjas para generar la etiqueta del pallet</Link>
+          <Link href={`/acopio/tarjas?ingresoId=${ingreso.id}`}>Ir a Tarjas para generar la etiqueta del pallet</Link>
         </Button>
         {ingreso.pallets.some((p) => p.palletIQF) && (
           <Button variant="outline" asChild>
-            <Link href="/acopio/tarjas-iqf">Ir a Tarjas IQF (líneas de Descarte Campo)</Link>
+            <Link href={`/acopio/tarjas-iqf?ingresoFrutaId=${ingreso.id}`}>Ir a Tarjas IQF (líneas de Descarte Campo)</Link>
           </Button>
         )}
       </div>
