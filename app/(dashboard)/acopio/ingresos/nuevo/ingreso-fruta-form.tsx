@@ -27,6 +27,7 @@ import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/act
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
 import {
   MODULOS_ACOPIO,
+  MODULOS_POR_FUNDO,
   VARIEDADES_POR_MODULO,
   TURNOS_POR_MODULO_VARIEDAD,
   FORMATOS_LINEA_PESAJE,
@@ -109,6 +110,16 @@ export function IngresoFrutaForm({
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "pallets" });
   const pallets = useWatch({ control: form.control, name: "pallets" }) ?? [];
+  const proveedorIdSeleccionado = useWatch({ control: form.control, name: "proveedorId" });
+
+  // Cada fundo cosecha solo de ciertos módulos (ver MODULOS_POR_FUNDO). Si el
+  // fundo elegido no está en ese catálogo (uno nuevo, sin configurar), se
+  // permiten todos los módulos.
+  const razonSocialSeleccionada = proveedores
+    .find((p) => p.id === proveedorIdSeleccionado)
+    ?.razonSocial.toUpperCase();
+  const modulosDisponibles: readonly string[] =
+    (razonSocialSeleccionada && MODULOS_POR_FUNDO[razonSocialSeleccionada]) || MODULOS_ACOPIO;
 
   const filasCalculadas = pallets.map((pallet) => {
     const taraUnitaria = taraPorTipo.get(pallet?.tipoBandejaId ?? "") ?? 0;
@@ -257,7 +268,26 @@ export function IngresoFrutaForm({
               control={form.control}
               name="proveedorId"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  onValueChange={(valor) => {
+                    field.onChange(valor);
+                    // Si el módulo de alguna línea ya no es válido para el
+                    // nuevo fundo, se resetea junto con variedad y turno
+                    // (misma cascada que al cambiar el módulo de una línea).
+                    const nuevaRazonSocial = proveedores.find((p) => p.id === valor)?.razonSocial.toUpperCase();
+                    const nuevosModulos: readonly string[] =
+                      (nuevaRazonSocial && MODULOS_POR_FUNDO[nuevaRazonSocial]) || MODULOS_ACOPIO;
+                    pallets.forEach((_, i) => {
+                      const moduloActual = form.getValues(`pallets.${i}.modulo`);
+                      if (moduloActual && !nuevosModulos.includes(moduloActual)) {
+                        form.setValue(`pallets.${i}.modulo`, "", { shouldValidate: true });
+                        form.setValue(`pallets.${i}.variedad`, "", { shouldValidate: true });
+                        form.setValue(`pallets.${i}.turno`, "", { shouldValidate: true });
+                      }
+                    });
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona un fundo" />
                   </SelectTrigger>
@@ -371,7 +401,7 @@ export function IngresoFrutaForm({
                             <SelectValue placeholder="Selecciona..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {MODULOS_ACOPIO.map((m) => (
+                            {modulosDisponibles.map((m) => (
                               <SelectItem key={m} value={m}>
                                 {m}
                               </SelectItem>

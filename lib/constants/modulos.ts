@@ -32,6 +32,16 @@ export const TURNOS_POR_MODULO_VARIEDAD: Record<string, Record<string, string[]>
   },
 };
 
-export const FORMATOS_LINEA_PESAJE = ["Sweetest Batch", "Pinta", "Sweet & Crunchy"] as const;
+export const FORMATOS_LINEA_PESAJE = ["Sweetest Batch", "Pinta", "Sweet & Crunchy", "DHK", "DOC"] as const;
 
 export const TIPOS_PRODUCTO_LINEA_PESAJE = ["Exportable", "Descarte Campo"] as const;
+
+// Cada fundo cosecha solo de ciertos módulos (dato real del campo, no una
+// regla de la app): Achirana Blue cubre los módulos 1 a 3 y Papito el
+// módulo 4. Se usa para filtrar el desplegable de Módulo según el Fundo
+// elegido en Ingreso de Materia Prima. Si un fundo no aparece acá (uno
+// nuevo, todavía sin configurar), se muestran todos los módulos.
+export const MODULOS_POR_FUNDO: Record<string, string[]> = {
+  "ACHIRANA BLUE": ["MODULO 1", "MODULO 2", "MODULO 3"],
+  PAPITO: ["MODULO 4"],
+};
