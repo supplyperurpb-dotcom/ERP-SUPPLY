@@ -206,9 +206,15 @@ export function IngresoFrutaForm({
   }, [form.formState.errors.pallets]);
 
   async function onSubmit(data: IngresoFrutaInput) {
-    const resultado = edicion
-      ? await actualizarIngresoFrutaAction(edicion.ingresoId, data)
-      : await crearIngresoFrutaAction(data);
+    let resultado;
+    try {
+      resultado = edicion
+        ? await actualizarIngresoFrutaAction(edicion.ingresoId, data)
+        : await crearIngresoFrutaAction(data);
+    } catch {
+      toast.error("No se pudo guardar. Actualiza la página (Ctrl+Shift+R) e intenta de nuevo.");
+      return;
+    }
     if (resultado?.error) {
       toast.error(resultado.error);
       return;

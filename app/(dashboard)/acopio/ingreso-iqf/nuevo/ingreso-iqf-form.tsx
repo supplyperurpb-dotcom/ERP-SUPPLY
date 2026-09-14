@@ -167,9 +167,15 @@ export function IngresoIQFForm({
   }, [form.formState.errors.pallets]);
 
   async function onSubmit(data: IngresoIQFInput) {
-    const resultado = edicion
-      ? await actualizarIngresoIQFAction(edicion.ingresoId, data)
-      : await crearIngresoIQFAction(data);
+    let resultado;
+    try {
+      resultado = edicion
+        ? await actualizarIngresoIQFAction(edicion.ingresoId, data)
+        : await crearIngresoIQFAction(data);
+    } catch {
+      toast.error("No se pudo guardar. Actualiza la página (Ctrl+Shift+R) e intenta de nuevo.");
+      return;
+    }
     if (resultado?.error) {
       toast.error(resultado.error);
       return;
