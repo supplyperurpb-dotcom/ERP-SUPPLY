@@ -25,6 +25,7 @@ export default async function DespachoIQFPage({
           { numero: { contains: q, mode: "insensitive" } },
           { placaCamion: { contains: q, mode: "insensitive" } },
           { conductor: { contains: q, mode: "insensitive" } },
+          { numeroGuiaRemision: { contains: q, mode: "insensitive" } },
         ],
       }
     : {};
@@ -58,7 +59,7 @@ export default async function DespachoIQFPage({
 
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
         <div className="grid gap-1.5">
-          <Label htmlFor="q">Número, placa o conductor</Label>
+          <Label htmlFor="q">Número, placa, conductor o guía</Label>
           <Input id="q" name="q" placeholder="Ej. DESPIQF-0001" defaultValue={q ?? ""} className="w-[220px]" />
         </div>
         <Button type="submit" variant="secondary">
@@ -87,6 +88,7 @@ export default async function DespachoIQFPage({
                 <TableHead>Número</TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>Conductor</TableHead>
+                <TableHead>Guía de remisión</TableHead>
                 <TableHead>Fecha de despacho</TableHead>
                 <TableHead>N.º de tarjas</TableHead>
                 <TableHead>Total bandejas</TableHead>
@@ -102,6 +104,7 @@ export default async function DespachoIQFPage({
                     <TableCell className="font-medium">{d.numero}</TableCell>
                     <TableCell>{d.placaCamion}</TableCell>
                     <TableCell>{d.conductor}</TableCell>
+                    <TableCell>{d.numeroGuiaRemision ?? "—"}</TableCell>
                     <TableCell>
                       {formatDate(d.fechaDespacho)}
                       {d.horaDespacho ? ` ${d.horaDespacho}` : ""}

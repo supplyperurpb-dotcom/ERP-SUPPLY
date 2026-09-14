@@ -36,6 +36,7 @@ export async function crearDespachoAction(data: DespachoInput): Promise<Despacho
         conductor: parsed.data.conductor,
         fechaDespacho: parsed.data.fechaDespacho,
         horaDespacho: parsed.data.horaDespacho,
+        numeroGuiaRemision: parsed.data.numeroGuiaRemision || null,
         creadoPorId: usuario?.id,
       },
     });

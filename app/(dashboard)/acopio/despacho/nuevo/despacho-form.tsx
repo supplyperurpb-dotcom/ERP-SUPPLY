@@ -33,6 +33,7 @@ export function DespachoForm({ tarjasDisponibles }: { tarjasDisponibles: TarjaDi
       conductor: "",
       fechaDespacho: fechaLocalHoy() as unknown as Date,
       horaDespacho: horaLocalAhora(),
+      numeroGuiaRemision: "",
       tarjaIds: [],
     },
   });
@@ -70,7 +71,7 @@ export function DespachoForm({ tarjasDisponibles }: { tarjasDisponibles: TarjaDi
         <CardHeader>
           <CardTitle className="text-base">Datos del despacho</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-2">
             <Label htmlFor="placaCamion">Placa del camión</Label>
             <Input id="placaCamion" placeholder="Ej. ABC-123" {...form.register("placaCamion")} />
@@ -97,6 +98,13 @@ export function DespachoForm({ tarjasDisponibles }: { tarjasDisponibles: TarjaDi
             <Input id="horaDespacho" type="time" {...form.register("horaDespacho")} />
             {form.formState.errors.horaDespacho && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaDespacho.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="numeroGuiaRemision">N.º de guía de remisión (opcional)</Label>
+            <Input id="numeroGuiaRemision" placeholder="Ej. EG07 - 00000941" {...form.register("numeroGuiaRemision")} />
+            {form.formState.errors.numeroGuiaRemision && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.numeroGuiaRemision.message}</p>
             )}
           </div>
         </CardContent>

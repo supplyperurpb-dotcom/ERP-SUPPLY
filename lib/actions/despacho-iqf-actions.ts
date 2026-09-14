@@ -36,6 +36,7 @@ export async function crearDespachoIQFAction(data: DespachoInput): Promise<Despa
         conductor: parsed.data.conductor,
         fechaDespacho: parsed.data.fechaDespacho,
         horaDespacho: parsed.data.horaDespacho,
+        numeroGuiaRemision: parsed.data.numeroGuiaRemision || null,
         creadoPorId: usuario?.id,
       },
     });

@@ -536,15 +536,16 @@ model Tarja {
 // seleccionadas quedan vinculadas a este registro y dejan de estar
 // disponibles para un despacho futuro.
 model Despacho {
-  id            String   @id @default(cuid())
-  numero        String   @unique // ej. DESP-0001
-  placaCamion   String
-  conductor     String
-  fechaDespacho DateTime
-  horaDespacho  String?
-  creadoPorId   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  numero             String   @unique // ej. DESP-0001
+  placaCamion        String
+  conductor          String
+  fechaDespacho      DateTime
+  horaDespacho       String?
+  numeroGuiaRemision String? // guía de remisión física del transportista, no la de GuiaRemision (SUNAT)
+  creadoPorId        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   tarjas Tarja[]
 
@@ -694,15 +695,16 @@ model TarjaIQF {
 }
 
 model DespachoIQF {
-  id            String   @id @default(cuid())
-  numero        String   @unique // ej. DESPIQF-0001
-  placaCamion   String
-  conductor     String
-  fechaDespacho DateTime
-  horaDespacho  String?
-  creadoPorId   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  numero             String   @unique // ej. DESPIQF-0001
+  placaCamion        String
+  conductor          String
+  fechaDespacho      DateTime
+  horaDespacho       String?
+  numeroGuiaRemision String? // guía de remisión física del transportista
+  creadoPorId        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   tarjas TarjaIQF[]
 
