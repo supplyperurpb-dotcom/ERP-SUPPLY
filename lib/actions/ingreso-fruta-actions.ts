@@ -348,7 +348,8 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     return { success: true, id: nuevoIngreso.id };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };
-    throw e;
+    console.error("Error inesperado en crearIngresoFrutaAction:", e);
+    return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al guardar el ingreso." };
   }
 }
 
@@ -580,6 +581,7 @@ export async function actualizarIngresoFrutaAction(
     return { success: true };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };
-    throw e;
+    console.error("Error inesperado en actualizarIngresoFrutaAction:", e);
+    return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al guardar el ingreso." };
   }
 }
