@@ -12,21 +12,19 @@ import { cn, rangoFechaCosecha, rangoSemanaISO, semanaISOConAnio } from "@/lib/u
 // Una fila por combinación (año ISO, semana ISO, variedad): se acumulan
 // todas las fechas de cosecha de esa semana en una sola fila (no se
 // desglosa por fecha exacta), siempre dentro de los filtros elegidos.
-// "Aprovechable" es el Exportable registrado en Ingreso de Materia Prima
-// neto de lo que ese mismo lote terminó como Descarte Planta en Ingreso IQF
-// (fruta que se creía exportable pero se descartó recién en planta). Por eso:
-//   Total Recepcionado = Aprovechable + Nacional Campo + Nacional Planta
-//                       = (Exportable - Nacional Planta) + Nacional Campo + Nacional Planta
-//                       = Exportable + Nacional Campo
-// que es exactamente el total registrado en Ingreso de Materia Prima,
-// sin importar cuánto se haya descartado después en planta.
+// "Aprovechable" es todo lo registrado como "Exportable" en Ingreso de
+// Materia Prima, tal cual (sin restarle nada). "Nacional Campo" es todo lo
+// que NO es exportable: las líneas "Descarte Campo" de Ingreso de Materia
+// Prima más todo lo registrado en Ingreso IQF (que en este fundo también es
+// descarte de campo, no de planta). Por eso:
+//   Total Recepcionado = Aprovechable + Nacional Campo
+// y nunca da negativo, porque ningún término se resta.
 type Fila = {
   anio: number;
   semana: number;
   variedad: string;
-  exportableCampo: number;
+  aprovechable: number;
   nacionalCampo: number;
-  nacionalPlanta: number;
 };
 
 function formatNumero(n: number) {
@@ -64,9 +62,8 @@ export default async function ReporteAcopioPage({
         ingresoFruta: { select: { fechaCosecha: true } },
       },
     }),
-    // Solo el descarte de planta "puro" (registrado en Ingreso IQF). El
-    // descarte de campo también arma pallets IQF, pero sus líneas viven en
-    // ingresoFrutaPallet (con tipoProducto "Descarte Campo"), no acá.
+    // Todo lo registrado en Ingreso IQF cuenta como Nacional Campo (ver
+    // comentario arriba: acá no se distingue descarte de planta).
     prisma.ingresoIQFPallet.findMany({
       where: fechaCosecha ? { ingresoIQF: { fechaCosecha } } : undefined,
       select: {
@@ -98,7 +95,7 @@ export default async function ReporteAcopioPage({
     const clave = `${anio}-${semana}|${variedad}`;
     let fila = filasPorClave.get(clave);
     if (!fila) {
-      fila = { anio, semana, variedad, exportableCampo: 0, nacionalCampo: 0, nacionalPlanta: 0 };
+      fila = { anio, semana, variedad, aprovechable: 0, nacionalCampo: 0 };
       filasPorClave.set(clave, fila);
     }
     return fila;
@@ -108,28 +105,26 @@ export default async function ReporteAcopioPage({
     const fila = obtenerFila(linea.ingresoFruta.fechaCosecha, linea.variedad);
     const neto = Number(linea.pesoNetoKg);
     if (linea.tipoProducto === "Exportable") {
-      fila.exportableCampo += neto;
+      fila.aprovechable += neto;
     } else if (linea.tipoProducto === "Descarte Campo") {
       fila.nacionalCampo += neto;
     }
   }
   for (const linea of lineasIQF) {
     const fila = obtenerFila(linea.ingresoIQF.fechaCosecha, linea.variedad);
-    fila.nacionalPlanta += Number(linea.pesoNetoKg);
+    fila.nacionalCampo += Number(linea.pesoNetoKg);
   }
 
   const filasCalculadas = Array.from(filasPorClave.values())
     .map((f) => {
-      const aprovechable = f.exportableCampo - f.nacionalPlanta;
-      const recepcionado = aprovechable + f.nacionalCampo + f.nacionalPlanta;
-      const pctNacional = recepcionado > 0 ? ((f.nacionalCampo + f.nacionalPlanta) / recepcionado) * 100 : 0;
+      const recepcionado = f.aprovechable + f.nacionalCampo;
+      const pctNacional = recepcionado > 0 ? (f.nacionalCampo / recepcionado) * 100 : 0;
       return {
         anio: f.anio,
         semana: f.semana,
         variedad: f.variedad,
-        aprovechable,
+        aprovechable: f.aprovechable,
         nacionalCampo: f.nacionalCampo,
-        nacionalPlanta: f.nacionalPlanta,
         recepcionado,
         pctNacional,
       };
@@ -144,7 +139,6 @@ export default async function ReporteAcopioPage({
         semana: number;
         aprovechable: number;
         nacionalCampo: number;
-        nacionalPlanta: number;
         recepcionado: number;
         pctNacional: number;
       };
@@ -152,7 +146,7 @@ export default async function ReporteAcopioPage({
   const filasTabla: FilaTabla[] = [];
   let claveSemanaActual: string | null = null;
   let semanaActual = { anio: 0, semana: 0 };
-  let acumulado = { aprovechable: 0, nacionalCampo: 0, nacionalPlanta: 0, recepcionado: 0 };
+  let acumulado = { aprovechable: 0, nacionalCampo: 0, recepcionado: 0 };
 
   function empujarSubtotal() {
     filasTabla.push({
@@ -160,12 +154,9 @@ export default async function ReporteAcopioPage({
       anio: semanaActual.anio,
       semana: semanaActual.semana,
       ...acumulado,
-      pctNacional:
-        acumulado.recepcionado > 0
-          ? ((acumulado.nacionalCampo + acumulado.nacionalPlanta) / acumulado.recepcionado) * 100
-          : 0,
+      pctNacional: acumulado.recepcionado > 0 ? (acumulado.nacionalCampo / acumulado.recepcionado) * 100 : 0,
     });
-    acumulado = { aprovechable: 0, nacionalCampo: 0, nacionalPlanta: 0, recepcionado: 0 };
+    acumulado = { aprovechable: 0, nacionalCampo: 0, recepcionado: 0 };
   }
 
   for (const fila of filasCalculadas) {
@@ -177,7 +168,6 @@ export default async function ReporteAcopioPage({
     semanaActual = { anio: fila.anio, semana: fila.semana };
     acumulado.aprovechable += fila.aprovechable;
     acumulado.nacionalCampo += fila.nacionalCampo;
-    acumulado.nacionalPlanta += fila.nacionalPlanta;
     acumulado.recepcionado += fila.recepcionado;
     filasTabla.push({ tipo: "dato", ...fila });
   }
@@ -189,15 +179,11 @@ export default async function ReporteAcopioPage({
     (acc, f) => ({
       aprovechable: acc.aprovechable + f.aprovechable,
       nacionalCampo: acc.nacionalCampo + f.nacionalCampo,
-      nacionalPlanta: acc.nacionalPlanta + f.nacionalPlanta,
       recepcionado: acc.recepcionado + f.recepcionado,
     }),
-    { aprovechable: 0, nacionalCampo: 0, nacionalPlanta: 0, recepcionado: 0 }
+    { aprovechable: 0, nacionalCampo: 0, recepcionado: 0 }
   );
-  const pctNacionalTotal =
-    totalGeneral.recepcionado > 0
-      ? ((totalGeneral.nacionalCampo + totalGeneral.nacionalPlanta) / totalGeneral.recepcionado) * 100
-      : 0;
+  const pctNacionalTotal = totalGeneral.recepcionado > 0 ? (totalGeneral.nacionalCampo / totalGeneral.recepcionado) * 100 : 0;
 
   const hayFiltro = Boolean(desde || hasta || semanaParam);
 
@@ -212,7 +198,7 @@ export default async function ReporteAcopioPage({
 
       <PageHeader
         titulo="Reporte de Acopio"
-        descripcion="Resumen de volumen aprovechable y nacional por variedad y semana de cosecha. Aprovechable = Exportable de Ingreso de Materia Prima menos lo que terminó como Descarte Planta. Nacional Campo y Nacional Planta son el descarte de campo y de planta respectivamente. Recepcionado = Aprovechable + Nacional Campo + Nacional Planta, y coincide con el total de Ingreso de Materia Prima."
+        descripcion="Resumen de volumen aprovechable y nacional por variedad y semana de cosecha. Aprovechable = todo lo registrado como Exportable en Ingreso de Materia Prima. Nacional Campo = Descarte Campo de Materia Prima + todo lo registrado en Ingreso IQF. Recepcionado = Aprovechable + Nacional Campo."
       />
 
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
@@ -270,7 +256,6 @@ export default async function ReporteAcopioPage({
                 <TableHead className="text-right">Kg Recepcionado</TableHead>
                 <TableHead className="text-right">Kg Aprovechable</TableHead>
                 <TableHead className="text-right">Kg Nacional Campo</TableHead>
-                <TableHead className="text-right">Kg Nacional Planta</TableHead>
                 <TableHead className="text-right">% Nacional</TableHead>
               </TableRow>
             </TableHeader>
@@ -285,7 +270,6 @@ export default async function ReporteAcopioPage({
                     <TableCell className="text-right">{formatNumero(fila.recepcionado)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.aprovechable)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.nacionalCampo)}</TableCell>
-                    <TableCell className="text-right">{formatNumero(fila.nacionalPlanta)}</TableCell>
                     <TableCell className="text-right">{formatPorcentaje(fila.pctNacional)}</TableCell>
                   </TableRow>
                 ) : (
@@ -298,7 +282,6 @@ export default async function ReporteAcopioPage({
                     <TableCell className="text-right">{formatNumero(fila.recepcionado)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.aprovechable)}</TableCell>
                     <TableCell className="text-right">{formatNumero(fila.nacionalCampo)}</TableCell>
-                    <TableCell className="text-right">{formatNumero(fila.nacionalPlanta)}</TableCell>
                     <TableCell className="text-right">{formatPorcentaje(fila.pctNacional)}</TableCell>
                   </TableRow>
                 )
@@ -315,9 +298,6 @@ export default async function ReporteAcopioPage({
             </p>
             <p>
               Total nacional campo: <span className="font-medium">{formatNumero(totalGeneral.nacionalCampo)} kg</span>
-            </p>
-            <p>
-              Total nacional planta: <span className="font-medium">{formatNumero(totalGeneral.nacionalPlanta)} kg</span>
             </p>
             <p className="text-base">
               % Nacional: <span className="font-semibold text-primary">{formatPorcentaje(pctNacionalTotal)}</span>
