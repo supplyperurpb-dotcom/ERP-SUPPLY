@@ -5,6 +5,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Calcula el siguiente número de una serie tipo "IF-0001" a partir del
+// MÁXIMO correlativo ya usado (no de `count()` de filas). Usar `count()+1`
+// para numerar es frágil: si alguna fila se borra (o el conteo no coincide
+// con el correlativo más alto por cualquier otro motivo), el siguiente
+// número calculado puede coincidir con uno que ya existe y la creación
+// falla por violar la restricción de unicidad. Se le pasan los números ya
+// existentes de esa serie (ya filtrados por prefijo) y devuelve el
+// siguiente, sin importar huecos en la secuencia.
+export function maximoNumero(numerosExistentes: string[], prefijo: string): number {
+  let maximo = 0;
+  for (const numero of numerosExistentes) {
+    const valor = parseInt(numero.slice(prefijo.length), 10);
+    if (Number.isFinite(valor) && valor > maximo) maximo = valor;
+  }
+  return maximo;
+}
+
+export function siguienteNumero(numerosExistentes: string[], prefijo: string, ancho = 4): string {
+  return `${prefijo}${String(maximoNumero(numerosExistentes, prefijo) + 1).padStart(ancho, "0")}`;
+}
+
 // Los campos `Decimal` de Prisma son instancias de clase (decimal.js), no
 // objetos planos, así que React no permite pasarlos como prop de un Server
 // Component a un Client Component ("Only plain objects can be passed...").

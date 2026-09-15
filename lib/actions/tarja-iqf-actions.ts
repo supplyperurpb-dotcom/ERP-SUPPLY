@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { siguienteNumero } from "@/lib/utils";
 
 export type TarjaIQFActionState = { error?: string; success?: boolean } | undefined;
 
@@ -15,14 +16,19 @@ export async function crearTarjaIQFAction(palletId: string): Promise<TarjaIQFAct
     return { success: true };
   }
 
-  const usuario = await getUsuarioActual();
-  const totalTarjas = await prisma.tarjaIQF.count();
-  const numero = `IQF26-${String(totalTarjas + 1).padStart(4, "0")}`;
+  try {
+    const usuario = await getUsuarioActual();
+    const tarjasExistentes = await prisma.tarjaIQF.findMany({ select: { numero: true } });
+    const numero = siguienteNumero(tarjasExistentes.map((t) => t.numero), "IQF26-");
 
-  await prisma.tarjaIQF.create({
-    data: { numero, palletId, creadoPorId: usuario?.id },
-  });
+    await prisma.tarjaIQF.create({
+      data: { numero, palletId, creadoPorId: usuario?.id },
+    });
 
-  revalidatePath("/acopio/tarjas-iqf");
-  return { success: true };
+    revalidatePath("/acopio/tarjas-iqf");
+    return { success: true };
+  } catch (e) {
+    console.error("Error inesperado en crearTarjaIQFAction:", e);
+    return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al generar la tarja." };
+  }
 }

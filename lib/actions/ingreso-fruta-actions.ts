@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
+import { maximoNumero, siguienteNumero } from "@/lib/utils";
 
 export type IngresoFrutaActionState = { error?: string; success?: boolean; id?: string } | undefined;
 
@@ -246,13 +247,15 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     }
 
     const usuario = await getUsuarioActual();
-    const totalIngresos = await prisma.ingresoFruta.count();
-    const numero = `IF-${String(totalIngresos + 1).padStart(4, "0")}`;
+    const ingresosExistentes = await prisma.ingresoFruta.findMany({ select: { numero: true } });
+    const numero = siguienteNumero(ingresosExistentes.map((i) => i.numero), "IF-");
 
     const nuevoIngreso = await prisma.$transaction(async (tx) => {
       const tempIdAPalletId = new Map<string, string>();
-      let contador = await tx.pallet.count();
-      let contadorIQF = await tx.palletIQF.count();
+      const palletsExistentesNumeros = await tx.pallet.findMany({ select: { numero: true } });
+      const palletsIQFExistentesNumeros = await tx.palletIQF.findMany({ select: { numero: true } });
+      let contador = maximoNumero(palletsExistentesNumeros.map((p) => p.numero), "PAL-");
+      let contadorIQF = maximoNumero(palletsIQFExistentesNumeros.map((p) => p.numero), "PIQF-");
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;
@@ -482,8 +485,10 @@ export async function actualizarIngresoFrutaAction(
       // 4. Crear pallets nuevos e incrementar los existentes (igual que al
       //    crear un ingreso).
       const tempIdAPalletId = new Map<string, string>();
-      let contador = await tx.pallet.count();
-      let contadorIQF = await tx.palletIQF.count();
+      const palletsExistentesNumeros = await tx.pallet.findMany({ select: { numero: true } });
+      const palletsIQFExistentesNumeros = await tx.palletIQF.findMany({ select: { numero: true } });
+      let contador = maximoNumero(palletsExistentesNumeros.map((p) => p.numero), "PAL-");
+      let contadorIQF = maximoNumero(palletsIQFExistentesNumeros.map((p) => p.numero), "PIQF-");
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;

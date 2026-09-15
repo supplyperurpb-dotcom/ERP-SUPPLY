@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { despachoSchema, type DespachoInput } from "@/lib/validations/despacho";
+import { siguienteNumero } from "@/lib/utils";
 
 export type DespachoIQFActionState = { error?: string; success?: boolean } | undefined;
 
@@ -24,30 +25,35 @@ export async function crearDespachoIQFAction(data: DespachoInput): Promise<Despa
     };
   }
 
-  const usuario = await getUsuarioActual();
-  const totalDespachos = await prisma.despachoIQF.count();
-  const numero = `DESPIQF-${String(totalDespachos + 1).padStart(4, "0")}`;
+  try {
+    const usuario = await getUsuarioActual();
+    const despachosExistentes = await prisma.despachoIQF.findMany({ select: { numero: true } });
+    const numero = siguienteNumero(despachosExistentes.map((d) => d.numero), "DESPIQF-");
 
-  await prisma.$transaction(async (tx) => {
-    const despacho = await tx.despachoIQF.create({
-      data: {
-        numero,
-        placaCamion: parsed.data.placaCamion,
-        conductor: parsed.data.conductor,
-        fechaDespacho: parsed.data.fechaDespacho,
-        horaDespacho: parsed.data.horaDespacho,
-        numeroGuiaRemision: parsed.data.numeroGuiaRemision || null,
-        creadoPorId: usuario?.id,
-      },
+    await prisma.$transaction(async (tx) => {
+      const despacho = await tx.despachoIQF.create({
+        data: {
+          numero,
+          placaCamion: parsed.data.placaCamion,
+          conductor: parsed.data.conductor,
+          fechaDespacho: parsed.data.fechaDespacho,
+          horaDespacho: parsed.data.horaDespacho,
+          numeroGuiaRemision: parsed.data.numeroGuiaRemision || null,
+          creadoPorId: usuario?.id,
+        },
+      });
+
+      await tx.tarjaIQF.updateMany({
+        where: { id: { in: parsed.data.tarjaIds } },
+        data: { despachoId: despacho.id },
+      });
     });
 
-    await tx.tarjaIQF.updateMany({
-      where: { id: { in: parsed.data.tarjaIds } },
-      data: { despachoId: despacho.id },
-    });
-  });
-
-  revalidatePath("/acopio/despacho-iqf");
-  revalidatePath("/acopio/tarjas-iqf");
-  return { success: true };
+    revalidatePath("/acopio/despacho-iqf");
+    revalidatePath("/acopio/tarjas-iqf");
+    return { success: true };
+  } catch (e) {
+    console.error("Error inesperado en crearDespachoIQFAction:", e);
+    return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al guardar el despacho." };
+  }
 }

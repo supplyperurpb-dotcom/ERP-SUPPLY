@@ -6,6 +6,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { ingresoIQFSchema, type IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
 import { TIPO_PRODUCTO_DESCARTE_PLANTA } from "@/lib/constants/iqf";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
+import { maximoNumero, siguienteNumero } from "@/lib/utils";
 
 export type IngresoIQFActionState = { error?: string; success?: boolean; id?: string } | undefined;
 
@@ -223,12 +224,13 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
     }
 
     const usuario = await getUsuarioActual();
-    const totalIngresos = await prisma.ingresoIQF.count();
-    const numero = `IQF-${String(totalIngresos + 1).padStart(4, "0")}`;
+    const ingresosExistentes = await prisma.ingresoIQF.findMany({ select: { numero: true } });
+    const numero = siguienteNumero(ingresosExistentes.map((i) => i.numero), "IQF-");
 
     const nuevoIngreso = await prisma.$transaction(async (tx) => {
       const tempIdAPalletId = new Map<string, string>();
-      let contador = await tx.palletIQF.count();
+      const palletsIQFExistentesNumeros = await tx.palletIQF.findMany({ select: { numero: true } });
+      let contador = maximoNumero(palletsIQFExistentesNumeros.map((p) => p.numero), "PIQF-");
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;
@@ -374,7 +376,8 @@ export async function actualizarIngresoIQFAction(
       // 4. Crear pallets nuevos e incrementar los existentes (igual que al
       //    crear un ingreso).
       const tempIdAPalletId = new Map<string, string>();
-      let contador = await tx.palletIQF.count();
+      const palletsIQFExistentesNumeros = await tx.palletIQF.findMany({ select: { numero: true } });
+      let contador = maximoNumero(palletsIQFExistentesNumeros.map((p) => p.numero), "PIQF-");
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { siguienteNumero } from "@/lib/utils";
 
 export type TarjaActionState = { error?: string; success?: boolean } | undefined;
 
@@ -15,14 +16,19 @@ export async function crearTarjaAction(palletId: string): Promise<TarjaActionSta
     return { success: true };
   }
 
-  const usuario = await getUsuarioActual();
-  const totalTarjas = await prisma.tarja.count();
-  const numero = `RPB26-${String(totalTarjas + 1).padStart(4, "0")}`;
+  try {
+    const usuario = await getUsuarioActual();
+    const tarjasExistentes = await prisma.tarja.findMany({ select: { numero: true } });
+    const numero = siguienteNumero(tarjasExistentes.map((t) => t.numero), "RPB26-");
 
-  await prisma.tarja.create({
-    data: { numero, palletId, creadoPorId: usuario?.id },
-  });
+    await prisma.tarja.create({
+      data: { numero, palletId, creadoPorId: usuario?.id },
+    });
 
-  revalidatePath("/acopio/tarjas");
-  return { success: true };
+    revalidatePath("/acopio/tarjas");
+    return { success: true };
+  } catch (e) {
+    console.error("Error inesperado en crearTarjaAction:", e);
+    return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al generar la tarja." };
+  }
 }
