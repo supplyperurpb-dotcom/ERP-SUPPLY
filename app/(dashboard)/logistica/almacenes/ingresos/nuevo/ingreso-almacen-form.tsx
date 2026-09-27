@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
 import { crearIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
@@ -170,6 +171,7 @@ export function IngresoAlmacenForm({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-28">Código</TableHead>
                   <TableHead className="min-w-[220px]">Producto</TableHead>
                   <TableHead className="w-28">Cantidad</TableHead>
                   <TableHead className="w-20">U.M.</TableHead>
@@ -185,29 +187,21 @@ export function IngresoAlmacenForm({
                   return (
                     <TableRow key={field.id}>
                       <TableCell className="align-top">
+                        <Input disabled value={skuPorId.get(items[index]?.skuId ?? "")?.codigo ?? ""} />
+                      </TableCell>
+                      <TableCell className="align-top">
                         <Controller
                           control={form.control}
                           name={`items.${index}.skuId`}
                           render={({ field: selectField }) => (
-                            <Select
+                            <SkuCombobox
+                              skus={skus}
                               value={selectField.value}
-                              onValueChange={(valor) => {
-                                selectField.onChange(valor);
-                                const sku = skuPorId.get(valor);
-                                if (sku) form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
+                              onSelect={(sku) => {
+                                selectField.onChange(sku.id);
+                                form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
                               }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecciona..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {skus.map((s) => (
-                                  <SelectItem key={s.id} value={s.id}>
-                                    {s.codigo} — {s.descripcion}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                           )}
                         />
                         {form.formState.errors.items?.[index]?.skuId && (
