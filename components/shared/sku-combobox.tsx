@@ -19,11 +19,15 @@ export function SkuCombobox({
   value,
   onSelect,
   placeholder = "Selecciona...",
+  disabled = false,
+  emptyMessage = "No se encontró ningún producto.",
 }: {
   skus: SkuOpcionCombobox[];
   value: string;
   onSelect: (sku: SkuOpcionCombobox) => void;
   placeholder?: string;
+  disabled?: boolean;
+  emptyMessage?: string;
 }) {
   const [open, setOpen] = useState(false);
   const seleccionado = skus.find((s) => s.id === value);
@@ -36,6 +40,7 @@ export function SkuCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className="h-10 w-full justify-between font-normal"
         >
           <span className="truncate">{seleccionado ? seleccionado.descripcion : placeholder}</span>
@@ -46,7 +51,7 @@ export function SkuCombobox({
         <Command filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
           <CommandInput placeholder="Buscar por código o nombre..." />
           <CommandList>
-            <CommandEmpty>No se encontró ningún producto.</CommandEmpty>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
               {skus.map((sku) => (
                 <CommandItem

@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { calcularStockAlmacen } from "@/lib/stock-almacen";
 import { TrasladoAlmacenForm } from "./traslado-almacen-form";
 
 export default async function NuevoTrasladoAlmacenPage({
@@ -9,20 +10,22 @@ export default async function NuevoTrasladoAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const [almacenes, skus] = await Promise.all([
-    prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
-    prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
-  ]);
+  const almacenes = await prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } });
+  const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
+  const stockPorAlmacen: Record<string, Awaited<ReturnType<typeof calcularStockAlmacen>>> = {};
+  almacenes.forEach((a, i) => {
+    stockPorAlmacen[a.id] = stocks[i];
+  });
 
   return (
     <div>
       <PageHeader
         titulo="Nuevo traslado entre almacenes"
-        descripcion="Mueve productos de un almacén a otro. El stock del almacén de origen disminuye y el del destino aumenta según las cantidades trasladadas."
+        descripcion="Mueve productos de un almacén a otro. Solo se pueden trasladar productos con stock disponible en el almacén de origen elegido."
       />
       <TrasladoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
-        skus={skus.map((s) => ({ id: s.id, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida }))}
+        stockPorAlmacen={stockPorAlmacen}
         almacenOrigenIdInicial={almacenId}
       />
     </div>
