@@ -82,7 +82,7 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
                 <TableHead>Nombre</TableHead>
                 <TableHead>U.M.</TableHead>
                 <TableHead className="text-right">Cantidad</TableHead>
-                <TableHead className="text-right">Precio unit. ponderado</TableHead>
+                <TableHead className="text-right">Precio unit. ponderado (US$)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -93,7 +93,7 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
                   <TableCell>{fila.unidadMedida}</TableCell>
                   <TableCell className="text-right">{fila.cantidad.toLocaleString("es-PE")}</TableCell>
                   <TableCell className="text-right">
-                    {fila.precioUnitarioPonderado !== null ? formatMoneda(fila.precioUnitarioPonderado) : "—"}
+                    {fila.precioUnitarioPonderado !== null ? formatMoneda(fila.precioUnitarioPonderado, "USD") : "—"}
                   </TableCell>
                 </TableRow>
               ))}

@@ -37,8 +37,8 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
           <p className="font-medium">{traslado.remitente ?? "—"}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Flete</p>
-          <p className="font-medium">{traslado.flete !== null ? formatMoneda(Number(traslado.flete)) : "—"}</p>
+          <p className="text-muted-foreground">Flete (US$)</p>
+          <p className="font-medium">{traslado.flete !== null ? formatMoneda(Number(traslado.flete), "USD") : "—"}</p>
         </div>
         <div className="sm:col-span-2 lg:col-span-4">
           <p className="text-muted-foreground">Observaciones</p>
@@ -53,9 +53,9 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
             <TableHead>Producto</TableHead>
             <TableHead className="text-right">Cantidad</TableHead>
             <TableHead>U.M.</TableHead>
-            <TableHead className="text-right">Costo unit. ponderado</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
-            <TableHead className="text-right">Flete asignado</TableHead>
+            <TableHead className="text-right">Costo unit. ponderado (US$)</TableHead>
+            <TableHead className="text-right">Valor (US$)</TableHead>
+            <TableHead className="text-right">Flete asignado (US$)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -65,9 +65,9 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
               <TableCell>{item.sku.descripcion}</TableCell>
               <TableCell className="text-right">{Number(item.cantidad).toLocaleString("es-PE")}</TableCell>
               <TableCell>{item.unidadMedida}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.costoUnitario))}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.valorTotal))}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado))}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.costoUnitario), "USD")}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.valorTotal), "USD")}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado), "USD")}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -75,13 +75,14 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
 
       <div className="flex flex-col items-end gap-1 text-sm">
         <p>
-          Valor trasladado: <span className="font-medium">{formatMoneda(valorTotal)}</span>
+          Valor trasladado: <span className="font-medium">{formatMoneda(valorTotal, "USD")}</span>
         </p>
         <p>
-          Flete: <span className="font-medium">{formatMoneda(flete)}</span>
+          Flete: <span className="font-medium">{formatMoneda(flete, "USD")}</span>
         </p>
         <p className="text-base">
-          Valor con flete (costo en destino): <span className="font-semibold text-primary">{formatMoneda(valorTotal + flete)}</span>
+          Valor con flete (costo en destino):{" "}
+          <span className="font-semibold text-primary">{formatMoneda(valorTotal + flete, "USD")}</span>
         </p>
       </div>
     </div>

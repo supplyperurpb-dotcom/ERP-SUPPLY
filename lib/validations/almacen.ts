@@ -33,6 +33,7 @@ const itemIngresoSchema = z.object({
 export const ingresoAlmacenSchema = z.object({
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
   ocNumero: z.string().max(60).optional().or(z.literal("")),
+  moneda: z.enum(["PEN", "USD"]).default("PEN"),
   proveedorId: z.string().optional().or(z.literal("")),
   almacenId: z.string().min(1, "Selecciona el almacén"),
   observaciones: z.string().max(500).optional().or(z.literal("")),

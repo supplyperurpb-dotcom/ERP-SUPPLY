@@ -44,8 +44,8 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
             <p className="font-medium">{consumo.remitente ?? "—"}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Flete</p>
-            <p className="font-medium">{consumo.flete !== null ? formatMoneda(Number(consumo.flete)) : "—"}</p>
+            <p className="text-muted-foreground">Flete (US$)</p>
+            <p className="font-medium">{consumo.flete !== null ? formatMoneda(Number(consumo.flete), "USD") : "—"}</p>
           </div>
         </div>
       )}
@@ -57,9 +57,9 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
             <TableHead>Producto</TableHead>
             <TableHead className="text-right">Cantidad</TableHead>
             <TableHead>U.M.</TableHead>
-            <TableHead className="text-right">Precio unit. ponderado</TableHead>
-            <TableHead className="text-right">Valor consumido</TableHead>
-            <TableHead className="text-right">Flete asignado</TableHead>
+            <TableHead className="text-right">Precio unit. ponderado (US$)</TableHead>
+            <TableHead className="text-right">Valor consumido (US$)</TableHead>
+            <TableHead className="text-right">Flete asignado (US$)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -69,9 +69,9 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
               <TableCell>{item.sku.descripcion}</TableCell>
               <TableCell className="text-right">{Number(item.cantidad).toLocaleString("es-PE")}</TableCell>
               <TableCell>{item.unidadMedida}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.precioUnitarioPonderado))}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.valorConsumido))}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado))}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.precioUnitarioPonderado), "USD")}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.valorConsumido), "USD")}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado), "USD")}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -79,13 +79,13 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
 
       <div className="flex flex-col items-end gap-1 text-sm">
         <p>
-          Valor consumido: <span className="font-medium">{formatMoneda(valorConsumido)}</span>
+          Valor consumido: <span className="font-medium">{formatMoneda(valorConsumido, "USD")}</span>
         </p>
         <p>
-          Flete: <span className="font-medium">{formatMoneda(flete)}</span>
+          Flete: <span className="font-medium">{formatMoneda(flete, "USD")}</span>
         </p>
         <p className="text-base">
-          Total: <span className="font-semibold text-primary">{formatMoneda(valorConsumido + flete)}</span>
+          Total: <span className="font-semibold text-primary">{formatMoneda(valorConsumido + flete, "USD")}</span>
         </p>
       </div>
     </div>

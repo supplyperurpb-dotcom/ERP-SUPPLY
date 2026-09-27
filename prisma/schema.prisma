@@ -364,10 +364,17 @@ model IngresoAlmacen {
   remitente     String?
   proveedorId   String?
   almacenId     String
-  // Costo del transporte de este ingreso, prorrateado entre los items según
-  // su participación en el subtotal (ver crearIngresoAlmacenAction). Se suma
-  // al costo del producto para el costeo ponderado del stock (ver
-  // mapaCostosAlmacen en lib/stock-almacen.ts).
+  // Moneda en la que se pactó/registró este ingreso ("PEN" | "USD"). Los
+  // montos de precioUnitario/subtotal/flete se guardan en ESTA moneda (lo
+  // que dice la factura/guía); el costeo del stock usa su equivalente en
+  // USD (ver *Usd en IngresoAlmacenItem y convertirAUsd en
+  // lib/constants/moneda.ts).
+  moneda        String   @default("PEN")
+  // Costo del transporte de este ingreso, en la moneda de arriba,
+  // prorrateado entre los items según su participación en el subtotal (ver
+  // crearIngresoAlmacenAction). Se suma al costo del producto para el
+  // costeo ponderado del stock (ver mapaCostosAlmacen en
+  // lib/stock-almacen.ts).
   flete         Decimal? @db.Decimal(12, 2)
   observaciones String?
   creadoPorId   String?
@@ -381,18 +388,23 @@ model IngresoAlmacen {
 }
 
 model IngresoAlmacenItem {
-  id               String  @id @default(cuid())
-  ingresoAlmacenId String
-  skuId            String
-  cantidad         Decimal @db.Decimal(12, 3)
-  unidadMedida     String
-  precioUnitario   Decimal @db.Decimal(12, 4)
-  subtotal         Decimal @db.Decimal(14, 4)
-  // Parte del flete del ingreso que le corresponde a esta línea (prorrateo
-  // por subtotal). No es parte del "subtotal" (precio pactado con el
-  // proveedor); se suma aparte para el costeo del stock.
-  fleteAsignado    Decimal @default(0) @db.Decimal(14, 4)
-  lote             String?
+  id                String  @id @default(cuid())
+  ingresoAlmacenId  String
+  skuId             String
+  cantidad          Decimal @db.Decimal(12, 3)
+  unidadMedida      String
+  // precioUnitario/subtotal/fleteAsignado: en la moneda del ingreso (lo que
+  // dice la factura). *Usd: el mismo monto convertido a Dólares (tipo de
+  // cambio fijo, ver convertirAUsd) — es lo que usa el costeo del stock
+  // (mapaCostosAlmacen), para que un mismo producto no mezcle Soles y
+  // Dólares entre distintos ingresos.
+  precioUnitario    Decimal @db.Decimal(12, 4)
+  subtotal          Decimal @db.Decimal(14, 4)
+  precioUnitarioUsd Decimal @db.Decimal(12, 4)
+  subtotalUsd       Decimal @db.Decimal(14, 4)
+  fleteAsignado     Decimal @default(0) @db.Decimal(14, 4)
+  fleteAsignadoUsd  Decimal @default(0) @db.Decimal(14, 4)
+  lote              String?
 
   ingresoAlmacen IngresoAlmacen @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
   sku            Sku            @relation(fields: [skuId], references: [id])

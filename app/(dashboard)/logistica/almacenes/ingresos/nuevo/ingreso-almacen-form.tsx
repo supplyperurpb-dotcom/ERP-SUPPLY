@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
+import { MONEDAS, TIPO_CAMBIO_PEN_USD, convertirAUsd } from "@/lib/constants/moneda";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
 import { crearIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
 
@@ -45,6 +46,7 @@ export function IngresoAlmacenForm({
     defaultValues: {
       fecha: fechaLocalHoy() as unknown as Date,
       ocNumero: "",
+      moneda: "PEN",
       guiaRemision: "",
       remitenteRuc: "",
       remitente: "",
@@ -59,11 +61,13 @@ export function IngresoAlmacenForm({
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const flete = useWatch({ control: form.control, name: "flete" });
+  const moneda = useWatch({ control: form.control, name: "moneda" }) ?? "PEN";
 
   const subtotales = items.map((item) => (Number(item?.cantidad) || 0) * (Number(item?.precioUnitario) || 0));
   const fletePorItem = prorratear(Number(flete) || 0, subtotales);
   const totalSubtotal = subtotales.reduce((a, b) => a + b, 0);
   const totalGeneral = totalSubtotal + (Number(flete) || 0);
+  const totalGeneralUsd = convertirAUsd(totalGeneral, moneda);
 
   async function onSubmit(data: IngresoAlmacenInput) {
     let resultado;
@@ -159,6 +163,34 @@ export function IngresoAlmacenForm({
           <div className="space-y-2">
             <Label htmlFor="ocNumero">N° de OC (opcional)</Label>
             <Input id="ocNumero" {...form.register("ocNumero")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Moneda</Label>
+            <Controller
+              control={form.control}
+              name="moneda"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONEDAS.map((m) => (
+                      <SelectItem key={m.codigo} value={m.codigo}>
+                        {m.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {moneda === "PEN" && (
+              <p className="text-xs text-muted-foreground">
+                Se convierte a Dólares con un tipo de cambio fijo de S/ {TIPO_CAMBIO_PEN_USD.toFixed(2)} para el
+                costeo del stock.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
@@ -283,10 +315,10 @@ export function IngresoAlmacenForm({
                         <Input {...form.register(`items.${index}.lote`)} />
                       </TableCell>
                       <TableCell className="text-right align-top pt-4 font-medium">
-                        {formatMoneda(subtotal)}
+                        {formatMoneda(subtotal, moneda)}
                       </TableCell>
                       <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
-                        {formatMoneda(fletePorItem[index] ?? 0)}
+                        {formatMoneda(fletePorItem[index] ?? 0, moneda)}
                       </TableCell>
                       <TableCell className="align-top">
                         <Button
@@ -308,14 +340,17 @@ export function IngresoAlmacenForm({
 
           <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
             <p>
-              Subtotal productos: <span className="font-medium">{formatMoneda(totalSubtotal)}</span>
+              Subtotal productos: <span className="font-medium">{formatMoneda(totalSubtotal, moneda)}</span>
             </p>
             <p>
-              Flete: <span className="font-medium">{formatMoneda(Number(flete) || 0)}</span>
+              Flete: <span className="font-medium">{formatMoneda(Number(flete) || 0, moneda)}</span>
             </p>
             <p className="text-base">
-              Total: <span className="font-semibold text-primary">{formatMoneda(totalGeneral)}</span>
+              Total: <span className="font-semibold text-primary">{formatMoneda(totalGeneral, moneda)}</span>
             </p>
+            {moneda === "PEN" && (
+              <p className="text-xs text-muted-foreground">≈ {formatMoneda(totalGeneralUsd, "USD")}</p>
+            )}
           </div>
         </CardContent>
       </Card>

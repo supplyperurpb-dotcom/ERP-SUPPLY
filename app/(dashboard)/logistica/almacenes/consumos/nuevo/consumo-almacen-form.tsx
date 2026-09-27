@@ -178,7 +178,7 @@ export function ConsumoAlmacenForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="flete">Precio del flete (opcional)</Label>
+            <Label htmlFor="flete">Precio del flete en US$ (opcional)</Label>
             <Input id="flete" type="number" min={0} step="0.01" {...form.register("flete")} />
             {form.formState.errors.flete && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.flete.message}</p>
@@ -220,7 +220,7 @@ export function ConsumoAlmacenForm({
                     <TableHead className="w-28">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
                     <TableHead className="w-28">Stock disponible</TableHead>
-                    <TableHead className="w-28 text-right">Flete asignado</TableHead>
+                    <TableHead className="w-28 text-right">Flete asignado (US$)</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -281,7 +281,7 @@ export function ConsumoAlmacenForm({
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm">{skuId ? disponible : "—"}</TableCell>
                         <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
-                          {formatMoneda(fletePorItem[index] ?? 0)}
+                          {formatMoneda(fletePorItem[index] ?? 0, "USD")}
                         </TableCell>
                         <TableCell className="align-top">
                           <Button

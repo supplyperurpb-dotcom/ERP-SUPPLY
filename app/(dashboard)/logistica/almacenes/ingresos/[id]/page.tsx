@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
 import { formatDateTime, formatMoneda } from "@/lib/utils";
+import { MONEDAS, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
 
 export default async function IngresoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,9 +14,11 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
   });
   if (!ingreso) notFound();
 
+  const moneda = ingreso.moneda as "PEN" | "USD";
   const subtotal = ingreso.items.reduce((acc, item) => acc + Number(item.subtotal), 0);
   const flete = ingreso.items.reduce((acc, item) => acc + Number(item.fleteAsignado), 0);
   const total = subtotal + flete;
+  const totalUsd = ingreso.items.reduce((acc, item) => acc + Number(item.subtotalUsd) + Number(item.fleteAsignadoUsd), 0);
 
   return (
     <div className="space-y-6">
@@ -34,6 +37,10 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
           <p className="font-medium">{ingreso.ocNumero ?? "—"}</p>
         </div>
         <div>
+          <p className="text-muted-foreground">Moneda</p>
+          <p className="font-medium">{MONEDAS.find((m) => m.codigo === moneda)?.nombre ?? moneda}</p>
+        </div>
+        <div>
           <p className="text-muted-foreground">Guía de remisión</p>
           <p className="font-medium">{ingreso.guiaRemision ?? "—"}</p>
         </div>
@@ -47,7 +54,7 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
         </div>
         <div>
           <p className="text-muted-foreground">Flete</p>
-          <p className="font-medium">{ingreso.flete !== null ? formatMoneda(Number(ingreso.flete)) : "—"}</p>
+          <p className="font-medium">{ingreso.flete !== null ? formatMoneda(Number(ingreso.flete), moneda) : "—"}</p>
         </div>
         <div>
           <p className="text-muted-foreground">Observaciones</p>
@@ -66,6 +73,7 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
             <TableHead className="text-right">Precio unit.</TableHead>
             <TableHead className="text-right">Subtotal</TableHead>
             <TableHead className="text-right">Flete asignado</TableHead>
+            <TableHead className="text-right">Costo (US$)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,9 +84,12 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
               <TableCell>{item.lote ?? "—"}</TableCell>
               <TableCell className="text-right">{Number(item.cantidad).toLocaleString("es-PE")}</TableCell>
               <TableCell>{item.unidadMedida}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.precioUnitario))}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.subtotal))}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado))}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.precioUnitario), moneda)}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.subtotal), moneda)}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado), moneda)}</TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {formatMoneda(Number(item.subtotalUsd) + Number(item.fleteAsignadoUsd), "USD")}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -86,14 +97,19 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
 
       <div className="flex flex-col items-end gap-1 text-sm">
         <p>
-          Subtotal: <span className="font-medium">{formatMoneda(subtotal)}</span>
+          Subtotal: <span className="font-medium">{formatMoneda(subtotal, moneda)}</span>
         </p>
         <p>
-          Flete: <span className="font-medium">{formatMoneda(flete)}</span>
+          Flete: <span className="font-medium">{formatMoneda(flete, moneda)}</span>
         </p>
         <p className="text-base">
-          Total: <span className="font-semibold text-primary">{formatMoneda(total)}</span>
+          Total: <span className="font-semibold text-primary">{formatMoneda(total, moneda)}</span>
         </p>
+        {moneda === "PEN" && (
+          <p className="text-xs text-muted-foreground">
+            ≈ {formatMoneda(totalUsd, "USD")} (tipo de cambio fijo S/ {TIPO_CAMBIO_PEN_USD.toFixed(2)})
+          </p>
+        )}
       </div>
     </div>
   );

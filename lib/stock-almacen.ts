@@ -6,7 +6,7 @@ export type FilaStockAlmacen = {
   descripcion: string;
   unidadMedida: string;
   cantidad: number;
-  /** Costo unitario ponderado (valor neto de inventario / cantidad neta). */
+  /** Costo unitario ponderado en DÓLARES (valor neto de inventario / cantidad neta). */
   precioUnitarioPonderado: number | null;
 };
 
@@ -39,7 +39,7 @@ async function mapaCostosAlmacen(almacenId: string): Promise<Map<string, CostoSk
     }),
     prisma.ingresoAlmacenItem.findMany({
       where: { ingresoAlmacen: { almacenId } },
-      select: { skuId: true, subtotal: true, fleteAsignado: true },
+      select: { skuId: true, subtotalUsd: true, fleteAsignadoUsd: true },
     }),
     prisma.trasladoAlmacenItem.findMany({
       where: { trasladoAlmacen: { almacenDestinoId: almacenId } },
@@ -65,11 +65,15 @@ async function mapaCostosAlmacen(almacenId: string): Promise<Map<string, CostoSk
 
   const valorPorSku = new Map<string, number>();
   const sumarValor = (skuId: string, valor: number) => valorPorSku.set(skuId, (valorPorSku.get(skuId) ?? 0) + valor);
-  // El flete (ver IngresoAlmacenItem/TrasladoAlmacenItem.fleteAsignado) se
-  // suma al costo del producto: es costo de traerlo hasta este almacén. El
-  // flete de un consumo (salida) NO se resta aquí — no cambia el costo de lo
-  // que queda en el almacén, ver ConsumoAlmacenItem.fleteAsignado.
-  for (const i of ingresos) sumarValor(i.skuId, Number(i.subtotal) + Number(i.fleteAsignado));
+  // Todo el valor se acumula en DÓLARES (moneda base del costeo): los
+  // ingresos pueden registrarse en Soles o Dólares (ver
+  // IngresoAlmacen.moneda), así que se usan sus columnas *Usd, ya
+  // convertidas, para que un mismo producto no mezcle monedas entre
+  // distintos ingresos. El flete se suma al costo del producto: es costo de
+  // traerlo hasta este almacén. El flete de un consumo (salida) NO se resta
+  // aquí — no cambia el costo de lo que queda en el almacén, ver
+  // ConsumoAlmacenItem.fleteAsignado.
+  for (const i of ingresos) sumarValor(i.skuId, Number(i.subtotalUsd) + Number(i.fleteAsignadoUsd));
   for (const t of trasladosEntrantes) sumarValor(t.skuId, Number(t.valorTotal) + Number(t.fleteAsignado));
   for (const t of trasladosSalientes) sumarValor(t.skuId, -Number(t.valorTotal));
   for (const c of consumos) sumarValor(c.skuId, -Number(c.valorConsumido));

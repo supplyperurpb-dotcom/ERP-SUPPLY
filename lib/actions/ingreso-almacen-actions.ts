@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
+import { convertirAUsd } from "@/lib/constants/moneda";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
 
 export type IngresoAlmacenActionState = { error?: string; id?: string } | undefined;
@@ -16,6 +17,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
   const {
     fecha,
     ocNumero,
+    moneda,
     guiaRemision,
     remitenteRuc,
     remitente,
@@ -32,9 +34,14 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
   }
 
   // El flete se prorratea entre los items según su participación en el
-  // subtotal (cantidad x precio unitario) del ingreso.
+  // subtotal (cantidad x precio unitario) del ingreso, ambos en la moneda
+  // del documento. El costeo del stock (mapaCostosAlmacen) usa el
+  // equivalente en Dólares de cada uno, para que un mismo producto no
+  // mezcle Soles y Dólares entre ingresos distintos (ver convertirAUsd).
   const subtotales = items.map((item) => item.cantidad * item.precioUnitario);
   const fletePorItem = prorratear(flete, subtotales);
+  const subtotalesUsd = subtotales.map((s) => convertirAUsd(s, moneda));
+  const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
 
   try {
     const usuario = await getUsuarioActual();
@@ -48,6 +55,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
           numero,
           fecha,
           ocNumero: ocNumero || null,
+          moneda,
           guiaRemision: guiaRemision || null,
           remitenteRuc: remitenteRuc || null,
           remitente: remitente || null,
@@ -63,6 +71,8 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
         const item = items[i];
         const subtotal = subtotales[i];
         const fleteAsignado = fletePorItem[i];
+        const subtotalUsd = subtotalesUsd[i];
+        const fleteAsignadoUsd = fletePorItemUsd[i];
 
         await tx.ingresoAlmacenItem.create({
           data: {
@@ -72,7 +82,10 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
             unidadMedida: item.unidadMedida,
             precioUnitario: item.precioUnitario,
             subtotal,
+            precioUnitarioUsd: subtotalUsd / item.cantidad,
+            subtotalUsd,
             fleteAsignado,
+            fleteAsignadoUsd,
             lote: item.lote || null,
           },
         });
