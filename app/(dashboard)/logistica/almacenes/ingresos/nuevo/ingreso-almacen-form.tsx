@@ -13,10 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
+import { ProveedorRemitenteCombobox } from "@/components/shared/proveedor-remitente-combobox";
 import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD, convertirAUsd } from "@/lib/constants/moneda";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
-import { crearIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
+import { crearIngresoAlmacenAction, actualizarIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
 
 type Opcion = { id: string; nombre: string };
 type ProveedorOpcion = { id: string; razonSocial: string; ruc: string };
@@ -31,11 +32,14 @@ export function IngresoAlmacenForm({
   proveedores,
   skus,
   almacenIdInicial,
+  edicion,
 }: {
   almacenes: Opcion[];
   proveedores: ProveedorOpcion[];
   skus: SkuOpcion[];
   almacenIdInicial?: string;
+  /** Presente solo cuando el formulario edita un ingreso ya existente. */
+  edicion?: { id: string; valoresIniciales: IngresoAlmacenInput };
 }) {
   const router = useRouter();
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
@@ -43,7 +47,7 @@ export function IngresoAlmacenForm({
 
   const form = useForm<IngresoAlmacenInput>({
     resolver: zodResolver(ingresoAlmacenSchema),
-    defaultValues: {
+    defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
       ocNumero: "",
       moneda: "PEN",
@@ -72,7 +76,9 @@ export function IngresoAlmacenForm({
   async function onSubmit(data: IngresoAlmacenInput) {
     let resultado;
     try {
-      resultado = await crearIngresoAlmacenAction(data);
+      resultado = edicion
+        ? await actualizarIngresoAlmacenAction(edicion.id, data)
+        : await crearIngresoAlmacenAction(data);
     } catch (err) {
       console.error("Error al guardar el ingreso a almacén:", err);
       const detalle = err instanceof Error ? err.message : String(err);
@@ -83,8 +89,13 @@ export function IngresoAlmacenForm({
       toast.error(resultado.error);
       return;
     }
-    toast.success("Ingreso registrado");
-    router.push(resultado?.id ? `/logistica/almacenes/ingresos/${resultado.id}` : "/logistica/almacenes/ingresos");
+    if (edicion) {
+      toast.success("Ingreso actualizado");
+      router.push(`/logistica/almacenes/ingresos/${edicion.id}`);
+    } else {
+      toast.success("Ingreso registrado");
+      router.push(resultado?.id ? `/logistica/almacenes/ingresos/${resultado.id}` : "/logistica/almacenes/ingresos");
+    }
   }
 
   return (
@@ -221,7 +232,21 @@ export function IngresoAlmacenForm({
 
           <div className="space-y-2">
             <Label htmlFor="remitente">Nombre del remitente (opcional)</Label>
-            <Input id="remitente" {...form.register("remitente")} />
+            <Controller
+              control={form.control}
+              name="remitente"
+              render={({ field }) => (
+                <ProveedorRemitenteCombobox
+                  proveedores={proveedores}
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  onSelect={(proveedor) => {
+                    field.onChange(proveedor.razonSocial);
+                    if (proveedor.ruc) form.setValue("remitenteRuc", proveedor.ruc);
+                  }}
+                />
+              )}
+            />
           </div>
 
           <div className="space-y-2">
@@ -360,7 +385,7 @@ export function IngresoAlmacenForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : "Registrar ingreso"}
+          {form.formState.isSubmitting ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar ingreso"}
         </Button>
       </div>
     </form>

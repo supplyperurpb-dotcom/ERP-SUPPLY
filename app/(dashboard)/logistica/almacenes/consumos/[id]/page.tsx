@@ -1,8 +1,13 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDateTime, formatMoneda } from "@/lib/utils";
+import { eliminarConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
 
 export default async function ConsumoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,6 +25,23 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
       <PageHeader
         titulo={`Consumo ${consumo.numero}`}
         descripcion={`${consumo.almacen.nombre} · ${formatDateTime(consumo.fecha)}`}
+        acciones={
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/logistica/almacenes/consumos/${consumo.id}/editar`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Link>
+            </Button>
+            <EliminarMovimientoButton
+              id={consumo.id}
+              numero={consumo.numero}
+              etiqueta="el consumo"
+              accion={eliminarConsumoAlmacenAction}
+              redirectTo="/logistica/almacenes/consumos"
+            />
+          </>
+        }
       />
 
       {consumo.observaciones && (

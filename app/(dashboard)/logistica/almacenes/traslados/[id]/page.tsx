@@ -1,9 +1,14 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDateTime, formatMoneda } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
+import { eliminarTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
 
 export default async function TrasladoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,6 +29,23 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
       <PageHeader
         titulo={`Traslado ${traslado.numero}`}
         descripcion={`${traslado.almacenOrigen.nombre} → ${traslado.almacenDestino.nombre} · ${formatDateTime(traslado.fecha)}`}
+        acciones={
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/logistica/almacenes/traslados/${traslado.id}/editar`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Link>
+            </Button>
+            <EliminarMovimientoButton
+              id={traslado.id}
+              numero={traslado.numero}
+              etiqueta="el traslado"
+              accion={eliminarTrasladoAlmacenAction}
+              redirectTo="/logistica/almacenes/traslados"
+            />
+          </>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">

@@ -1,4 +1,14 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+
+// Todas las funciones aceptan opcionalmente un cliente de Prisma distinto
+// al singleton (típicamente `tx` dentro de un prisma.$transaction) — se usa
+// al editar un ingreso/traslado/consumo: primero se borran sus filas
+// viejas y LUEGO se valida/recalcula con estas funciones usando ese mismo
+// `tx`, para que "vean" el mundo sin el documento viejo dentro de la misma
+// transacción (una lectura con el cliente normal no vería ese borrado
+// todavía sin commitear).
+type Db = PrismaClient | Prisma.TransactionClient;
 
 export type FilaStockAlmacen = {
   skuId: string;
@@ -25,31 +35,31 @@ type CostoSku = { cantidad: number; precioUnitarioPonderado: number | null };
 // traslados enviados. Dividido entre la cantidad da el costo unitario
 // ponderado ACTUAL de lo que queda — no solo un promedio histórico de
 // ingresos, porque eso ignoraría el valor que entra o sale por traslados.
-async function mapaCostosAlmacen(almacenId: string): Promise<Map<string, CostoSku>> {
+async function mapaCostosAlmacen(almacenId: string, db: Db = prisma): Promise<Map<string, CostoSku>> {
   const [entradas, salidas, ingresos, trasladosEntrantes, trasladosSalientes, consumos] = await Promise.all([
-    prisma.movimientoStock.groupBy({
+    db.movimientoStock.groupBy({
       by: ["skuId"],
       where: { almacenDestinoId: almacenId, tipo: { in: ["INGRESO", "TRANSFERENCIA"] } },
       _sum: { cantidad: true },
     }),
-    prisma.movimientoStock.groupBy({
+    db.movimientoStock.groupBy({
       by: ["skuId"],
       where: { almacenOrigenId: almacenId, tipo: { in: ["SALIDA", "TRANSFERENCIA"] } },
       _sum: { cantidad: true },
     }),
-    prisma.ingresoAlmacenItem.findMany({
+    db.ingresoAlmacenItem.findMany({
       where: { ingresoAlmacen: { almacenId } },
       select: { skuId: true, subtotalUsd: true, fleteAsignadoUsd: true },
     }),
-    prisma.trasladoAlmacenItem.findMany({
+    db.trasladoAlmacenItem.findMany({
       where: { trasladoAlmacen: { almacenDestinoId: almacenId } },
       select: { skuId: true, valorTotal: true, fleteAsignadoUsd: true },
     }),
-    prisma.trasladoAlmacenItem.findMany({
+    db.trasladoAlmacenItem.findMany({
       where: { trasladoAlmacen: { almacenOrigenId: almacenId } },
       select: { skuId: true, valorTotal: true },
     }),
-    prisma.consumoAlmacenItem.findMany({
+    db.consumoAlmacenItem.findMany({
       where: { consumoAlmacen: { almacenOrigenId: almacenId } },
       select: { skuId: true, valorConsumido: true },
     }),
@@ -90,12 +100,12 @@ async function mapaCostosAlmacen(almacenId: string): Promise<Map<string, CostoSk
   return mapa;
 }
 
-export async function calcularStockAlmacen(almacenId: string): Promise<FilaStockAlmacen[]> {
-  const costos = await mapaCostosAlmacen(almacenId);
+export async function calcularStockAlmacen(almacenId: string, db: Db = prisma): Promise<FilaStockAlmacen[]> {
+  const costos = await mapaCostosAlmacen(almacenId, db);
   const skuIds = Array.from(costos.keys());
   if (skuIds.length === 0) return [];
 
-  const skus = await prisma.sku.findMany({
+  const skus = await db.sku.findMany({
     where: { id: { in: skuIds } },
     select: { id: true, codigo: true, descripcion: true, unidadMedida: true },
   });
@@ -121,18 +131,18 @@ export async function calcularStockAlmacen(almacenId: string): Promise<FilaStock
 // Stock disponible + costo unitario ponderado de un conjunto de sku en un
 // almacén, en una sola consulta — usado por traslados y consumos para
 // validar cantidades y costear las líneas sin recalcular por cada una.
-export async function costosParaValidacion(almacenId: string): Promise<Map<string, CostoSku>> {
-  return mapaCostosAlmacen(almacenId);
+export async function costosParaValidacion(almacenId: string, db: Db = prisma): Promise<Map<string, CostoSku>> {
+  return mapaCostosAlmacen(almacenId, db);
 }
 
 // Variantes de una sola línea, para el resto del código que no necesita el
 // mapa completo.
-export async function stockDisponible(almacenId: string, skuId: string): Promise<number> {
-  const mapa = await mapaCostosAlmacen(almacenId);
+export async function stockDisponible(almacenId: string, skuId: string, db: Db = prisma): Promise<number> {
+  const mapa = await mapaCostosAlmacen(almacenId, db);
   return mapa.get(skuId)?.cantidad ?? 0;
 }
 
-export async function precioUnitarioPonderado(almacenId: string, skuId: string): Promise<number | null> {
-  const mapa = await mapaCostosAlmacen(almacenId);
+export async function precioUnitarioPonderado(almacenId: string, skuId: string, db: Db = prisma): Promise<number | null> {
+  const mapa = await mapaCostosAlmacen(almacenId, db);
   return mapa.get(skuId)?.precioUnitarioPonderado ?? null;
 }

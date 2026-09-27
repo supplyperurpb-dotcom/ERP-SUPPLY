@@ -13,10 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
+import { ProveedorRemitenteCombobox, type ProveedorOpcionRemitente } from "@/components/shared/proveedor-remitente-combobox";
 import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD, convertirAUsd } from "@/lib/constants/moneda";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
-import { crearTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
+import { crearTrasladoAlmacenAction, actualizarTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; nombre: string };
@@ -25,18 +26,27 @@ const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "" };
 
 export function TrasladoAlmacenForm({
   almacenes,
+  proveedores,
   stockPorAlmacen,
   almacenOrigenIdInicial,
+  edicion,
 }: {
   almacenes: Opcion[];
+  proveedores: ProveedorOpcionRemitente[];
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
   almacenOrigenIdInicial?: string;
+  /** Presente solo cuando el formulario edita un traslado ya existente.
+   * `stockPorAlmacen` ya viene ajustado por la página para el almacén de
+   * origen original (ver traslados/[id]/editar/page.tsx): incluye de
+   * vuelta lo que este mismo traslado le había restado, como si ya
+   * estuviera reversado (que es justo lo que hace el servidor al guardar). */
+  edicion?: { id: string; valoresIniciales: TrasladoAlmacenInput };
 }) {
   const router = useRouter();
 
   const form = useForm<TrasladoAlmacenInput>({
     resolver: zodResolver(trasladoAlmacenSchema),
-    defaultValues: {
+    defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
       almacenOrigenId: almacenOrigenIdInicial ?? "",
       almacenDestinoId: "",
@@ -88,7 +98,9 @@ export function TrasladoAlmacenForm({
 
     let resultado;
     try {
-      resultado = await crearTrasladoAlmacenAction(data);
+      resultado = edicion
+        ? await actualizarTrasladoAlmacenAction(edicion.id, data)
+        : await crearTrasladoAlmacenAction(data);
     } catch (err) {
       console.error("Error al guardar el traslado:", err);
       const detalle = err instanceof Error ? err.message : String(err);
@@ -97,6 +109,11 @@ export function TrasladoAlmacenForm({
     }
     if (resultado?.error) {
       toast.error(resultado.error);
+      return;
+    }
+    if (edicion) {
+      toast.success("Traslado actualizado");
+      router.push(`/logistica/almacenes/traslados/${edicion.id}`);
       return;
     }
     toast.success("Traslado registrado");
@@ -204,7 +221,21 @@ export function TrasladoAlmacenForm({
 
           <div className="space-y-2">
             <Label htmlFor="remitente">Nombre del remitente (opcional)</Label>
-            <Input id="remitente" {...form.register("remitente")} />
+            <Controller
+              control={form.control}
+              name="remitente"
+              render={({ field }) => (
+                <ProveedorRemitenteCombobox
+                  proveedores={proveedores}
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  onSelect={(proveedor) => {
+                    field.onChange(proveedor.razonSocial);
+                    if (proveedor.ruc) form.setValue("remitenteRuc", proveedor.ruc);
+                  }}
+                />
+              )}
+            />
           </div>
 
           <div className="space-y-2">
@@ -365,7 +396,7 @@ export function TrasladoAlmacenForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : "Registrar traslado"}
+          {form.formState.isSubmitting ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar traslado"}
         </Button>
       </div>
     </form>

@@ -14,6 +14,9 @@ const TIPO_LABEL: Record<Proveedor["tipo"], string> = {
   INSUMOS: "Insumos",
   FUNDO: "Fundo",
   AMBOS: "Ambos",
+  TRANSPORTE: "Transporte",
+  MATERIALES_EMPAQUE: "Materiales de Empaque",
+  ALMACEN: "Almacén",
 };
 
 export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {

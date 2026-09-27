@@ -11,6 +11,7 @@ export default async function NuevoTrasladoAlmacenPage({
   const { almacenId } = await searchParams;
 
   const almacenes = await prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } });
+  const proveedores = await prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } });
   const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
   const stockPorAlmacen: Record<string, Awaited<ReturnType<typeof calcularStockAlmacen>>> = {};
   almacenes.forEach((a, i) => {
@@ -25,6 +26,11 @@ export default async function NuevoTrasladoAlmacenPage({
       />
       <TrasladoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
+        proveedores={proveedores.map((p) => ({
+          id: p.id,
+          razonSocial: p.razonSocial,
+          ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
+        }))}
         stockPorAlmacen={stockPorAlmacen}
         almacenOrigenIdInicial={almacenId}
       />

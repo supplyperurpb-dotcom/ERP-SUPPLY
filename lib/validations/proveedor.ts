@@ -14,7 +14,9 @@ export const proveedorSchema = z
     numeroDocumento: z.string().min(1, "El número de documento es obligatorio").max(20),
     razonSocial: z.string().min(1, "La razón social es obligatoria").max(200),
     nombreComercial: opcional(200),
-    tipo: z.enum(["INSUMOS", "FUNDO", "AMBOS"], { required_error: "Selecciona el tipo de proveedor" }),
+    tipo: z.enum(["INSUMOS", "FUNDO", "AMBOS", "TRANSPORTE", "MATERIALES_EMPAQUE", "ALMACEN"], {
+      required_error: "Selecciona el tipo de proveedor",
+    }),
     direccion: opcional(300),
     distrito: opcional(100),
     provincia: opcional(100),
@@ -50,4 +52,7 @@ export const TIPOS_PROVEEDOR = [
   { valor: "INSUMOS", nombre: "Insumos" },
   { valor: "FUNDO", nombre: "Fundo" },
   { valor: "AMBOS", nombre: "Ambos" },
+  { valor: "TRANSPORTE", nombre: "Transporte" },
+  { valor: "MATERIALES_EMPAQUE", nombre: "Materiales de Empaque" },
+  { valor: "ALMACEN", nombre: "Almacén" },
 ] as const;

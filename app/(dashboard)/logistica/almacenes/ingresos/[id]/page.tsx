@@ -1,9 +1,14 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDateTime, formatMoneda } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
+import { eliminarIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
 
 export default async function IngresoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,6 +30,23 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
       <PageHeader
         titulo={`Ingreso ${ingreso.numero}`}
         descripcion={`${ingreso.almacen.nombre} · ${formatDateTime(ingreso.fecha)}`}
+        acciones={
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/logistica/almacenes/ingresos/${ingreso.id}/editar`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Link>
+            </Button>
+            <EliminarMovimientoButton
+              id={ingreso.id}
+              numero={ingreso.numero}
+              etiqueta="el ingreso"
+              accion={eliminarIngresoAlmacenAction}
+              redirectTo="/logistica/almacenes/ingresos"
+            />
+          </>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">

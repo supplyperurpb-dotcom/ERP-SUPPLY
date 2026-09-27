@@ -4,8 +4,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDateTime } from "@/lib/utils";
+import { eliminarConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
 
 export default async function ConsumosAlmacenPage() {
   const consumos = await prisma.consumoAlmacen.findMany({
@@ -53,10 +55,16 @@ export default async function ConsumosAlmacenPage() {
                 <TableCell>{formatDateTime(consumo.fecha)}</TableCell>
                 <TableCell>{consumo.almacen.nombre}</TableCell>
                 <TableCell className="text-right">{consumo._count.items}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="flex justify-end gap-1">
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/logistica/almacenes/consumos/${consumo.id}`}>Ver</Link>
                   </Button>
+                  <EliminarMovimientoButton
+                    id={consumo.id}
+                    numero={consumo.numero}
+                    etiqueta="el consumo"
+                    accion={eliminarConsumoAlmacenAction}
+                  />
                 </TableCell>
               </TableRow>
             ))}

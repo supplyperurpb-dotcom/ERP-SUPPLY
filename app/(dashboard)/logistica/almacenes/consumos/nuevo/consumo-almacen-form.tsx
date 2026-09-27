@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy } from "@/lib/utils";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
-import { crearConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
+import { crearConsumoAlmacenAction, actualizarConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; nombre: string };
@@ -26,16 +26,22 @@ export function ConsumoAlmacenForm({
   almacenes,
   stockPorAlmacen,
   almacenIdInicial,
+  edicion,
 }: {
   almacenes: Opcion[];
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
   almacenIdInicial?: string;
+  /** Presente solo cuando el formulario edita un consumo ya existente.
+   * `stockPorAlmacen` ya viene ajustado por la página (ver
+   * consumos/[id]/editar/page.tsx): incluye de vuelta lo que este mismo
+   * consumo ya había restado, como si ya estuviera reversado. */
+  edicion?: { id: string; valoresIniciales: ConsumoAlmacenInput };
 }) {
   const router = useRouter();
 
   const form = useForm<ConsumoAlmacenInput>({
     resolver: zodResolver(consumoAlmacenSchema),
-    defaultValues: {
+    defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
       almacenOrigenId: almacenIdInicial ?? "",
       observaciones: "",
@@ -72,7 +78,9 @@ export function ConsumoAlmacenForm({
 
     let resultado;
     try {
-      resultado = await crearConsumoAlmacenAction(data);
+      resultado = edicion
+        ? await actualizarConsumoAlmacenAction(edicion.id, data)
+        : await crearConsumoAlmacenAction(data);
     } catch (err) {
       console.error("Error al guardar el consumo:", err);
       const detalle = err instanceof Error ? err.message : String(err);
@@ -81,6 +89,11 @@ export function ConsumoAlmacenForm({
     }
     if (resultado?.error) {
       toast.error(resultado.error);
+      return;
+    }
+    if (edicion) {
+      toast.success("Consumo actualizado");
+      router.push(`/logistica/almacenes/consumos/${edicion.id}`);
       return;
     }
     toast.success("Consumo registrado");
@@ -260,7 +273,7 @@ export function ConsumoAlmacenForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : "Registrar consumo"}
+          {form.formState.isSubmitting ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar consumo"}
         </Button>
       </div>
     </form>
