@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { siguienteNumero } from "@/lib/utils";
+import { siguienteNumero, prorratear } from "@/lib/utils";
 import { costosParaValidacion } from "@/lib/stock-almacen";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 
@@ -14,7 +14,17 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, almacenDestinoId, guiaRemision, remitente, observaciones, items } = parsed.data;
+  const {
+    fecha,
+    almacenOrigenId,
+    almacenDestinoId,
+    guiaRemision,
+    remitenteRuc,
+    remitente,
+    flete,
+    observaciones,
+    items,
+  } = parsed.data;
 
   const [almacenOrigen, almacenDestino] = await Promise.all([
     prisma.almacen.findUnique({ where: { id: almacenOrigenId } }),
@@ -52,6 +62,11 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
     costoUnitarioPorSku.set(skuId, costo.precioUnitarioPonderado);
   }
 
+  // El flete se prorratea entre los items según su participación en el
+  // valor total (cantidad x costo unitario del origen) del traslado.
+  const valoresTotales = items.map((item) => item.cantidad * costoUnitarioPorSku.get(item.skuId)!);
+  const fletePorItem = prorratear(flete, valoresTotales);
+
   try {
     const usuario = await getUsuarioActual();
 
@@ -66,13 +81,16 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
           almacenOrigenId,
           almacenDestinoId,
           guiaRemision: guiaRemision || null,
+          remitenteRuc: remitenteRuc || null,
           remitente: remitente || null,
+          flete: flete || null,
           observaciones: observaciones || null,
           creadoPorId: usuario?.id,
         },
       });
 
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         const costoUnitario = costoUnitarioPorSku.get(item.skuId)!;
         await tx.trasladoAlmacenItem.create({
           data: {
@@ -81,7 +99,8 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
             costoUnitario,
-            valorTotal: item.cantidad * costoUnitario,
+            valorTotal: valoresTotales[i],
+            fleteAsignado: fletePorItem[i],
           },
         });
 

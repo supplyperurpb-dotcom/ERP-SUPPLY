@@ -13,12 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
+import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
 import { crearIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
 
 type Opcion = { id: string; nombre: string };
-type ProveedorOpcion = { id: string; razonSocial: string };
+type ProveedorOpcion = { id: string; razonSocial: string; ruc: string };
 type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida: string };
 
 const SIN_PROVEEDOR = "__sin_proveedor__";
@@ -38,6 +38,7 @@ export function IngresoAlmacenForm({
 }) {
   const router = useRouter();
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
+  const proveedorPorId = new Map(proveedores.map((p) => [p.id, p]));
 
   const form = useForm<IngresoAlmacenInput>({
     resolver: zodResolver(ingresoAlmacenSchema),
@@ -45,6 +46,9 @@ export function IngresoAlmacenForm({
       fecha: fechaLocalHoy() as unknown as Date,
       ocNumero: "",
       guiaRemision: "",
+      remitenteRuc: "",
+      remitente: "",
+      flete: 0,
       proveedorId: "",
       almacenId: almacenIdInicial ?? "",
       observaciones: "",
@@ -54,8 +58,12 @@ export function IngresoAlmacenForm({
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
+  const flete = useWatch({ control: form.control, name: "flete" });
 
-  const totalGeneral = items.reduce((acc, item) => acc + (Number(item?.cantidad) || 0) * (Number(item?.precioUnitario) || 0), 0);
+  const subtotales = items.map((item) => (Number(item?.cantidad) || 0) * (Number(item?.precioUnitario) || 0));
+  const fletePorItem = prorratear(Number(flete) || 0, subtotales);
+  const totalSubtotal = subtotales.reduce((a, b) => a + b, 0);
+  const totalGeneral = totalSubtotal + (Number(flete) || 0);
 
   async function onSubmit(data: IngresoAlmacenInput) {
     let resultado;
@@ -123,7 +131,14 @@ export function IngresoAlmacenForm({
               render={({ field }) => (
                 <Select
                   value={field.value || SIN_PROVEEDOR}
-                  onValueChange={(valor) => field.onChange(valor === SIN_PROVEEDOR ? "" : valor)}
+                  onValueChange={(valor) => {
+                    field.onChange(valor === SIN_PROVEEDOR ? "" : valor);
+                    const proveedor = proveedorPorId.get(valor);
+                    if (proveedor) {
+                      form.setValue("remitente", proveedor.razonSocial);
+                      if (proveedor.ruc) form.setValue("remitenteRuc", proveedor.ruc);
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sin proveedor" />
@@ -146,14 +161,43 @@ export function IngresoAlmacenForm({
             <Input id="ocNumero" {...form.register("ocNumero")} />
           </div>
 
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
+            <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Datos de transporte</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            El flete se prorratea entre los productos según su participación en el subtotal, y se suma a su
+            costo para el precio unitario ponderado del stock.
+          </p>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="guiaRemision">Guía de remisión (opcional)</Label>
             <Input id="guiaRemision" {...form.register("guiaRemision")} />
           </div>
 
-          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
-            <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
+          <div className="space-y-2">
+            <Label htmlFor="remitenteRuc">RUC del remitente (opcional)</Label>
+            <Input id="remitenteRuc" {...form.register("remitenteRuc")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="remitente">Nombre del remitente (opcional)</Label>
+            <Input id="remitente" {...form.register("remitente")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="flete">Precio del flete (opcional)</Label>
+            <Input id="flete" type="number" min={0} step="0.01" {...form.register("flete")} />
+            {form.formState.errors.flete && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.flete.message}</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -178,12 +222,13 @@ export function IngresoAlmacenForm({
                   <TableHead className="w-32">Precio unitario</TableHead>
                   <TableHead className="w-32">Lote</TableHead>
                   <TableHead className="w-28 text-right">Subtotal</TableHead>
+                  <TableHead className="w-28 text-right">Flete asignado</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {fields.map((field, index) => {
-                  const subtotal = (Number(items[index]?.cantidad) || 0) * (Number(items[index]?.precioUnitario) || 0);
+                  const subtotal = subtotales[index] ?? 0;
                   return (
                     <TableRow key={field.id}>
                       <TableCell className="align-top">
@@ -240,6 +285,9 @@ export function IngresoAlmacenForm({
                       <TableCell className="text-right align-top pt-4 font-medium">
                         {formatMoneda(subtotal)}
                       </TableCell>
+                      <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
+                        {formatMoneda(fletePorItem[index] ?? 0)}
+                      </TableCell>
                       <TableCell className="align-top">
                         <Button
                           type="button"
@@ -258,8 +306,16 @@ export function IngresoAlmacenForm({
             </Table>
           </div>
 
-          <div className="flex justify-end border-t pt-4 text-base">
-            Total: <span className="ml-2 font-semibold text-primary">{formatMoneda(totalGeneral)}</span>
+          <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
+            <p>
+              Subtotal productos: <span className="font-medium">{formatMoneda(totalSubtotal)}</span>
+            </p>
+            <p>
+              Flete: <span className="font-medium">{formatMoneda(Number(flete) || 0)}</span>
+            </p>
+            <p className="text-base">
+              Total: <span className="font-semibold text-primary">{formatMoneda(totalGeneral)}</span>
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { siguienteNumero } from "@/lib/utils";
+import { siguienteNumero, prorratear } from "@/lib/utils";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
 
 export type IngresoAlmacenActionState = { error?: string; id?: string } | undefined;
@@ -13,12 +13,28 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, ocNumero, guiaRemision, proveedorId, almacenId, observaciones, items } = parsed.data;
+  const {
+    fecha,
+    ocNumero,
+    guiaRemision,
+    remitenteRuc,
+    remitente,
+    flete,
+    proveedorId,
+    almacenId,
+    observaciones,
+    items,
+  } = parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenId } });
   if (!almacen) {
     return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
   }
+
+  // El flete se prorratea entre los items según su participación en el
+  // subtotal (cantidad x precio unitario) del ingreso.
+  const subtotales = items.map((item) => item.cantidad * item.precioUnitario);
+  const fletePorItem = prorratear(flete, subtotales);
 
   try {
     const usuario = await getUsuarioActual();
@@ -33,6 +49,9 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
           fecha,
           ocNumero: ocNumero || null,
           guiaRemision: guiaRemision || null,
+          remitenteRuc: remitenteRuc || null,
+          remitente: remitente || null,
+          flete: flete || null,
           proveedorId: proveedorId || null,
           almacenId,
           observaciones: observaciones || null,
@@ -40,7 +59,11 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
         },
       });
 
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const subtotal = subtotales[i];
+        const fleteAsignado = fletePorItem[i];
+
         await tx.ingresoAlmacenItem.create({
           data: {
             ingresoAlmacenId: ingreso.id,
@@ -48,7 +71,8 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
             precioUnitario: item.precioUnitario,
-            subtotal: item.cantidad * item.precioUnitario,
+            subtotal,
+            fleteAsignado,
             lote: item.lote || null,
           },
         });

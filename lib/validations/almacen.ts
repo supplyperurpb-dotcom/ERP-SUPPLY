@@ -12,6 +12,16 @@ export const almacenSchema = z.object({
 
 export type AlmacenInput = z.infer<typeof almacenSchema>;
 
+// Datos de transporte comunes a los 3 movimientos (ingreso, traslado,
+// consumo): guía de remisión, RUC y nombre del remitente, y el precio del
+// flete (que luego se prorratea entre los items, ver cada action).
+const datosTransporte = {
+  guiaRemision: z.string().max(60).optional().or(z.literal("")),
+  remitenteRuc: z.string().max(20).optional().or(z.literal("")),
+  remitente: z.string().max(150).optional().or(z.literal("")),
+  flete: z.coerce.number().min(0, "El flete no puede ser negativo").optional().nullable(),
+};
+
 const itemIngresoSchema = z.object({
   skuId: z.string().min(1, "Selecciona un producto"),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
@@ -23,11 +33,11 @@ const itemIngresoSchema = z.object({
 export const ingresoAlmacenSchema = z.object({
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
   ocNumero: z.string().max(60).optional().or(z.literal("")),
-  guiaRemision: z.string().max(60).optional().or(z.literal("")),
   proveedorId: z.string().optional().or(z.literal("")),
   almacenId: z.string().min(1, "Selecciona el almacén"),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   items: z.array(itemIngresoSchema).min(1, "Agrega al menos un producto"),
+  ...datosTransporte,
 });
 
 export type IngresoAlmacenInput = z.infer<typeof ingresoAlmacenSchema>;
@@ -43,10 +53,9 @@ export const trasladoAlmacenSchema = z
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
     almacenOrigenId: z.string().min(1, "Selecciona el almacén de origen"),
     almacenDestinoId: z.string().min(1, "Selecciona el almacén de destino"),
-    guiaRemision: z.string().max(60).optional().or(z.literal("")),
-    remitente: z.string().max(150).optional().or(z.literal("")),
     observaciones: z.string().max(500).optional().or(z.literal("")),
     items: z.array(itemTrasladoSchema).min(1, "Agrega al menos un producto"),
+    ...datosTransporte,
   })
   .refine((data) => data.almacenOrigenId !== data.almacenDestinoId, {
     message: "El almacén de origen y destino no pueden ser el mismo",
@@ -66,6 +75,7 @@ export const consumoAlmacenSchema = z.object({
   almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   items: z.array(itemConsumoSchema).min(1, "Agrega al menos un producto"),
+  ...datosTransporte,
 });
 
 export type ConsumoAlmacenInput = z.infer<typeof consumoAlmacenSchema>;

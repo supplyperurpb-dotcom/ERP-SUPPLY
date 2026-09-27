@@ -39,11 +39,11 @@ async function mapaCostosAlmacen(almacenId: string): Promise<Map<string, CostoSk
     }),
     prisma.ingresoAlmacenItem.findMany({
       where: { ingresoAlmacen: { almacenId } },
-      select: { skuId: true, subtotal: true },
+      select: { skuId: true, subtotal: true, fleteAsignado: true },
     }),
     prisma.trasladoAlmacenItem.findMany({
       where: { trasladoAlmacen: { almacenDestinoId: almacenId } },
-      select: { skuId: true, valorTotal: true },
+      select: { skuId: true, valorTotal: true, fleteAsignado: true },
     }),
     prisma.trasladoAlmacenItem.findMany({
       where: { trasladoAlmacen: { almacenOrigenId: almacenId } },
@@ -65,8 +65,12 @@ async function mapaCostosAlmacen(almacenId: string): Promise<Map<string, CostoSk
 
   const valorPorSku = new Map<string, number>();
   const sumarValor = (skuId: string, valor: number) => valorPorSku.set(skuId, (valorPorSku.get(skuId) ?? 0) + valor);
-  for (const i of ingresos) sumarValor(i.skuId, Number(i.subtotal));
-  for (const t of trasladosEntrantes) sumarValor(t.skuId, Number(t.valorTotal));
+  // El flete (ver IngresoAlmacenItem/TrasladoAlmacenItem.fleteAsignado) se
+  // suma al costo del producto: es costo de traerlo hasta este almacén. El
+  // flete de un consumo (salida) NO se resta aquí — no cambia el costo de lo
+  // que queda en el almacén, ver ConsumoAlmacenItem.fleteAsignado.
+  for (const i of ingresos) sumarValor(i.skuId, Number(i.subtotal) + Number(i.fleteAsignado));
+  for (const t of trasladosEntrantes) sumarValor(t.skuId, Number(t.valorTotal) + Number(t.fleteAsignado));
   for (const t of trasladosSalientes) sumarValor(t.skuId, -Number(t.valorTotal));
   for (const c of consumos) sumarValor(c.skuId, -Number(c.valorConsumido));
 

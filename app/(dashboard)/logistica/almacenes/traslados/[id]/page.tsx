@@ -13,6 +13,9 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
   });
   if (!traslado) notFound();
 
+  const valorTotal = traslado.items.reduce((acc, item) => acc + Number(item.valorTotal), 0);
+  const flete = traslado.items.reduce((acc, item) => acc + Number(item.fleteAsignado), 0);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -20,16 +23,24 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
         descripcion={`${traslado.almacenOrigen.nombre} → ${traslado.almacenDestino.nombre} · ${formatDateTime(traslado.fecha)}`}
       />
 
-      <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <p className="text-muted-foreground">Guía de remisión</p>
           <p className="font-medium">{traslado.guiaRemision ?? "—"}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Remitente</p>
+          <p className="text-muted-foreground">RUC del remitente</p>
+          <p className="font-medium">{traslado.remitenteRuc ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Nombre del remitente</p>
           <p className="font-medium">{traslado.remitente ?? "—"}</p>
         </div>
         <div>
+          <p className="text-muted-foreground">Flete</p>
+          <p className="font-medium">{traslado.flete !== null ? formatMoneda(Number(traslado.flete)) : "—"}</p>
+        </div>
+        <div className="sm:col-span-2 lg:col-span-4">
           <p className="text-muted-foreground">Observaciones</p>
           <p className="font-medium">{traslado.observaciones ?? "—"}</p>
         </div>
@@ -44,6 +55,7 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
             <TableHead>U.M.</TableHead>
             <TableHead className="text-right">Costo unit. ponderado</TableHead>
             <TableHead className="text-right">Valor</TableHead>
+            <TableHead className="text-right">Flete asignado</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -55,10 +67,23 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
               <TableCell>{item.unidadMedida}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.costoUnitario))}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.valorTotal))}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado))}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      <div className="flex flex-col items-end gap-1 text-sm">
+        <p>
+          Valor trasladado: <span className="font-medium">{formatMoneda(valorTotal)}</span>
+        </p>
+        <p>
+          Flete: <span className="font-medium">{formatMoneda(flete)}</span>
+        </p>
+        <p className="text-base">
+          Valor con flete (costo en destino): <span className="font-semibold text-primary">{formatMoneda(valorTotal + flete)}</span>
+        </p>
+      </div>
     </div>
   );
 }

@@ -26,6 +26,31 @@ export function siguienteNumero(numerosExistentes: string[], prefijo: string, an
   return `${prefijo}${String(maximoNumero(numerosExistentes, prefijo) + 1).padStart(ancho, "0")}`;
 }
 
+// Reparte un monto total (p. ej. el flete de un ingreso/traslado/consumo)
+// entre varias líneas según su peso (p. ej. el subtotal de cada línea), de
+// forma que la suma de lo repartido sea exactamente igual al total (el
+// redondeo de la última línea absorbe la diferencia de centavos). Si todos
+// los pesos son 0 (o el total es 0/null), reparte el monto en partes iguales
+// para no perder el flete por una división entre cero.
+export function prorratear(total: number | null | undefined, pesos: number[]): number[] {
+  const montoTotal = total ?? 0;
+  if (pesos.length === 0) return [];
+  if (montoTotal === 0) return pesos.map(() => 0);
+
+  const sumaPesos = pesos.reduce((a, b) => a + b, 0);
+  const partes =
+    sumaPesos > 0
+      ? pesos.map((peso) => (montoTotal * peso) / sumaPesos)
+      : pesos.map(() => montoTotal / pesos.length);
+
+  const partesRedondeadas = partes.map((p) => Math.round(p * 10000) / 10000);
+  const diferencia = montoTotal - partesRedondeadas.reduce((a, b) => a + b, 0);
+  if (partesRedondeadas.length > 0) {
+    partesRedondeadas[partesRedondeadas.length - 1] += Math.round(diferencia * 10000) / 10000;
+  }
+  return partesRedondeadas;
+}
+
 // Los campos `Decimal` de Prisma son instancias de clase (decimal.js), no
 // objetos planos, así que React no permite pasarlos como prop de un Server
 // Component a un Client Component ("Only plain objects can be passed...").

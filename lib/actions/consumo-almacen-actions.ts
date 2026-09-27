@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { siguienteNumero } from "@/lib/utils";
+import { siguienteNumero, prorratear } from "@/lib/utils";
 import { costosParaValidacion } from "@/lib/stock-almacen";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 
@@ -14,7 +14,7 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, observaciones, items } = parsed.data;
+  const { fecha, almacenOrigenId, guiaRemision, remitenteRuc, remitente, flete, observaciones, items } = parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
   if (!almacen) {
@@ -46,6 +46,13 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
     precioPorSku.set(skuId, costo.precioUnitarioPonderado);
   }
 
+  // El flete se prorratea entre los items según su participación en el
+  // valor consumido (cantidad x precio unitario ponderado). Este flete es
+  // solo informativo del consumo: no afecta el costeo del stock restante
+  // (ver comentario en ConsumoAlmacenItem.fleteAsignado).
+  const valoresConsumidos = items.map((item) => item.cantidad * precioPorSku.get(item.skuId)!);
+  const fletePorItem = prorratear(flete, valoresConsumidos);
+
   try {
     const usuario = await getUsuarioActual();
 
@@ -58,14 +65,18 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
           numero,
           fecha,
           almacenOrigenId,
+          guiaRemision: guiaRemision || null,
+          remitenteRuc: remitenteRuc || null,
+          remitente: remitente || null,
+          flete: flete || null,
           observaciones: observaciones || null,
           creadoPorId: usuario?.id,
         },
       });
 
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         const precioUnitarioPonderadoValor = precioPorSku.get(item.skuId)!;
-        const valorConsumido = item.cantidad * precioUnitarioPonderadoValor;
 
         await tx.consumoAlmacenItem.create({
           data: {
@@ -74,7 +85,8 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
             precioUnitarioPonderado: precioUnitarioPonderadoValor,
-            valorConsumido,
+            valorConsumido: valoresConsumidos[i],
+            fleteAsignado: fletePorItem[i],
           },
         });
 

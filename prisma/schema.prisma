@@ -360,8 +360,15 @@ model IngresoAlmacen {
   fecha         DateTime
   ocNumero      String?
   guiaRemision  String?
+  remitenteRuc  String?
+  remitente     String?
   proveedorId   String?
   almacenId     String
+  // Costo del transporte de este ingreso, prorrateado entre los items según
+  // su participación en el subtotal (ver crearIngresoAlmacenAction). Se suma
+  // al costo del producto para el costeo ponderado del stock (ver
+  // mapaCostosAlmacen en lib/stock-almacen.ts).
+  flete         Decimal? @db.Decimal(12, 2)
   observaciones String?
   creadoPorId   String?
   createdAt     DateTime @default(now())
@@ -381,6 +388,10 @@ model IngresoAlmacenItem {
   unidadMedida     String
   precioUnitario   Decimal @db.Decimal(12, 4)
   subtotal         Decimal @db.Decimal(14, 4)
+  // Parte del flete del ingreso que le corresponde a esta línea (prorrateo
+  // por subtotal). No es parte del "subtotal" (precio pactado con el
+  // proveedor); se suma aparte para el costeo del stock.
+  fleteAsignado    Decimal @default(0) @db.Decimal(14, 4)
   lote             String?
 
   ingresoAlmacen IngresoAlmacen @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
@@ -396,7 +407,13 @@ model TrasladoAlmacen {
   almacenOrigenId  String
   almacenDestinoId String
   guiaRemision     String?
+  remitenteRuc     String?
   remitente        String?
+  // Costo del transporte de este traslado, prorrateado entre los items según
+  // su valor (ver crearTrasladoAlmacenAction). Se suma al costo que el
+  // producto ya traía del origen para el costeo ponderado del almacén de
+  // destino (ver mapaCostosAlmacen en lib/stock-almacen.ts).
+  flete            Decimal? @db.Decimal(12, 2)
   observaciones    String?
   creadoPorId      String?
   createdAt        DateTime @default(now())
@@ -420,6 +437,10 @@ model TrasladoAlmacenItem {
   // su propio valor de inventario en vez de perder el costeo al moverse.
   costoUnitario     Decimal @db.Decimal(12, 4)
   valorTotal        Decimal @db.Decimal(14, 4)
+  // Parte del flete del traslado que le corresponde a esta línea (prorrateo
+  // por valorTotal). Solo afecta el costeo del almacén de DESTINO; el
+  // almacén de origen no se ve afectado por el costo de sacar el producto.
+  fleteAsignado     Decimal @default(0) @db.Decimal(14, 4)
 
   trasladoAlmacen TrasladoAlmacen @relation(fields: [trasladoAlmacenId], references: [id], onDelete: Cascade)
   sku             Sku             @relation(fields: [skuId], references: [id])
@@ -432,6 +453,15 @@ model ConsumoAlmacen {
   numero          String   @unique // CA-0001
   fecha           DateTime
   almacenOrigenId String
+  guiaRemision    String?
+  remitenteRuc    String?
+  remitente       String?
+  // Costo del transporte asociado a este consumo (p. ej. llevar el material
+  // consumido a otro sitio), prorrateado entre los items según su valor. A
+  // diferencia de un ingreso o traslado, esto NO afecta el costeo ponderado
+  // del stock que queda en el almacén (ver mapaCostosAlmacen): es solo
+  // informativo/de costeo de este consumo puntual.
+  flete           Decimal? @db.Decimal(12, 2)
   observaciones   String?
   creadoPorId     String?
   createdAt       DateTime @default(now())
@@ -450,6 +480,7 @@ model ConsumoAlmacenItem {
   unidadMedida            String
   precioUnitarioPonderado Decimal @db.Decimal(12, 4)
   valorConsumido          Decimal @db.Decimal(14, 4)
+  fleteAsignado           Decimal @default(0) @db.Decimal(14, 4)
 
   consumoAlmacen ConsumoAlmacen @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
   sku            Sku            @relation(fields: [skuId], references: [id])

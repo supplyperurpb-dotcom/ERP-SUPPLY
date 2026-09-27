@@ -13,7 +13,10 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
   });
   if (!consumo) notFound();
 
-  const total = consumo.items.reduce((acc, item) => acc + Number(item.valorConsumido), 0);
+  const valorConsumido = consumo.items.reduce((acc, item) => acc + Number(item.valorConsumido), 0);
+  const flete = consumo.items.reduce((acc, item) => acc + Number(item.fleteAsignado), 0);
+
+  const hayDatosTransporte = consumo.guiaRemision || consumo.remitenteRuc || consumo.remitente || consumo.flete !== null;
 
   return (
     <div className="space-y-6">
@@ -26,6 +29,27 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
         <p className="text-sm text-muted-foreground">Observaciones: {consumo.observaciones}</p>
       )}
 
+      {hayDatosTransporte && (
+        <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <p className="text-muted-foreground">Guía de remisión</p>
+            <p className="font-medium">{consumo.guiaRemision ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">RUC del remitente</p>
+            <p className="font-medium">{consumo.remitenteRuc ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Nombre del remitente</p>
+            <p className="font-medium">{consumo.remitente ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Flete</p>
+            <p className="font-medium">{consumo.flete !== null ? formatMoneda(Number(consumo.flete)) : "—"}</p>
+          </div>
+        </div>
+      )}
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -35,6 +59,7 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
             <TableHead>U.M.</TableHead>
             <TableHead className="text-right">Precio unit. ponderado</TableHead>
             <TableHead className="text-right">Valor consumido</TableHead>
+            <TableHead className="text-right">Flete asignado</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -46,13 +71,22 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
               <TableCell>{item.unidadMedida}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.precioUnitarioPonderado))}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.valorConsumido))}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado))}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
 
-      <div className="flex justify-end text-base">
-        Total consumido: <span className="ml-2 font-semibold text-primary">{formatMoneda(total)}</span>
+      <div className="flex flex-col items-end gap-1 text-sm">
+        <p>
+          Valor consumido: <span className="font-medium">{formatMoneda(valorConsumido)}</span>
+        </p>
+        <p>
+          Flete: <span className="font-medium">{formatMoneda(flete)}</span>
+        </p>
+        <p className="text-base">
+          Total: <span className="font-semibold text-primary">{formatMoneda(valorConsumido + flete)}</span>
+        </p>
       </div>
     </div>
   );

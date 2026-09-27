@@ -23,7 +23,11 @@ export default async function NuevoIngresoAlmacenPage({
       />
       <IngresoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
-        proveedores={proveedores.map((p) => ({ id: p.id, razonSocial: p.razonSocial }))}
+        proveedores={proveedores.map((p) => ({
+          id: p.id,
+          razonSocial: p.razonSocial,
+          ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
+        }))}
         skus={skus.map((s) => ({ id: s.id, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida }))}
         almacenIdInicial={almacenId}
       />

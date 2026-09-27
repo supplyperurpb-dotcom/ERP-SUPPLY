@@ -13,7 +13,9 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
   });
   if (!ingreso) notFound();
 
-  const total = ingreso.items.reduce((acc, item) => acc + Number(item.subtotal), 0);
+  const subtotal = ingreso.items.reduce((acc, item) => acc + Number(item.subtotal), 0);
+  const flete = ingreso.items.reduce((acc, item) => acc + Number(item.fleteAsignado), 0);
+  const total = subtotal + flete;
 
   return (
     <div className="space-y-6">
@@ -36,6 +38,18 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
           <p className="font-medium">{ingreso.guiaRemision ?? "—"}</p>
         </div>
         <div>
+          <p className="text-muted-foreground">RUC del remitente</p>
+          <p className="font-medium">{ingreso.remitenteRuc ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Nombre del remitente</p>
+          <p className="font-medium">{ingreso.remitente ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Flete</p>
+          <p className="font-medium">{ingreso.flete !== null ? formatMoneda(Number(ingreso.flete)) : "—"}</p>
+        </div>
+        <div>
           <p className="text-muted-foreground">Observaciones</p>
           <p className="font-medium">{ingreso.observaciones ?? "—"}</p>
         </div>
@@ -51,6 +65,7 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
             <TableHead>U.M.</TableHead>
             <TableHead className="text-right">Precio unit.</TableHead>
             <TableHead className="text-right">Subtotal</TableHead>
+            <TableHead className="text-right">Flete asignado</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -63,13 +78,22 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
               <TableCell>{item.unidadMedida}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.precioUnitario))}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.subtotal))}</TableCell>
+              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado))}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
 
-      <div className="flex justify-end text-base">
-        Total: <span className="ml-2 font-semibold text-primary">{formatMoneda(total)}</span>
+      <div className="flex flex-col items-end gap-1 text-sm">
+        <p>
+          Subtotal: <span className="font-medium">{formatMoneda(subtotal)}</span>
+        </p>
+        <p>
+          Flete: <span className="font-medium">{formatMoneda(flete)}</span>
+        </p>
+        <p className="text-base">
+          Total: <span className="font-semibold text-primary">{formatMoneda(total)}</span>
+        </p>
       </div>
     </div>
   );

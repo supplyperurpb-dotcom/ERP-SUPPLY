@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy } from "@/lib/utils";
+import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import { crearTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
@@ -40,7 +40,9 @@ export function TrasladoAlmacenForm({
       almacenOrigenId: almacenOrigenIdInicial ?? "",
       almacenDestinoId: "",
       guiaRemision: "",
+      remitenteRuc: "",
       remitente: "",
+      flete: 0,
       observaciones: "",
       items: [ITEM_VACIO],
     },
@@ -49,6 +51,7 @@ export function TrasladoAlmacenForm({
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
+  const flete = useWatch({ control: form.control, name: "flete" });
 
   // Solo se puede trasladar lo que el almacén de origen realmente tiene en
   // stock: el combobox de producto se restringe a esa lista, y sirve
@@ -60,11 +63,17 @@ export function TrasladoAlmacenForm({
     descripcion: s.descripcion,
     unidadMedida: s.unidadMedida,
   }));
-  const stockPorSkuId = new Map(stockOrigen.map((s) => [s.skuId, s.cantidad]));
+  const stockPorSkuId = new Map(stockOrigen.map((s) => [s.skuId, s]));
 
   function stockDisponibleDe(skuId: string) {
-    return stockPorSkuId.get(skuId) ?? 0;
+    return stockPorSkuId.get(skuId)?.cantidad ?? 0;
   }
+  function costoUnitarioDe(skuId: string) {
+    return stockPorSkuId.get(skuId)?.precioUnitarioPonderado ?? 0;
+  }
+
+  const valoresTotales = items.map((item) => (Number(item?.cantidad) || 0) * costoUnitarioDe(item?.skuId ?? ""));
+  const fletePorItem = prorratear(Number(flete) || 0, valoresTotales);
 
   async function onSubmit(data: TrasladoAlmacenInput) {
     const excedeAlgunaLinea = data.items.some((item) => item.cantidad > stockDisponibleDe(item.skuId));
@@ -163,19 +172,43 @@ export function TrasladoAlmacenForm({
             )}
           </div>
 
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
+            <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Datos de transporte</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            El flete se prorratea entre los productos según su participación en el valor trasladado, y se suma
+            a su costo para el precio unitario ponderado del almacén de destino.
+          </p>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="guiaRemision">Guía de remisión (opcional)</Label>
             <Input id="guiaRemision" {...form.register("guiaRemision")} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="remitente">Remitente de la guía (opcional)</Label>
+            <Label htmlFor="remitenteRuc">RUC del remitente (opcional)</Label>
+            <Input id="remitenteRuc" {...form.register("remitenteRuc")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="remitente">Nombre del remitente (opcional)</Label>
             <Input id="remitente" {...form.register("remitente")} />
           </div>
 
-          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
-            <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
+          <div className="space-y-2">
+            <Label htmlFor="flete">Precio del flete (opcional)</Label>
+            <Input id="flete" type="number" min={0} step="0.01" {...form.register("flete")} />
+            {form.formState.errors.flete && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.flete.message}</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -212,6 +245,7 @@ export function TrasladoAlmacenForm({
                     <TableHead className="w-28">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
                     <TableHead className="w-28">Stock disponible</TableHead>
+                    <TableHead className="w-28 text-right">Flete asignado</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -271,6 +305,9 @@ export function TrasladoAlmacenForm({
                           {items[index]?.unidadMedida || "—"}
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm">{skuId ? disponible : "—"}</TableCell>
+                        <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
+                          {formatMoneda(fletePorItem[index] ?? 0)}
+                        </TableCell>
                         <TableCell className="align-top">
                           <Button
                             type="button"
