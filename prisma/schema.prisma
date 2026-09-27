@@ -140,11 +140,11 @@ model Usuario {
 }
 
 model Rol {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   nombre      RolNombre @unique
   descripcion String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   asignaciones     AsignacionRol[]
   permisos         Permiso[]
@@ -154,10 +154,10 @@ model Rol {
 }
 
 model Permiso {
-  id      String        @id @default(cuid())
-  rolId   String
-  modulo  String // "logistica" | "acopio" | "comex" | "usuarios"
-  accion  AccionPermiso
+  id     String        @id @default(cuid())
+  rolId  String
+  modulo String // "logistica" | "acopio" | "comex" | "usuarios"
+  accion AccionPermiso
 
   rol Rol @relation(fields: [rolId], references: [id], onDelete: Cascade)
 
@@ -166,11 +166,11 @@ model Permiso {
 }
 
 model AsignacionRol {
-  id           String   @id @default(cuid())
-  usuarioId    String
-  rolId        String
+  id            String   @id @default(cuid())
+  usuarioId     String
+  rolId         String
   asignadoPorId String?
-  createdAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   rol     Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
@@ -184,27 +184,28 @@ model AsignacionRol {
 // =========================================================================
 
 model Proveedor {
-  id               String                 @id @default(cuid())
-  tipoDocumento    TipoDocumentoIdentidad
-  numeroDocumento  String
-  razonSocial      String
-  nombreComercial  String?
-  tipo             TipoProveedor
-  direccion        String?
-  distrito         String?
-  provincia        String?
-  departamento     String?
-  telefono         String?
-  email            String?
-  contactoNombre   String?
-  activo           Boolean                @default(true)
-  creadoPorId      String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  id              String                 @id @default(cuid())
+  tipoDocumento   TipoDocumentoIdentidad
+  numeroDocumento String
+  razonSocial     String
+  nombreComercial String?
+  tipo            TipoProveedor
+  direccion       String?
+  distrito        String?
+  provincia       String?
+  departamento    String?
+  telefono        String?
+  email           String?
+  contactoNombre  String?
+  activo          Boolean                @default(true)
+  creadoPorId     String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
-  ordenesCompra OrdenCompra[]
-  ingresosFruta IngresoFruta[]
-  ingresosIQF   IngresoIQF[]
+  ordenesCompra   OrdenCompra[]
+  ingresosFruta   IngresoFruta[]
+  ingresosIQF     IngresoIQF[]
+  ingresosAlmacen IngresoAlmacen[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@map("proveedores")
@@ -227,10 +228,13 @@ model Sku {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  movimientosStock    MovimientoStock[]
-  solicitudPedidoItem SolicitudPedidoItem[]
-  ordenCompraItem     OrdenCompraItem[]
-  stockCamara         StockCamara[]
+  movimientosStock     MovimientoStock[]
+  solicitudPedidoItem  SolicitudPedidoItem[]
+  ordenCompraItem      OrdenCompraItem[]
+  stockCamara          StockCamara[]
+  ingresoAlmacenItems  IngresoAlmacenItem[]
+  trasladoAlmacenItems TrasladoAlmacenItem[]
+  consumoAlmacenItems  ConsumoAlmacenItem[]
 
   @@map("skus")
 }
@@ -248,6 +252,10 @@ model Almacen {
   movimientosOrigen  MovimientoStock[] @relation("MovimientoOrigen")
   movimientosDestino MovimientoStock[] @relation("MovimientoDestino")
   stockCamara        StockCamara[]
+  ingresosAlmacen    IngresoAlmacen[]  @relation("IngresosAlmacen")
+  trasladosOrigen    TrasladoAlmacen[] @relation("TrasladosOrigen")
+  trasladosDestino   TrasladoAlmacen[] @relation("TrasladosDestino")
+  consumosAlmacen    ConsumoAlmacen[]  @relation("ConsumosAlmacen")
 
   @@map("almacenes")
 }
@@ -267,9 +275,9 @@ model MovimientoStock {
   creadoPorId         String?
   createdAt           DateTime            @default(now())
 
-  sku             Sku      @relation(fields: [skuId], references: [id])
-  almacenOrigen   Almacen? @relation("MovimientoOrigen", fields: [almacenOrigenId], references: [id])
-  almacenDestino  Almacen? @relation("MovimientoDestino", fields: [almacenDestinoId], references: [id])
+  sku            Sku      @relation(fields: [skuId], references: [id])
+  almacenOrigen  Almacen? @relation("MovimientoOrigen", fields: [almacenOrigenId], references: [id])
+  almacenDestino Almacen? @relation("MovimientoDestino", fields: [almacenDestinoId], references: [id])
 
   @@map("movimientos_stock")
 }
@@ -319,8 +327,8 @@ model OrdenCompra {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  proveedor       Proveedor        @relation(fields: [proveedorId], references: [id])
-  solicitudPedido SolicitudPedido? @relation(fields: [solicitudPedidoId], references: [id])
+  proveedor       Proveedor         @relation(fields: [proveedorId], references: [id])
+  solicitudPedido SolicitudPedido?  @relation(fields: [solicitudPedidoId], references: [id])
   items           OrdenCompraItem[]
 
   @@map("ordenes_compra")
@@ -341,18 +349,132 @@ model OrdenCompraItem {
 }
 
 // =========================================================================
+// ALMACENES: ingresos, traslados y consumos
+//
+// Cada documento (cabecera + items) es el registro "de negocio" (guía,
+// proveedor, precios, etc.). Cada item además genera una fila en
+// MovimientoStock (con documentoOrigenTipo = "INGRESO_ALMACEN" |
+// "TRASLADO_ALMACEN" | "CONSUMO_ALMACEN") que es la única fuente de verdad
+// para calcular el stock por almacén+SKU (suma de ingresos y transferencias
+// entrantes, menos salidas y transferencias salientes).
+// =========================================================================
+
+model IngresoAlmacen {
+  id            String   @id @default(cuid())
+  numero        String   @unique // IA-0001
+  fecha         DateTime
+  ocNumero      String?
+  guiaRemision  String?
+  proveedorId   String?
+  almacenId     String
+  observaciones String?
+  creadoPorId   String?
+  createdAt     DateTime @default(now())
+
+  proveedor Proveedor?           @relation(fields: [proveedorId], references: [id])
+  almacen   Almacen              @relation("IngresosAlmacen", fields: [almacenId], references: [id])
+  items     IngresoAlmacenItem[]
+
+  @@map("ingresos_almacen")
+}
+
+model IngresoAlmacenItem {
+  id               String  @id @default(cuid())
+  ingresoAlmacenId String
+  skuId            String
+  cantidad         Decimal @db.Decimal(12, 3)
+  unidadMedida     String
+  precioUnitario   Decimal @db.Decimal(12, 4)
+  subtotal         Decimal @db.Decimal(14, 4)
+  lote             String?
+
+  ingresoAlmacen IngresoAlmacen @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
+  sku            Sku            @relation(fields: [skuId], references: [id])
+
+  @@map("ingreso_almacen_items")
+}
+
+model TrasladoAlmacen {
+  id               String   @id @default(cuid())
+  numero           String   @unique // TA-0001
+  fecha            DateTime
+  almacenOrigenId  String
+  almacenDestinoId String
+  guiaRemision     String?
+  remitente        String?
+  observaciones    String?
+  creadoPorId      String?
+  createdAt        DateTime @default(now())
+
+  almacenOrigen  Almacen               @relation("TrasladosOrigen", fields: [almacenOrigenId], references: [id])
+  almacenDestino Almacen               @relation("TrasladosDestino", fields: [almacenDestinoId], references: [id])
+  items          TrasladoAlmacenItem[]
+
+  @@map("traslados_almacen")
+}
+
+model TrasladoAlmacenItem {
+  id                String  @id @default(cuid())
+  trasladoAlmacenId String
+  skuId             String
+  cantidad          Decimal @db.Decimal(12, 3)
+  unidadMedida      String
+  // Costo unitario ponderado del almacén de origen en el momento del
+  // traslado (ver precioUnitarioPonderado en lib/stock-almacen.ts): el
+  // producto "viaja" con ese costo, así que el almacén de destino lo suma a
+  // su propio valor de inventario en vez de perder el costeo al moverse.
+  costoUnitario     Decimal @db.Decimal(12, 4)
+  valorTotal        Decimal @db.Decimal(14, 4)
+
+  trasladoAlmacen TrasladoAlmacen @relation(fields: [trasladoAlmacenId], references: [id], onDelete: Cascade)
+  sku             Sku             @relation(fields: [skuId], references: [id])
+
+  @@map("traslado_almacen_items")
+}
+
+model ConsumoAlmacen {
+  id              String   @id @default(cuid())
+  numero          String   @unique // CA-0001
+  fecha           DateTime
+  almacenOrigenId String
+  observaciones   String?
+  creadoPorId     String?
+  createdAt       DateTime @default(now())
+
+  almacen Almacen              @relation("ConsumosAlmacen", fields: [almacenOrigenId], references: [id])
+  items   ConsumoAlmacenItem[]
+
+  @@map("consumos_almacen")
+}
+
+model ConsumoAlmacenItem {
+  id                      String  @id @default(cuid())
+  consumoAlmacenId        String
+  skuId                   String
+  cantidad                Decimal @db.Decimal(12, 3)
+  unidadMedida            String
+  precioUnitarioPonderado Decimal @db.Decimal(12, 4)
+  valorConsumido          Decimal @db.Decimal(14, 4)
+
+  consumoAlmacen ConsumoAlmacen @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
+  sku            Sku            @relation(fields: [skuId], references: [id])
+
+  @@map("consumo_almacen_items")
+}
+
+// =========================================================================
 // APROBACIONES (config + historial, genérico por tipo de documento)
 // =========================================================================
 
 model ReglaAprobacion {
-  id            String                  @id @default(cuid())
-  tipoDocumento TipoDocumentoAprobacion
-  montoUmbral   Decimal?                @db.Decimal(12, 2)
+  id             String                  @id @default(cuid())
+  tipoDocumento  TipoDocumentoAprobacion
+  montoUmbral    Decimal?                @db.Decimal(12, 2)
   rolAprobadorId String
-  orden         Int                     @default(1)
-  activo        Boolean                 @default(true)
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
+  orden          Int                     @default(1)
+  activo         Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
   rolAprobador Rol @relation(fields: [rolAprobadorId], references: [id])
 
@@ -388,8 +510,8 @@ model TipoBandeja {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  pallets    IngresoFrutaPallet[]
-  lineasIQF  IngresoIQFPallet[]
+  pallets   IngresoFrutaPallet[]
+  lineasIQF IngresoIQFPallet[]
 
   @@map("tipos_bandeja")
 }
@@ -486,13 +608,13 @@ model IngresoFrutaPallet {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  ingresoFruta  IngresoFruta               @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
-  pallet        Pallet?                    @relation(fields: [palletId], references: [id])
-  palletIQF     PalletIQF?                 @relation(fields: [palletIQFId], references: [id])
-  tipoPallet    TipoPallet?                @relation(fields: [tipoPalletId], references: [id])
-  tipoBandeja   TipoBandeja                @relation(fields: [tipoBandejaId], references: [id])
-  bandejas      IngresoFrutaBandejaPeso[]
-  guiaDetalles  GuiaRemisionDetalle[]
+  ingresoFruta IngresoFruta              @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
+  pallet       Pallet?                   @relation(fields: [palletId], references: [id])
+  palletIQF    PalletIQF?                @relation(fields: [palletIQFId], references: [id])
+  tipoPallet   TipoPallet?               @relation(fields: [tipoPalletId], references: [id])
+  tipoBandeja  TipoBandeja               @relation(fields: [tipoBandejaId], references: [id])
+  bandejas     IngresoFrutaBandejaPeso[]
+  guiaDetalles GuiaRemisionDetalle[]
 
   @@unique([ingresoFrutaId, numeroPallet])
   @@map("ingreso_fruta_pallets")
@@ -514,16 +636,16 @@ model IngresoFrutaBandejaPeso {
 // pesaje individual): un pallet puede reunir bandejas de más de una línea
 // (incluso de distintos camiones), y la tarja resume ese conjunto.
 model Tarja {
-  id            String   @id @default(cuid())
-  numero        String   @unique // ej. RPB26-0001
-  palletId      String   @unique
-  fechaEmision  DateTime @default(now())
-  pdfUrl        String?
-  creadoPorId   String?
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  numero       String   @unique // ej. RPB26-0001
+  palletId     String   @unique
+  fechaEmision DateTime @default(now())
+  pdfUrl       String?
+  creadoPorId  String?
+  createdAt    DateTime @default(now())
   // Una vez despachada, la tarja (y su pallet) ya no está disponible para
   // un despacho futuro.
-  despachoId    String?
+  despachoId   String?
 
   pallet   Pallet    @relation(fields: [palletId], references: [id])
   despacho Despacho? @relation(fields: [despachoId], references: [id])
@@ -553,28 +675,28 @@ model Despacho {
 }
 
 model GuiaRemision {
-  id                     String             @id @default(cuid())
-  serie                  String
-  numero                 String
-  tipoGuia               TipoGuiaRemision
-  motivoTraslado         String
-  fechaTraslado          DateTime
-  puntoPartida           String
-  puntoLlegada           String
-  pesoBrutoTotalKg       Decimal            @db.Decimal(10, 3)
-  unidadMedidaPeso       String             @default("KGM")
+  id                       String             @id @default(cuid())
+  serie                    String
+  numero                   String
+  tipoGuia                 TipoGuiaRemision
+  motivoTraslado           String
+  fechaTraslado            DateTime
+  puntoPartida             String
+  puntoLlegada             String
+  pesoBrutoTotalKg         Decimal            @db.Decimal(10, 3)
+  unidadMedidaPeso         String             @default("KGM")
   transportistaRazonSocial String?
-  transportistaDocumento String?
-  placaVehiculo          String?
-  licenciaConductor      String?
-  conductorNombre        String?
-  conductorDocumento     String?
-  ingresoFrutaId         String
-  estado                 EstadoGuiaRemision @default(EMITIDA)
-  pdfUrl                 String?
-  creadoPorId            String?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  transportistaDocumento   String?
+  placaVehiculo            String?
+  licenciaConductor        String?
+  conductorNombre          String?
+  conductorDocumento       String?
+  ingresoFrutaId           String
+  estado                   EstadoGuiaRemision @default(EMITIDA)
+  pdfUrl                   String?
+  creadoPorId              String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
   ingresoFruta IngresoFruta          @relation(fields: [ingresoFrutaId], references: [id])
   detalles     GuiaRemisionDetalle[]
@@ -725,8 +847,8 @@ model FormatoExportacion {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  stockCamara       StockCamara[]
-  packingListItems  PackingListItem[]
+  stockCamara      StockCamara[]
+  packingListItems PackingListItem[]
 
   @@map("formatos_exportacion")
 }

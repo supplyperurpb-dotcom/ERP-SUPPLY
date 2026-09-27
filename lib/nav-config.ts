@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowLeftRight,
   BarChart3,
   Boxes,
   ClipboardList,
@@ -9,6 +10,8 @@ import {
   LayoutGrid,
   Layers,
   Package,
+  PackageMinus,
+  PackagePlus,
   PackageSearch,
   Receipt,
   Ruler,
@@ -48,6 +51,9 @@ export const NAV_GRUPOS: NavGrupo[] = [
       { titulo: "SKU", href: "/logistica/sku", icono: Package },
       { titulo: "Inventario", href: "/logistica/inventario", icono: PackageSearch },
       { titulo: "Almacenes", href: "/logistica/almacenes", icono: Warehouse },
+      { titulo: "Ingresos de almacén", href: "/logistica/almacenes/ingresos", icono: PackagePlus },
+      { titulo: "Traslados", href: "/logistica/almacenes/traslados", icono: ArrowLeftRight },
+      { titulo: "Consumos", href: "/logistica/almacenes/consumos", icono: PackageMinus },
     ],
   },
   {

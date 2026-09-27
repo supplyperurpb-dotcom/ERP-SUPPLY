@@ -1,0 +1,131 @@
+import { prisma } from "@/lib/db/prisma";
+
+export type FilaStockAlmacen = {
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  cantidad: number;
+  /** Costo unitario ponderado (valor neto de inventario / cantidad neta). */
+  precioUnitarioPonderado: number | null;
+};
+
+type CostoSku = { cantidad: number; precioUnitarioPonderado: number | null };
+
+// Stock + costo unitario ponderado de TODOS los sku de un almacén, en una
+// sola pasada (usado tanto para el reporte de stock como para validar y
+// costear traslados/consumos, evitando recalcular por cada línea).
+//
+// Cantidad = INGRESO + TRANSFERENCIA (como destino) - SALIDA - TRANSFERENCIA
+// (como origen), leído de MovimientoStock (única fuente de verdad del
+// stock).
+//
+// Valor neto = ingresos + traslados recibidos (con el costo que traían del
+// almacén de origen, ver TrasladoAlmacenItem.costoUnitario) - consumos -
+// traslados enviados. Dividido entre la cantidad da el costo unitario
+// ponderado ACTUAL de lo que queda — no solo un promedio histórico de
+// ingresos, porque eso ignoraría el valor que entra o sale por traslados.
+async function mapaCostosAlmacen(almacenId: string): Promise<Map<string, CostoSku>> {
+  const [entradas, salidas, ingresos, trasladosEntrantes, trasladosSalientes, consumos] = await Promise.all([
+    prisma.movimientoStock.groupBy({
+      by: ["skuId"],
+      where: { almacenDestinoId: almacenId, tipo: { in: ["INGRESO", "TRANSFERENCIA"] } },
+      _sum: { cantidad: true },
+    }),
+    prisma.movimientoStock.groupBy({
+      by: ["skuId"],
+      where: { almacenOrigenId: almacenId, tipo: { in: ["SALIDA", "TRANSFERENCIA"] } },
+      _sum: { cantidad: true },
+    }),
+    prisma.ingresoAlmacenItem.findMany({
+      where: { ingresoAlmacen: { almacenId } },
+      select: { skuId: true, subtotal: true },
+    }),
+    prisma.trasladoAlmacenItem.findMany({
+      where: { trasladoAlmacen: { almacenDestinoId: almacenId } },
+      select: { skuId: true, valorTotal: true },
+    }),
+    prisma.trasladoAlmacenItem.findMany({
+      where: { trasladoAlmacen: { almacenOrigenId: almacenId } },
+      select: { skuId: true, valorTotal: true },
+    }),
+    prisma.consumoAlmacenItem.findMany({
+      where: { consumoAlmacen: { almacenOrigenId: almacenId } },
+      select: { skuId: true, valorConsumido: true },
+    }),
+  ]);
+
+  const cantidadPorSku = new Map<string, number>();
+  for (const fila of entradas) {
+    cantidadPorSku.set(fila.skuId, (cantidadPorSku.get(fila.skuId) ?? 0) + Number(fila._sum.cantidad ?? 0));
+  }
+  for (const fila of salidas) {
+    cantidadPorSku.set(fila.skuId, (cantidadPorSku.get(fila.skuId) ?? 0) - Number(fila._sum.cantidad ?? 0));
+  }
+
+  const valorPorSku = new Map<string, number>();
+  const sumarValor = (skuId: string, valor: number) => valorPorSku.set(skuId, (valorPorSku.get(skuId) ?? 0) + valor);
+  for (const i of ingresos) sumarValor(i.skuId, Number(i.subtotal));
+  for (const t of trasladosEntrantes) sumarValor(t.skuId, Number(t.valorTotal));
+  for (const t of trasladosSalientes) sumarValor(t.skuId, -Number(t.valorTotal));
+  for (const c of consumos) sumarValor(c.skuId, -Number(c.valorConsumido));
+
+  const skuIds = new Set([...cantidadPorSku.keys(), ...valorPorSku.keys()]);
+  const mapa = new Map<string, CostoSku>();
+  for (const skuId of skuIds) {
+    const cantidad = cantidadPorSku.get(skuId) ?? 0;
+    const valorNeto = valorPorSku.get(skuId) ?? 0;
+    mapa.set(skuId, {
+      cantidad,
+      precioUnitarioPonderado: cantidad > 0 ? valorNeto / cantidad : null,
+    });
+  }
+  return mapa;
+}
+
+export async function calcularStockAlmacen(almacenId: string): Promise<FilaStockAlmacen[]> {
+  const costos = await mapaCostosAlmacen(almacenId);
+  const skuIds = Array.from(costos.keys());
+  if (skuIds.length === 0) return [];
+
+  const skus = await prisma.sku.findMany({
+    where: { id: { in: skuIds } },
+    select: { id: true, codigo: true, descripcion: true, unidadMedida: true },
+  });
+
+  return skus
+    .map((sku) => {
+      const costo = costos.get(sku.id)!;
+      const cantidad = Math.round(costo.cantidad * 1000) / 1000;
+      return {
+        skuId: sku.id,
+        codigo: sku.codigo,
+        descripcion: sku.descripcion,
+        unidadMedida: sku.unidadMedida,
+        cantidad,
+        precioUnitarioPonderado:
+          costo.precioUnitarioPonderado !== null ? Math.round(costo.precioUnitarioPonderado * 10000) / 10000 : null,
+      };
+    })
+    .filter((fila) => fila.cantidad !== 0)
+    .sort((a, b) => a.codigo.localeCompare(b.codigo));
+}
+
+// Stock disponible + costo unitario ponderado de un conjunto de sku en un
+// almacén, en una sola consulta — usado por traslados y consumos para
+// validar cantidades y costear las líneas sin recalcular por cada una.
+export async function costosParaValidacion(almacenId: string): Promise<Map<string, CostoSku>> {
+  return mapaCostosAlmacen(almacenId);
+}
+
+// Variantes de una sola línea, para el resto del código que no necesita el
+// mapa completo.
+export async function stockDisponible(almacenId: string, skuId: string): Promise<number> {
+  const mapa = await mapaCostosAlmacen(almacenId);
+  return mapa.get(skuId)?.cantidad ?? 0;
+}
+
+export async function precioUnitarioPonderado(almacenId: string, skuId: string): Promise<number | null> {
+  const mapa = await mapaCostosAlmacen(almacenId);
+  return mapa.get(skuId)?.precioUnitarioPonderado ?? null;
+}

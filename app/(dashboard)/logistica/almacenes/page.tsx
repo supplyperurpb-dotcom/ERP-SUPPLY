@@ -1,10 +1,13 @@
+import Link from "next/link";
 import { Warehouse } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { TipoAlmacen } from "@prisma/client";
+import { AlmacenFormDialog } from "./almacen-form-dialog";
 
 const TIPO_LABEL: Record<TipoAlmacen, string> = {
   INSUMOS: "Insumos",
@@ -24,13 +27,14 @@ export default async function AlmacenesPage() {
       <PageHeader
         titulo="Almacenes"
         descripcion="Catálogo de almacenes y cámaras de frío de la planta, usados como origen o destino de los movimientos de inventario."
+        acciones={<AlmacenFormDialog />}
       />
 
       {almacenes.length === 0 ? (
         <EmptyState
           icono={Warehouse}
           titulo="Aún no hay almacenes registrados"
-          descripcion="En una fase futura podrás crear y administrar los almacenes de insumos, agroquímicos, material de empaque y cámaras de frío desde aquí."
+          descripcion="Crea el primer almacén con el botón 'Nuevo almacén' de arriba."
         />
       ) : (
         <Table>
@@ -41,6 +45,7 @@ export default async function AlmacenesPage() {
               <TableHead>Tipo</TableHead>
               <TableHead>Ubicación</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -54,6 +59,12 @@ export default async function AlmacenesPage() {
                   <Badge variant={almacen.activo ? "success" : "secondary"}>
                     {almacen.activo ? "Activo" : "Inactivo"}
                   </Badge>
+                </TableCell>
+                <TableCell className="flex justify-end gap-1">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/logistica/almacenes/${almacen.id}`}>Ver stock</Link>
+                  </Button>
+                  <AlmacenFormDialog almacen={almacen} />
                 </TableCell>
               </TableRow>
             ))}
