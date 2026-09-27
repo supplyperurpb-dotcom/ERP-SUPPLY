@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PackagePlus } from "lucide-react";
+import { PackagePlus, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -22,12 +22,20 @@ export default async function IngresosAlmacenPage() {
         titulo="Ingresos a almacén"
         descripcion="Ingresos de productos (insumos, agroquímicos, material de empaque, etc.) a los almacenes."
         acciones={
-          <Button asChild>
-            <Link href="/logistica/almacenes/ingresos/nuevo">
-              <PackagePlus className="mr-2 h-4 w-4" />
-              Nuevo ingreso
-            </Link>
-          </Button>
+          <>
+            <Button variant="outline" asChild>
+              <Link href="/api/excel/almacenes/ingresos">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar a Excel
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/logistica/almacenes/ingresos/nuevo">
+                <PackagePlus className="mr-2 h-4 w-4" />
+                Nuevo ingreso
+              </Link>
+            </Button>
+          </>
         }
       />
 

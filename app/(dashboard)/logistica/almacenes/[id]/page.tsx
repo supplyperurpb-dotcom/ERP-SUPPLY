@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PackagePlus, ArrowLeftRight, PackageMinus } from "lucide-react";
+import { PackagePlus, ArrowLeftRight, PackageMinus, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -103,7 +103,15 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
       </section>
 
       <section>
-        <h2 className="mb-3 text-base font-semibold">Últimos ingresos</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Últimos ingresos</h2>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/api/excel/almacenes/ingresos?almacenId=${id}`}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar a Excel
+            </Link>
+          </Button>
+        </div>
         {ingresos.length === 0 ? (
           <p className="text-sm text-muted-foreground">Sin ingresos registrados.</p>
         ) : (
@@ -133,7 +141,15 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
       </section>
 
       <section>
-        <h2 className="mb-3 text-base font-semibold">Últimos traslados</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Últimos traslados</h2>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/api/excel/almacenes/traslados?almacenId=${id}`}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar a Excel
+            </Link>
+          </Button>
+        </div>
         {traslados.length === 0 ? (
           <p className="text-sm text-muted-foreground">Sin traslados registrados.</p>
         ) : (
@@ -163,7 +179,15 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
       </section>
 
       <section>
-        <h2 className="mb-3 text-base font-semibold">Últimos consumos</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Últimos consumos</h2>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/api/excel/almacenes/consumos?almacenId=${id}`}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar a Excel
+            </Link>
+          </Button>
+        </div>
         {consumos.length === 0 ? (
           <p className="text-sm text-muted-foreground">Sin consumos registrados.</p>
         ) : (

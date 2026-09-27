@@ -64,6 +64,8 @@ export function IngresoAlmacenForm({
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const flete = useWatch({ control: form.control, name: "flete" });
   const moneda = useWatch({ control: form.control, name: "moneda" }) ?? "PEN";
+  const proveedorId = useWatch({ control: form.control, name: "proveedorId" });
+  const rucProveedor = proveedores.find((p) => p.id === proveedorId)?.ruc ?? "";
 
   const subtotales = items.map((item) => (Number(item?.cantidad) || 0) * (Number(item?.precioUnitario) || 0));
   const fletePorItem = prorratear(Number(flete) || 0, subtotales);
@@ -155,6 +157,11 @@ export function IngresoAlmacenForm({
                 />
               )}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rucProveedor">RUC del proveedor</Label>
+            <Input id="rucProveedor" disabled value={rucProveedor} placeholder="—" />
           </div>
 
           <div className="space-y-2">

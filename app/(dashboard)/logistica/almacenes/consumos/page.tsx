@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PackageMinus } from "lucide-react";
+import { PackageMinus, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -22,12 +22,20 @@ export default async function ConsumosAlmacenPage() {
         titulo="Consumos de almacén"
         descripcion="Salidas de materiales por consumo (no trasladados a otro almacén)."
         acciones={
-          <Button asChild>
-            <Link href="/logistica/almacenes/consumos/nuevo">
-              <PackageMinus className="mr-2 h-4 w-4" />
-              Nuevo consumo
-            </Link>
-          </Button>
+          <>
+            <Button variant="outline" asChild>
+              <Link href="/api/excel/almacenes/consumos">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar a Excel
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/logistica/almacenes/consumos/nuevo">
+                <PackageMinus className="mr-2 h-4 w-4" />
+                Nuevo consumo
+              </Link>
+            </Button>
+          </>
         }
       />
 
