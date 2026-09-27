@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
+import { convertirAUsd } from "@/lib/constants/moneda";
 import { costosParaValidacion } from "@/lib/stock-almacen";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 
@@ -18,6 +19,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
     fecha,
     almacenOrigenId,
     almacenDestinoId,
+    moneda,
     guiaRemision,
     remitenteRuc,
     remitente,
@@ -63,9 +65,13 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   }
 
   // El flete se prorratea entre los items según su participación en el
-  // valor total (cantidad x costo unitario del origen) del traslado.
+  // valor total (cantidad x costo unitario del origen, en USD) del
+  // traslado. El flete mismo puede registrarse en Soles o Dólares (moneda
+  // del traslado); su equivalente en Dólares es lo que usa el costeo del
+  // almacén de destino (ver mapaCostosAlmacen).
   const valoresTotales = items.map((item) => item.cantidad * costoUnitarioPorSku.get(item.skuId)!);
   const fletePorItem = prorratear(flete, valoresTotales);
+  const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
 
   try {
     const usuario = await getUsuarioActual();
@@ -80,6 +86,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
           fecha,
           almacenOrigenId,
           almacenDestinoId,
+          moneda,
           guiaRemision: guiaRemision || null,
           remitenteRuc: remitenteRuc || null,
           remitente: remitente || null,
@@ -101,6 +108,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
             costoUnitario,
             valorTotal: valoresTotales[i],
             fleteAsignado: fletePorItem[i],
+            fleteAsignadoUsd: fletePorItemUsd[i],
           },
         });
 

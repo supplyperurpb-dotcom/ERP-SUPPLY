@@ -12,9 +12,10 @@ export const almacenSchema = z.object({
 
 export type AlmacenInput = z.infer<typeof almacenSchema>;
 
-// Datos de transporte comunes a los 3 movimientos (ingreso, traslado,
-// consumo): guía de remisión, RUC y nombre del remitente, y el precio del
-// flete (que luego se prorratea entre los items, ver cada action).
+// Datos de transporte comunes a ingreso y traslado (consumo no los tiene:
+// es una salida interna, no un movimiento con guía/transporte): guía de
+// remisión, RUC y nombre del remitente, y el precio del flete (que luego se
+// prorratea entre los items, ver cada action).
 const datosTransporte = {
   guiaRemision: z.string().max(60).optional().or(z.literal("")),
   remitenteRuc: z.string().max(20).optional().or(z.literal("")),
@@ -54,6 +55,7 @@ export const trasladoAlmacenSchema = z
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
     almacenOrigenId: z.string().min(1, "Selecciona el almacén de origen"),
     almacenDestinoId: z.string().min(1, "Selecciona el almacén de destino"),
+    moneda: z.enum(["PEN", "USD"]).default("PEN"),
     observaciones: z.string().max(500).optional().or(z.literal("")),
     items: z.array(itemTrasladoSchema).min(1, "Agrega al menos un producto"),
     ...datosTransporte,
@@ -76,7 +78,6 @@ export const consumoAlmacenSchema = z.object({
   almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   items: z.array(itemConsumoSchema).min(1, "Agrega al menos un producto"),
-  ...datosTransporte,
 });
 
 export type ConsumoAlmacenInput = z.infer<typeof consumoAlmacenSchema>;

@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
+import { MONEDAS, TIPO_CAMBIO_PEN_USD, convertirAUsd } from "@/lib/constants/moneda";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import { crearTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
@@ -39,6 +40,7 @@ export function TrasladoAlmacenForm({
       fecha: fechaLocalHoy() as unknown as Date,
       almacenOrigenId: almacenOrigenIdInicial ?? "",
       almacenDestinoId: "",
+      moneda: "PEN",
       guiaRemision: "",
       remitenteRuc: "",
       remitente: "",
@@ -52,6 +54,7 @@ export function TrasladoAlmacenForm({
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
   const flete = useWatch({ control: form.control, name: "flete" });
+  const moneda = useWatch({ control: form.control, name: "moneda" }) ?? "PEN";
 
   // Solo se puede trasladar lo que el almacén de origen realmente tiene en
   // stock: el combobox de producto se restringe a esa lista, y sirve
@@ -74,6 +77,7 @@ export function TrasladoAlmacenForm({
 
   const valoresTotales = items.map((item) => (Number(item?.cantidad) || 0) * costoUnitarioDe(item?.skuId ?? ""));
   const fletePorItem = prorratear(Number(flete) || 0, valoresTotales);
+  const fleteTotalUsd = convertirAUsd(Number(flete) || 0, moneda);
 
   async function onSubmit(data: TrasladoAlmacenInput) {
     const excedeAlgunaLinea = data.items.some((item) => item.cantidad > stockDisponibleDe(item.skuId));
@@ -204,10 +208,37 @@ export function TrasladoAlmacenForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="flete">Precio del flete en US$ (opcional)</Label>
+            <Label>Moneda del flete</Label>
+            <Controller
+              control={form.control}
+              name="moneda"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONEDAS.map((m) => (
+                      <SelectItem key={m.codigo} value={m.codigo}>
+                        {m.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="flete">Precio del flete (opcional)</Label>
             <Input id="flete" type="number" min={0} step="0.01" {...form.register("flete")} />
             {form.formState.errors.flete && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.flete.message}</p>
+            )}
+            {moneda === "PEN" && (
+              <p className="text-xs text-muted-foreground">
+                ≈ {formatMoneda(fleteTotalUsd, "USD")} (tipo de cambio fijo S/ {TIPO_CAMBIO_PEN_USD.toFixed(2)})
+              </p>
             )}
           </div>
         </CardContent>
@@ -245,7 +276,7 @@ export function TrasladoAlmacenForm({
                     <TableHead className="w-28">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
                     <TableHead className="w-28">Stock disponible</TableHead>
-                    <TableHead className="w-28 text-right">Flete asignado (US$)</TableHead>
+                    <TableHead className="w-28 text-right">Flete asignado</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -306,7 +337,7 @@ export function TrasladoAlmacenForm({
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm">{skuId ? disponible : "—"}</TableCell>
                         <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
-                          {formatMoneda(fletePorItem[index] ?? 0, "USD")}
+                          {formatMoneda(fletePorItem[index] ?? 0, moneda)}
                         </TableCell>
                         <TableCell className="align-top">
                           <Button

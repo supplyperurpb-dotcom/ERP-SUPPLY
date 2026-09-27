@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
+import { fechaLocalHoy } from "@/lib/utils";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 import { crearConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
@@ -38,10 +38,6 @@ export function ConsumoAlmacenForm({
     defaultValues: {
       fecha: fechaLocalHoy() as unknown as Date,
       almacenOrigenId: almacenIdInicial ?? "",
-      guiaRemision: "",
-      remitenteRuc: "",
-      remitente: "",
-      flete: 0,
       observaciones: "",
       items: [ITEM_VACIO],
     },
@@ -50,7 +46,6 @@ export function ConsumoAlmacenForm({
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
-  const flete = useWatch({ control: form.control, name: "flete" });
 
   // Solo se puede consumir lo que el almacén realmente tiene en stock: el
   // combobox de producto se restringe a esa lista, y sirve también para
@@ -67,12 +62,6 @@ export function ConsumoAlmacenForm({
   function stockDisponibleDe(skuId: string) {
     return stockPorSkuId.get(skuId)?.cantidad ?? 0;
   }
-  function precioPonderadoDe(skuId: string) {
-    return stockPorSkuId.get(skuId)?.precioUnitarioPonderado ?? 0;
-  }
-
-  const valoresConsumidos = items.map((item) => (Number(item?.cantidad) || 0) * precioPonderadoDe(item?.skuId ?? ""));
-  const fletePorItem = prorratear(Number(flete) || 0, valoresConsumidos);
 
   async function onSubmit(data: ConsumoAlmacenInput) {
     const excedeAlgunaLinea = data.items.some((item) => item.cantidad > stockDisponibleDe(item.skuId));
@@ -154,40 +143,6 @@ export function ConsumoAlmacenForm({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Datos de transporte (opcional)</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            El flete se prorratea entre los productos según su valor consumido, solo para fines informativos de
-            este consumo (no cambia el costo del stock que queda en el almacén).
-          </p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <Label htmlFor="guiaRemision">Guía de remisión (opcional)</Label>
-            <Input id="guiaRemision" {...form.register("guiaRemision")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="remitenteRuc">RUC del remitente (opcional)</Label>
-            <Input id="remitenteRuc" {...form.register("remitenteRuc")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="remitente">Nombre del remitente (opcional)</Label>
-            <Input id="remitente" {...form.register("remitente")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="flete">Precio del flete en US$ (opcional)</Label>
-            <Input id="flete" type="number" min={0} step="0.01" {...form.register("flete")} />
-            {form.formState.errors.flete && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.flete.message}</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle className="text-base">Productos</CardTitle>
@@ -220,7 +175,6 @@ export function ConsumoAlmacenForm({
                     <TableHead className="w-28">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
                     <TableHead className="w-28">Stock disponible</TableHead>
-                    <TableHead className="w-28 text-right">Flete asignado (US$)</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -280,9 +234,6 @@ export function ConsumoAlmacenForm({
                           {items[index]?.unidadMedida || "—"}
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm">{skuId ? disponible : "—"}</TableCell>
-                        <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
-                          {formatMoneda(fletePorItem[index] ?? 0, "USD")}
-                        </TableCell>
                         <TableCell className="align-top">
                           <Button
                             type="button"
