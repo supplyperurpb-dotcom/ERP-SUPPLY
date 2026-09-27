@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { ProveedorRemitenteCombobox } from "@/components/shared/proveedor-remitente-combobox";
+import { ProveedorSelectCombobox } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD, convertirAUsd } from "@/lib/constants/moneda";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
@@ -22,8 +23,6 @@ import { crearIngresoAlmacenAction, actualizarIngresoAlmacenAction } from "@/lib
 type Opcion = { id: string; nombre: string };
 type ProveedorOpcion = { id: string; razonSocial: string; ruc: string };
 type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida: string };
-
-const SIN_PROVEEDOR = "__sin_proveedor__";
 
 const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "", precioUnitario: 0, lote: "" };
 
@@ -43,7 +42,6 @@ export function IngresoAlmacenForm({
 }) {
   const router = useRouter();
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
-  const proveedorPorId = new Map(proveedores.map((p) => [p.id, p]));
 
   const form = useForm<IngresoAlmacenInput>({
     resolver: zodResolver(ingresoAlmacenSchema),
@@ -144,29 +142,17 @@ export function IngresoAlmacenForm({
               control={form.control}
               name="proveedorId"
               render={({ field }) => (
-                <Select
-                  value={field.value || SIN_PROVEEDOR}
-                  onValueChange={(valor) => {
-                    field.onChange(valor === SIN_PROVEEDOR ? "" : valor);
-                    const proveedor = proveedorPorId.get(valor);
+                <ProveedorSelectCombobox
+                  proveedores={proveedores}
+                  value={field.value ?? ""}
+                  onSelect={(proveedor) => {
+                    field.onChange(proveedor?.id ?? "");
                     if (proveedor) {
                       form.setValue("remitente", proveedor.razonSocial);
                       if (proveedor.ruc) form.setValue("remitenteRuc", proveedor.ruc);
                     }
                   }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sin proveedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SIN_PROVEEDOR}>Sin proveedor</SelectItem>
-                    {proveedores.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.razonSocial}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               )}
             />
           </div>
