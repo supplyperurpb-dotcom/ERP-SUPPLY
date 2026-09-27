@@ -62,7 +62,8 @@ export function TipoPalletFormDialog({ tipoPallet }: { tipoPallet?: TipoPallet }
               name="nombre"
               defaultValue={tipoPallet?.nombre}
               required
-              disabled={esEdicion}
+              readOnly={esEdicion}
+              className={esEdicion ? "cursor-not-allowed bg-muted opacity-70" : undefined}
             />
           </div>
 

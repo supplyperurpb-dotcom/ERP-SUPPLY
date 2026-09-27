@@ -63,7 +63,14 @@ export function AlmacenFormDialog({ almacen }: { almacen?: Almacen }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="codigo">Código</Label>
-              <Input id="codigo" name="codigo" defaultValue={almacen?.codigo} required disabled={esEdicion} />
+              <Input
+                id="codigo"
+                name="codigo"
+                defaultValue={almacen?.codigo}
+                required
+                readOnly={esEdicion}
+                className={esEdicion ? "cursor-not-allowed bg-muted opacity-70" : undefined}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo</Label>

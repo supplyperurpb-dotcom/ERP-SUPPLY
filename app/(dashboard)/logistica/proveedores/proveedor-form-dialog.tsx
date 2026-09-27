@@ -77,7 +77,8 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
                 name="numeroDocumento"
                 defaultValue={proveedor?.numeroDocumento}
                 required
-                disabled={esEdicion}
+                readOnly={esEdicion}
+                className={esEdicion ? "cursor-not-allowed bg-muted opacity-70" : undefined}
               />
             </div>
           </div>

@@ -62,7 +62,8 @@ export function TipoBandejaFormDialog({ tipoBandeja }: { tipoBandeja?: TipoBande
               name="nombre"
               defaultValue={tipoBandeja?.nombre}
               required
-              disabled={esEdicion}
+              readOnly={esEdicion}
+              className={esEdicion ? "cursor-not-allowed bg-muted opacity-70" : undefined}
             />
           </div>
 

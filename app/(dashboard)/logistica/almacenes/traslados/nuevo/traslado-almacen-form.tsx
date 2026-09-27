@@ -193,6 +193,11 @@ export function TrasladoAlmacenForm({
             )}
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="guiaRemision">N° de guía de remisión (opcional)</Label>
+            <Input id="guiaRemision" {...form.register("guiaRemision")} />
+          </div>
+
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>
             <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
@@ -209,11 +214,6 @@ export function TrasladoAlmacenForm({
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <Label htmlFor="guiaRemision">Guía de remisión (opcional)</Label>
-            <Input id="guiaRemision" {...form.register("guiaRemision")} />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="remitenteRuc">RUC del remitente (opcional)</Label>
             <Input id="remitenteRuc" {...form.register("remitenteRuc")} />
