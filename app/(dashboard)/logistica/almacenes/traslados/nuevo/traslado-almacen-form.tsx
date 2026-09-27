@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fechaLocalHoy } from "@/lib/utils";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import { crearTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
@@ -157,68 +158,78 @@ export function TrasladoAlmacenForm({
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {fields.map((field, index) => (
-            <div key={field.id} className="rounded-lg border p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold">Producto {index + 1}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={fields.length === 1}
-                  onClick={() => remove(index)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs">Producto</Label>
-                  <Controller
-                    control={form.control}
-                    name={`items.${index}.skuId`}
-                    render={({ field: selectField }) => (
-                      <Select
-                        value={selectField.value}
-                        onValueChange={(valor) => {
-                          selectField.onChange(valor);
-                          const sku = skuPorId.get(valor);
-                          if (sku) form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
-                        }}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[260px]">Producto</TableHead>
+                  <TableHead className="w-28">Cantidad</TableHead>
+                  <TableHead className="w-20">U.M.</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fields.map((field, index) => (
+                  <TableRow key={field.id}>
+                    <TableCell className="align-top">
+                      <Controller
+                        control={form.control}
+                        name={`items.${index}.skuId`}
+                        render={({ field: selectField }) => (
+                          <Select
+                            value={selectField.value}
+                            onValueChange={(valor) => {
+                              selectField.onChange(valor);
+                              const sku = skuPorId.get(valor);
+                              if (sku) form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {skus.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.codigo} — {s.descripcion}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {form.formState.errors.items?.[index]?.skuId && (
+                        <p className="mt-1 text-xs font-medium text-destructive">
+                          {form.formState.errors.items[index]?.skuId?.message}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <Input type="number" min={0} step="0.001" {...form.register(`items.${index}.cantidad`)} />
+                      {form.formState.errors.items?.[index]?.cantidad && (
+                        <p className="mt-1 text-xs font-medium text-destructive">
+                          {form.formState.errors.items[index]?.cantidad?.message}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top pt-4 text-sm text-muted-foreground">
+                      {items[index]?.unidadMedida || "—"}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={fields.length === 1}
+                        onClick={() => remove(index)}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {skus.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.codigo} — {s.descripcion}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {form.formState.errors.items?.[index]?.skuId && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.items[index]?.skuId?.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Cantidad</Label>
-                  <Input type="number" min={0} step="0.001" {...form.register(`items.${index}.cantidad`)} />
-                  {form.formState.errors.items?.[index]?.cantidad && (
-                    <p className="text-xs font-medium text-destructive">
-                      {form.formState.errors.items[index]?.cantidad?.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">U.M.: {items[index]?.unidadMedida || "—"}</div>
-            </div>
-          ))}
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
