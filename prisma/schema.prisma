@@ -44,11 +44,6 @@ enum TipoProveedor {
   AMBOS
 }
 
-enum TipoSku {
-  INSUMO
-  PRODUCTO_TERMINADO
-}
-
 enum TipoAlmacen {
   INSUMOS
   AGROQUIMICOS
@@ -220,8 +215,8 @@ model Sku {
   codigo       String   @unique
   descripcion  String
   categoria    String
+  subfamilia   String
   unidadMedida String // catálogo SUNAT simplificado (KGM, NIU, BX, LTR, ...)
-  tipo         TipoSku
   stockMinimo  Decimal? @db.Decimal(12, 3)
   activo       Boolean  @default(true)
   creadoPorId  String?

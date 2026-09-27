@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UNIDADES_MEDIDA } from "@/lib/validations/sku";
+import { UNIDADES_MEDIDA, CATEGORIAS_SKU, SUBFAMILIAS_SKU } from "@/lib/validations/sku";
 import { crearSkuAction, actualizarSkuAction, type SkuActionState } from "@/lib/actions/sku-actions";
 
 export function SkuFormDialog({ sku }: { sku?: Sku }) {
@@ -60,7 +60,18 @@ export function SkuFormDialog({ sku }: { sku?: Sku }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="categoria">Categoría</Label>
-              <Input id="categoria" name="categoria" defaultValue={sku?.categoria} required />
+              <Input
+                id="categoria"
+                name="categoria"
+                list="categorias-sku"
+                defaultValue={sku?.categoria ?? "Suministros"}
+                required
+              />
+              <datalist id="categorias-sku">
+                {CATEGORIAS_SKU.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
           </div>
 
@@ -72,7 +83,7 @@ export function SkuFormDialog({ sku }: { sku?: Sku }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="unidadMedida">Unidad de medida</Label>
-              <Select name="unidadMedida" defaultValue={sku?.unidadMedida ?? "NIU"}>
+              <Select name="unidadMedida" defaultValue={sku?.unidadMedida ?? "UND"}>
                 <SelectTrigger id="unidadMedida">
                   <SelectValue />
                 </SelectTrigger>
@@ -86,16 +97,19 @@ export function SkuFormDialog({ sku }: { sku?: Sku }) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tipo">Tipo</Label>
-              <Select name="tipo" defaultValue={sku?.tipo ?? "INSUMO"}>
-                <SelectTrigger id="tipo">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INSUMO">Insumo</SelectItem>
-                  <SelectItem value="PRODUCTO_TERMINADO">Producto terminado</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="subfamilia">Subfamilia</Label>
+              <Input
+                id="subfamilia"
+                name="subfamilia"
+                list="subfamilias-sku"
+                defaultValue={sku?.subfamilia ?? "Materiales de Empaque"}
+                required
+              />
+              <datalist id="subfamilias-sku">
+                {SUBFAMILIAS_SKU.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
             </div>
           </div>
 

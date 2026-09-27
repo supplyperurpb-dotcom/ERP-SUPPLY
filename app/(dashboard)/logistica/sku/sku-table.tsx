@@ -29,7 +29,7 @@ export function SkuTable({ skus }: { skus: Sku[] }) {
           <TableHead>Descripción</TableHead>
           <TableHead>Categoría</TableHead>
           <TableHead>Unidad</TableHead>
-          <TableHead>Tipo</TableHead>
+          <TableHead>Subfamilia</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
@@ -41,7 +41,7 @@ export function SkuTable({ skus }: { skus: Sku[] }) {
             <TableCell>{sku.descripcion}</TableCell>
             <TableCell>{sku.categoria}</TableCell>
             <TableCell>{sku.unidadMedida}</TableCell>
-            <TableCell>{sku.tipo === "INSUMO" ? "Insumo" : "Producto terminado"}</TableCell>
+            <TableCell>{sku.subfamilia}</TableCell>
             <TableCell>
               <Badge variant={sku.activo ? "success" : "secondary"}>{sku.activo ? "Activo" : "Inactivo"}</Badge>
             </TableCell>
