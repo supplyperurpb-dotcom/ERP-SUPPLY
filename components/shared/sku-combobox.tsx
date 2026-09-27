@@ -42,7 +42,7 @@ export function SkuCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent className="w-[min(90vw,480px)] p-0" align="start">
         <Command filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
           <CommandInput placeholder="Buscar por código o nombre..." />
           <CommandList>
@@ -56,9 +56,10 @@ export function SkuCombobox({
                     onSelect(sku);
                     setOpen(false);
                   }}
+                  className="items-start whitespace-normal"
                 >
-                  <Check className={cn("mr-2 h-4 w-4 shrink-0", sku.id === value ? "opacity-100" : "opacity-0")} />
-                  <span className="truncate">
+                  <Check className={cn("mr-2 mt-0.5 h-4 w-4 shrink-0", sku.id === value ? "opacity-100" : "opacity-0")} />
+                  <span>
                     <span className="font-medium">{sku.codigo}</span> — {sku.descripcion}
                   </span>
                 </CommandItem>
