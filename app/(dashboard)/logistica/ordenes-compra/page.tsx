@@ -33,11 +33,14 @@ export default async function OrdenesCompraPage() {
   const [usuario, aprobadores] = await Promise.all([getUsuarioActual(), obtenerAprobadoresArea()]);
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
+  // Los compradores de Supply Chain gestionan las compras de toda la
+  // empresa, así que ven todas las OC/OS, no solo las de su área.
+  const esSupplyChain = usuario?.area === "SUPPLY_CHAIN";
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   // Igual que en Solicitudes de pedido: todo usuario con área asignada
   // (sea o no aprobador) solo ve las OC/OS que tengan al menos una línea
-  // de su propia área; solo ADMIN ve todas.
-  const areaUsuario = usuario && !esAdmin ? usuario.area : null;
+  // de su propia área; ADMIN y Supply Chain ven todas.
+  const areaUsuario = usuario && !esAdmin && !esSupplyChain ? usuario.area : null;
 
   const ordenes = await prisma.ordenCompra.findMany({
     where: areaUsuario ? { items: { some: { centroCosto: areaUsuario as AreaEmpresa } } } : undefined,

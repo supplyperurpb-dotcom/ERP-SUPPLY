@@ -7,9 +7,9 @@ import { OrdenCompraForm } from "./orden-compra-form";
 export default async function NuevaOrdenCompraPage({
   searchParams,
 }: {
-  searchParams: Promise<{ categoria?: string }>;
+  searchParams: Promise<{ categoria?: string; solicitudId?: string }>;
 }) {
-  const { categoria } = await searchParams;
+  const { categoria, solicitudId } = await searchParams;
   const categoriaSeleccionada: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
 
   const [solicitudes, proveedores] = await Promise.all([
@@ -26,6 +26,7 @@ export default async function NuevaOrdenCompraPage({
       <OrdenCompraForm
         solicitudes={solicitudes}
         categoria={categoriaSeleccionada}
+        solicitudIdInicial={solicitudId}
         proveedores={proveedores.map((p) => ({
           id: p.id,
           razonSocial: p.razonSocial,

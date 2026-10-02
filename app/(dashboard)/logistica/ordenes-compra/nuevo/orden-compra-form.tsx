@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
 import { AREAS_EMPRESA, IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -17,21 +19,40 @@ import { crearOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
 
 type FilaSeleccion = {
-  incluido: boolean;
   cantidad: string;
   precioUnitario: string;
   gravado: boolean;
   centroCosto: string;
 };
 
+type ItemPlano = {
+  id: string; // SolicitudPedidoItem.id
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  cantidadPendiente: number;
+  unidadMedida: string;
+  centroCosto: string;
+  solicitudId: string;
+  solicitudNumero: string;
+  solicitudArea: string;
+};
+
+function filaVacia(item: ItemPlano): FilaSeleccion {
+  return { cantidad: String(item.cantidadPendiente), precioUnitario: "0", gravado: true, centroCosto: item.centroCosto };
+}
+
 export function OrdenCompraForm({
   solicitudes,
   categoria,
   proveedores,
+  solicitudIdInicial,
 }: {
   solicitudes: SolicitudConPendientes[];
   categoria: CategoriaCompraCodigo;
   proveedores: ProveedorOpcionSelect[];
+  /** Si se llega desde el botón "Generar OC/OS" de una solicitud puntual, sus ítems se precargan ya marcados. */
+  solicitudIdInicial?: string;
 }) {
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
@@ -39,18 +60,39 @@ export function OrdenCompraForm({
   const [fecha, setFecha] = useState(fechaLocalHoy());
   const [moneda, setMoneda] = useState<"PEN" | "USD">("PEN");
   const [enviando, setEnviando] = useState(false);
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [filtroSolped, setFiltroSolped] = useState("");
+  const [filtroProducto, setFiltroProducto] = useState("");
+  const [filtroArea, setFiltroArea] = useState("");
+
+  const itemsPlanos = useMemo<ItemPlano[]>(() => {
+    const lista: ItemPlano[] = [];
+    for (const solicitud of solicitudes) {
+      for (const item of solicitud.items) {
+        lista.push({
+          id: item.id,
+          skuId: item.skuId,
+          codigo: item.codigo,
+          descripcion: item.descripcion,
+          cantidadPendiente: item.cantidadPendiente,
+          unidadMedida: item.unidadMedida,
+          centroCosto: item.centroCosto,
+          solicitudId: solicitud.id,
+          solicitudNumero: solicitud.numero,
+          solicitudArea: solicitud.area,
+        });
+      }
+    }
+    return lista;
+  }, [solicitudes]);
+
+  const itemPorId = useMemo(() => new Map(itemsPlanos.map((item) => [item.id, item])), [itemsPlanos]);
 
   const [filas, setFilas] = useState<Record<string, FilaSeleccion>>(() => {
     const inicial: Record<string, FilaSeleccion> = {};
-    for (const solicitud of solicitudes) {
-      for (const item of solicitud.items) {
-        inicial[item.id] = {
-          incluido: false,
-          cantidad: String(item.cantidadPendiente),
-          precioUnitario: "0",
-          gravado: true,
-          centroCosto: item.centroCosto,
-        };
+    if (solicitudIdInicial) {
+      for (const item of itemsPlanos) {
+        if (item.solicitudId === solicitudIdInicial) inicial[item.id] = filaVacia(item);
       }
     }
     return inicial;
@@ -60,46 +102,64 @@ export function OrdenCompraForm({
     setFilas((prev) => ({ ...prev, [itemId]: { ...prev[itemId], ...cambios } }));
   }
 
-  const itemPorId = useMemo(() => {
-    const mapa = new Map<string, { skuId: string; codigo: string; descripcion: string; cantidadPendiente: number; unidadMedida: string }>();
-    for (const solicitud of solicitudes) {
-      for (const item of solicitud.items) {
-        mapa.set(item.id, item);
+  function alternarItem(item: ItemPlano) {
+    setFilas((prev) => {
+      if (prev[item.id]) {
+        const resto = { ...prev };
+        delete resto[item.id];
+        return resto;
       }
-    }
-    return mapa;
-  }, [solicitudes]);
+      return { ...prev, [item.id]: filaVacia(item) };
+    });
+  }
+
+  function quitarItem(itemId: string) {
+    setFilas((prev) => {
+      const resto = { ...prev };
+      delete resto[itemId];
+      return resto;
+    });
+  }
+
+  const itemsEnOrden = itemsPlanos.filter((item) => filas[item.id]);
 
   const subtotalesPorFila = new Map<string, number>();
-  for (const [itemId, fila] of Object.entries(filas)) {
-    if (!fila.incluido) continue;
+  for (const item of itemsEnOrden) {
+    const fila = filas[item.id];
     const cantidad = Number(fila.cantidad) || 0;
     const precio = Number(fila.precioUnitario) || 0;
-    subtotalesPorFila.set(itemId, Math.round(cantidad * precio * 100) / 100);
+    subtotalesPorFila.set(item.id, Math.round(cantidad * precio * 100) / 100);
   }
 
   const subtotal = [...subtotalesPorFila.values()].reduce((a, b) => a + b, 0);
-  const igv = Object.entries(filas).reduce((acc, [itemId, fila]) => {
-    if (!fila.incluido || !fila.gravado) return acc;
-    return acc + (subtotalesPorFila.get(itemId) ?? 0) * IGV_TASA;
+  const igv = itemsEnOrden.reduce((acc, item) => {
+    if (!filas[item.id].gravado) return acc;
+    return acc + (subtotalesPorFila.get(item.id) ?? 0) * IGV_TASA;
   }, 0);
   const igvRedondeado = Math.round(igv * 100) / 100;
   const total = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
-  const itemsSeleccionados = Object.entries(filas).filter(([, fila]) => fila.incluido);
+  const itemsFiltrados = itemsPlanos.filter((item) => {
+    if (filtroSolped && !item.solicitudNumero.toLowerCase().includes(filtroSolped.trim().toLowerCase())) return false;
+    if (filtroProducto) {
+      const texto = `${item.codigo} ${item.descripcion}`.toLowerCase();
+      if (!texto.includes(filtroProducto.trim().toLowerCase())) return false;
+    }
+    if (filtroArea && item.centroCosto !== filtroArea) return false;
+    return true;
+  });
 
   async function handleSubmit() {
     if (!proveedorId) {
       toast.error("Selecciona un proveedor");
       return;
     }
-    if (itemsSeleccionados.length === 0) {
-      toast.error("Selecciona al menos un ítem pendiente");
+    if (itemsEnOrden.length === 0) {
+      toast.error("Agrega al menos un producto con el botón 'Agregar producto'");
       return;
     }
-    for (const [itemId, fila] of itemsSeleccionados) {
-      const item = itemPorId.get(itemId);
-      if (!item) continue;
+    for (const item of itemsEnOrden) {
+      const fila = filas[item.id];
       const cantidad = Number(fila.cantidad) || 0;
       if (cantidad <= 0) {
         toast.error(`La cantidad de ${item.codigo} debe ser mayor a 0`);
@@ -117,10 +177,10 @@ export function OrdenCompraForm({
         proveedorId,
         fecha: new Date(fecha) as unknown as Date,
         moneda,
-        items: itemsSeleccionados.map(([itemId, fila]) => {
-          const item = itemPorId.get(itemId)!;
+        items: itemsEnOrden.map((item) => {
+          const fila = filas[item.id];
           return {
-            solicitudPedidoItemId: itemId,
+            solicitudPedidoItemId: item.id,
             skuId: item.skuId,
             cantidad: Number(fila.cantidad),
             precioUnitario: Number(fila.precioUnitario),
@@ -184,118 +244,108 @@ export function OrdenCompraForm({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ítems pendientes de solicitudes de {categoria === "SERVICIO" ? "servicio" : "compra"}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Selecciona los ítems a incluir en esta {nombreDocumento.toLowerCase()}. La cantidad no puede superar lo
-            pendiente de cada solicitud, y el centro de costo se precarga desde la solicitud pero puede cambiarse aquí.
-            Solo se listan solicitudes aprobadas de esta misma categoría.
-          </p>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">Productos de la orden</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              La cantidad no puede superar lo pendiente de cada solicitud. Solo se pueden agregar ítems de solicitudes
+              aprobadas de esta misma categoría.
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => setModalAbierto(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Agregar producto
+          </Button>
         </CardHeader>
         <CardContent className="space-y-6">
-          {solicitudes.length === 0 ? (
+          {itemsEnOrden.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No hay ítems pendientes en ninguna solicitud aprobada de esta categoría.
+              Aún no has agregado productos. Usa el botón &quot;Agregar producto&quot; para buscar ítems pendientes por
+              número de solicitud, producto o área.
             </p>
           ) : (
-            solicitudes.map((solicitud) => (
-              <div key={solicitud.id} className="space-y-2">
-                <p className="text-sm font-medium">
-                  {NOMBRE_SOLICITUD[categoria]} {solicitud.numero} —{" "}
-                  {AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area}
-                </p>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10" />
-                        <TableHead className="w-28">Código</TableHead>
-                        <TableHead className="min-w-[200px]">Producto</TableHead>
-                        <TableHead className="text-right w-28">Pendiente</TableHead>
-                        <TableHead className="w-28">Cantidad</TableHead>
-                        <TableHead className="w-32">Precio unitario</TableHead>
-                        <TableHead className="w-20">Gravado</TableHead>
-                        <TableHead className="w-44">Centro de costo</TableHead>
-                        <TableHead className="text-right w-28">Subtotal</TableHead>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-28">Código</TableHead>
+                    <TableHead className="min-w-[180px]">Producto</TableHead>
+                    <TableHead className="w-28">Solicitud</TableHead>
+                    <TableHead className="text-right w-24">Pendiente</TableHead>
+                    <TableHead className="w-24">Cantidad</TableHead>
+                    <TableHead className="w-28">Precio unitario</TableHead>
+                    <TableHead className="w-16">Gravado</TableHead>
+                    <TableHead className="w-40">Centro de costo</TableHead>
+                    <TableHead className="text-right w-24">Subtotal</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itemsEnOrden.map((item) => {
+                    const fila = filas[item.id];
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium align-top">{item.codigo}</TableCell>
+                        <TableCell className="align-top">{item.descripcion}</TableCell>
+                        <TableCell className="align-top">{item.solicitudNumero}</TableCell>
+                        <TableCell className="text-right align-top">
+                          {item.cantidadPendiente} {item.unidadMedida}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={item.cantidadPendiente}
+                            step="0.001"
+                            value={fila.cantidad}
+                            onChange={(e) => actualizarFila(item.id, { cantidad: e.target.value })}
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={fila.precioUnitario}
+                            onChange={(e) => actualizarFila(item.id, { precioUnitario: e.target.value })}
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={fila.gravado}
+                            onChange={(e) => actualizarFila(item.id, { gravado: e.target.checked })}
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Select value={fila.centroCosto} onValueChange={(v) => actualizarFila(item.id, { centroCosto: v })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AREAS_EMPRESA.map((a) => (
+                                <SelectItem key={a.valor} value={a.valor}>
+                                  {a.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right align-top pt-4 font-medium">
+                          {formatMoneda(subtotalesPorFila.get(item.id) ?? 0, moneda)}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => quitarItem(item.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {solicitud.items.map((item) => {
-                        const fila = filas[item.id];
-                        return (
-                          <TableRow key={item.id}>
-                            <TableCell>
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                checked={fila.incluido}
-                                onChange={(e) => actualizarFila(item.id, { incluido: e.target.checked })}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium">{item.codigo}</TableCell>
-                            <TableCell>{item.descripcion}</TableCell>
-                            <TableCell className="text-right">
-                              {item.cantidadPendiente} {item.unidadMedida}
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={item.cantidadPendiente}
-                                step="0.001"
-                                disabled={!fila.incluido}
-                                value={fila.cantidad}
-                                onChange={(e) => actualizarFila(item.id, { cantidad: e.target.value })}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                disabled={!fila.incluido}
-                                value={fila.precioUnitario}
-                                onChange={(e) => actualizarFila(item.id, { precioUnitario: e.target.value })}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                disabled={!fila.incluido}
-                                checked={fila.gravado}
-                                onChange={(e) => actualizarFila(item.id, { gravado: e.target.checked })}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={fila.centroCosto}
-                                onValueChange={(v) => actualizarFila(item.id, { centroCosto: v })}
-                                disabled={!fila.incluido}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {AREAS_EMPRESA.map((a) => (
-                                    <SelectItem key={a.valor} value={a.valor}>
-                                      {a.nombre}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {fila.incluido ? formatMoneda(subtotalesPorFila.get(item.id) ?? 0, moneda) : "—"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ))
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
 
           <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
@@ -320,6 +370,112 @@ export function OrdenCompraForm({
           {enviando ? "Guardando..." : `Registrar ${nombreDocumento.toLowerCase()}`}
         </Button>
       </div>
+
+      <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Agregar producto</DialogTitle>
+            <DialogDescription>
+              Busca ítems pendientes de {NOMBRE_SOLICITUD[categoria].toLowerCase()}s aprobadas por número de solicitud,
+              producto o área, y marca los que quieras agregar a esta {nombreDocumento.toLowerCase()}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="space-y-1">
+              <Label htmlFor="filtroSolped">N.º de solicitud</Label>
+              <Input
+                id="filtroSolped"
+                placeholder="Ej. SP-000000001"
+                value={filtroSolped}
+                onChange={(e) => setFiltroSolped(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="filtroProducto">Producto</Label>
+              <Input
+                id="filtroProducto"
+                placeholder="Código o descripción"
+                value={filtroProducto}
+                onChange={(e) => setFiltroProducto(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Área</Label>
+              <Select value={filtroArea || "__todas__"} onValueChange={(v) => setFiltroArea(v === "__todas__" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__todas__">Todas las áreas</SelectItem>
+                  {AREAS_EMPRESA.map((a) => (
+                    <SelectItem key={a.valor} value={a.valor}>
+                      {a.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="max-h-[50vh] overflow-y-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10" />
+                  <TableHead className="w-28">Código</TableHead>
+                  <TableHead className="min-w-[180px]">Producto</TableHead>
+                  <TableHead className="w-28">Solicitud</TableHead>
+                  <TableHead className="w-32">Área</TableHead>
+                  <TableHead className="text-right w-24">Pendiente</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {itemsFiltrados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                      No se encontró ningún ítem pendiente con esos filtros.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  itemsFiltrados.map((item) => (
+                    <TableRow
+                      key={item.id}
+                      className="cursor-pointer"
+                      onClick={() => alternarItem(item)}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={!!filas[item.id]}
+                          onChange={() => alternarItem(item)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{item.codigo}</TableCell>
+                      <TableCell>{item.descripcion}</TableCell>
+                      <TableCell>{item.solicitudNumero}</TableCell>
+                      <TableCell>{AREAS_EMPRESA.find((a) => a.valor === item.centroCosto)?.nombre ?? item.centroCosto}</TableCell>
+                      <TableCell className="text-right">
+                        {item.cantidadPendiente} {item.unidadMedida}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DialogFooter>
+            <p className="mr-auto self-center text-sm text-muted-foreground">
+              {itemsEnOrden.length} producto{itemsEnOrden.length === 1 ? "" : "s"} agregado{itemsEnOrden.length === 1 ? "" : "s"}
+            </p>
+            <DialogClose asChild>
+              <Button type="button">Listo</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Plus, FileDown, Settings } from "lucide-react";
+import { ClipboardList, Plus, FileDown, Settings, ShoppingCart } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
@@ -33,11 +33,14 @@ export default async function SolicitudesPedidoPage() {
   const [usuario, aprobadores] = await Promise.all([getUsuarioActual(), obtenerAprobadoresArea()]);
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
+  // Los compradores de Supply Chain gestionan las compras de toda la
+  // empresa, así que ven todas las solicitudes, no solo las de su área.
+  const esSupplyChain = usuario?.area === "SUPPLY_CHAIN";
+  const puedeGenerarOrden = esAdmin || esSupplyChain;
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   // Todo usuario con área asignada (sea o no aprobador) solo ve las
-  // solicitudes de su propia área; solo ADMIN (o una cuenta sin área, p.
-  // ej. creada antes de este campo) ve todas.
-  const areaUsuario = usuario && !esAdmin ? usuario.area : null;
+  // solicitudes de su propia área; ADMIN y Supply Chain ven todas.
+  const areaUsuario = usuario && !esAdmin && !esSupplyChain ? usuario.area : null;
 
   const solicitudes = await prisma.solicitudPedido.findMany({
     where: areaUsuario ? { area: areaUsuario as AreaEmpresa } : undefined,
@@ -145,6 +148,16 @@ export default async function SolicitudesPedidoPage() {
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/logistica/solicitudes-pedido/${solicitud.id}`}>Ver</Link>
                       </Button>
+                      {puedeGenerarOrden && solicitud.estado === "APROBADO" && (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link
+                            href={`/logistica/ordenes-compra/nuevo?categoria=${solicitud.categoria}&solicitudId=${solicitud.id}`}
+                          >
+                            <ShoppingCart className="mr-1 h-4 w-4" />
+                            Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

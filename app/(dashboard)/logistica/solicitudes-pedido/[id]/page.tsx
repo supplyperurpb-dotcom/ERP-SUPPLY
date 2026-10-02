@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FileDown } from "lucide-react";
+import { FileDown, ShoppingCart } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,8 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     solicitud.estado === "APROBADO"
       ? tienePermisoArea
       : solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
+  // Los compradores de Supply Chain generan las OC/OS para toda la empresa.
+  const puedeGenerarOrden = (usuario?.roles.includes("ADMIN") ?? false) || usuario?.area === "SUPPLY_CHAIN";
 
   return (
     <div className="space-y-6">
@@ -85,6 +87,16 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                 Descargar PDF
               </a>
             </Button>
+            {puedeGenerarOrden && solicitud.estado === "APROBADO" && (
+              <Button asChild>
+                <Link
+                  href={`/logistica/ordenes-compra/nuevo?categoria=${solicitud.categoria}&solicitudId=${solicitud.id}`}
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
+                </Link>
+              </Button>
+            )}
           </div>
         }
       />
