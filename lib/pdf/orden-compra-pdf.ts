@@ -19,14 +19,12 @@ const MARGEN_INFERIOR = 110;
 // Posiciones X de columnas de la tabla de ítems.
 const COL = {
   item: MARGEN_X,
-  codigo: MARGEN_X + 22,
-  descripcion: MARGEN_X + 74,
-  um: MARGEN_X + 246,
-  cantidad: MARGEN_X + 272,
-  unitario: MARGEN_X + 314,
-  dct1: MARGEN_X + 371,
-  dct2: MARGEN_X + 413,
-  total: MARGEN_X + 455,
+  codigo: MARGEN_X + 24,
+  descripcion: MARGEN_X + 84,
+  um: MARGEN_X + 306,
+  cantidad: MARGEN_X + 334,
+  unitario: MARGEN_X + 396,
+  subtotal: MARGEN_X + 458,
 };
 
 export type LineaOrdenCompraPdf = {
@@ -197,16 +195,9 @@ export async function generarOrdenCompraPdf({
     page.drawText("DESCRIPCIÓN", { x: COL.descripcion + 2, y, size: 7, font: bold, color: NEGRO });
     page.drawText("UM", { x: COL.um + 2, y, size: 7, font: bold, color: NEGRO });
     page.drawText("CANTIDAD", { x: COL.cantidad + 2, y, size: 7, font: bold, color: NEGRO });
-    const anchoValor = bold.widthOfTextAtSize("VALOR", 7);
-    const centroValor = COL.unitario + (ANCHO_PAGINA - MARGEN_X - COL.unitario) / 2;
-    page.drawText("VALOR", { x: centroValor - anchoValor / 2, y, size: 7, font: bold, color: NEGRO });
-    y -= 10;
-    page.drawRectangle({ x: COL.unitario, y: y - 3, width: ANCHO_PAGINA - MARGEN_X - COL.unitario, height: 11, color: GRIS_CLARO });
-    page.drawText("UNITARIO", { x: COL.unitario + 2, y, size: 6, font: bold, color: NEGRO });
-    page.drawText("% Dct 1", { x: COL.dct1 + 2, y, size: 6, font: bold, color: NEGRO });
-    page.drawText("% Dct 2", { x: COL.dct2 + 2, y, size: 6, font: bold, color: NEGRO });
-    page.drawText("TOTAL", { x: COL.total + 2, y, size: 6, font: bold, color: NEGRO });
-    y -= 15;
+    page.drawText("P. UNITARIO", { x: COL.unitario + 2, y, size: 7, font: bold, color: NEGRO });
+    page.drawText("SUBTOTAL", { x: COL.subtotal + 2, y, size: 7, font: bold, color: NEGRO });
+    y -= 17;
   }
 
   function nuevaPagina() {
@@ -225,7 +216,7 @@ export async function generarOrdenCompraPdf({
     page.drawText(linea.unidadMedida, { x: COL.um + 2, y, size: 7, font: regular, color: NEGRO });
     page.drawText(linea.cantidad.toFixed(2), { x: COL.cantidad + 2, y, size: 7, font: regular, color: NEGRO });
     page.drawText(moneyFmt(linea.precioUnitario), { x: COL.unitario + 2, y, size: 7, font: regular, color: NEGRO });
-    page.drawText(moneyFmt(linea.subtotal), { x: COL.total + 2, y, size: 7, font: regular, color: NEGRO });
+    page.drawText(moneyFmt(linea.subtotal), { x: COL.subtotal + 2, y, size: 7, font: regular, color: NEGRO });
     y -= 10;
     page.drawLine({
       start: { x: MARGEN_X, y: y + 3 },
