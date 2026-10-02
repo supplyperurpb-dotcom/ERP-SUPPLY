@@ -79,24 +79,21 @@ export function SolicitudPedidoForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label>Categoría</Label>
-            <Controller
-              control={form.control}
-              name="categoria"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIAS_COMPRA.map((c) => (
-                      <SelectItem key={c.valor} value={c.valor}>
-                        {c.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            <Select value={categoriaInicial} disabled>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIAS_COMPRA.map((c) => (
+                  <SelectItem key={c.valor} value={c.valor}>
+                    {c.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Definida por el botón con el que entraste. Vuelve a la lista para crear la otra categoría.
+            </p>
           </div>
 
           <div className="space-y-2">
