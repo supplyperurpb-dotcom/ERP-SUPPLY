@@ -6,11 +6,9 @@ import { prisma } from "@/lib/db/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { AprobarRechazarBotones, AnularSolicitudBoton } from "./aprobar-rechazar-botones";
 import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
-import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import type { EstadoDocumento, AreaEmpresa } from "@prisma/client";
@@ -111,7 +109,12 @@ export default async function SolicitudesPedidoPage() {
                   aprobadoresPorArea,
                 });
               const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
-              const puedeAnular = solicitud.estado === "APROBADO" && tienePermisoArea;
+              // Antes de aprobada, anular equivale a borrar y lo puede usar
+              // cualquiera; ya aprobada, solo el aprobador del área.
+              const puedeAnular =
+                solicitud.estado === "APROBADO"
+                  ? tienePermisoArea
+                  : solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
               return (
                 <TableRow key={solicitud.id}>
                   <TableCell className="font-medium">{solicitud.numero}</TableCell>
@@ -142,14 +145,6 @@ export default async function SolicitudesPedidoPage() {
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/logistica/solicitudes-pedido/${solicitud.id}`}>Ver</Link>
                       </Button>
-                      {(solicitud.estado !== "APROBADO" || esAdmin) && (
-                        <EliminarMovimientoButton
-                          id={solicitud.id}
-                          numero={solicitud.numero}
-                          etiqueta="la solicitud"
-                          accion={eliminarSolicitudPedidoAction}
-                        />
-                      )}
                     </div>
                   </TableCell>
                 </TableRow>

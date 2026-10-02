@@ -6,13 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { AprobarRechazarOrdenBotones, AnularOrdenBoton } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { AREAS_EMPRESA, CATEGORIAS_COMPRA, IGV_TASA, NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
-import { eliminarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { obtenerAprobadoresArea } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -48,14 +47,20 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
 
   if (!orden) notFound();
 
-  const [usuario, aprobador] = await Promise.all([
+  const [usuario, aprobador, aprobadores] = await Promise.all([
     getUsuarioActual(),
     orden.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: orden.aprobadoPorId } }) : null,
+    obtenerAprobadoresArea(),
   ]);
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   const puedeAprobar = esAdmin && orden.estado === "PENDIENTE";
-  const puedeAnular = (esAdmin || (usuario?.roles.includes("APROBADOR") ?? false)) && orden.estado === "APROBADO";
-  const puedeEliminar = orden.estado !== "APROBADO" || esAdmin;
+  const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
+  const tienePermisoOrden =
+    esAdmin || (!!usuario && orden.items.some((i) => aprobadoresPorArea.get(i.centroCosto) === usuario.id));
+  // Antes de aprobada, anular equivale a borrar y lo puede usar cualquiera;
+  // ya aprobada, solo ADMIN o el aprobador de alguna de las áreas de la orden.
+  const puedeAnular =
+    orden.estado === "APROBADO" ? tienePermisoOrden : orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
 
   return (
     <div className="space-y-6">
@@ -65,22 +70,15 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         acciones={
           <div className="flex gap-2">
             {puedeAprobar && <AprobarRechazarOrdenBotones id={orden.id} numero={orden.numero} />}
-            {puedeAnular && <AnularOrdenBoton id={orden.id} numero={orden.numero} />}
+            {puedeAnular && (
+              <AnularOrdenBoton id={orden.id} numero={orden.numero} redirectTo="/logistica/ordenes-compra" />
+            )}
             <Button variant="outline" asChild>
               <a href={`/api/pdf/orden-compra/${orden.id}`} target="_blank" rel="noopener noreferrer">
                 <FileDown className="mr-2 h-4 w-4" />
                 Descargar PDF
               </a>
             </Button>
-            {puedeEliminar && (
-              <EliminarMovimientoButton
-                id={orden.id}
-                numero={orden.numero}
-                etiqueta="la orden de compra"
-                accion={eliminarOrdenCompraAction}
-                redirectTo="/logistica/ordenes-compra"
-              />
-            )}
           </div>
         }
       />

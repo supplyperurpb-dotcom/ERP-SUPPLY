@@ -56,20 +56,30 @@ export function AprobarRechazarOrdenBotones({ id, numero }: { id: string; numero
   );
 }
 
-// Separado de AprobarRechazarOrdenBotones porque aplica en el momento
-// opuesto del ciclo de vida: rechazar mata una orden PENDIENTE, anular
-// mata una que ya estaba APROBADA (reemplaza a "eliminar" una vez
-// aprobada). A diferencia de aprobar/rechazar (solo ADMIN), anular la
-// puede usar cualquier usuario aprobador — la acción en el servidor
-// vuelve a verificar el permiso.
-export function AnularOrdenBoton({ id, numero }: { id: string; numero: string }) {
+// Separado de AprobarRechazarOrdenBotones porque aplica en cualquier
+// momento del ciclo de vida: antes de aprobada, anular equivale a borrar y
+// lo puede usar cualquiera; ya aprobada (solo ADMIN o el aprobador de
+// alguna de las áreas de la orden) no se borra, queda registrada como
+// ANULADO y sus cantidades jaladas vuelven a quedar pendientes en sus
+// solicitudes de origen — la acción en el servidor vuelve a verificar el
+// permiso.
+export function AnularOrdenBoton({
+  id,
+  numero,
+  redirectTo,
+}: {
+  id: string;
+  numero: string;
+  /** Solo se usa en la página de detalle: si la orden aún no estaba aprobada, anular la borra, así que no queda nada que refrescar. */
+  redirectTo?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function handleAnular() {
     const comentario = prompt(`Motivo de la anulación de ${numero} (opcional):`);
     if (comentario === null) return;
-    if (!confirm(`¿Anular ${numero}? Las cantidades jaladas volverán a quedar pendientes en sus solicitudes de origen.`)) return;
+    if (!confirm(`¿Anular ${numero}?`)) return;
     startTransition(async () => {
       const resultado = await anularOrdenCompraAction(id, comentario);
       if (resultado?.error) {
@@ -77,7 +87,11 @@ export function AnularOrdenBoton({ id, numero }: { id: string; numero: string })
         return;
       }
       toast.success(`${numero} anulada`);
-      router.refresh();
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.refresh();
+      }
     });
   }
 

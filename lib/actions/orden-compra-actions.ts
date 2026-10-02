@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
 import { IGV_TASA, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
-import { cantidadPendiente, categoriaDeItem } from "@/lib/compras";
+import { cantidadPendiente, categoriaDeItem, obtenerAprobadoresArea } from "@/lib/compras";
 import { ordenCompraSchema, type OrdenCompraInput } from "@/lib/validations/compras";
 
 export type OrdenCompraActionState = { error?: string; id?: string } | undefined;
@@ -177,34 +177,53 @@ export async function rechazarOrdenCompraAction(id: string, comentario?: string)
   }
 }
 
-// Anular es distinto de rechazar: rechazar mata una OC/OS que todavía no
-// se había aprobado; anular mata una que ya se había aprobado (por eso
-// reemplaza a "eliminar" una vez aprobada, ver eliminarOrdenCompraAction
-// más abajo). A diferencia del aprobar/rechazar de la OC (solo ADMIN,
-// porque puede mezclar varias áreas), anular está abierto a cualquier
-// usuario con rol APROBADOR, no solo ADMIN.
+// Anular reemplaza por completo a "eliminar": antes de estar aprobada
+// (PENDIENTE/BORRADOR) cualquier usuario con sesión puede anularla y se
+// borra directamente; una vez APROBADA, como una OC/OS puede jalar líneas
+// de varias áreas a la vez, solo puede anularla un ADMIN o el aprobador
+// configurado de alguna de esas áreas — y en ese caso no se borra, queda
+// en estado ANULADO (lo que además libera de vuelta a "pendiente" las
+// cantidades que había jalado de sus solicitudes de origen).
 export async function anularOrdenCompraAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
   try {
-    const usuario = await getUsuarioActual();
-    if (!usuario || !(usuario.roles.includes("ADMIN") || usuario.roles.includes("APROBADOR"))) {
-      return { error: "Solo un usuario aprobador puede anular una orden." };
-    }
-
-    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
+    const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { items: true } });
     if (!orden) return { error: "La orden ya no existe." };
-    if (orden.estado !== "APROBADO") {
-      return { error: "Solo se pueden anular órdenes ya aprobadas." };
+    if (orden.estado === "RECHAZADO" || orden.estado === "ANULADO") {
+      return { error: "Esta orden ya no está activa." };
     }
 
-    await prisma.ordenCompra.update({
-      where: { id },
-      data: {
-        estado: "ANULADO",
-        aprobadoPorId: usuario.id,
-        fechaAprobacion: new Date(),
-        comentarioRechazo: comentario || null,
-      },
-    });
+    if (orden.estado === "APROBADO") {
+      const usuario = await getUsuarioActual();
+      if (!usuario) return { error: "Debes iniciar sesión para anular una orden." };
+
+      if (!usuario.roles.includes("ADMIN")) {
+        const aprobadores = await obtenerAprobadoresArea();
+        const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
+        const areasOrden = new Set(orden.items.map((i) => i.centroCosto));
+        const esAprobadorDeAlgunArea = [...areasOrden].some((area) => aprobadoresPorArea.get(area) === usuario.id);
+        if (!esAprobadorDeAlgunArea) {
+          return { error: "Solo el aprobador de alguna de las áreas de esta orden puede anularla." };
+        }
+      }
+
+      await prisma.ordenCompra.update({
+        where: { id },
+        data: {
+          estado: "ANULADO",
+          aprobadoPorId: usuario.id,
+          fechaAprobacion: new Date(),
+          comentarioRechazo: comentario || null,
+        },
+      });
+    } else {
+      const usuario = await getUsuarioActual();
+      if (!usuario) return { error: "Debes iniciar sesión para anular una orden." };
+
+      await prisma.$transaction(async (tx) => {
+        await tx.ordenCompraItem.deleteMany({ where: { ordenCompraId: id } });
+        await tx.ordenCompra.delete({ where: { id } });
+      });
+    }
 
     revalidatePath("/logistica/ordenes-compra");
     revalidatePath(`/logistica/ordenes-compra/${id}`);
@@ -213,31 +232,5 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
   } catch (e) {
     console.error("Error inesperado en anularOrdenCompraAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al anular la orden." };
-  }
-}
-
-export async function eliminarOrdenCompraAction(id: string): Promise<{ error?: string } | undefined> {
-  try {
-    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
-    if (!orden) return { error: "La orden ya no existe." };
-
-    if (orden.estado === "APROBADO") {
-      const usuario = await getUsuarioActual();
-      if (!usuario || !usuario.roles.includes("ADMIN")) {
-        return { error: "Esta orden ya fue aprobada. Solo un administrador puede eliminarla." };
-      }
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.ordenCompraItem.deleteMany({ where: { ordenCompraId: id } });
-      await tx.ordenCompra.delete({ where: { id } });
-    });
-
-    revalidatePath("/logistica/ordenes-compra");
-    revalidatePath("/logistica/solicitudes-pedido");
-    return undefined;
-  } catch (e) {
-    console.error("Error inesperado en eliminarOrdenCompraAction:", e);
-    return { error: e instanceof Error ? e.message : "Error inesperado al eliminar la orden de compra." };
   }
 }

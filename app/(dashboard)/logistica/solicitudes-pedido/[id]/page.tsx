@@ -6,12 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { AprobarRechazarBotones, AnularSolicitudBoton } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
-import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
@@ -59,13 +57,16 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     solicitud.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: solicitud.aprobadoPorId } }) : null,
   ]);
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
-  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   const tienePermisoArea =
     !!usuario &&
     puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
   const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
-  const puedeAnular = solicitud.estado === "APROBADO" && tienePermisoArea;
-  const puedeEliminar = solicitud.estado !== "APROBADO" || esAdmin;
+  // Antes de aprobada, anular equivale a borrar y lo puede usar cualquiera;
+  // ya aprobada, solo el aprobador del área.
+  const puedeAnular =
+    solicitud.estado === "APROBADO"
+      ? tienePermisoArea
+      : solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
 
   return (
     <div className="space-y-6">
@@ -75,22 +76,15 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
         acciones={
           <div className="flex gap-2">
             {puedeAprobar && <AprobarRechazarBotones id={solicitud.id} numero={solicitud.numero} />}
-            {puedeAnular && <AnularSolicitudBoton id={solicitud.id} numero={solicitud.numero} />}
+            {puedeAnular && (
+              <AnularSolicitudBoton id={solicitud.id} numero={solicitud.numero} redirectTo="/logistica/solicitudes-pedido" />
+            )}
             <Button variant="outline" asChild>
               <a href={`/api/pdf/solicitud-pedido/${solicitud.id}`} target="_blank" rel="noopener noreferrer">
                 <FileDown className="mr-2 h-4 w-4" />
                 Descargar PDF
               </a>
             </Button>
-            {puedeEliminar && (
-              <EliminarMovimientoButton
-                id={solicitud.id}
-                numero={solicitud.numero}
-                etiqueta="la solicitud"
-                accion={eliminarSolicitudPedidoAction}
-                redirectTo="/logistica/solicitudes-pedido"
-              />
-            )}
           </div>
         }
       />

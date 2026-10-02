@@ -56,18 +56,27 @@ export function AprobarRechazarBotones({ id, numero }: { id: string; numero: str
   );
 }
 
-// Separado de AprobarRechazarBotones porque aplica en el momento opuesto
-// del ciclo de vida: rechazar mata una solicitud PENDIENTE, anular mata
-// una que ya estaba APROBADA (es lo que la reemplaza a "eliminar" una vez
-// aprobada).
-export function AnularSolicitudBoton({ id, numero }: { id: string; numero: string }) {
+// Separado de AprobarRechazarBotones porque aplica en cualquier momento
+// del ciclo de vida: antes de estar aprobada, anular equivale a borrar y
+// lo puede usar cualquiera; ya aprobada, solo el aprobador del área (en
+// ese caso no se borra, queda registrada como ANULADO).
+export function AnularSolicitudBoton({
+  id,
+  numero,
+  redirectTo,
+}: {
+  id: string;
+  numero: string;
+  /** Solo se usa en la página de detalle: si la solicitud aún no estaba aprobada, anular la borra, así que no queda nada que refrescar. */
+  redirectTo?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function handleAnular() {
     const comentario = prompt(`Motivo de la anulación de ${numero} (opcional):`);
     if (comentario === null) return;
-    if (!confirm(`¿Anular la solicitud ${numero}? Ya no podrá jalarse hacia ninguna orden.`)) return;
+    if (!confirm(`¿Anular la solicitud ${numero}?`)) return;
     startTransition(async () => {
       const resultado = await anularSolicitudPedidoAction(id, comentario);
       if (resultado?.error) {
@@ -75,7 +84,11 @@ export function AnularSolicitudBoton({ id, numero }: { id: string; numero: strin
         return;
       }
       toast.success(`Solicitud ${numero} anulada`);
-      router.refresh();
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.refresh();
+      }
     });
   }
 
