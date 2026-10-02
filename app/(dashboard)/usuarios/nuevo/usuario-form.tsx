@@ -32,6 +32,7 @@ export function UsuarioForm() {
       apellidos: "",
       email: "",
       telefono: "",
+      cargo: "",
       password: generarPassword(),
       tipoRol: "REGULAR",
       area: "PRODUCCION",
@@ -92,6 +93,14 @@ export function UsuarioForm() {
           <div className="space-y-2">
             <Label htmlFor="telefono">Teléfono (opcional)</Label>
             <Input id="telefono" {...form.register("telefono")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cargo">Cargo (opcional)</Label>
+            <Input id="cargo" placeholder="p. ej. Gerente de Producción" {...form.register("cargo")} />
+            <p className="text-xs text-muted-foreground">
+              Aparece junto a su nombre en el PDF de las solicitudes/órdenes que apruebe.
+            </p>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

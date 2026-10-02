@@ -127,6 +127,9 @@ model Usuario {
   apellidos      String
   email          String       @unique
   telefono       String?
+  // Cargo/puesto (p. ej. "Gerente de Producción"), mostrado junto al
+  // nombre en el PDF de Solped/OC/OS cuando este usuario aprueba una.
+  cargo          String?
   // Área a la que pertenece (Producción, RRHH, etc.). Nulo = sin
   // restricción de área (p. ej. un ADMIN, o el usuario creado manualmente
   // antes de que existiera este campo). Se usa para que las listas de

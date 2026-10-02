@@ -7,6 +7,9 @@ export const crearUsuarioSchema = z.object({
   apellidos: z.string().min(1, "Los apellidos son obligatorios"),
   email: z.string().email("Correo inválido"),
   telefono: z.string().optional().or(z.literal("")),
+  // Cargo/puesto (p. ej. "Gerente de Producción"). Se muestra en el PDF de
+  // Solped/OC/OS cuando este usuario la aprueba.
+  cargo: z.string().optional().or(z.literal("")),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
   tipoRol: z.enum(["REGULAR", "APROBADOR"], { required_error: "Selecciona el rol" }),
   // Área del usuario: acota lo que ve en Solicitudes de pedido y Órdenes de

@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { dibujarMarcaDeAguaDraft } from "./marca-agua";
+import { dibujarFirmaAprobacion } from "./firma-aprobacion";
 
 const AZUL = rgb(0.11, 0.29, 0.63);
 const GRIS = rgb(0.4, 0.4, 0.4);
@@ -36,6 +37,7 @@ export async function generarOrdenCompraPdf({
   igv,
   montoTotal,
   aprobado,
+  aprobadoPor,
 }: {
   nombreDocumento: string;
   numero: string;
@@ -50,6 +52,8 @@ export async function generarOrdenCompraPdf({
   // Mientras no esté aprobada (pendiente de VB, rechazada, borrador), se
   // marca el PDF como borrador. Desaparece en cuanto queda APROBADO.
   aprobado: boolean;
+  // Nombre (y cargo) de quien aprobó; se muestra al pie solo si aprobado=true.
+  aprobadoPor?: { nombre: string; cargo: string | null } | null;
 }): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -160,6 +164,7 @@ export async function generarOrdenCompraPdf({
   filaTotal("TOTAL:", moneyFmt(montoTotal), true);
 
   if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
+  if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
 
   return pdfDoc.save();
 }

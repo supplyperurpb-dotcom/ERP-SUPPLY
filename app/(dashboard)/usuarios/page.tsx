@@ -50,6 +50,7 @@ export default async function UsuariosPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
+              <TableHead>Cargo</TableHead>
               <TableHead>Correo</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Área que aprueba</TableHead>
@@ -65,6 +66,7 @@ export default async function UsuariosPage() {
                   <TableCell className="font-medium">
                     {usuario.nombres} {usuario.apellidos}
                   </TableCell>
+                  <TableCell>{usuario.cargo ?? "—"}</TableCell>
                   <TableCell>{usuario.email}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

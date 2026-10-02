@@ -22,7 +22,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, telefono, password, tipoRol, area } = parsed.data;
+  const { nombres, apellidos, email, telefono, cargo, password, tipoRol, area } = parsed.data;
 
   const quienCrea = await getUsuarioActual();
   if (!quienCrea || !quienCrea.roles.includes("ADMIN")) {
@@ -52,6 +52,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
         apellidos,
         email,
         telefono: telefono || null,
+        cargo: cargo || null,
         area,
       },
     });

@@ -14,9 +14,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "No se encontró la solicitud de pedido." }, { status: 404 });
   }
 
-  const solicitante = solicitud.solicitanteId
-    ? await prisma.usuario.findUnique({ where: { id: solicitud.solicitanteId } })
-    : null;
+  const [solicitante, aprobador] = await Promise.all([
+    solicitud.solicitanteId ? prisma.usuario.findUnique({ where: { id: solicitud.solicitanteId } }) : null,
+    solicitud.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: solicitud.aprobadoPorId } }) : null,
+  ]);
 
   const bytes = await generarSolicitudPedidoPdf({
     nombreDocumento: NOMBRE_SOLICITUD[solicitud.categoria as CategoriaCompraCodigo],
@@ -36,6 +37,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       observaciones: item.observaciones,
     })),
     aprobado: solicitud.estado === "APROBADO",
+    aprobadoPor: aprobador ? { nombre: `${aprobador.nombres} ${aprobador.apellidos}`, cargo: aprobador.cargo } : null,
   });
 
   return new NextResponse(new Uint8Array(bytes), {

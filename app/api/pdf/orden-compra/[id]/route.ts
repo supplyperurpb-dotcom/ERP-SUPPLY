@@ -14,6 +14,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "No se encontró la orden de compra." }, { status: 404 });
   }
 
+  const aprobador = orden.aprobadoPorId ? await prisma.usuario.findUnique({ where: { id: orden.aprobadoPorId } }) : null;
+
   const bytes = await generarOrdenCompraPdf({
     nombreDocumento: NOMBRE_ORDEN[orden.categoria as CategoriaCompraCodigo],
     numero: orden.numero,
@@ -35,6 +37,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     igv: Number(orden.igv),
     montoTotal: Number(orden.montoTotal),
     aprobado: orden.estado === "APROBADO",
+    aprobadoPor: aprobador ? { nombre: `${aprobador.nombres} ${aprobador.apellidos}`, cargo: aprobador.cargo } : null,
   });
 
   return new NextResponse(new Uint8Array(bytes), {
