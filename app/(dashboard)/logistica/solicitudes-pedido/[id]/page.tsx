@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
+import { AprobarRechazarBotones } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD } from "@/lib/constants/compras";
 import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -50,6 +53,17 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
 
   if (!solicitud) notFound();
 
+  const [usuario, aprobadores, aprobador] = await Promise.all([
+    getUsuarioActual(),
+    obtenerAprobadoresArea(),
+    solicitud.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: solicitud.aprobadoPorId } }) : null,
+  ]);
+  const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
+  const puedeAprobar =
+    solicitud.estado === "PENDIENTE" &&
+    !!usuario &&
+    puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -57,6 +71,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
         descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
         acciones={
           <div className="flex gap-2">
+            {puedeAprobar && <AprobarRechazarBotones id={solicitud.id} numero={solicitud.numero} />}
             <Button variant="outline" asChild>
               <a href={`/api/pdf/solicitud-pedido/${solicitud.id}`} target="_blank" rel="noopener noreferrer">
                 <FileDown className="mr-2 h-4 w-4" />
@@ -101,10 +116,25 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
               {TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad}
             </p>
           </div>
+          {aprobador && solicitud.fechaAprobacion && (
+            <div>
+              <p className="text-muted-foreground">{solicitud.estado === "RECHAZADO" ? "Rechazado por" : "Aprobado por"}</p>
+              <p className="font-medium">
+                {aprobador.nombres} {aprobador.apellidos}
+              </p>
+              <p className="text-xs text-muted-foreground">{formatDateTime(solicitud.fechaAprobacion)}</p>
+            </div>
+          )}
           {solicitud.justificacion && (
             <div className="sm:col-span-2 lg:col-span-4">
               <p className="text-muted-foreground">Justificación</p>
               <p className="font-medium">{solicitud.justificacion}</p>
+            </div>
+          )}
+          {solicitud.comentarioRechazo && (
+            <div className="sm:col-span-2 lg:col-span-4">
+              <p className="text-muted-foreground">Motivo del rechazo</p>
+              <p className="font-medium">{solicitud.comentarioRechazo}</p>
             </div>
           )}
         </CardContent>

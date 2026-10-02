@@ -298,7 +298,7 @@ enum TipoNecesidad {
 
 model SolicitudPedido {
   id             String          @id @default(cuid())
-  numero         String          @unique // serie-número interno, ej. SP-0001
+  numero         String          @unique // serie-número interno, ej. SP-000000001
   solicitanteId  String?
   area           AreaEmpresa
   estado         EstadoDocumento @default(BORRADOR)
@@ -307,12 +307,32 @@ model SolicitudPedido {
   tipoNecesidad  TipoNecesidad   @default(ESTANDAR)
   justificacion  String?
   creadoPorId    String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  // Decisión de aprobación: la toma el usuario configurado en AprobadorArea
+  // para el área de la solicitud (o un ADMIN). Solo las solicitudes
+  // APROBADO pueden jalarse hacia una Orden de Compra (ver
+  // calcularSolicitudesConPendientes en lib/compras.ts).
+  aprobadoPorId     String?
+  fechaAprobacion   DateTime?
+  comentarioRechazo String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   items SolicitudPedidoItem[]
 
   @@map("solicitudes_pedido")
+}
+
+// Usuario responsable de aprobar las solicitudes de pedido de un área
+// (p. ej. el Gerente de Producción aprueba las de PRODUCCION). Un área
+// tiene como máximo un aprobador configurado a la vez.
+model AprobadorArea {
+  id        String      @id @default(cuid())
+  area      AreaEmpresa @unique
+  usuarioId String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@map("aprobadores_area")
 }
 
 model SolicitudPedidoItem {

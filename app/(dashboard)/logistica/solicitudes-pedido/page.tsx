@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList, Plus, FileDown, Settings } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
@@ -7,9 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
+import { AprobarRechazarBotones } from "./aprobar-rechazar-botones";
 import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD } from "@/lib/constants/compras";
 import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -29,24 +32,41 @@ const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secon
 };
 
 export default async function SolicitudesPedidoPage() {
-  const solicitudes = await prisma.solicitudPedido.findMany({
-    include: { _count: { select: { items: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [solicitudes, usuario, aprobadores] = await Promise.all([
+    prisma.solicitudPedido.findMany({
+      include: { _count: { select: { items: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    getUsuarioActual(),
+    obtenerAprobadoresArea(),
+  ]);
+
+  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
+  const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
 
   return (
     <div>
       <PageHeader
         titulo="Solicitudes de pedido"
-        descripcion="Solicitudes internas de compra de insumos y materiales, punto de partida del flujo de abastecimiento hacia las órdenes de compra."
+        descripcion="Solicitudes internas de compra de insumos y materiales, punto de partida del flujo de abastecimiento hacia las órdenes de compra. Solo las solicitudes aprobadas por el responsable del área pueden jalarse hacia una orden de compra."
         acciones={
-          <Button asChild>
-            <Link href="/logistica/solicitudes-pedido/nuevo">
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva solicitud
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            {esAdmin && (
+              <Button variant="outline" asChild>
+                <Link href="/logistica/solicitudes-pedido/aprobadores">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Aprobadores por área
+                </Link>
+              </Button>
+            )}
+            <Button asChild>
+              <Link href="/logistica/solicitudes-pedido/nuevo">
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva solicitud
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -71,32 +91,51 @@ export default async function SolicitudesPedidoPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {solicitudes.map((solicitud) => (
-              <TableRow key={solicitud.id}>
-                <TableCell className="font-medium">{solicitud.numero}</TableCell>
-                <TableCell>{AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area}</TableCell>
-                <TableCell>
-                  {TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad}
-                </TableCell>
-                <TableCell>{formatDate(solicitud.fecha)}</TableCell>
-                <TableCell>{formatDate(solicitud.fechaNecesidad)}</TableCell>
-                <TableCell>
-                  <Badge variant={ESTADO_VARIANT[solicitud.estado]}>{ESTADO_LABEL[solicitud.estado]}</Badge>
-                </TableCell>
-                <TableCell className="text-right">{solicitud._count.items}</TableCell>
-                <TableCell className="flex justify-end gap-1">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/logistica/solicitudes-pedido/${solicitud.id}`}>Ver</Link>
-                  </Button>
-                  <EliminarMovimientoButton
-                    id={solicitud.id}
-                    numero={solicitud.numero}
-                    etiqueta="la solicitud"
-                    accion={eliminarSolicitudPedidoAction}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+            {solicitudes.map((solicitud) => {
+              const puedeAprobar =
+                solicitud.estado === "PENDIENTE" &&
+                !!usuario &&
+                puedeAprobarSolicitud({
+                  usuarioId: usuario.id,
+                  roles: usuario.roles,
+                  area: solicitud.area,
+                  aprobadoresPorArea,
+                });
+              return (
+                <TableRow key={solicitud.id}>
+                  <TableCell className="font-medium">{solicitud.numero}</TableCell>
+                  <TableCell>{AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area}</TableCell>
+                  <TableCell>
+                    {TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad}
+                  </TableCell>
+                  <TableCell>{formatDate(solicitud.fecha)}</TableCell>
+                  <TableCell>{formatDate(solicitud.fechaNecesidad)}</TableCell>
+                  <TableCell>
+                    <Badge variant={ESTADO_VARIANT[solicitud.estado]}>{ESTADO_LABEL[solicitud.estado]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{solicitud._count.items}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {puedeAprobar && <AprobarRechazarBotones id={solicitud.id} numero={solicitud.numero} />}
+                      <Button variant="outline" size="sm" asChild title="Vista previa en PDF">
+                        <a href={`/api/pdf/solicitud-pedido/${solicitud.id}`} target="_blank" rel="noopener noreferrer">
+                          <FileDown className="h-4 w-4" />
+                        </a>
+                      </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/logistica/solicitudes-pedido/${solicitud.id}`}>Ver</Link>
+                      </Button>
+                      <EliminarMovimientoButton
+                        id={solicitud.id}
+                        numero={solicitud.numero}
+                        etiqueta="la solicitud"
+                        accion={eliminarSolicitudPedidoAction}
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

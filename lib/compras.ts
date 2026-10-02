@@ -1,5 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { ROLES, type RolNombre } from "@/lib/auth/constants";
+import type { AreaEmpresaCodigo } from "@/lib/constants/compras";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -33,8 +35,10 @@ export type SolicitudConPendientes = {
 // solicitada - jalada. Solo se listan solicitudes con al menos un item con
 // pendiente > 0, y solo esos items (los ya completados no aparecen).
 export async function calcularSolicitudesConPendientes(db: Db = prisma): Promise<SolicitudConPendientes[]> {
+  // Solo las solicitudes APROBADAS pueden jalarse hacia una OC: las que
+  // están en borrador/pendiente de aprobación o fueron rechazadas, no.
   const solicitudes = await db.solicitudPedido.findMany({
-    where: { estado: { notIn: ["RECHAZADO", "ANULADO"] } },
+    where: { estado: "APROBADO" },
     include: { items: { include: { sku: true } } },
     orderBy: { fecha: "asc" },
   });
@@ -90,13 +94,66 @@ export async function calcularSolicitudesConPendientes(db: Db = prisma): Promise
 
 // Pendiente de UN item puntual, usado para validar en el momento de guardar
 // una OC (dentro de la misma transacción, para evitar condiciones de
-// carrera entre dos personas jalando el mismo item a la vez).
+// carrera entre dos personas jalando el mismo item a la vez). Devuelve 0 si
+// la solicitud dueña del item no está APROBADA (no se puede jalar algo
+// pendiente de aprobación o rechazado), mismo criterio que
+// calcularSolicitudesConPendientes.
 export async function cantidadPendiente(solicitudPedidoItemId: string, db: Db = prisma): Promise<number> {
-  const item = await db.solicitudPedidoItem.findUnique({ where: { id: solicitudPedidoItemId } });
-  if (!item) return 0;
+  const item = await db.solicitudPedidoItem.findUnique({
+    where: { id: solicitudPedidoItemId },
+    include: { solicitudPedido: true },
+  });
+  if (!item || item.solicitudPedido.estado !== "APROBADO") return 0;
   const jalado = await db.ordenCompraItem.aggregate({
     where: { solicitudPedidoItemId, ordenCompra: { estado: { notIn: ["RECHAZADO", "ANULADO"] } } },
     _sum: { cantidad: true },
   });
   return Number(item.cantidad) - Number(jalado._sum.cantidad ?? 0);
+}
+
+export type AprobadorAreaInfo = {
+  area: AreaEmpresaCodigo;
+  usuarioId: string;
+  nombre: string;
+  email: string;
+};
+
+// Mapa área -> usuario responsable de aprobar las solicitudes de pedido de
+// esa área (p. ej. el Gerente de Producción aprueba las de PRODUCCION).
+export async function obtenerAprobadoresArea(db: Db = prisma): Promise<AprobadorAreaInfo[]> {
+  const aprobadores = await db.aprobadorArea.findMany();
+  if (aprobadores.length === 0) return [];
+  const usuarios = await db.usuario.findMany({
+    where: { id: { in: aprobadores.map((a) => a.usuarioId) } },
+  });
+  const usuarioPorId = new Map(usuarios.map((u) => [u.id, u]));
+  return aprobadores
+    .map((a) => {
+      const usuario = usuarioPorId.get(a.usuarioId);
+      if (!usuario) return null;
+      return {
+        area: a.area as AreaEmpresaCodigo,
+        usuarioId: usuario.id,
+        nombre: `${usuario.nombres} ${usuario.apellidos}`,
+        email: usuario.email,
+      };
+    })
+    .filter((a): a is AprobadorAreaInfo => a !== null);
+}
+
+// Un ADMIN puede aprobar/rechazar cualquier solicitud; cualquier otro
+// usuario solo puede hacerlo si es el aprobador configurado para esa área.
+export function puedeAprobarSolicitud({
+  usuarioId,
+  roles,
+  area,
+  aprobadoresPorArea,
+}: {
+  usuarioId: string;
+  roles: RolNombre[];
+  area: string;
+  aprobadoresPorArea: Map<string, string>;
+}): boolean {
+  if (roles.includes(ROLES.ADMIN)) return true;
+  return aprobadoresPorArea.get(area) === usuarioId;
 }

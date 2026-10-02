@@ -38,3 +38,18 @@ export const ordenCompraSchema = z.object({
 });
 
 export type OrdenCompraInput = z.infer<typeof ordenCompraSchema>;
+
+export const aprobadoresAreaSchema = z.object({
+  asignaciones: z.array(
+    z.object({
+      area: z.enum(AREAS),
+      usuarioId: z.string().min(1, "Selecciona un usuario"),
+    })
+  ),
+});
+
+export type AprobadoresAreaInput = z.infer<typeof aprobadoresAreaSchema>;
+
+export const rechazarSolicitudPedidoSchema = z.object({
+  comentario: z.string().max(500).optional().or(z.literal("")),
+});
