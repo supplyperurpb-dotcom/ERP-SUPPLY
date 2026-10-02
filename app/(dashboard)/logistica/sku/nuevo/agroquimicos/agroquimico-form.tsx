@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SUBFAMILIAS_AGROQUIMICO, TIPOS_AGROQUIMICO, letrasSubfamiliaAgroquimico } from "@/lib/constants/sku";
+import { SUBFAMILIAS_AGROQUIMICO, TIPOS_AGROQUIMICO } from "@/lib/constants/sku";
 import { UNIDADES_MEDIDA } from "@/lib/validations/sku";
 import { skuAgroquimicoSchema, type SkuAgroquimicoInput } from "@/lib/validations/sku";
 import { crearSkuAgroquimicoAction } from "@/lib/actions/sku-actions";
@@ -35,8 +35,8 @@ export function AgroquimicoForm() {
   const campos = form.watch();
   const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === campos.tipo);
   const prefijo = useMemo(
-    () => `${campos.noValorado ? "NV" : ""}${tipoInfo?.prefijo ?? ""}${letrasSubfamiliaAgroquimico(campos.subfamilia ?? "")}`,
-    [campos.noValorado, tipoInfo, campos.subfamilia]
+    () => `${campos.noValorado ? "NV" : ""}${tipoInfo?.prefijo ?? ""}`,
+    [campos.noValorado, tipoInfo]
   );
   const descripcionPreview = useMemo(
     () => [campos.producto, campos.activo, campos.clasificacion].map((v) => v?.trim()).filter(Boolean).join(" "),
@@ -67,7 +67,7 @@ export function AgroquimicoForm() {
         <CardHeader>
           <CardTitle className="text-base">Agroquímicos, Fertilizantes y Ósmosis</CardTitle>
           <p className="text-sm text-muted-foreground">
-            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo de esa combinación.
+            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (6 dígitos) de ese tipo.
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">

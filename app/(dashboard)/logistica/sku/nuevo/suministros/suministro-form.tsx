@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SUBFAMILIAS_SUMINISTROS, dosLetras } from "@/lib/constants/sku";
+import { SUBFAMILIAS_SUMINISTROS } from "@/lib/constants/sku";
 import { UNIDADES_MEDIDA } from "@/lib/validations/sku";
 import { skuSuministroSchema, type SkuSuministroInput } from "@/lib/validations/sku";
 import { crearSkuSuministroAction } from "@/lib/actions/sku-actions";
@@ -35,7 +35,6 @@ export function SuministroForm() {
   });
 
   const campos = form.watch();
-  const prefijo = useMemo(() => `SU${dosLetras(campos.subfamilia ?? "")}`, [campos.subfamilia]);
   const descripcionPreview = useMemo(
     () =>
       [campos.producto, campos.material, campos.marca, campos.medida, campos.destinoDescripcion, campos.codigoParte, campos.color, campos.presentacion]
@@ -69,7 +68,7 @@ export function SuministroForm() {
         <CardHeader>
           <CardTitle className="text-base">Suministros</CardTitle>
           <p className="text-sm text-muted-foreground">
-            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo de esa subfamilia.
+            El código se arma solo: <strong>SU</strong> + el siguiente correlativo (6 dígitos).
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">

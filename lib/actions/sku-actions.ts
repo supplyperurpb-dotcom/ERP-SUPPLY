@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { dosLetras, letrasSubfamiliaAgroquimico, TIPOS_AGROQUIMICO, type TipoAgroquimicoCodigo } from "@/lib/constants/sku";
+import { TIPOS_AGROQUIMICO, type TipoAgroquimicoCodigo } from "@/lib/constants/sku";
 import {
   skuSchema,
   skuSuministroSchema,
@@ -19,11 +19,8 @@ export type SkuActionState = { error?: string; success?: boolean } | undefined;
 export type SkuCreacionState = { error?: string; id?: string; codigo?: string } | undefined;
 
 // ---------------------------------------------------------------------
-// Suministros: SU + 2 primeras letras de la subfamilia + correlativo
-// (p. ej. SUAB0001 para "Abarrotes"). El correlativo es propio de cada
-// prefijo completo (no de la subfamilia en sí), así que dos subfamilias
-// que compartan sus 2 primeras letras comparten también la serie — es la
-// única forma de garantizar que el código final nunca se repita.
+// Suministros: SU + correlativo de 6 dígitos. Una sola serie para toda la
+// categoría, no depende de la subfamilia.
 // ---------------------------------------------------------------------
 export async function crearSkuSuministroAction(data: SkuSuministroInput): Promise<SkuCreacionState> {
   const parsed = skuSuministroSchema.safeParse(data);
@@ -38,14 +35,14 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
     .filter((v): v is string => !!v)
     .join(" ");
 
-  const prefijo = `SU${dosLetras(subfamilia)}`;
+  const prefijo = "SU";
 
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoSku = await prisma.$transaction(async (tx) => {
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
-      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
+      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 6);
 
       return tx.sku.create({
         data: {
@@ -70,9 +67,9 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
 
 // ---------------------------------------------------------------------
 // Agroquímicos, Fertilizantes y Ósmosis: (NV si no valorado) + AG/FE/OS
-// + 2 primeras letras de la subfamilia + correlativo. "NV" y la versión
-// valorada llevan series de correlativos independientes (son prefijos de
-// código distintos), por eso a veces coinciden en número y a veces no.
+// según el tipo + correlativo de 6 dígitos. Una sola serie por tipo (no
+// depende de la subfamilia); "NV" lleva su propia serie, independiente de
+// la versión valorada del mismo tipo.
 // ---------------------------------------------------------------------
 export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Promise<SkuCreacionState> {
   const parsed = skuAgroquimicoSchema.safeParse(data);
@@ -89,14 +86,14 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
     .filter((v): v is string => !!v)
     .join(" ");
 
-  const prefijo = `${noValorado ? "NV" : ""}${tipoInfo.prefijo}${letrasSubfamiliaAgroquimico(subfamilia)}`;
+  const prefijo = `${noValorado ? "NV" : ""}${tipoInfo.prefijo}`;
 
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoSku = await prisma.$transaction(async (tx) => {
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
-      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
+      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 6);
 
       return tx.sku.create({
         data: {
