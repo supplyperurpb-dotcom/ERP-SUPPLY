@@ -50,8 +50,16 @@ export type TipoAgroquimicoCodigo = (typeof TIPOS_AGROQUIMICO)[number]["valor"];
 // (clasificación; no entra en el código).
 export const SUBFAMILIAS_AGROQUIMICO = ["Bioestimulante"] as const;
 
-// Clasificaciones adicionales vistas en el catálogo (p. ej. "ORGANICO").
-export const CLASIFICACIONES_AGROQUIMICO = ["ORGANICO"] as const;
+// Clasificación: orgánico o convencional.
+export const CLASIFICACIONES_AGROQUIMICO = ["Orgánico", "Convencional"] as const;
+
+// Unidades de medida permitidas para Agroquímicos, Fertilizantes y Ósmosis
+// (subconjunto del catálogo SUNAT compartido en lib/validations/sku.ts).
+export const UNIDADES_MEDIDA_AGROQUIMICO = [
+  { codigo: "LTR", nombre: "Litro" },
+  { codigo: "KGM", nombre: "Kilogramo" },
+  { codigo: "UND", nombre: "Unidad" },
+] as const;
 
 // Subfamilias de Servicios: lista abierta (sugerencias), el código de
 // Servicios no depende de la subfamilia — ver crearSkuServicioAction.

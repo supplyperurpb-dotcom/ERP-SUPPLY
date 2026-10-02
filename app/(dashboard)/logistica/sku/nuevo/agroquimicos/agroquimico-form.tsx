@@ -11,8 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SUBFAMILIAS_AGROQUIMICO, TIPOS_AGROQUIMICO } from "@/lib/constants/sku";
-import { UNIDADES_MEDIDA } from "@/lib/validations/sku";
+import { CLASIFICACIONES_AGROQUIMICO, SUBFAMILIAS_AGROQUIMICO, TIPOS_AGROQUIMICO, UNIDADES_MEDIDA_AGROQUIMICO } from "@/lib/constants/sku";
 import { skuAgroquimicoSchema, type SkuAgroquimicoInput } from "@/lib/validations/sku";
 import { crearSkuAgroquimicoAction } from "@/lib/actions/sku-actions";
 
@@ -26,7 +25,7 @@ export function AgroquimicoForm() {
       subfamilia: SUBFAMILIAS_AGROQUIMICO[0],
       producto: "",
       activo: "",
-      clasificacion: "",
+      clasificacion: CLASIFICACIONES_AGROQUIMICO[0],
       noValorado: false,
       unidadMedida: "LTR",
     },
@@ -130,8 +129,25 @@ export function AgroquimicoForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clasificacion">Clasificación (opcional)</Label>
-            <Input id="clasificacion" placeholder="Ej. ORGANICO" {...form.register("clasificacion")} />
+            <Label>Clasificación</Label>
+            <Controller
+              control={form.control}
+              name="clasificacion"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CLASIFICACIONES_AGROQUIMICO.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           <div className="space-y-2">
@@ -145,7 +161,7 @@ export function AgroquimicoForm() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {UNIDADES_MEDIDA.map((u) => (
+                    {UNIDADES_MEDIDA_AGROQUIMICO.map((u) => (
                       <SelectItem key={u.codigo} value={u.codigo}>
                         {u.codigo} — {u.nombre}
                       </SelectItem>
