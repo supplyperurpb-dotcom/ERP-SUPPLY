@@ -131,7 +131,12 @@ export function OrdenCompraForm({
         return;
       }
       toast.success("Orden de compra registrada");
-      router.push(resultado?.id ? `/logistica/ordenes-compra/${resultado.id}` : "/logistica/ordenes-compra");
+      if (resultado?.id) {
+        window.open(`/api/pdf/orden-compra/${resultado.id}`, "_blank");
+        router.push(`/logistica/ordenes-compra/${resultado.id}`);
+      } else {
+        router.push("/logistica/ordenes-compra");
+      }
     } catch (err) {
       console.error("Error al guardar la orden de compra:", err);
       const detalle = err instanceof Error ? err.message : String(err);

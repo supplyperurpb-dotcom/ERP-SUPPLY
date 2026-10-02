@@ -20,7 +20,7 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
 
     const nuevaSolicitud = await prisma.$transaction(async (tx) => {
       const existentes = await tx.solicitudPedido.findMany({ select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((s) => s.numero), "SP-");
+      const numero = siguienteNumero(existentes.map((s) => s.numero), "SP-", 9);
 
       const solicitud = await tx.solicitudPedido.create({
         data: {

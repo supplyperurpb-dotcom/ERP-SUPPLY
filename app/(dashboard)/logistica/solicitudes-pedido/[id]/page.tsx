@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
@@ -54,13 +56,21 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
         titulo={`Solicitud ${solicitud.numero}`}
         descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
         acciones={
-          <EliminarMovimientoButton
-            id={solicitud.id}
-            numero={solicitud.numero}
-            etiqueta="la solicitud"
-            accion={eliminarSolicitudPedidoAction}
-            redirectTo="/logistica/solicitudes-pedido"
-          />
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <a href={`/api/pdf/solicitud-pedido/${solicitud.id}`} target="_blank" rel="noopener noreferrer">
+                <FileDown className="mr-2 h-4 w-4" />
+                Descargar PDF
+              </a>
+            </Button>
+            <EliminarMovimientoButton
+              id={solicitud.id}
+              numero={solicitud.numero}
+              etiqueta="la solicitud"
+              accion={eliminarSolicitudPedidoAction}
+              redirectTo="/logistica/solicitudes-pedido"
+            />
+          </div>
         }
       />
 

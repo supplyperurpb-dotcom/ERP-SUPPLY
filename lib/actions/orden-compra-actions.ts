@@ -57,7 +57,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
       }
 
       const existentes = await tx.ordenCompra.findMany({ select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((o) => o.numero), "OC-");
+      const numero = siguienteNumero(existentes.map((o) => o.numero), "OC-", 9);
 
       const orden = await tx.ordenCompra.create({
         data: {

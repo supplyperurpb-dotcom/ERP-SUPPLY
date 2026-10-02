@@ -55,7 +55,12 @@ export function SolicitudPedidoForm({ skus }: { skus: SkuOpcion[] }) {
       return;
     }
     toast.success("Solicitud registrada");
-    router.push(resultado?.id ? `/logistica/solicitudes-pedido/${resultado.id}` : "/logistica/solicitudes-pedido");
+    if (resultado?.id) {
+      window.open(`/api/pdf/solicitud-pedido/${resultado.id}`, "_blank");
+      router.push(`/logistica/solicitudes-pedido/${resultado.id}`);
+    } else {
+      router.push("/logistica/solicitudes-pedido");
+    }
   }
 
   return (
