@@ -44,7 +44,18 @@ export default async function SolicitudesPedidoPage() {
 
   const solicitudes = await prisma.solicitudPedido.findMany({
     where: areaUsuario ? { area: areaUsuario as AreaEmpresa } : undefined,
-    include: { _count: { select: { items: true } } },
+    include: {
+      _count: { select: { items: true } },
+      items: {
+        select: {
+          cantidad: true,
+          ordenCompraItems: {
+            where: { ordenCompra: { estado: { notIn: ["RECHAZADO", "ANULADO"] } } },
+            select: { cantidad: true },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
@@ -118,6 +129,10 @@ export default async function SolicitudesPedidoPage() {
                 solicitud.estado === "APROBADO"
                   ? tienePermisoArea
                   : solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
+              const tienePendiente = solicitud.items.some((item) => {
+                const jalado = item.ordenCompraItems.reduce((acc, oci) => acc + Number(oci.cantidad), 0);
+                return Number(item.cantidad) - jalado > 0;
+              });
               return (
                 <TableRow key={solicitud.id}>
                   <TableCell className="font-medium">{solicitud.numero}</TableCell>
@@ -148,16 +163,28 @@ export default async function SolicitudesPedidoPage() {
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/logistica/solicitudes-pedido/${solicitud.id}`}>Ver</Link>
                       </Button>
-                      {puedeGenerarOrden && solicitud.estado === "APROBADO" && (
-                        <Button variant="outline" size="sm" asChild>
-                          <Link
-                            href={`/logistica/ordenes-compra/nuevo?categoria=${solicitud.categoria}&solicitudId=${solicitud.id}`}
+                      {puedeGenerarOrden &&
+                        solicitud.estado === "APROBADO" &&
+                        (tienePendiente ? (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link
+                              href={`/logistica/ordenes-compra/nuevo?categoria=${solicitud.categoria}&solicitudId=${solicitud.id}`}
+                            >
+                              <ShoppingCart className="mr-1 h-4 w-4" />
+                              Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled
+                            title="Ya no quedan ítems pendientes de esta solicitud para jalar a una orden"
                           >
                             <ShoppingCart className="mr-1 h-4 w-4" />
                             Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
-                          </Link>
-                        </Button>
-                      )}
+                          </Button>
+                        ))}
                     </div>
                   </TableCell>
                 </TableRow>

@@ -69,6 +69,12 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
       : solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
   // Los compradores de Supply Chain generan las OC/OS para toda la empresa.
   const puedeGenerarOrden = (usuario?.roles.includes("ADMIN") ?? false) || usuario?.area === "SUPPLY_CHAIN";
+  const tienePendiente = solicitud.items.some((item) => {
+    const jalado = item.ordenCompraItems
+      .filter((oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO")
+      .reduce((acc, oci) => acc + Number(oci.cantidad), 0);
+    return Number(item.cantidad) - jalado > 0;
+  });
 
   return (
     <div className="space-y-6">
@@ -87,16 +93,23 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                 Descargar PDF
               </a>
             </Button>
-            {puedeGenerarOrden && solicitud.estado === "APROBADO" && (
-              <Button asChild>
-                <Link
-                  href={`/logistica/ordenes-compra/nuevo?categoria=${solicitud.categoria}&solicitudId=${solicitud.id}`}
-                >
+            {puedeGenerarOrden &&
+              solicitud.estado === "APROBADO" &&
+              (tienePendiente ? (
+                <Button asChild>
+                  <Link
+                    href={`/logistica/ordenes-compra/nuevo?categoria=${solicitud.categoria}&solicitudId=${solicitud.id}`}
+                  >
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
+                  </Link>
+                </Button>
+              ) : (
+                <Button disabled title="Ya no quedan ítems pendientes de esta solicitud para jalar a una orden">
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
-                </Link>
-              </Button>
-            )}
+                </Button>
+              ))}
           </div>
         }
       />
@@ -172,7 +185,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                   <TableHead>Código</TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead className="text-right">Solicitado</TableHead>
-                  <TableHead className="text-right">Jalado</TableHead>
+                  <TableHead className="text-right">Con OC</TableHead>
                   <TableHead className="text-right">Pendiente</TableHead>
                   <TableHead>Centro de costo</TableHead>
                   <TableHead>Órdenes de compra</TableHead>
