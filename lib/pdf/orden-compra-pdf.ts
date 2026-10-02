@@ -9,7 +9,6 @@ const AZUL = rgb(0.11, 0.29, 0.63);
 const GRIS = rgb(0.35, 0.35, 0.35);
 const GRIS_CLARO = rgb(0.88, 0.88, 0.88);
 const NEGRO = rgb(0.05, 0.05, 0.05);
-const BLANCO = rgb(1, 1, 1);
 
 const ANCHO_PAGINA = 595.28; // A4 en puntos
 const ALTO_PAGINA = 841.89;
@@ -114,7 +113,7 @@ export async function generarOrdenCompraPdf({
   // ---------------------------------------------------------------------
   page.drawImage(logo, { x: MARGEN_X, y: y - logoAltura + 8, width: logoAncho, height: logoAltura });
 
-  const xDatosEmpresa = MARGEN_X + logoAncho + 14;
+  const xDatosEmpresa = MARGEN_X + logoAncho + 30;
   page.drawText("20610390341", { x: xDatosEmpresa, y, size: 10, font: bold, color: NEGRO });
   y -= 13;
   page.drawText("REITER PERUVIAN BERRY S.A", { x: xDatosEmpresa, y, size: 11, font: bold, color: NEGRO });
@@ -129,23 +128,8 @@ export async function generarOrdenCompraPdf({
   const cajaAlto = 32;
   const cajaX = ANCHO_PAGINA - MARGEN_X - cajaAncho;
   const cajaYTop = ALTO_PAGINA - 40;
-  page.drawRectangle({
-    x: cajaX,
-    y: cajaYTop - cajaAlto,
-    width: cajaAncho,
-    height: cajaAlto,
-    borderColor: NEGRO,
-    borderWidth: 1,
-    color: BLANCO,
-  });
-  page.drawLine({
-    start: { x: cajaX + 140, y: cajaYTop },
-    end: { x: cajaX + 140, y: cajaYTop - cajaAlto },
-    thickness: 1,
-    color: NEGRO,
-  });
   const tituloCaja = `${nombreDocumento.toUpperCase()} N°`;
-  page.drawText(tituloCaja, { x: cajaX + 8, y: cajaYTop - cajaAlto / 2 - 3, size: 8, font: bold, color: NEGRO });
+  page.drawText(tituloCaja, { x: cajaX, y: cajaYTop - cajaAlto / 2 - 3, size: 8, font: bold, color: NEGRO });
   const anchoNumero = bold.widthOfTextAtSize(numero, 11);
   page.drawText(numero, {
     x: cajaX + 140 + (cajaAncho - 140 - anchoNumero) / 2,
