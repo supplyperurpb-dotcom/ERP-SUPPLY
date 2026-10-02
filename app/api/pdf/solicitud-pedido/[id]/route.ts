@@ -35,6 +35,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       centroCosto: AREAS_EMPRESA.find((a) => a.valor === item.centroCosto)?.nombre ?? item.centroCosto,
       observaciones: item.observaciones,
     })),
+    aprobado: solicitud.estado === "APROBADO",
   });
 
   return new NextResponse(new Uint8Array(bytes), {

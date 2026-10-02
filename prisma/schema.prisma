@@ -121,15 +121,21 @@ enum OrigenPalletIQF {
 // =========================================================================
 
 model Usuario {
-  id             String   @id @default(cuid())
-  supabaseAuthId String   @unique
+  id             String       @id @default(cuid())
+  supabaseAuthId String       @unique
   nombres        String
   apellidos      String
-  email          String   @unique
+  email          String       @unique
   telefono       String?
-  activo         Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // Área a la que pertenece (Producción, RRHH, etc.). Nulo = sin
+  // restricción de área (p. ej. un ADMIN, o el usuario creado manualmente
+  // antes de que existiera este campo). Se usa para que las listas de
+  // Solicitudes de pedido y Órdenes de compra/servicio solo muestren los
+  // documentos de su propia área, sea o no aprobador.
+  area           AreaEmpresa?
+  activo         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   asignacionesRol AsignacionRol[]
   logsAuditoria   LogAuditoria[]
@@ -377,8 +383,14 @@ model OrdenCompra {
   igv         Decimal         @default(0) @db.Decimal(12, 2)
   montoTotal  Decimal         @default(0) @db.Decimal(12, 2)
   creadoPorId String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  // Decisión de aprobación (visto bueno): como una OC/OS puede jalar
+  // líneas de varias áreas a la vez, la aprueba un ADMIN (no hay un único
+  // aprobador de área que aplique siempre), a diferencia de SolicitudPedido.
+  aprobadoPorId     String?
+  fechaAprobacion   DateTime?
+  comentarioRechazo String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   proveedor Proveedor         @relation(fields: [proveedorId], references: [id])
   items     OrdenCompraItem[]

@@ -77,6 +77,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
           numero,
           categoria,
           proveedorId,
+          estado: "PENDIENTE",
           fecha,
           moneda,
           subtotal,
@@ -111,6 +112,68 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   } catch (e) {
     console.error("Error inesperado en crearOrdenCompraAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al guardar la orden de compra." };
+  }
+}
+
+// A diferencia de SolicitudPedido (que tiene un único área y por lo tanto
+// un único aprobador configurable), una OC/OS puede jalar líneas de varias
+// áreas a la vez, así que su visto bueno lo da un ADMIN.
+export async function aprobarOrdenCompraAction(id: string): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario || !usuario.roles.includes("ADMIN")) {
+      return { error: "Solo un administrador puede aprobar órdenes." };
+    }
+
+    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
+    if (!orden) return { error: "La orden ya no existe." };
+    if (orden.estado !== "PENDIENTE") {
+      return { error: "Solo se pueden aprobar órdenes pendientes." };
+    }
+
+    await prisma.ordenCompra.update({
+      where: { id },
+      data: { estado: "APROBADO", aprobadoPorId: usuario.id, fechaAprobacion: new Date(), comentarioRechazo: null },
+    });
+
+    revalidatePath("/logistica/ordenes-compra");
+    revalidatePath(`/logistica/ordenes-compra/${id}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en aprobarOrdenCompraAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al aprobar la orden." };
+  }
+}
+
+export async function rechazarOrdenCompraAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario || !usuario.roles.includes("ADMIN")) {
+      return { error: "Solo un administrador puede rechazar órdenes." };
+    }
+
+    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
+    if (!orden) return { error: "La orden ya no existe." };
+    if (orden.estado !== "PENDIENTE") {
+      return { error: "Solo se pueden rechazar órdenes pendientes." };
+    }
+
+    await prisma.ordenCompra.update({
+      where: { id },
+      data: {
+        estado: "RECHAZADO",
+        aprobadoPorId: usuario.id,
+        fechaAprobacion: new Date(),
+        comentarioRechazo: comentario || null,
+      },
+    });
+
+    revalidatePath("/logistica/ordenes-compra");
+    revalidatePath(`/logistica/ordenes-compra/${id}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en rechazarOrdenCompraAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al rechazar la orden." };
   }
 }
 

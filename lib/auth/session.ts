@@ -9,6 +9,10 @@ export type UsuarioActual = {
   nombres: string;
   apellidos: string;
   email: string;
+  // Área del usuario (null = sin restricción, p. ej. ADMIN o cuentas
+  // creadas antes de este campo). Acota qué Solicitudes de pedido y
+  // Órdenes de compra/servicio puede ver, sea o no aprobador.
+  area: string | null;
   roles: RolNombre[];
 };
 
@@ -35,6 +39,7 @@ export const getUsuarioActual = cache(async (): Promise<UsuarioActual | null> =>
     nombres: usuario.nombres,
     apellidos: usuario.apellidos,
     email: usuario.email,
+    area: usuario.area,
     roles: usuario.asignacionesRol.map((a) => a.rol.nombre as RolNombre),
   };
 });

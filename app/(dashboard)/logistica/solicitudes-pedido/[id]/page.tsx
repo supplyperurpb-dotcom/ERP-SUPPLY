@@ -18,9 +18,9 @@ import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente",
-  APROBADO: "Aprobado",
-  RECHAZADO: "Rechazado",
+  PENDIENTE: "Pendiente VB",
+  APROBADO: "Aprobada",
+  RECHAZADO: "Rechazada",
   ANULADO: "Anulado",
 };
 
@@ -95,7 +95,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
           <div>
-            <p className="text-muted-foreground">Estado</p>
+            <p className="text-muted-foreground">Estatus</p>
             <Badge variant={ESTADO_VARIANT[solicitud.estado]}>{ESTADO_LABEL[solicitud.estado]}</Badge>
           </div>
           <div>

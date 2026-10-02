@@ -12,14 +12,14 @@ import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea, puedeAprobarSolicitud, areasAprobadasPorUsuario } from "@/lib/compras";
-import type { EstadoDocumento } from "@prisma/client";
+import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
+import type { EstadoDocumento, AreaEmpresa } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente",
-  APROBADO: "Aprobado",
-  RECHAZADO: "Rechazado",
+  PENDIENTE: "Pendiente VB",
+  APROBADO: "Aprobada",
+  RECHAZADO: "Rechazada",
   ANULADO: "Anulado",
 };
 
@@ -36,12 +36,13 @@ export default async function SolicitudesPedidoPage() {
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
-  // Un usuario aprobador (no ADMIN) solo ve las solicitudes de su(s) área(s)
-  // configurada(s); el resto (ADMIN, usuarios regulares) ve todas.
-  const areasAprobadas = usuario && !esAdmin ? areasAprobadasPorUsuario(usuario.id, aprobadoresPorArea) : [];
+  // Todo usuario con área asignada (sea o no aprobador) solo ve las
+  // solicitudes de su propia área; solo ADMIN (o una cuenta sin área, p.
+  // ej. creada antes de este campo) ve todas.
+  const areaUsuario = usuario && !esAdmin ? usuario.area : null;
 
   const solicitudes = await prisma.solicitudPedido.findMany({
-    where: areasAprobadas.length > 0 ? { area: { in: areasAprobadas } } : undefined,
+    where: areaUsuario ? { area: areaUsuario as AreaEmpresa } : undefined,
     include: { _count: { select: { items: true } } },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -94,7 +95,7 @@ export default async function SolicitudesPedidoPage() {
               <TableHead>Tipo</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Fecha necesidad</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Estatus</TableHead>
               <TableHead className="text-right">N.º de ítems</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>

@@ -11,14 +11,14 @@ import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea, areasAprobadasPorUsuario } from "@/lib/compras";
-import type { EstadoDocumento } from "@prisma/client";
+import { AprobarRechazarOrdenBotones } from "./aprobar-rechazar-botones";
+import type { EstadoDocumento, AreaEmpresa } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente",
-  APROBADO: "Aprobado",
-  RECHAZADO: "Rechazado",
+  PENDIENTE: "Pendiente VB",
+  APROBADO: "Aprobada",
+  RECHAZADO: "Rechazada",
   ANULADO: "Anulado",
 };
 
@@ -31,16 +31,16 @@ const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secon
 };
 
 export default async function OrdenesCompraPage() {
-  const [usuario, aprobadores] = await Promise.all([getUsuarioActual(), obtenerAprobadoresArea()]);
+  const usuario = await getUsuarioActual();
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
-  const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
-  // Igual que en Solicitudes de pedido: un aprobador (no ADMIN) solo ve las
-  // OC/OS que tengan al menos una línea de su(s) área(s) configurada(s).
-  const areasAprobadas = usuario && !esAdmin ? areasAprobadasPorUsuario(usuario.id, aprobadoresPorArea) : [];
+  // Igual que en Solicitudes de pedido: todo usuario con área asignada
+  // (sea o no aprobador) solo ve las OC/OS que tengan al menos una línea
+  // de su propia área; solo ADMIN ve todas.
+  const areaUsuario = usuario && !esAdmin ? usuario.area : null;
 
   const ordenes = await prisma.ordenCompra.findMany({
-    where: areasAprobadas.length > 0 ? { items: { some: { centroCosto: { in: areasAprobadas } } } } : undefined,
+    where: areaUsuario ? { items: { some: { centroCosto: areaUsuario as AreaEmpresa } } } : undefined,
     include: { proveedor: true },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -82,7 +82,7 @@ export default async function OrdenesCompraPage() {
               <TableHead>Número</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Proveedor</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Estatus</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead className="text-right">Subtotal</TableHead>
               <TableHead className="text-right">IGV</TableHead>
@@ -109,16 +109,21 @@ export default async function OrdenesCompraPage() {
                 <TableCell className="text-right font-medium">
                   {formatMoneda(orden.montoTotal.toString(), orden.moneda)}
                 </TableCell>
-                <TableCell className="flex justify-end gap-1">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/logistica/ordenes-compra/${orden.id}`}>Ver</Link>
-                  </Button>
-                  <EliminarMovimientoButton
-                    id={orden.id}
-                    numero={orden.numero}
-                    etiqueta="la orden de compra"
-                    accion={eliminarOrdenCompraAction}
-                  />
+                <TableCell>
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {esAdmin && orden.estado === "PENDIENTE" && (
+                      <AprobarRechazarOrdenBotones id={orden.id} numero={orden.numero} />
+                    )}
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/logistica/ordenes-compra/${orden.id}`}>Ver</Link>
+                    </Button>
+                    <EliminarMovimientoButton
+                      id={orden.id}
+                      numero={orden.numero}
+                      etiqueta="la orden de compra"
+                      accion={eliminarOrdenCompraAction}
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

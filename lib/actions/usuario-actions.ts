@@ -22,7 +22,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, telefono, password, tipoRol, areaAprobador } = parsed.data;
+  const { nombres, apellidos, email, telefono, password, tipoRol, area } = parsed.data;
 
   const quienCrea = await getUsuarioActual();
   if (!quienCrea || !quienCrea.roles.includes("ADMIN")) {
@@ -52,6 +52,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
         apellidos,
         email,
         telefono: telefono || null,
+        area,
       },
     });
 
@@ -60,10 +61,10 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
       data: { usuarioId: nuevoUsuario.id, rolId: rol.id, asignadoPorId: quienCrea.id },
     });
 
-    if (tipoRol === "APROBADOR" && areaAprobador) {
+    if (tipoRol === "APROBADOR") {
       await prisma.aprobadorArea.upsert({
-        where: { area: areaAprobador },
-        create: { area: areaAprobador, usuarioId: nuevoUsuario.id },
+        where: { area },
+        create: { area, usuarioId: nuevoUsuario.id },
         update: { usuarioId: nuevoUsuario.id },
       });
     }

@@ -1,6 +1,7 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { dibujarMarcaDeAguaDraft } from "./marca-agua";
 
 const AZUL = rgb(0.11, 0.29, 0.63);
 const GRIS = rgb(0.4, 0.4, 0.4);
@@ -31,6 +32,7 @@ export async function generarSolicitudPedidoPdf({
   solicitante,
   justificacion,
   lineas,
+  aprobado,
 }: {
   nombreDocumento: string;
   numero: string;
@@ -41,6 +43,10 @@ export async function generarSolicitudPedidoPdf({
   solicitante: string;
   justificacion: string | null;
   lineas: LineaSolicitudPedidoPdf[];
+  // Mientras no esté aprobada (pendiente de VB, rechazada, borrador), se
+  // marca el PDF como borrador para que no se confunda con el documento
+  // final. Desaparece en cuanto queda APROBADO.
+  aprobado: boolean;
 }): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -138,6 +144,8 @@ export async function generarSolicitudPedidoPdf({
     });
     y -= 4;
   }
+
+  if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
 
   return pdfDoc.save();
 }

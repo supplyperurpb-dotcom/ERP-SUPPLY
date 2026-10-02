@@ -163,20 +163,6 @@ export async function obtenerAprobadoresArea(db: Db = prisma): Promise<Aprobador
     .filter((a): a is AprobadorAreaInfo => a !== null);
 }
 
-// Áreas para las que un usuario es el aprobador configurado. Se usa para
-// restringir las listas de Solped/OC/OS: un usuario aprobador (no ADMIN)
-// solo debe ver documentos de sus propias áreas, no del resto.
-export function areasAprobadasPorUsuario(
-  usuarioId: string,
-  aprobadoresPorArea: Map<string, string>
-): AreaEmpresaCodigo[] {
-  const areas: AreaEmpresaCodigo[] = [];
-  for (const [area, uid] of aprobadoresPorArea) {
-    if (uid === usuarioId) areas.push(area as AreaEmpresaCodigo);
-  }
-  return areas;
-}
-
 // Un ADMIN puede aprobar/rechazar cualquier solicitud; cualquier otro
 // usuario solo puede hacerlo si es el aprobador configurado para esa área.
 export function puedeAprobarSolicitud({

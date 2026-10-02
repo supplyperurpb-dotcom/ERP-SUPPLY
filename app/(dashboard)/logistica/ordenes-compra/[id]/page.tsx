@@ -7,17 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
+import { AprobarRechazarOrdenBotones } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatMoneda } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { AREAS_EMPRESA, CATEGORIAS_COMPRA, IGV_TASA, NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { eliminarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
+import { getUsuarioActual } from "@/lib/auth/session";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente",
-  APROBADO: "Aprobado",
-  RECHAZADO: "Rechazado",
+  PENDIENTE: "Pendiente VB",
+  APROBADO: "Aprobada",
+  RECHAZADO: "Rechazada",
   ANULADO: "Anulado",
 };
 
@@ -46,6 +48,13 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
 
   if (!orden) notFound();
 
+  const [usuario, aprobador] = await Promise.all([
+    getUsuarioActual(),
+    orden.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: orden.aprobadoPorId } }) : null,
+  ]);
+  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
+  const puedeAprobar = esAdmin && orden.estado === "PENDIENTE";
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -53,6 +62,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}`}
         acciones={
           <div className="flex gap-2">
+            {puedeAprobar && <AprobarRechazarOrdenBotones id={orden.id} numero={orden.numero} />}
             <Button variant="outline" asChild>
               <a href={`/api/pdf/orden-compra/${orden.id}`} target="_blank" rel="noopener noreferrer">
                 <FileDown className="mr-2 h-4 w-4" />
@@ -76,7 +86,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
           <div>
-            <p className="text-muted-foreground">Estado</p>
+            <p className="text-muted-foreground">Estatus</p>
             <Badge variant={ESTADO_VARIANT[orden.estado]}>{ESTADO_LABEL[orden.estado]}</Badge>
           </div>
           <div>
@@ -97,6 +107,21 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
             <p className="text-muted-foreground">Moneda</p>
             <p className="font-medium">{orden.moneda}</p>
           </div>
+          {aprobador && orden.fechaAprobacion && (
+            <div>
+              <p className="text-muted-foreground">{orden.estado === "RECHAZADO" ? "Rechazada por" : "Aprobada por"}</p>
+              <p className="font-medium">
+                {aprobador.nombres} {aprobador.apellidos}
+              </p>
+              <p className="text-xs text-muted-foreground">{formatDateTime(orden.fechaAprobacion)}</p>
+            </div>
+          )}
+          {orden.comentarioRechazo && (
+            <div className="sm:col-span-2 lg:col-span-4">
+              <p className="text-muted-foreground">Motivo del rechazo</p>
+              <p className="font-medium">{orden.comentarioRechazo}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

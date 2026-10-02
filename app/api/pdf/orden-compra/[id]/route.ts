@@ -34,6 +34,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     subtotal: Number(orden.subtotal),
     igv: Number(orden.igv),
     montoTotal: Number(orden.montoTotal),
+    aprobado: orden.estado === "APROBADO",
   });
 
   return new NextResponse(new Uint8Array(bytes), {

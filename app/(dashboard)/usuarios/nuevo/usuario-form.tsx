@@ -34,6 +34,7 @@ export function UsuarioForm() {
       telefono: "",
       password: generarPassword(),
       tipoRol: "REGULAR",
+      area: "PRODUCCION",
     },
   });
 
@@ -138,37 +139,38 @@ export function UsuarioForm() {
             />
             <p className="text-xs text-muted-foreground">
               {tipoRol === "APROBADOR"
-                ? "Solo verá y podrá aprobar/rechazar las solicitudes y órdenes del área elegida abajo."
-                : "Puede crear solicitudes y órdenes, y ve todas las áreas."}
+                ? "Además de ver solo su área, podrá aprobar/rechazar las solicitudes y órdenes de esa área."
+                : "Puede crear solicitudes y órdenes, pero solo ve y gestiona las de su área."}
             </p>
           </div>
 
-          {tipoRol === "APROBADOR" && (
-            <div className="space-y-2">
-              <Label>Área que aprueba</Label>
-              <Controller
-                control={form.control}
-                name="areaAprobador"
-                render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un área" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AREAS_EMPRESA.map((a) => (
-                        <SelectItem key={a.valor} value={a.valor}>
-                          {a.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {form.formState.errors.areaAprobador && (
-                <p className="text-sm font-medium text-destructive">{form.formState.errors.areaAprobador.message}</p>
+          <div className="space-y-2">
+            <Label>Área</Label>
+            <Controller
+              control={form.control}
+              name="area"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AREAS_EMPRESA.map((a) => (
+                      <SelectItem key={a.valor} value={a.valor}>
+                        {a.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-            </div>
-          )}
+            />
+            <p className="text-xs text-muted-foreground">
+              Acota qué solicitudes y órdenes puede ver este usuario, sea o no aprobador.
+            </p>
+            {form.formState.errors.area && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.area.message}</p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
