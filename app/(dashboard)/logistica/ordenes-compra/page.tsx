@@ -10,6 +10,8 @@ import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimient
 import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { obtenerAprobadoresArea, areasAprobadasPorUsuario } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -29,7 +31,16 @@ const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secon
 };
 
 export default async function OrdenesCompraPage() {
+  const [usuario, aprobadores] = await Promise.all([getUsuarioActual(), obtenerAprobadoresArea()]);
+
+  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
+  const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
+  // Igual que en Solicitudes de pedido: un aprobador (no ADMIN) solo ve las
+  // OC/OS que tengan al menos una línea de su(s) área(s) configurada(s).
+  const areasAprobadas = usuario && !esAdmin ? areasAprobadasPorUsuario(usuario.id, aprobadoresPorArea) : [];
+
   const ordenes = await prisma.ordenCompra.findMany({
+    where: areasAprobadas.length > 0 ? { items: { some: { centroCosto: { in: areasAprobadas } } } } : undefined,
     include: { proveedor: true },
     orderBy: { createdAt: "desc" },
     take: 100,

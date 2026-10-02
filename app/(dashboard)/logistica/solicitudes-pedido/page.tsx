@@ -12,7 +12,7 @@ import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
+import { obtenerAprobadoresArea, puedeAprobarSolicitud, areasAprobadasPorUsuario } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -32,18 +32,20 @@ const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secon
 };
 
 export default async function SolicitudesPedidoPage() {
-  const [solicitudes, usuario, aprobadores] = await Promise.all([
-    prisma.solicitudPedido.findMany({
-      include: { _count: { select: { items: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
-    getUsuarioActual(),
-    obtenerAprobadoresArea(),
-  ]);
+  const [usuario, aprobadores] = await Promise.all([getUsuarioActual(), obtenerAprobadoresArea()]);
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
+  // Un usuario aprobador (no ADMIN) solo ve las solicitudes de su(s) área(s)
+  // configurada(s); el resto (ADMIN, usuarios regulares) ve todas.
+  const areasAprobadas = usuario && !esAdmin ? areasAprobadasPorUsuario(usuario.id, aprobadoresPorArea) : [];
+
+  const solicitudes = await prisma.solicitudPedido.findMany({
+    where: areasAprobadas.length > 0 ? { area: { in: areasAprobadas } } : undefined,
+    include: { _count: { select: { items: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
 
   return (
     <div>

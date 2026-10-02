@@ -78,7 +78,8 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: "Usuarios",
     icono: ShieldCheck,
     items: [
-      { titulo: "Roles", href: "/usuarios/roles", icono: Users },
+      { titulo: "Usuarios", href: "/usuarios", icono: Users },
+      { titulo: "Roles", href: "/usuarios/roles", icono: ShieldCheck },
       { titulo: "Pendientes de aprobación", href: "/usuarios/aprobaciones", icono: ShieldCheck },
     ],
   },
