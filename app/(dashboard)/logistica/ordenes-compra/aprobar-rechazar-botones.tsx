@@ -2,10 +2,14 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X } from "lucide-react";
+import { Check, X, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { aprobarOrdenCompraAction, rechazarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
+import {
+  aprobarOrdenCompraAction,
+  rechazarOrdenCompraAction,
+  anularOrdenCompraAction,
+} from "@/lib/actions/orden-compra-actions";
 
 export function AprobarRechazarOrdenBotones({ id, numero }: { id: string; numero: string }) {
   const [pending, startTransition] = useTransition();
@@ -49,5 +53,38 @@ export function AprobarRechazarOrdenBotones({ id, numero }: { id: string; numero
         Rechazar
       </Button>
     </div>
+  );
+}
+
+// Separado de AprobarRechazarOrdenBotones porque aplica en el momento
+// opuesto del ciclo de vida: rechazar mata una orden PENDIENTE, anular
+// mata una que ya estaba APROBADA (reemplaza a "eliminar" una vez
+// aprobada). A diferencia de aprobar/rechazar (solo ADMIN), anular la
+// puede usar cualquier usuario aprobador — la acción en el servidor
+// vuelve a verificar el permiso.
+export function AnularOrdenBoton({ id, numero }: { id: string; numero: string }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  function handleAnular() {
+    const comentario = prompt(`Motivo de la anulación de ${numero} (opcional):`);
+    if (comentario === null) return;
+    if (!confirm(`¿Anular ${numero}? Las cantidades jaladas volverán a quedar pendientes en sus solicitudes de origen.`)) return;
+    startTransition(async () => {
+      const resultado = await anularOrdenCompraAction(id, comentario);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`${numero} anulada`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Button variant="outline" size="sm" disabled={pending} onClick={handleAnular} className="text-destructive hover:text-destructive">
+      <Ban className="mr-1 h-4 w-4" />
+      Anular
+    </Button>
   );
 }

@@ -11,7 +11,7 @@ import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { AprobarRechazarOrdenBotones } from "./aprobar-rechazar-botones";
+import { AprobarRechazarOrdenBotones, AnularOrdenBoton } from "./aprobar-rechazar-botones";
 import type { EstadoDocumento, AreaEmpresa } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -19,7 +19,7 @@ const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   PENDIENTE: "Pendiente VB",
   APROBADO: "Aprobada",
   RECHAZADO: "Rechazada",
-  ANULADO: "Anulado",
+  ANULADO: "Anulada",
 };
 
 const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secondary"> = {
@@ -34,6 +34,7 @@ export default async function OrdenesCompraPage() {
   const usuario = await getUsuarioActual();
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
+  const puedeAnular = esAdmin || (usuario?.roles.includes("APROBADOR") ?? false);
   // Igual que en Solicitudes de pedido: todo usuario con área asignada
   // (sea o no aprobador) solo ve las OC/OS que tengan al menos una línea
   // de su propia área; solo ADMIN ve todas.
@@ -114,15 +115,20 @@ export default async function OrdenesCompraPage() {
                     {esAdmin && orden.estado === "PENDIENTE" && (
                       <AprobarRechazarOrdenBotones id={orden.id} numero={orden.numero} />
                     )}
+                    {puedeAnular && orden.estado === "APROBADO" && (
+                      <AnularOrdenBoton id={orden.id} numero={orden.numero} />
+                    )}
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/logistica/ordenes-compra/${orden.id}`}>Ver</Link>
                     </Button>
-                    <EliminarMovimientoButton
-                      id={orden.id}
-                      numero={orden.numero}
-                      etiqueta="la orden de compra"
-                      accion={eliminarOrdenCompraAction}
-                    />
+                    {(orden.estado !== "APROBADO" || esAdmin) && (
+                      <EliminarMovimientoButton
+                        id={orden.id}
+                        numero={orden.numero}
+                        etiqueta="la orden de compra"
+                        accion={eliminarOrdenCompraAction}
+                      />
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

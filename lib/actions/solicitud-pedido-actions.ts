@@ -182,6 +182,53 @@ export async function rechazarSolicitudPedidoAction(
   }
 }
 
+// Anular es distinto de rechazar: rechazar mata una solicitud que todavía
+// no se había aprobado; anular mata una que ya se había aprobado (por eso
+// reemplaza a "eliminar" una vez aprobada: ver eliminarSolicitudPedidoAction).
+// Mismo permiso que aprobar/rechazar (el aprobador del área o un ADMIN). Si
+// ya hay una OC que jaló de esta solicitud, no se puede anular.
+export async function anularSolicitudPedidoAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
+  const parsed = rechazarSolicitudPedidoSchema.safeParse({ comentario });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  try {
+    const solicitud = await prisma.solicitudPedido.findUnique({ where: { id } });
+    if (!solicitud) return { error: "La solicitud ya no existe." };
+    if (solicitud.estado !== "APROBADO") {
+      return { error: "Solo se pueden anular solicitudes ya aprobadas." };
+    }
+
+    const itemsJalados = await prisma.ordenCompraItem.count({
+      where: { solicitudPedidoItem: { solicitudPedidoId: id }, ordenCompra: { estado: { notIn: ["RECHAZADO", "ANULADO"] } } },
+    });
+    if (itemsJalados > 0) {
+      return { error: "No se puede anular: ya hay una orden de compra que jaló productos de esta solicitud." };
+    }
+
+    const permiso = await verificarPermisoAprobacion(solicitud.area);
+    if ("error" in permiso) return permiso;
+
+    await prisma.solicitudPedido.update({
+      where: { id },
+      data: {
+        estado: "ANULADO",
+        aprobadoPorId: permiso.usuarioId,
+        fechaAprobacion: new Date(),
+        comentarioRechazo: parsed.data.comentario || null,
+      },
+    });
+
+    revalidatePath("/logistica/solicitudes-pedido");
+    revalidatePath(`/logistica/solicitudes-pedido/${id}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en anularSolicitudPedidoAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al anular la solicitud." };
+  }
+}
+
 export async function configurarAprobadoresAreaAction(
   data: AprobadoresAreaInput
 ): Promise<{ error?: string } | undefined> {

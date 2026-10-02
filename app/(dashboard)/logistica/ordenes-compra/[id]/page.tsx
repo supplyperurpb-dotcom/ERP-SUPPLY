@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
-import { AprobarRechazarOrdenBotones } from "../aprobar-rechazar-botones";
+import { AprobarRechazarOrdenBotones, AnularOrdenBoton } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { AREAS_EMPRESA, CATEGORIAS_COMPRA, IGV_TASA, NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -20,7 +20,7 @@ const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   PENDIENTE: "Pendiente VB",
   APROBADO: "Aprobada",
   RECHAZADO: "Rechazada",
-  ANULADO: "Anulado",
+  ANULADO: "Anulada",
 };
 
 const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secondary"> = {
@@ -54,6 +54,8 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   ]);
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   const puedeAprobar = esAdmin && orden.estado === "PENDIENTE";
+  const puedeAnular = (esAdmin || (usuario?.roles.includes("APROBADOR") ?? false)) && orden.estado === "APROBADO";
+  const puedeEliminar = orden.estado !== "APROBADO" || esAdmin;
 
   return (
     <div className="space-y-6">
@@ -63,19 +65,22 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         acciones={
           <div className="flex gap-2">
             {puedeAprobar && <AprobarRechazarOrdenBotones id={orden.id} numero={orden.numero} />}
+            {puedeAnular && <AnularOrdenBoton id={orden.id} numero={orden.numero} />}
             <Button variant="outline" asChild>
               <a href={`/api/pdf/orden-compra/${orden.id}`} target="_blank" rel="noopener noreferrer">
                 <FileDown className="mr-2 h-4 w-4" />
                 Descargar PDF
               </a>
             </Button>
-            <EliminarMovimientoButton
-              id={orden.id}
-              numero={orden.numero}
-              etiqueta="la orden de compra"
-              accion={eliminarOrdenCompraAction}
-              redirectTo="/logistica/ordenes-compra"
-            />
+            {puedeEliminar && (
+              <EliminarMovimientoButton
+                id={orden.id}
+                numero={orden.numero}
+                etiqueta="la orden de compra"
+                accion={eliminarOrdenCompraAction}
+                redirectTo="/logistica/ordenes-compra"
+              />
+            )}
           </div>
         }
       />
@@ -109,7 +114,9 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
           </div>
           {aprobador && orden.fechaAprobacion && (
             <div>
-              <p className="text-muted-foreground">{orden.estado === "RECHAZADO" ? "Rechazada por" : "Aprobada por"}</p>
+              <p className="text-muted-foreground">
+                {orden.estado === "RECHAZADO" ? "Rechazada por" : orden.estado === "ANULADO" ? "Anulada por" : "Aprobada por"}
+              </p>
               <p className="font-medium">
                 {aprobador.nombres} {aprobador.apellidos}
               </p>
@@ -118,7 +125,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
           )}
           {orden.comentarioRechazo && (
             <div className="sm:col-span-2 lg:col-span-4">
-              <p className="text-muted-foreground">Motivo del rechazo</p>
+              <p className="text-muted-foreground">{orden.estado === "ANULADO" ? "Motivo de la anulación" : "Motivo del rechazo"}</p>
               <p className="font-medium">{orden.comentarioRechazo}</p>
             </div>
           )}

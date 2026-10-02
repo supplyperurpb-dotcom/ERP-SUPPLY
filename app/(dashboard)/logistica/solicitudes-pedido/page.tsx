@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
-import { AprobarRechazarBotones } from "./aprobar-rechazar-botones";
+import { AprobarRechazarBotones, AnularSolicitudBoton } from "./aprobar-rechazar-botones";
 import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
@@ -20,7 +20,7 @@ const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   PENDIENTE: "Pendiente VB",
   APROBADO: "Aprobada",
   RECHAZADO: "Rechazada",
-  ANULADO: "Anulado",
+  ANULADO: "Anulada",
 };
 
 const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secondary"> = {
@@ -102,8 +102,7 @@ export default async function SolicitudesPedidoPage() {
           </TableHeader>
           <TableBody>
             {solicitudes.map((solicitud) => {
-              const puedeAprobar =
-                solicitud.estado === "PENDIENTE" &&
+              const tienePermisoArea =
                 !!usuario &&
                 puedeAprobarSolicitud({
                   usuarioId: usuario.id,
@@ -111,6 +110,8 @@ export default async function SolicitudesPedidoPage() {
                   area: solicitud.area,
                   aprobadoresPorArea,
                 });
+              const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
+              const puedeAnular = solicitud.estado === "APROBADO" && tienePermisoArea;
               return (
                 <TableRow key={solicitud.id}>
                   <TableCell className="font-medium">{solicitud.numero}</TableCell>
@@ -132,6 +133,7 @@ export default async function SolicitudesPedidoPage() {
                   <TableCell>
                     <div className="flex flex-wrap justify-end gap-1">
                       {puedeAprobar && <AprobarRechazarBotones id={solicitud.id} numero={solicitud.numero} />}
+                      {puedeAnular && <AnularSolicitudBoton id={solicitud.id} numero={solicitud.numero} />}
                       <Button variant="outline" size="sm" asChild title="Vista previa en PDF">
                         <a href={`/api/pdf/solicitud-pedido/${solicitud.id}`} target="_blank" rel="noopener noreferrer">
                           <FileDown className="h-4 w-4" />

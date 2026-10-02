@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
-import { AprobarRechazarBotones } from "../aprobar-rechazar-botones";
+import { AprobarRechazarBotones, AnularSolicitudBoton } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -21,7 +21,7 @@ const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   PENDIENTE: "Pendiente VB",
   APROBADO: "Aprobada",
   RECHAZADO: "Rechazada",
-  ANULADO: "Anulado",
+  ANULADO: "Anulada",
 };
 
 const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secondary"> = {
@@ -60,10 +60,11 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
   ]);
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
-  const puedeAprobar =
-    solicitud.estado === "PENDIENTE" &&
+  const tienePermisoArea =
     !!usuario &&
     puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
+  const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
+  const puedeAnular = solicitud.estado === "APROBADO" && tienePermisoArea;
   const puedeEliminar = solicitud.estado !== "APROBADO" || esAdmin;
 
   return (
@@ -74,6 +75,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
         acciones={
           <div className="flex gap-2">
             {puedeAprobar && <AprobarRechazarBotones id={solicitud.id} numero={solicitud.numero} />}
+            {puedeAnular && <AnularSolicitudBoton id={solicitud.id} numero={solicitud.numero} />}
             <Button variant="outline" asChild>
               <a href={`/api/pdf/solicitud-pedido/${solicitud.id}`} target="_blank" rel="noopener noreferrer">
                 <FileDown className="mr-2 h-4 w-4" />
@@ -128,7 +130,9 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
           </div>
           {aprobador && solicitud.fechaAprobacion && (
             <div>
-              <p className="text-muted-foreground">{solicitud.estado === "RECHAZADO" ? "Rechazado por" : "Aprobado por"}</p>
+              <p className="text-muted-foreground">
+                {solicitud.estado === "RECHAZADO" ? "Rechazada por" : solicitud.estado === "ANULADO" ? "Anulada por" : "Aprobada por"}
+              </p>
               <p className="font-medium">
                 {aprobador.nombres} {aprobador.apellidos}
               </p>
@@ -143,7 +147,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
           )}
           {solicitud.comentarioRechazo && (
             <div className="sm:col-span-2 lg:col-span-4">
-              <p className="text-muted-foreground">Motivo del rechazo</p>
+              <p className="text-muted-foreground">{solicitud.estado === "ANULADO" ? "Motivo de la anulación" : "Motivo del rechazo"}</p>
               <p className="font-medium">{solicitud.comentarioRechazo}</p>
             </div>
           )}

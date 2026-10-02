@@ -177,8 +177,57 @@ export async function rechazarOrdenCompraAction(id: string, comentario?: string)
   }
 }
 
+// Anular es distinto de rechazar: rechazar mata una OC/OS que todavía no
+// se había aprobado; anular mata una que ya se había aprobado (por eso
+// reemplaza a "eliminar" una vez aprobada, ver eliminarOrdenCompraAction
+// más abajo). A diferencia del aprobar/rechazar de la OC (solo ADMIN,
+// porque puede mezclar varias áreas), anular está abierto a cualquier
+// usuario con rol APROBADOR, no solo ADMIN.
+export async function anularOrdenCompraAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario || !(usuario.roles.includes("ADMIN") || usuario.roles.includes("APROBADOR"))) {
+      return { error: "Solo un usuario aprobador puede anular una orden." };
+    }
+
+    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
+    if (!orden) return { error: "La orden ya no existe." };
+    if (orden.estado !== "APROBADO") {
+      return { error: "Solo se pueden anular órdenes ya aprobadas." };
+    }
+
+    await prisma.ordenCompra.update({
+      where: { id },
+      data: {
+        estado: "ANULADO",
+        aprobadoPorId: usuario.id,
+        fechaAprobacion: new Date(),
+        comentarioRechazo: comentario || null,
+      },
+    });
+
+    revalidatePath("/logistica/ordenes-compra");
+    revalidatePath(`/logistica/ordenes-compra/${id}`);
+    revalidatePath("/logistica/solicitudes-pedido");
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en anularOrdenCompraAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al anular la orden." };
+  }
+}
+
 export async function eliminarOrdenCompraAction(id: string): Promise<{ error?: string } | undefined> {
   try {
+    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
+    if (!orden) return { error: "La orden ya no existe." };
+
+    if (orden.estado === "APROBADO") {
+      const usuario = await getUsuarioActual();
+      if (!usuario || !usuario.roles.includes("ADMIN")) {
+        return { error: "Esta orden ya fue aprobada. Solo un administrador puede eliminarla." };
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.ordenCompraItem.deleteMany({ where: { ordenCompraId: id } });
       await tx.ordenCompra.delete({ where: { id } });
