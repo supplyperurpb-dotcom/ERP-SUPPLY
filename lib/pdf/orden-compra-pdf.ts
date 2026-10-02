@@ -113,29 +113,20 @@ export async function generarOrdenCompraPdf({
 
   const xDatosEmpresa = MARGEN_X + logoAncho + 30;
   page.drawText("20610390341", { x: xDatosEmpresa, y, size: 10, font: bold, color: NEGRO });
+
+  // Alineado a la derecha, a la misma altura que el RUC, con el número
+  // pegado justo después de la etiqueta (sin ancho fijo adivinado, para
+  // que nunca se encime con "REITER PERUVIAN BERRY S.A").
+  const sizeCaja = 11;
+  const tituloCaja = `${nombreDocumento.toUpperCase()} N°`;
+  const anchoNumero = bold.widthOfTextAtSize(numero, sizeCaja);
+  const xNumero = ANCHO_PAGINA - MARGEN_X - anchoNumero;
+  const anchoTitulo = bold.widthOfTextAtSize(`${tituloCaja} `, sizeCaja);
+  page.drawText(tituloCaja, { x: xNumero - anchoTitulo, y, size: sizeCaja, font: bold, color: NEGRO });
+  page.drawText(numero, { x: xNumero, y, size: sizeCaja, font: bold, color: NEGRO });
+
   y -= 13;
   page.drawText("REITER PERUVIAN BERRY S.A", { x: xDatosEmpresa, y, size: 11, font: bold, color: NEGRO });
-  y -= 25;
-  page.drawText("CENTRO", { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
-  page.drawText("CAMPO CJ ICA", { x: MARGEN_X + 85, y, size: 7, font: regular, color: NEGRO });
-  y -= 11;
-  page.drawText("DIRECCIÓN CENTRO", { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
-  page.drawText("SANTIAGO, ICA", { x: MARGEN_X + 85, y, size: 7, font: regular, color: NEGRO });
-
-  const cajaAncho = 225;
-  const cajaAlto = 32;
-  const cajaX = ANCHO_PAGINA - MARGEN_X - cajaAncho;
-  const cajaYTop = ALTO_PAGINA - 40;
-  const tituloCaja = `${nombreDocumento.toUpperCase()} N°`;
-  page.drawText(tituloCaja, { x: cajaX, y: cajaYTop - cajaAlto / 2 - 3, size: 8, font: bold, color: NEGRO });
-  const anchoNumero = bold.widthOfTextAtSize(numero, 11);
-  page.drawText(numero, {
-    x: cajaX + 140 + (cajaAncho - 140 - anchoNumero) / 2,
-    y: cajaYTop - cajaAlto / 2 - 4,
-    size: 11,
-    font: bold,
-    color: NEGRO,
-  });
 
   y -= 22;
   page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: AZUL });
