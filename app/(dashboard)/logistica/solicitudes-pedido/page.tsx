@@ -140,12 +140,14 @@ export default async function SolicitudesPedidoPage() {
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/logistica/solicitudes-pedido/${solicitud.id}`}>Ver</Link>
                       </Button>
-                      <EliminarMovimientoButton
-                        id={solicitud.id}
-                        numero={solicitud.numero}
-                        etiqueta="la solicitud"
-                        accion={eliminarSolicitudPedidoAction}
-                      />
+                      {(solicitud.estado !== "APROBADO" || esAdmin) && (
+                        <EliminarMovimientoButton
+                          id={solicitud.id}
+                          numero={solicitud.numero}
+                          etiqueta="la solicitud"
+                          accion={eliminarSolicitudPedidoAction}
+                        />
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

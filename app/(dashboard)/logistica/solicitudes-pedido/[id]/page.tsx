@@ -59,10 +59,12 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     solicitud.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: solicitud.aprobadoPorId } }) : null,
   ]);
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
+  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   const puedeAprobar =
     solicitud.estado === "PENDIENTE" &&
     !!usuario &&
     puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
+  const puedeEliminar = solicitud.estado !== "APROBADO" || esAdmin;
 
   return (
     <div className="space-y-6">
@@ -78,13 +80,15 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                 Descargar PDF
               </a>
             </Button>
-            <EliminarMovimientoButton
-              id={solicitud.id}
-              numero={solicitud.numero}
-              etiqueta="la solicitud"
-              accion={eliminarSolicitudPedidoAction}
-              redirectTo="/logistica/solicitudes-pedido"
-            />
+            {puedeEliminar && (
+              <EliminarMovimientoButton
+                id={solicitud.id}
+                numero={solicitud.numero}
+                etiqueta="la solicitud"
+                accion={eliminarSolicitudPedidoAction}
+                redirectTo="/logistica/solicitudes-pedido"
+              />
+            )}
           </div>
         }
       />

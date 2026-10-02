@@ -71,6 +71,16 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
 
 export async function eliminarSolicitudPedidoAction(id: string): Promise<{ error?: string } | undefined> {
   try {
+    const solicitud = await prisma.solicitudPedido.findUnique({ where: { id } });
+    if (!solicitud) return { error: "La solicitud ya no existe." };
+
+    if (solicitud.estado === "APROBADO") {
+      const usuario = await getUsuarioActual();
+      if (!usuario || !usuario.roles.includes("ADMIN")) {
+        return { error: "Esta solicitud ya fue aprobada. Solo un administrador puede eliminarla." };
+      }
+    }
+
     const itemsJalados = await prisma.ordenCompraItem.count({
       where: { solicitudPedidoItem: { solicitudPedidoId: id }, ordenCompra: { estado: { notIn: ["RECHAZADO", "ANULADO"] } } },
     });
