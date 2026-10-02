@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { AprobarRechazarBotones } from "./aprobar-rechazar-botones";
 import { formatDate } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
@@ -60,10 +60,16 @@ export default async function SolicitudesPedidoPage() {
                 </Link>
               </Button>
             )}
-            <Button asChild>
-              <Link href="/logistica/solicitudes-pedido/nuevo">
+            <Button variant="outline" asChild>
+              <Link href="/logistica/solicitudes-pedido/nuevo?categoria=SERVICIO">
                 <Plus className="mr-2 h-4 w-4" />
-                Nueva solicitud
+                Nueva de servicio
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/logistica/solicitudes-pedido/nuevo?categoria=COMPRA">
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva de compra
               </Link>
             </Button>
           </div>
@@ -74,13 +80,14 @@ export default async function SolicitudesPedidoPage() {
         <EmptyState
           icono={ClipboardList}
           titulo="Aún no hay solicitudes de pedido"
-          descripcion="Registra la primera solicitud con el botón 'Nueva solicitud' de arriba."
+          descripcion="Registra la primera solicitud con los botones de arriba."
         />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Número</TableHead>
+              <TableHead>Categoría</TableHead>
               <TableHead>Área</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Fecha</TableHead>
@@ -104,6 +111,11 @@ export default async function SolicitudesPedidoPage() {
               return (
                 <TableRow key={solicitud.id}>
                   <TableCell className="font-medium">{solicitud.numero}</TableCell>
+                  <TableCell>
+                    <Badge variant={solicitud.categoria === "SERVICIO" ? "secondary" : "success"}>
+                      {CATEGORIAS_COMPRA.find((c) => c.valor === solicitud.categoria)?.nombre ?? solicitud.categoria}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area}</TableCell>
                   <TableCell>
                     {TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad}

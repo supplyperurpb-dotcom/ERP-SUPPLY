@@ -296,9 +296,19 @@ enum TipoNecesidad {
   ESTANDAR
 }
 
+// COMPRA y SERVICIO son categorías independientes con su propia serie de
+// numeración (SP-/SS- para la solicitud, OC-/OS- para la orden) y no se
+// pueden mezclar dentro de un mismo documento: una OC solo jala items de
+// solicitudes COMPRA, una OS solo de solicitudes SERVICIO.
+enum CategoriaCompra {
+  COMPRA
+  SERVICIO
+}
+
 model SolicitudPedido {
   id             String          @id @default(cuid())
-  numero         String          @unique // serie-número interno, ej. SP-000000001
+  numero         String          @unique // serie-número interno, ej. SP-000000001 / SS-000000001
+  categoria      CategoriaCompra @default(COMPRA)
   solicitanteId  String?
   area           AreaEmpresa
   estado         EstadoDocumento @default(BORRADOR)
@@ -353,7 +363,8 @@ model SolicitudPedidoItem {
 
 model OrdenCompra {
   id          String          @id @default(cuid())
-  numero      String          @unique // serie-número interno, ej. OC-0001
+  numero      String          @unique // serie-número interno, ej. OC-000000001 / OS-000000001
+  categoria   CategoriaCompra @default(COMPRA)
   proveedorId String
   estado      EstadoDocumento @default(BORRADOR)
   fecha       DateTime        @default(now())

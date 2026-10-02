@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
-import { AREAS_EMPRESA, IGV_TASA } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
@@ -26,11 +26,14 @@ type FilaSeleccion = {
 
 export function OrdenCompraForm({
   solicitudes,
+  categoria,
   proveedores,
 }: {
   solicitudes: SolicitudConPendientes[];
+  categoria: CategoriaCompraCodigo;
   proveedores: ProveedorOpcionSelect[];
 }) {
+  const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
   const [proveedorId, setProveedorId] = useState("");
   const [fecha, setFecha] = useState(fechaLocalHoy());
@@ -130,7 +133,7 @@ export function OrdenCompraForm({
         toast.error(resultado.error);
         return;
       }
-      toast.success("Orden de compra registrada");
+      toast.success(`${nombreDocumento} registrada`);
       if (resultado?.id) {
         window.open(`/api/pdf/orden-compra/${resultado.id}`, "_blank");
         router.push(`/logistica/ordenes-compra/${resultado.id}`);
@@ -175,27 +178,31 @@ export function OrdenCompraForm({
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">Toda la orden se emite en una sola moneda.</p>
+            <p className="text-xs text-muted-foreground">Toda la {nombreDocumento.toLowerCase()} se emite en una sola moneda.</p>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Ítems pendientes de solicitudes de pedido</CardTitle>
+          <CardTitle className="text-base">Ítems pendientes de solicitudes de {categoria === "SERVICIO" ? "servicio" : "compra"}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Selecciona los ítems a incluir en esta orden. La cantidad no puede superar lo pendiente de cada solicitud,
-            y el centro de costo se precarga desde la solicitud pero puede cambiarse aquí.
+            Selecciona los ítems a incluir en esta {nombreDocumento.toLowerCase()}. La cantidad no puede superar lo
+            pendiente de cada solicitud, y el centro de costo se precarga desde la solicitud pero puede cambiarse aquí.
+            Solo se listan solicitudes aprobadas de esta misma categoría.
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
           {solicitudes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay ítems pendientes en ninguna solicitud de pedido.</p>
+            <p className="text-sm text-muted-foreground">
+              No hay ítems pendientes en ninguna solicitud aprobada de esta categoría.
+            </p>
           ) : (
             solicitudes.map((solicitud) => (
               <div key={solicitud.id} className="space-y-2">
                 <p className="text-sm font-medium">
-                  Solicitud {solicitud.numero} — {AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area}
+                  {NOMBRE_SOLICITUD[categoria]} {solicitud.numero} —{" "}
+                  {AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area}
                 </p>
                 <div className="overflow-x-auto">
                   <Table>
@@ -299,7 +306,7 @@ export function OrdenCompraForm({
               IGV ({Math.round(IGV_TASA * 100)}%): <span className="font-medium">{formatMoneda(igvRedondeado, moneda)}</span>
             </p>
             <p className="text-base">
-              Total compra: <span className="font-semibold text-primary">{formatMoneda(total, moneda)}</span>
+              Total: <span className="font-semibold text-primary">{formatMoneda(total, moneda)}</span>
             </p>
           </div>
         </CardContent>
@@ -310,7 +317,7 @@ export function OrdenCompraForm({
           Cancelar
         </Button>
         <Button type="button" disabled={enviando} onClick={handleSubmit}>
-          {enviando ? "Guardando..." : "Registrar orden de compra"}
+          {enviando ? "Guardando..." : `Registrar ${nombreDocumento.toLowerCase()}`}
         </Button>
       </div>
     </div>

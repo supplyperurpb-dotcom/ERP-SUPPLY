@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { IGV_TASA } from "@/lib/constants/compras";
-import { cantidadPendiente } from "@/lib/compras";
+import { IGV_TASA, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { cantidadPendiente, categoriaDeItem } from "@/lib/compras";
 import { ordenCompraSchema, type OrdenCompraInput } from "@/lib/validations/compras";
 
 export type OrdenCompraActionState = { error?: string; id?: string } | undefined;
@@ -39,9 +39,12 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
 
     const nuevaOrden = await prisma.$transaction(async (tx) => {
       // Se valida dentro de la transacción (no antes) para que dos personas
-      // no puedan jalar al mismo tiempo más de lo pendiente real.
+      // no puedan jalar al mismo tiempo más de lo pendiente real, y para que
+      // no se mezclen items de categoría COMPRA y SERVICIO en una misma OC.
+      let categoria: CategoriaCompraCodigo | null = null;
       for (const [solicitudPedidoItemId, cantidadSolicitadaAhora] of cantidadPorItem) {
         const pendiente = await cantidadPendiente(solicitudPedidoItemId, tx);
+        const categoriaItem = await categoriaDeItem(solicitudPedidoItemId, tx);
         if (cantidadSolicitadaAhora > pendiente) {
           const itemOriginal = await tx.solicitudPedidoItem.findUnique({
             where: { id: solicitudPedidoItemId },
@@ -54,14 +57,25 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
             `La cantidad de ${etiqueta} supera lo pendiente (disponible: ${pendiente}, solicitado ahora: ${cantidadSolicitadaAhora}). Actualiza la página e intenta de nuevo.`
           );
         }
+        if (categoria === null) {
+          categoria = categoriaItem;
+        } else if (categoriaItem !== null && categoriaItem !== categoria) {
+          throw new Error(
+            "No se puede mezclar ítems de solicitudes de Compra y de Servicio en una misma orden. Crea una orden separada para cada categoría."
+          );
+        }
+      }
+      if (categoria === null) {
+        throw new Error("No se pudo determinar la categoría (Compra/Servicio) de los ítems seleccionados.");
       }
 
-      const existentes = await tx.ordenCompra.findMany({ select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((o) => o.numero), "OC-", 9);
+      const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
+      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria], 9);
 
       const orden = await tx.ordenCompra.create({
         data: {
           numero,
+          categoria,
           proveedorId,
           fecha,
           moneda,

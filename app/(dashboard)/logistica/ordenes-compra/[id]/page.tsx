@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatMoneda } from "@/lib/utils";
-import { AREAS_EMPRESA, IGV_TASA } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, CATEGORIAS_COMPRA, IGV_TASA, NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { eliminarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { EstadoDocumento } from "@prisma/client";
 
@@ -49,7 +49,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   return (
     <div className="space-y-6">
       <PageHeader
-        titulo={`Orden de compra ${orden.numero}`}
+        titulo={`${NOMBRE_ORDEN[orden.categoria as CategoriaCompraCodigo]} ${orden.numero}`}
         descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}`}
         acciones={
           <div className="flex gap-2">
@@ -78,6 +78,12 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
           <div>
             <p className="text-muted-foreground">Estado</p>
             <Badge variant={ESTADO_VARIANT[orden.estado]}>{ESTADO_LABEL[orden.estado]}</Badge>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Categoría</p>
+            <p className="font-medium">
+              {CATEGORIAS_COMPRA.find((c) => c.valor === orden.categoria)?.nombre ?? orden.categoria}
+            </p>
           </div>
           <div>
             <p className="text-muted-foreground">Proveedor</p>

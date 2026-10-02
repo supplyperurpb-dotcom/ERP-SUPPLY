@@ -10,7 +10,7 @@ import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimient
 import { AprobarRechazarBotones } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
@@ -67,7 +67,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
   return (
     <div className="space-y-6">
       <PageHeader
-        titulo={`Solicitud ${solicitud.numero}`}
+        titulo={`${NOMBRE_SOLICITUD[solicitud.categoria as CategoriaCompraCodigo]} ${solicitud.numero}`}
         descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
         acciones={
           <div className="flex gap-2">
@@ -97,6 +97,12 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
           <div>
             <p className="text-muted-foreground">Estado</p>
             <Badge variant={ESTADO_VARIANT[solicitud.estado]}>{ESTADO_LABEL[solicitud.estado]}</Badge>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Categoría</p>
+            <p className="font-medium">
+              {CATEGORIAS_COMPRA.find((c) => c.valor === solicitud.categoria)?.nombre ?? solicitud.categoria}
+            </p>
           </div>
           <div>
             <p className="text-muted-foreground">Área</p>

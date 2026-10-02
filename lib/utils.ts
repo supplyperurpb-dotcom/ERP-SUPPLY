@@ -16,6 +16,10 @@ export function cn(...inputs: ClassValue[]) {
 export function maximoNumero(numerosExistentes: string[], prefijo: string): number {
   let maximo = 0;
   for (const numero of numerosExistentes) {
+    // Si dos series comparten la misma longitud de prefijo (p. ej. "SP-" y
+    // "SS-"), un número de la otra serie no debe contarse como propio solo
+    // porque al recortar coincida en longitud.
+    if (!numero.startsWith(prefijo)) continue;
     const valor = parseInt(numero.slice(prefijo.length), 10);
     if (Number.isFinite(valor) && valor > maximo) maximo = valor;
   }

@@ -24,6 +24,7 @@ export type LineaOrdenCompraPdf = {
 };
 
 export async function generarOrdenCompraPdf({
+  nombreDocumento,
   numero,
   fecha,
   proveedor,
@@ -34,6 +35,7 @@ export async function generarOrdenCompraPdf({
   igv,
   montoTotal,
 }: {
+  nombreDocumento: string;
   numero: string;
   fecha: Date;
   proveedor: string;
@@ -78,7 +80,7 @@ export async function generarOrdenCompraPdf({
   page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: AZUL });
   y -= 26;
 
-  page.drawText(`ORDEN DE COMPRA ${numero}`, { x: MARGEN_X, y, size: 15, font: bold, color: NEGRO });
+  page.drawText(`${nombreDocumento.toUpperCase()} ${numero}`, { x: MARGEN_X, y, size: 15, font: bold, color: NEGRO });
   y -= 22;
 
   const colDatoX = MARGEN_X + 90;

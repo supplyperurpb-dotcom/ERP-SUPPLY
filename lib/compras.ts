@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ROLES, type RolNombre } from "@/lib/auth/constants";
-import type { AreaEmpresaCodigo } from "@/lib/constants/compras";
+import type { AreaEmpresaCodigo, CategoriaCompraCodigo } from "@/lib/constants/compras";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -21,6 +21,7 @@ export type ItemPendiente = {
 export type SolicitudConPendientes = {
   id: string;
   numero: string;
+  categoria: CategoriaCompraCodigo;
   area: string;
   fecha: Date;
   fechaNecesidad: Date;
@@ -34,11 +35,18 @@ export type SolicitudConPendientes = {
 // liberan la cantidad de vuelta al pool de pendientes). Pendiente = cantidad
 // solicitada - jalada. Solo se listan solicitudes con al menos un item con
 // pendiente > 0, y solo esos items (los ya completados no aparecen).
-export async function calcularSolicitudesConPendientes(db: Db = prisma): Promise<SolicitudConPendientes[]> {
+//
+// `categoria`, si se pasa, restringe a solicitudes COMPRA o SERVICIO: una OC
+// solo puede jalar de solicitudes COMPRA, una OS solo de SERVICIO, nunca
+// mezcladas en un mismo documento.
+export async function calcularSolicitudesConPendientes(
+  db: Db = prisma,
+  categoria?: CategoriaCompraCodigo
+): Promise<SolicitudConPendientes[]> {
   // Solo las solicitudes APROBADAS pueden jalarse hacia una OC: las que
   // están en borrador/pendiente de aprobación o fueron rechazadas, no.
   const solicitudes = await db.solicitudPedido.findMany({
-    where: { estado: "APROBADO" },
+    where: { estado: "APROBADO", ...(categoria ? { categoria } : {}) },
     include: { items: { include: { sku: true } } },
     orderBy: { fecha: "asc" },
   });
@@ -81,6 +89,7 @@ export async function calcularSolicitudesConPendientes(db: Db = prisma): Promise
     resultado.push({
       id: solicitud.id,
       numero: solicitud.numero,
+      categoria: solicitud.categoria as CategoriaCompraCodigo,
       area: solicitud.area,
       fecha: solicitud.fecha,
       fechaNecesidad: solicitud.fechaNecesidad,
@@ -109,6 +118,19 @@ export async function cantidadPendiente(solicitudPedidoItemId: string, db: Db = 
     _sum: { cantidad: true },
   });
   return Number(item.cantidad) - Number(jalado._sum.cantidad ?? 0);
+}
+
+// Categoría (COMPRA/SERVICIO) de la solicitud dueña de un item, usada para
+// impedir que una misma OC/OS mezcle items de ambas categorías.
+export async function categoriaDeItem(
+  solicitudPedidoItemId: string,
+  db: Db = prisma
+): Promise<CategoriaCompraCodigo | null> {
+  const item = await db.solicitudPedidoItem.findUnique({
+    where: { id: solicitudPedidoItemId },
+    include: { solicitudPedido: { select: { categoria: true } } },
+  });
+  return item ? (item.solicitudPedido.categoria as CategoriaCompraCodigo) : null;
 }
 
 export type AprobadorAreaInfo = {

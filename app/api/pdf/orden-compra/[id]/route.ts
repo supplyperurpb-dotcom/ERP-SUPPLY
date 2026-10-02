@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generarOrdenCompraPdf } from "@/lib/pdf/orden-compra-pdf";
+import { NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,6 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   const bytes = await generarOrdenCompraPdf({
+    nombreDocumento: NOMBRE_ORDEN[orden.categoria as CategoriaCompraCodigo],
     numero: orden.numero,
     fecha: orden.fecha,
     proveedor: orden.proveedor.razonSocial,

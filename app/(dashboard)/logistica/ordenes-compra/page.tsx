@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { formatDate, formatMoneda } from "@/lib/utils";
+import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { eliminarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { EstadoDocumento } from "@prisma/client";
 
@@ -40,26 +41,35 @@ export default async function OrdenesCompraPage() {
         titulo="Órdenes de compra"
         descripcion="Órdenes de compra emitidas a proveedores de insumos, generadas a partir de solicitudes de pedido."
         acciones={
-          <Button asChild>
-            <Link href="/logistica/ordenes-compra/nuevo">
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva orden de compra
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/logistica/ordenes-compra/nuevo?categoria=SERVICIO">
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva de servicio
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/logistica/ordenes-compra/nuevo?categoria=COMPRA">
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva de compra
+              </Link>
+            </Button>
+          </div>
         }
       />
 
       {ordenes.length === 0 ? (
         <EmptyState
           icono={ShoppingCart}
-          titulo="Aún no hay órdenes de compra"
-          descripcion="Genera la primera orden de compra con el botón 'Nueva orden de compra' de arriba, jalando ítems pendientes de una o varias solicitudes."
+          titulo="Aún no hay órdenes de compra ni de servicio"
+          descripcion="Genera la primera con los botones de arriba, jalando ítems pendientes de una o varias solicitudes de la misma categoría."
         />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Número</TableHead>
+              <TableHead>Categoría</TableHead>
               <TableHead>Proveedor</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Fecha</TableHead>
@@ -73,6 +83,11 @@ export default async function OrdenesCompraPage() {
             {ordenes.map((orden) => (
               <TableRow key={orden.id}>
                 <TableCell className="font-medium">{orden.numero}</TableCell>
+                <TableCell>
+                  <Badge variant={orden.categoria === "SERVICIO" ? "secondary" : "success"}>
+                    {CATEGORIAS_COMPRA.find((c) => c.valor === orden.categoria)?.nombre ?? orden.categoria}
+                  </Badge>
+                </TableCell>
                 <TableCell>{orden.proveedor.razonSocial}</TableCell>
                 <TableCell>
                   <Badge variant={ESTADO_VARIANT[orden.estado]}>{ESTADO_LABEL[orden.estado]}</Badge>

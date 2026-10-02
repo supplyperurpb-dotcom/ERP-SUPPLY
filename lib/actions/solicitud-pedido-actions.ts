@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
+import { PREFIJO_SOLICITUD } from "@/lib/constants/compras";
 import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import {
   solicitudPedidoSchema,
@@ -20,18 +21,19 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { area, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
+  const { categoria, area, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
 
     const nuevaSolicitud = await prisma.$transaction(async (tx) => {
-      const existentes = await tx.solicitudPedido.findMany({ select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((s) => s.numero), "SP-", 9);
+      const existentes = await tx.solicitudPedido.findMany({ where: { categoria }, select: { numero: true } });
+      const numero = siguienteNumero(existentes.map((s) => s.numero), PREFIJO_SOLICITUD[categoria], 9);
 
       const solicitud = await tx.solicitudPedido.create({
         data: {
           numero,
+          categoria,
           area,
           estado: "PENDIENTE",
           fecha,

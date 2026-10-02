@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { generarSolicitudPedidoPdf } from "@/lib/pdf/solicitud-pedido-pdf";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +19,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     : null;
 
   const bytes = await generarSolicitudPedidoPdf({
+    nombreDocumento: NOMBRE_SOLICITUD[solicitud.categoria as CategoriaCompraCodigo],
     numero: solicitud.numero,
     area: AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
     fecha: solicitud.fecha,

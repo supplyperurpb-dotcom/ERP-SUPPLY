@@ -22,3 +22,33 @@ export const TIPOS_NECESIDAD = [
 ] as const;
 
 export type TipoNecesidadCodigo = (typeof TIPOS_NECESIDAD)[number]["valor"];
+
+// Categoría de toda la cadena solicitud -> orden. No se pueden mezclar
+// dentro de un mismo documento: cada categoría tiene su propia serie de
+// numeración y su propio nombre de documento.
+export const CATEGORIAS_COMPRA = [
+  { valor: "COMPRA", nombre: "Compra" },
+  { valor: "SERVICIO", nombre: "Servicio" },
+] as const;
+
+export type CategoriaCompraCodigo = (typeof CATEGORIAS_COMPRA)[number]["valor"];
+
+export const PREFIJO_SOLICITUD: Record<CategoriaCompraCodigo, string> = {
+  COMPRA: "SP-",
+  SERVICIO: "SS-",
+};
+
+export const PREFIJO_ORDEN: Record<CategoriaCompraCodigo, string> = {
+  COMPRA: "OC-",
+  SERVICIO: "OS-",
+};
+
+export const NOMBRE_SOLICITUD: Record<CategoriaCompraCodigo, string> = {
+  COMPRA: "Solicitud de compra",
+  SERVICIO: "Solicitud de servicio",
+};
+
+export const NOMBRE_ORDEN: Record<CategoriaCompraCodigo, string> = {
+  COMPRA: "Orden de compra",
+  SERVICIO: "Orden de servicio",
+};

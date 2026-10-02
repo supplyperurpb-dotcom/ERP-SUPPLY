@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SERVICIOS_GENERALES", "RRHH"] as const;
+const CATEGORIAS = ["COMPRA", "SERVICIO"] as const;
 
 const itemSolicitudPedidoSchema = z.object({
   skuId: z.string().min(1, "Selecciona un producto"),
@@ -11,6 +12,7 @@ const itemSolicitudPedidoSchema = z.object({
 });
 
 export const solicitudPedidoSchema = z.object({
+  categoria: z.enum(CATEGORIAS, { required_error: "Selecciona si es una solicitud de compra o de servicio" }),
   area: z.enum(AREAS, { required_error: "Selecciona el área" }),
   fecha: z.coerce.date({ required_error: "La fecha de pedido es obligatoria" }),
   fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),

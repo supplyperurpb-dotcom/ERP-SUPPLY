@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { solicitudPedidoSchema, type SolicitudPedidoInput } from "@/lib/validations/compras";
 import { crearSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 
@@ -22,13 +22,20 @@ type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida
 
 const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "", centroCosto: "PRODUCCION" as const, observaciones: "" };
 
-export function SolicitudPedidoForm({ skus }: { skus: SkuOpcion[] }) {
+export function SolicitudPedidoForm({
+  skus,
+  categoriaInicial = "COMPRA",
+}: {
+  skus: SkuOpcion[];
+  categoriaInicial?: CategoriaCompraCodigo;
+}) {
   const router = useRouter();
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
 
   const form = useForm<SolicitudPedidoInput>({
     resolver: zodResolver(solicitudPedidoSchema),
     defaultValues: {
+      categoria: categoriaInicial,
       area: "PRODUCCION",
       fecha: fechaLocalHoy() as unknown as Date,
       fechaNecesidad: fechaLocalHoy() as unknown as Date,
@@ -70,6 +77,28 @@ export function SolicitudPedidoForm({ skus }: { skus: SkuOpcion[] }) {
           <CardTitle className="text-base">Datos de la solicitud</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-2">
+            <Label>Categoría</Label>
+            <Controller
+              control={form.control}
+              name="categoria"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS_COMPRA.map((c) => (
+                      <SelectItem key={c.valor} value={c.valor}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label>Área</Label>
             <Controller
