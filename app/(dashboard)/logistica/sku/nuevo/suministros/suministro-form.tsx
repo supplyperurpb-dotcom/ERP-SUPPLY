@@ -30,11 +30,13 @@ export function SuministroForm() {
       codigoParte: "",
       color: "",
       presentacion: "",
+      noValorado: false,
       unidadMedida: "UND",
     },
   });
 
   const campos = form.watch();
+  const prefijo = campos.noValorado ? "NVSU" : "SU";
   const descripcionPreview = useMemo(
     () =>
       [campos.producto, campos.material, campos.marca, campos.medida, campos.destinoDescripcion, campos.codigoParte, campos.color, campos.presentacion]
@@ -68,7 +70,7 @@ export function SuministroForm() {
         <CardHeader>
           <CardTitle className="text-base">Suministros</CardTitle>
           <p className="text-sm text-muted-foreground">
-            El código se arma solo: <strong>SU</strong> + el siguiente correlativo (6 dígitos).
+            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (6 dígitos).
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -156,6 +158,25 @@ export function SuministroForm() {
           <div className="space-y-2">
             <Label htmlFor="stockMinimo">Stock mínimo (opcional)</Label>
             <Input id="stockMinimo" type="number" min={0} step="0.001" {...form.register("stockMinimo")} />
+          </div>
+
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <Controller
+              control={form.control}
+              name="noValorado"
+              render={({ field }) => (
+                <input
+                  type="checkbox"
+                  id="noValorado"
+                  className="h-4 w-4"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              )}
+            />
+            <Label htmlFor="noValorado" className="cursor-pointer">
+              No valorado (antepone &quot;NV&quot; al código)
+            </Label>
           </div>
 
           <div className="space-y-2 sm:col-span-2 rounded-md border bg-muted/40 p-3">

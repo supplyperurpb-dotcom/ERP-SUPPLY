@@ -19,15 +19,16 @@ export type SkuActionState = { error?: string; success?: boolean } | undefined;
 export type SkuCreacionState = { error?: string; id?: string; codigo?: string } | undefined;
 
 // ---------------------------------------------------------------------
-// Suministros: SU + correlativo de 6 dígitos. Una sola serie para toda la
-// categoría, no depende de la subfamilia.
+// Suministros: (NV si no valorado) + SU + correlativo de 6 dígitos. Una
+// sola serie por variante (SU / NVSU), no depende de la subfamilia. "NV"
+// lleva su propia serie, independiente de la versión valorada.
 // ---------------------------------------------------------------------
 export async function crearSkuSuministroAction(data: SkuSuministroInput): Promise<SkuCreacionState> {
   const parsed = skuSuministroSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { subfamilia, producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion, unidadMedida, stockMinimo } =
+  const { subfamilia, producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion, noValorado, unidadMedida, stockMinimo } =
     parsed.data;
 
   const descripcion = [producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion]
@@ -35,7 +36,7 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
     .filter((v): v is string => !!v)
     .join(" ");
 
-  const prefijo = "SU";
+  const prefijo = `${noValorado ? "NV" : ""}SU`;
 
   try {
     const usuario = await getUsuarioActual();

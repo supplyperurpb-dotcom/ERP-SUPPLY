@@ -32,7 +32,7 @@ export const CATEGORIAS_SKU = ["Suministros", "Agroquímicos, Fertilizantes y Ó
 export const SUBFAMILIAS_SKU = ["Materiales de Empaque"] as const;
 
 // ---------------------------------------------------------------------
-// Suministros: SU + 2 primeras letras de la subfamilia + correlativo.
+// Suministros: (NV si no valorado) + SU + correlativo.
 // ---------------------------------------------------------------------
 export const skuSuministroSchema = z.object({
   subfamilia: z.enum(SUBFAMILIAS_SUMINISTROS, { required_error: "Selecciona la subfamilia" }),
@@ -44,6 +44,7 @@ export const skuSuministroSchema = z.object({
   codigoParte: z.string().max(60).optional().or(z.literal("")),
   color: z.string().max(40).optional().or(z.literal("")),
   presentacion: z.string().max(60).optional().or(z.literal("")),
+  noValorado: z.coerce.boolean().default(false),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10),
   stockMinimo: z.coerce.number().min(0).optional().nullable(),
 });
