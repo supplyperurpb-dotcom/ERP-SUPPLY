@@ -280,68 +280,102 @@ model MovimientoStock {
   @@map("movimientos_stock")
 }
 
-model SolicitudPedido {
-  id            String          @id @default(cuid())
-  numero        String          @unique // serie-número interno, ej. SP-0001
-  solicitanteId String?
-  area          String?
-  estado        EstadoDocumento @default(BORRADOR)
-  fecha         DateTime        @default(now())
-  justificacion String?
-  creadoPorId   String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+// Área solicitante de una SolicitudPedido y centro de costo de cada línea
+// (misma lista de valores para ambos conceptos, ver lib/constants/compras.ts).
+enum AreaEmpresa {
+  PRODUCCION
+  SUPPLY_CHAIN
+  FINANZAS
+  GERENCIA_GENERAL
+  SERVICIOS_GENERALES
+  RRHH
+}
 
-  items         SolicitudPedidoItem[]
-  ordenesCompra OrdenCompra[]
+enum TipoNecesidad {
+  URGENTE
+  ESTANDAR
+}
+
+model SolicitudPedido {
+  id             String          @id @default(cuid())
+  numero         String          @unique // serie-número interno, ej. SP-0001
+  solicitanteId  String?
+  area           AreaEmpresa
+  estado         EstadoDocumento @default(BORRADOR)
+  fecha          DateTime        @default(now())
+  fechaNecesidad DateTime
+  tipoNecesidad  TipoNecesidad   @default(ESTANDAR)
+  justificacion  String?
+  creadoPorId    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  items SolicitudPedidoItem[]
 
   @@map("solicitudes_pedido")
 }
 
 model SolicitudPedidoItem {
-  id                String  @id @default(cuid())
+  id                String      @id @default(cuid())
   solicitudPedidoId String
   skuId             String
-  cantidad          Decimal @db.Decimal(12, 3)
+  cantidad          Decimal     @db.Decimal(12, 3)
   unidadMedida      String
+  centroCosto       AreaEmpresa
   observaciones     String?
 
-  solicitudPedido SolicitudPedido @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
-  sku             Sku             @relation(fields: [skuId], references: [id])
+  solicitudPedido  SolicitudPedido   @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
+  sku              Sku               @relation(fields: [skuId], references: [id])
+  ordenCompraItems OrdenCompraItem[]
 
   @@map("solicitud_pedido_items")
 }
 
 model OrdenCompra {
-  id                String          @id @default(cuid())
-  numero            String          @unique // serie-número interno, ej. OC-0001
-  proveedorId       String
-  solicitudPedidoId String?
-  estado            EstadoDocumento @default(BORRADOR)
-  fecha             DateTime        @default(now())
-  moneda            String          @default("PEN")
-  montoTotal        Decimal         @default(0) @db.Decimal(12, 2)
-  creadoPorId       String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  numero      String          @unique // serie-número interno, ej. OC-0001
+  proveedorId String
+  estado      EstadoDocumento @default(BORRADOR)
+  fecha       DateTime        @default(now())
+  // Una sola moneda para toda la OC (ver lib/constants/moneda.ts).
+  moneda      String          @default("PEN")
+  // subtotal = suma de subtotal de todas las líneas (gravadas y no
+  // gravadas). igv = 18% solo de las líneas gravadas. montoTotal =
+  // subtotal + igv.
+  subtotal    Decimal         @default(0) @db.Decimal(12, 2)
+  igv         Decimal         @default(0) @db.Decimal(12, 2)
+  montoTotal  Decimal         @default(0) @db.Decimal(12, 2)
+  creadoPorId String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  proveedor       Proveedor         @relation(fields: [proveedorId], references: [id])
-  solicitudPedido SolicitudPedido?  @relation(fields: [solicitudPedidoId], references: [id])
-  items           OrdenCompraItem[]
+  proveedor Proveedor         @relation(fields: [proveedorId], references: [id])
+  items     OrdenCompraItem[]
 
   @@map("ordenes_compra")
 }
 
 model OrdenCompraItem {
-  id             String  @id @default(cuid())
-  ordenCompraId  String
-  skuId          String
-  cantidad       Decimal @db.Decimal(12, 3)
-  precioUnitario Decimal @db.Decimal(12, 2)
-  subtotal       Decimal @db.Decimal(12, 2)
+  id                    String      @id @default(cuid())
+  ordenCompraId         String
+  // De qué línea de qué solicitud de pedido se "jaló" esta línea (ver
+  // calcularPendientesSolicitudes en lib/compras.ts: la cantidad pendiente
+  // de un SolicitudPedidoItem es su cantidad menos la suma de
+  // OrdenCompraItem.cantidad de todas las OC no rechazadas/anuladas que
+  // apuntan a él).
+  solicitudPedidoItemId String?
+  skuId                 String
+  cantidad              Decimal     @db.Decimal(12, 3)
+  precioUnitario        Decimal     @db.Decimal(12, 2)
+  subtotal              Decimal     @db.Decimal(12, 2)
+  // Si el producto está gravado con IGV. Se precarga desde la solicitud
+  // pero se puede editar en la OC.
+  gravado               Boolean     @default(true)
+  centroCosto           AreaEmpresa
 
-  ordenCompra OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
-  sku         Sku         @relation(fields: [skuId], references: [id])
+  ordenCompra         OrdenCompra          @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  solicitudPedidoItem SolicitudPedidoItem? @relation(fields: [solicitudPedidoItemId], references: [id])
+  sku                 Sku                  @relation(fields: [skuId], references: [id])
 
   @@map("orden_compra_items")
 }

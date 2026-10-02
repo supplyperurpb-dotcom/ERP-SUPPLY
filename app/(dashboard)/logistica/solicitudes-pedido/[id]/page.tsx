@@ -1,0 +1,170 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { PageHeader } from "@/components/shared/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
+import { prisma } from "@/lib/db/prisma";
+import { formatDate } from "@/lib/utils";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD } from "@/lib/constants/compras";
+import { eliminarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
+import type { EstadoDocumento } from "@prisma/client";
+
+const ESTADO_LABEL: Record<EstadoDocumento, string> = {
+  BORRADOR: "Borrador",
+  PENDIENTE: "Pendiente",
+  APROBADO: "Aprobado",
+  RECHAZADO: "Rechazado",
+  ANULADO: "Anulado",
+};
+
+const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secondary"> = {
+  BORRADOR: "secondary",
+  PENDIENTE: "secondary",
+  APROBADO: "success",
+  RECHAZADO: "destructive",
+  ANULADO: "destructive",
+};
+
+function nombreArea(valor: string) {
+  return AREAS_EMPRESA.find((a) => a.valor === valor)?.nombre ?? valor;
+}
+
+export default async function SolicitudPedidoDetallePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  const solicitud = await prisma.solicitudPedido.findUnique({
+    where: { id },
+    include: {
+      items: {
+        include: {
+          sku: true,
+          ordenCompraItems: { include: { ordenCompra: true } },
+        },
+      },
+    },
+  });
+
+  if (!solicitud) notFound();
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        titulo={`Solicitud ${solicitud.numero}`}
+        descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
+        acciones={
+          <EliminarMovimientoButton
+            id={solicitud.id}
+            numero={solicitud.numero}
+            etiqueta="la solicitud"
+            accion={eliminarSolicitudPedidoAction}
+            redirectTo="/logistica/solicitudes-pedido"
+          />
+        }
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Datos generales</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">Estado</p>
+            <Badge variant={ESTADO_VARIANT[solicitud.estado]}>{ESTADO_LABEL[solicitud.estado]}</Badge>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Área</p>
+            <p className="font-medium">{nombreArea(solicitud.area)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Fecha de pedido</p>
+            <p className="font-medium">{formatDate(solicitud.fecha)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Fecha estimada de necesidad</p>
+            <p className="font-medium">{formatDate(solicitud.fechaNecesidad)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Tipo de necesidad</p>
+            <p className="font-medium">
+              {TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad}
+            </p>
+          </div>
+          {solicitud.justificacion && (
+            <div className="sm:col-span-2 lg:col-span-4">
+              <p className="text-muted-foreground">Justificación</p>
+              <p className="font-medium">{solicitud.justificacion}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Productos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead className="text-right">Solicitado</TableHead>
+                  <TableHead className="text-right">Jalado</TableHead>
+                  <TableHead className="text-right">Pendiente</TableHead>
+                  <TableHead>Centro de costo</TableHead>
+                  <TableHead>Órdenes de compra</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {solicitud.items.map((item) => {
+                  const cantidad = Number(item.cantidad);
+                  const ocsActivas = item.ordenCompraItems.filter(
+                    (oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO"
+                  );
+                  const jalado = ocsActivas.reduce((acc, oci) => acc + Number(oci.cantidad), 0);
+                  const pendiente = Math.round((cantidad - jalado) * 1000) / 1000;
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.sku.codigo}</TableCell>
+                      <TableCell>{item.sku.descripcion}</TableCell>
+                      <TableCell className="text-right">
+                        {cantidad} {item.unidadMedida}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {jalado} {item.unidadMedida}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {pendiente} {item.unidadMedida}
+                      </TableCell>
+                      <TableCell>{nombreArea(item.centroCosto)}</TableCell>
+                      <TableCell>
+                        {ocsActivas.length === 0 ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {ocsActivas.map((oci) => (
+                              <Link
+                                key={oci.id}
+                                href={`/logistica/ordenes-compra/${oci.ordenCompra.id}`}
+                                className="underline underline-offset-2"
+                              >
+                                {oci.ordenCompra.numero}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
