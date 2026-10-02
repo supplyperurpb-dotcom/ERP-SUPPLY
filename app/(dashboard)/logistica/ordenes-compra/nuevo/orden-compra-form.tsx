@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -58,6 +59,10 @@ export function OrdenCompraForm({
   const router = useRouter();
   const [proveedorId, setProveedorId] = useState("");
   const [fecha, setFecha] = useState(fechaLocalHoy());
+  const [fechaEntrega, setFechaEntrega] = useState("");
+  const [condicionPago, setCondicionPago] = useState("");
+  const [lugarEntrega, setLugarEntrega] = useState("");
+  const [observaciones, setObservaciones] = useState("");
   const [moneda, setMoneda] = useState<"PEN" | "USD">("PEN");
   const [enviando, setEnviando] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -176,6 +181,10 @@ export function OrdenCompraForm({
       const resultado = await crearOrdenCompraAction({
         proveedorId,
         fecha: new Date(fecha) as unknown as Date,
+        fechaEntrega: fechaEntrega ? (new Date(fechaEntrega) as unknown as Date) : undefined,
+        condicionPago,
+        lugarEntrega,
+        observaciones,
         moneda,
         items: itemsEnOrden.map((item) => {
           const fila = filas[item.id];
@@ -221,8 +230,12 @@ export function OrdenCompraForm({
             <ProveedorSelectCombobox proveedores={proveedores} value={proveedorId} onSelect={(p) => setProveedorId(p?.id ?? "")} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="fecha">Fecha</Label>
+            <Label htmlFor="fecha">Fecha de emisión</Label>
             <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="fechaEntrega">Fecha de entrega (opcional)</Label>
+            <Input id="fechaEntrega" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Moneda</Label>
@@ -239,6 +252,28 @@ export function OrdenCompraForm({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Toda la {nombreDocumento.toLowerCase()} se emite en una sola moneda.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="condicionPago">Condición de pago (opcional)</Label>
+            <Input
+              id="condicionPago"
+              placeholder="Ej. Crédito 7 días, Contado"
+              value={condicionPago}
+              onChange={(e) => setCondicionPago(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lugarEntrega">Lugar de entrega (opcional)</Label>
+            <Input
+              id="lugarEntrega"
+              placeholder="Ej. En fundo RPB"
+              value={lugarEntrega}
+              onChange={(e) => setLugarEntrega(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-3">
+            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
+            <Textarea id="observaciones" rows={2} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
           </div>
         </CardContent>
       </Card>

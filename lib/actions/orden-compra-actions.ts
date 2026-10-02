@@ -15,7 +15,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { proveedorId, fecha, moneda, items } = parsed.data;
+  const { proveedorId, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } = parsed.data;
 
   const proveedor = await prisma.proveedor.findUnique({ where: { id: proveedorId } });
   if (!proveedor) {
@@ -79,6 +79,10 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
           proveedorId,
           estado: "PENDIENTE",
           fecha,
+          fechaEntrega: fechaEntrega || null,
+          condicionPago: condicionPago || null,
+          lugarEntrega: lugarEntrega || null,
+          observaciones: observaciones || null,
           moneda,
           subtotal,
           igv: igvRedondeado,

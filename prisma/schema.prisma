@@ -377,6 +377,11 @@ model OrdenCompra {
   proveedorId String
   estado      EstadoDocumento @default(BORRADOR)
   fecha       DateTime        @default(now())
+  // Datos propios del formato impreso de la OC/OS (ver lib/pdf/orden-compra-pdf.ts).
+  fechaEntrega   DateTime?
+  condicionPago  String?
+  lugarEntrega   String?
+  observaciones  String?
   // Una sola moneda para toda la OC (ver lib/constants/moneda.ts).
   moneda      String          @default("PEN")
   // subtotal = suma de subtotal de todas las líneas (gravadas y no

@@ -35,6 +35,10 @@ const itemOrdenCompraSchema = z.object({
 export const ordenCompraSchema = z.object({
   proveedorId: z.string().min(1, "Selecciona un proveedor"),
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+  fechaEntrega: z.coerce.date().optional(),
+  condicionPago: z.string().max(100).optional().or(z.literal("")),
+  lugarEntrega: z.string().max(150).optional().or(z.literal("")),
+  observaciones: z.string().max(500).optional().or(z.literal("")),
   moneda: z.enum(["PEN", "USD"]).default("PEN"),
   items: z.array(itemOrdenCompraSchema).min(1, "Selecciona al menos un ítem pendiente"),
 });

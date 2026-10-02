@@ -110,6 +110,30 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
             <p className="text-muted-foreground">Moneda</p>
             <p className="font-medium">{orden.moneda}</p>
           </div>
+          {orden.fechaEntrega && (
+            <div>
+              <p className="text-muted-foreground">Fecha de entrega</p>
+              <p className="font-medium">{formatDate(orden.fechaEntrega)}</p>
+            </div>
+          )}
+          {orden.condicionPago && (
+            <div>
+              <p className="text-muted-foreground">Condición de pago</p>
+              <p className="font-medium">{orden.condicionPago}</p>
+            </div>
+          )}
+          {orden.lugarEntrega && (
+            <div>
+              <p className="text-muted-foreground">Lugar de entrega</p>
+              <p className="font-medium">{orden.lugarEntrega}</p>
+            </div>
+          )}
+          {orden.observaciones && (
+            <div className="sm:col-span-2 lg:col-span-4">
+              <p className="text-muted-foreground">Observaciones</p>
+              <p className="font-medium">{orden.observaciones}</p>
+            </div>
+          )}
           {aprobador && orden.fechaAprobacion && (
             <div>
               <p className="text-muted-foreground">
