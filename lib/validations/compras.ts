@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CAMPOS_SOLPED } from "@/lib/constants/compras";
 
 const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SERVICIOS_GENERALES", "RRHH"] as const;
 const CATEGORIAS = ["COMPRA", "SERVICIO"] as const;
@@ -12,6 +13,8 @@ const itemSolicitudPedidoSchema = z.object({
   // Solo para categoría Servicio: detalle puntual del servicio pedido
   // (el SKU solo agrupa, p. ej. "Apicultura").
   descripcion: z.string().max(500).optional().or(z.literal("")),
+  // Campo/fundo al que corresponde el pedido.
+  campo: z.enum(CAMPOS_SOLPED).optional().or(z.literal("")),
 });
 
 export const solicitudPedidoSchema = z

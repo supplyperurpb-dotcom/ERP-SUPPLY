@@ -414,6 +414,9 @@ model SolicitudPedidoItem {
   // campo describe el detalle puntual del servicio pedido (p. ej. "cambio
   // de cableado"). No aplica a Compra.
   descripcion       String?
+  // Campo/fundo al que corresponde el pedido (p. ej. "Achirana Blue"),
+  // de la lista fija en lib/constants/compras.ts: CAMPOS_SOLPED.
+  campo             String?
 
   solicitudPedido  SolicitudPedido   @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
   sku              Sku               @relation(fields: [skuId], references: [id])

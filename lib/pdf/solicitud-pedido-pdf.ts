@@ -48,6 +48,7 @@ export type LineaSolicitudPedidoPdf = {
   unidadMedida: string;
   centroCosto: string;
   observaciones: string | null;
+  campo: string | null;
 };
 
 export async function generarSolicitudPedidoPdf({
@@ -92,11 +93,12 @@ export async function generarSolicitudPedidoPdf({
   let y = ALTO_PAGINA - 50;
 
   const columnas = [
-    { titulo: "Código", x: MARGEN_X, ancho: 60 },
-    { titulo: "Producto", x: MARGEN_X + 60, ancho: 160 },
-    { titulo: "Cantidad", x: MARGEN_X + 220, ancho: 55 },
-    { titulo: "Centro costo", x: MARGEN_X + 275, ancho: 90 },
-    { titulo: "Observación", x: MARGEN_X + 365, ancho: 150 },
+    { titulo: "Código", x: MARGEN_X, ancho: 50 },
+    { titulo: "Producto", x: MARGEN_X + 50, ancho: 125 },
+    { titulo: "Cantidad", x: MARGEN_X + 175, ancho: 45 },
+    { titulo: "Centro costo", x: MARGEN_X + 220, ancho: 75 },
+    { titulo: "Campo", x: MARGEN_X + 295, ancho: 80 },
+    { titulo: "Observación", x: MARGEN_X + 375, ancho: 140 },
   ];
 
   function dibujarEncabezadoTabla() {
@@ -191,8 +193,9 @@ export async function generarSolicitudPedidoPdf({
       page.drawText(lineasDescripcion[i], { x: columnas[1].x + 3, y: y - i * 10, size: 8, font: regular, color: NEGRO });
     }
     page.drawText(`${linea.cantidad} ${linea.unidadMedida}`, { x: columnas[2].x + 3, y, size: 8, font: regular, color: NEGRO });
-    page.drawText(truncar(linea.centroCosto, 18), { x: columnas[3].x + 3, y, size: 8, font: regular, color: NEGRO });
-    page.drawText(truncar(linea.observaciones ?? "—", 28), { x: columnas[4].x + 3, y, size: 8, font: regular, color: NEGRO });
+    page.drawText(truncar(linea.centroCosto, 15), { x: columnas[3].x + 3, y, size: 8, font: regular, color: NEGRO });
+    page.drawText(truncar(linea.campo ?? "—", 16), { x: columnas[4].x + 3, y, size: 8, font: regular, color: NEGRO });
+    page.drawText(truncar(linea.observaciones ?? "—", 26), { x: columnas[5].x + 3, y, size: 8, font: regular, color: NEGRO });
     y -= alturaFila;
     page.drawLine({
       start: { x: MARGEN_X, y: y + 4 },

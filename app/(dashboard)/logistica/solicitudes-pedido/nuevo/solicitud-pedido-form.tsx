@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, CAMPOS_SOLPED, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { solicitudPedidoSchema, type SolicitudPedidoInput } from "@/lib/validations/compras";
 import { crearSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 
@@ -27,6 +27,7 @@ const ITEM_VACIO = {
   centroCosto: "PRODUCCION" as const,
   observaciones: "",
   descripcion: "",
+  campo: "" as const,
 };
 
 export function SolicitudPedidoForm({
@@ -191,6 +192,7 @@ export function SolicitudPedidoForm({
                   <TableHead className="w-28">Cantidad</TableHead>
                   <TableHead className="w-20">U.M.</TableHead>
                   <TableHead className="w-44">Centro de costo</TableHead>
+                  <TableHead className="w-40">Campo</TableHead>
                   <TableHead className="min-w-[180px]">Observación</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
@@ -262,6 +264,27 @@ export function SolicitudPedidoForm({
                                 {AREAS_EMPRESA.map((a) => (
                                   <SelectItem key={a.valor} value={a.valor}>
                                     {a.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <Controller
+                          control={form.control}
+                          name={`items.${index}.campo`}
+                          render={({ field: selectField }) => (
+                            <Select value={selectField.value || "__ninguno__"} onValueChange={(v) => selectField.onChange(v === "__ninguno__" ? "" : v)}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecciona..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__ninguno__">—</SelectItem>
+                                {CAMPOS_SOLPED.map((c) => (
+                                  <SelectItem key={c} value={c}>
+                                    {c}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

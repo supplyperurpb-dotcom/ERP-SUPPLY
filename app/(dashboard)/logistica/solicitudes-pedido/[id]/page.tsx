@@ -189,6 +189,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                   <TableHead className="text-right">Con OC</TableHead>
                   <TableHead className="text-right">Pendiente</TableHead>
                   <TableHead>Centro de costo</TableHead>
+                  <TableHead>Campo</TableHead>
                   <TableHead>Órdenes de compra</TableHead>
                 </TableRow>
               </TableHeader>
@@ -217,6 +218,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                         {pendiente} {item.unidadMedida}
                       </TableCell>
                       <TableCell>{nombreArea(item.centroCosto)}</TableCell>
+                      <TableCell>{item.campo || "—"}</TableCell>
                       <TableCell>
                         {ocsActivas.length === 0 ? (
                           <span className="text-muted-foreground">—</span>
