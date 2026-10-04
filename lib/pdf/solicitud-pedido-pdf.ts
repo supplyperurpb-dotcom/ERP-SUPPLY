@@ -143,6 +143,18 @@ export async function generarSolicitudPedidoPdf({
   let yEmpresa = yLogoSuperior - logoAltura + 8 - 12;
   page.drawText("REITER PERUVIAN BERRY SA", { x: MARGEN_X, y: yEmpresa, size: 11, font: bold, color: NEGRO });
   yEmpresa -= 12;
+  const anchoEtiquetaRuc = bold.widthOfTextAtSize("RUC: ", 8);
+  page.drawText("RUC: ", { x: MARGEN_X, y: yEmpresa, size: 8, font: bold, color: NEGRO });
+  page.drawText("20610390341", { x: MARGEN_X + anchoEtiquetaRuc, y: yEmpresa, size: 8, font: regular, color: NEGRO });
+  yEmpresa -= 11;
+  page.drawText("AV. DE LA FLORESTA NRO. 497 INT. 203 URB. CHACARILLA DEL ESTANQUE LIMA - LIMA - SAN BORJA", {
+    x: MARGEN_X,
+    y: yEmpresa,
+    size: 7,
+    font: regular,
+    color: NEGRO,
+  });
+  yEmpresa -= 11;
   page.drawText("Ica, Perú — Documento interno (no válido como comprobante SUNAT)", {
     x: MARGEN_X,
     y: yEmpresa,
