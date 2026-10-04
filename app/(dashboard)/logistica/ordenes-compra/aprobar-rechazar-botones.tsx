@@ -5,25 +5,24 @@ import { useRouter } from "next/navigation";
 import { Check, X, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  aprobarOrdenCompraAction,
-  rechazarOrdenCompraAction,
-  anularOrdenCompraAction,
-} from "@/lib/actions/orden-compra-actions";
+import { firmarOrdenCompraAction, anularOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 
-export function AprobarRechazarOrdenBotones({ id, numero }: { id: string; numero: string }) {
+// Firma el rol de aprobación pendiente del usuario actual en esta OC/OS
+// (ver firmarOrdenCompraAction: cada orden puede necesitar varias firmas
+// según su monto, y esta orden solo queda APROBADA cuando todas lo están).
+export function FirmarOrdenBotones({ id, numero, rolLabel }: { id: string; numero: string; rolLabel: string }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function handleAprobar() {
-    if (!confirm(`¿Aprobar ${numero}?`)) return;
+    if (!confirm(`¿Aprobar ${numero} como ${rolLabel}?`)) return;
     startTransition(async () => {
-      const resultado = await aprobarOrdenCompraAction(id);
+      const resultado = await firmarOrdenCompraAction(id, "APROBADO");
       if (resultado?.error) {
         toast.error(resultado.error);
         return;
       }
-      toast.success(`${numero} aprobada`);
+      toast.success(`Firma registrada en ${numero}`);
       router.refresh();
     });
   }
@@ -32,7 +31,7 @@ export function AprobarRechazarOrdenBotones({ id, numero }: { id: string; numero
     const comentario = prompt(`Motivo del rechazo de ${numero} (opcional):`);
     if (comentario === null) return;
     startTransition(async () => {
-      const resultado = await rechazarOrdenCompraAction(id, comentario);
+      const resultado = await firmarOrdenCompraAction(id, "RECHAZADO", comentario);
       if (resultado?.error) {
         toast.error(resultado.error);
         return;

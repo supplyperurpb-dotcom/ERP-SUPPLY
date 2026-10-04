@@ -22,7 +22,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, telefono, cargo, password, tipoRol, area } = parsed.data;
+  const { nombres, apellidos, email, telefono, cargo, password, tipoRol, area, rolEspecial } = parsed.data;
 
   const quienCrea = await getUsuarioActual();
   if (!quienCrea || !quienCrea.roles.includes("ADMIN")) {
@@ -57,7 +57,9 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
       },
     });
 
-    const rol = await obtenerORol(tipoRol === "APROBADOR" ? "APROBADOR" : "LOGISTICA_COMPRAS");
+    const nombreRol =
+      tipoRol === "APROBADOR" ? "APROBADOR" : tipoRol === "APROBADOR_GENERAL" ? "APROBADOR_GENERAL" : "LOGISTICA_COMPRAS";
+    const rol = await obtenerORol(nombreRol);
     await prisma.asignacionRol.create({
       data: { usuarioId: nuevoUsuario.id, rolId: rol.id, asignadoPorId: quienCrea.id },
     });
@@ -66,6 +68,14 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
       await prisma.aprobadorArea.upsert({
         where: { area },
         create: { area, usuarioId: nuevoUsuario.id },
+        update: { usuarioId: nuevoUsuario.id },
+      });
+    }
+
+    if (tipoRol === "APROBADOR_GENERAL" && rolEspecial) {
+      await prisma.aprobadorEspecial.upsert({
+        where: { rol: rolEspecial },
+        create: { rol: rolEspecial, usuarioId: nuevoUsuario.id },
         update: { usuarioId: nuevoUsuario.id },
       });
     }

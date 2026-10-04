@@ -75,6 +75,19 @@ export const aprobadoresAreaSchema = z.object({
 
 export type AprobadoresAreaInput = z.infer<typeof aprobadoresAreaSchema>;
 
+const ROLES_ESPECIALES = ["GERENTE_SUPPLY", "DISTRICT_CONTROLLER", "GERENTE_GENERAL", "GERENTE_RRHH"] as const;
+
+export const aprobadoresEspecialesSchema = z.object({
+  asignaciones: z.array(
+    z.object({
+      rol: z.enum(ROLES_ESPECIALES),
+      usuarioId: z.string().min(1, "Selecciona un usuario"),
+    })
+  ),
+});
+
+export type AprobadoresEspecialesInput = z.infer<typeof aprobadoresEspecialesSchema>;
+
 export const rechazarSolicitudPedidoSchema = z.object({
   comentario: z.string().max(500).optional().or(z.literal("")),
 });

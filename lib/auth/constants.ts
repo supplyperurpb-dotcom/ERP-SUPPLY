@@ -4,6 +4,12 @@ export const ROLES = {
   ACOPIO: "ACOPIO",
   COMEX: "COMEX",
   APROBADOR: "APROBADOR",
+  // Puede aprobar/rechazar cualquier Solped y participar en las firmas de
+  // OC/OS sin restricción de área (p. ej. Gerente de Supply, District
+  // Controller, Gerente General) — a diferencia de APROBADOR, que solo
+  // aprueba lo de su propia área. No da los demás permisos de ADMIN
+  // (gestión de usuarios, SKU, etc.).
+  APROBADOR_GENERAL: "APROBADOR_GENERAL",
   SOLO_LECTURA: "SOLO_LECTURA",
 } as const;
 
@@ -15,6 +21,7 @@ export const ROL_LABELS: Record<RolNombre, string> = {
   ACOPIO: "Acopio",
   COMEX: "Comex",
   APROBADOR: "Aprobador",
+  APROBADOR_GENERAL: "Aprobador general",
   SOLO_LECTURA: "Solo lectura",
 };
 
@@ -37,6 +44,7 @@ export const ACCESO_MODULO_POR_ROL: Record<RolNombre, Modulo[]> = {
   ACOPIO: [MODULOS.ACOPIO],
   COMEX: [MODULOS.COMEX],
   APROBADOR: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.COMEX],
+  APROBADOR_GENERAL: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.COMEX],
   SOLO_LECTURA: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.USUARIOS, MODULOS.COMEX],
 };
 

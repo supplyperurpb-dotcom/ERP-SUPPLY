@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea } from "@/lib/compras";
-import { AREAS_EMPRESA, type AreaEmpresaCodigo } from "@/lib/constants/compras";
+import { obtenerAprobadoresArea, obtenerAprobadoresEspeciales } from "@/lib/compras";
+import { AREAS_EMPRESA, ROLES_APROBADOR_ESPECIAL, type AreaEmpresaCodigo, type RolAprobadorEspecialCodigo } from "@/lib/constants/compras";
 import { AprobadoresAreaForm } from "./aprobadores-area-form";
+import { AprobadoresEspecialesForm } from "./aprobadores-especiales-form";
 
 export default async function AprobadoresAreaPage() {
   const usuario = await getUsuarioActual();
@@ -12,9 +13,10 @@ export default async function AprobadoresAreaPage() {
     redirect("/logistica/solicitudes-pedido");
   }
 
-  const [usuarios, aprobadores] = await Promise.all([
+  const [usuarios, aprobadores, aprobadoresEspeciales] = await Promise.all([
     prisma.usuario.findMany({ where: { activo: true }, orderBy: { nombres: "asc" } }),
     obtenerAprobadoresArea(),
+    obtenerAprobadoresEspeciales(),
   ]);
 
   const asignacionesIniciales = AREAS_EMPRESA.reduce((acc, a) => {
@@ -22,16 +24,21 @@ export default async function AprobadoresAreaPage() {
     return acc;
   }, {} as Record<AreaEmpresaCodigo, string>);
 
+  const asignacionesEspecialesIniciales = ROLES_APROBADOR_ESPECIAL.reduce((acc, r) => {
+    acc[r.valor] = aprobadoresEspeciales.find((ap) => ap.rol === r.valor)?.usuarioId ?? "";
+    return acc;
+  }, {} as Record<RolAprobadorEspecialCodigo, string>);
+
+  const opcionesUsuarios = usuarios.map((u) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}` }));
+
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         titulo="Aprobadores por área"
-        descripcion="Configura qué usuario aprueba las solicitudes de pedido de cada área."
+        descripcion="Configura qué usuario aprueba las solicitudes de pedido de cada área, y qué usuario ocupa cada rol especial de aprobación."
       />
-      <AprobadoresAreaForm
-        usuarios={usuarios.map((u) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}` }))}
-        asignacionesIniciales={asignacionesIniciales}
-      />
+      <AprobadoresAreaForm usuarios={opcionesUsuarios} asignacionesIniciales={asignacionesIniciales} />
+      <AprobadoresEspecialesForm usuarios={opcionesUsuarios} asignacionesIniciales={asignacionesEspecialesIniciales} />
     </div>
   );
 }

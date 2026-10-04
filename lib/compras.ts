@@ -1,7 +1,12 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ROLES, type RolNombre } from "@/lib/auth/constants";
-import type { AreaEmpresaCodigo, CategoriaCompraCodigo } from "@/lib/constants/compras";
+import {
+  TIPO_CAMBIO_USD_APROBACION,
+  type AreaEmpresaCodigo,
+  type CategoriaCompraCodigo,
+  type RolAprobadorEspecialCodigo,
+} from "@/lib/constants/compras";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -167,8 +172,10 @@ export async function obtenerAprobadoresArea(db: Db = prisma): Promise<Aprobador
     .filter((a): a is AprobadorAreaInfo => a !== null);
 }
 
-// Un ADMIN puede aprobar/rechazar cualquier solicitud; cualquier otro
-// usuario solo puede hacerlo si es el aprobador configurado para esa área.
+// Un ADMIN o un APROBADOR_GENERAL (Gerente de Supply, District Controller,
+// Gerente General) puede aprobar/rechazar cualquier solicitud, de
+// cualquier área; cualquier otro usuario solo puede hacerlo si es el
+// aprobador configurado para esa área puntual.
 export function puedeAprobarSolicitud({
   usuarioId,
   roles,
@@ -180,6 +187,62 @@ export function puedeAprobarSolicitud({
   area: string;
   aprobadoresPorArea: Map<string, string>;
 }): boolean {
-  if (roles.includes(ROLES.ADMIN)) return true;
+  if (roles.includes(ROLES.ADMIN) || roles.includes(ROLES.APROBADOR_GENERAL)) return true;
   return aprobadoresPorArea.get(area) === usuarioId;
+}
+
+export type AprobadorEspecialInfo = {
+  rol: RolAprobadorEspecialCodigo;
+  usuarioId: string;
+  nombre: string;
+  email: string;
+};
+
+// Mapa rol especial -> usuario que lo ocupa (ver AprobadorEspecial).
+export async function obtenerAprobadoresEspeciales(db: Db = prisma): Promise<AprobadorEspecialInfo[]> {
+  const aprobadores = await db.aprobadorEspecial.findMany();
+  if (aprobadores.length === 0) return [];
+  const usuarios = await db.usuario.findMany({
+    where: { id: { in: aprobadores.map((a) => a.usuarioId) } },
+  });
+  const usuarioPorId = new Map(usuarios.map((u) => [u.id, u]));
+  return aprobadores
+    .map((a) => {
+      const usuario = usuarioPorId.get(a.usuarioId);
+      if (!usuario) return null;
+      return {
+        rol: a.rol as RolAprobadorEspecialCodigo,
+        usuarioId: usuario.id,
+        nombre: `${usuario.nombres} ${usuario.apellidos}`,
+        email: usuario.email,
+      };
+    })
+    .filter((a): a is AprobadorEspecialInfo => a !== null);
+}
+
+// Convierte un monto a su equivalente en USD solo para ubicar en qué tramo
+// de aprobación cae una OC/OS (ver rolesFirmaRequeridos) — no es un tipo de
+// cambio contable, es fijo y solo para este propósito.
+export function montoEnUsd(monto: number, moneda: string): number {
+  return moneda === "PEN" ? monto / TIPO_CAMBIO_USD_APROBACION : monto;
+}
+
+// Roles que deben firmar una OC/OS antes de quedar aprobada, según su
+// monto (en USD equivalente) y si alguna de sus líneas es de RRHH:
+// - Cualquier línea de RRHH: siempre necesita al Gerente de RRHH, además
+//   de lo que corresponda por monto.
+// - Menos de $10,000: Gerente de Supply.
+// - De $10,000 a $50,000: District Controller y Gerente de Supply.
+// - Más de $50,000: Gerente de Supply, District Controller y Gerente General.
+export function rolesFirmaRequeridos(montoUsd: number, centroCostos: string[]): RolAprobadorEspecialCodigo[] {
+  const roles: RolAprobadorEspecialCodigo[] = [];
+  if (centroCostos.includes("RRHH")) roles.push("GERENTE_RRHH");
+  if (montoUsd < 10000) {
+    roles.push("GERENTE_SUPPLY");
+  } else if (montoUsd <= 50000) {
+    roles.push("DISTRICT_CONTROLLER", "GERENTE_SUPPLY");
+  } else {
+    roles.push("GERENTE_SUPPLY", "DISTRICT_CONTROLLER", "GERENTE_GENERAL");
+  }
+  return [...new Set(roles)];
 }

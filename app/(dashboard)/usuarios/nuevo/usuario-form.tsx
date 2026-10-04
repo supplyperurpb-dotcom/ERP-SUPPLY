@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, ROLES_APROBADOR_ESPECIAL } from "@/lib/constants/compras";
 import { crearUsuarioSchema, type CrearUsuarioInput } from "@/lib/validations/usuarios";
 import { crearUsuarioAction } from "@/lib/actions/usuario-actions";
 
@@ -36,10 +36,12 @@ export function UsuarioForm() {
       password: generarPassword(),
       tipoRol: "REGULAR",
       area: "PRODUCCION",
+      rolEspecial: undefined,
     },
   });
 
   const tipoRol = form.watch("tipoRol");
+  const rolesEspecialesAsignables = ROLES_APROBADOR_ESPECIAL.filter((r) => r.valor !== "GERENTE_RRHH");
 
   async function onSubmit(data: CrearUsuarioInput) {
     let resultado;
@@ -141,7 +143,8 @@ export function UsuarioForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="REGULAR">Usuario regular</SelectItem>
-                    <SelectItem value="APROBADOR">Usuario aprobador</SelectItem>
+                    <SelectItem value="APROBADOR">Usuario aprobador (de su área)</SelectItem>
+                    <SelectItem value="APROBADOR_GENERAL">Aprobador general (sin restricción de área)</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -149,9 +152,41 @@ export function UsuarioForm() {
             <p className="text-xs text-muted-foreground">
               {tipoRol === "APROBADOR"
                 ? "Además de ver solo su área, podrá aprobar/rechazar las solicitudes y órdenes de esa área."
-                : "Puede crear solicitudes y órdenes, pero solo ve y gestiona las de su área."}
+                : tipoRol === "APROBADOR_GENERAL"
+                  ? "Puede aprobar/rechazar cualquier Solped y firmar cualquier OC/OS en el rol especial que ocupe, de cualquier área."
+                  : "Puede crear solicitudes y órdenes, pero solo ve y gestiona las de su área."}
             </p>
           </div>
+
+          {tipoRol === "APROBADOR_GENERAL" && (
+            <div className="space-y-2">
+              <Label>Rol especial</Label>
+              <Controller
+                control={form.control}
+                name="rolEspecial"
+                render={({ field }) => (
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rolesEspecialesAsignables.map((r) => (
+                        <SelectItem key={r.valor} value={r.valor}>
+                          {r.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Determina qué firma cubre en las OC/OS (ver &quot;Aprobadores por área&quot; para reasignarlo después).
+              </p>
+              {form.formState.errors.rolEspecial && (
+                <p className="text-sm font-medium text-destructive">{form.formState.errors.rolEspecial.message}</p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Área</Label>

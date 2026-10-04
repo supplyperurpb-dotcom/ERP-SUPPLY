@@ -5,7 +5,14 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
 import { IGV_TASA, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
-import { cantidadPendiente, categoriaDeItem, obtenerAprobadoresArea } from "@/lib/compras";
+import {
+  cantidadPendiente,
+  categoriaDeItem,
+  montoEnUsd,
+  obtenerAprobadoresArea,
+  obtenerAprobadoresEspeciales,
+  rolesFirmaRequeridos,
+} from "@/lib/compras";
 import { ordenCompraSchema, type OrdenCompraInput } from "@/lib/validations/compras";
 
 export type OrdenCompraActionState = { error?: string; id?: string } | undefined;
@@ -108,6 +115,15 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
         });
       }
 
+      // Según el monto (en USD equivalente) y si hay algún ítem de RRHH, se
+      // crea una firma PENDIENTE por cada rol que debe aprobar antes de que
+      // la orden quede del todo APROBADA (ver rolesFirmaRequeridos).
+      const centroCostos = [...new Set(items.map((i) => i.centroCosto))];
+      const roles = rolesFirmaRequeridos(montoEnUsd(montoTotal, moneda), centroCostos);
+      for (const rol of roles) {
+        await tx.ordenCompraFirma.create({ data: { ordenCompraId: orden.id, rol } });
+      }
+
       return orden;
     });
 
@@ -120,65 +136,76 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   }
 }
 
-// A diferencia de SolicitudPedido (que tiene un único área y por lo tanto
-// un único aprobador configurable), una OC/OS puede jalar líneas de varias
-// áreas a la vez, así que su visto bueno lo da un ADMIN.
-export async function aprobarOrdenCompraAction(id: string): Promise<{ error?: string } | undefined> {
+// Reemplaza al antiguo aprobar/rechazar de un solo clic por ADMIN: cada OC/OS
+// tiene una o más firmas requeridas (ver rolesFirmaRequeridos, calculadas al
+// crearla) y cada una la resuelve el titular de ese rol especial (o un ADMIN,
+// como respaldo). La orden entera queda APROBADA recién cuando todas sus
+// firmas están en APROBADO; si cualquiera se RECHAZA, la orden completa pasa
+// a RECHAZADO de inmediato.
+export async function firmarOrdenCompraAction(
+  id: string,
+  decision: "APROBADO" | "RECHAZADO",
+  comentario?: string
+): Promise<{ error?: string } | undefined> {
   try {
     const usuario = await getUsuarioActual();
-    if (!usuario || !usuario.roles.includes("ADMIN")) {
-      return { error: "Solo un administrador puede aprobar órdenes." };
-    }
+    if (!usuario) return { error: "Debes iniciar sesión para firmar una orden." };
 
-    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
+    const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { firmas: true } });
     if (!orden) return { error: "La orden ya no existe." };
     if (orden.estado !== "PENDIENTE") {
-      return { error: "Solo se pueden aprobar órdenes pendientes." };
+      return { error: "Solo se pueden firmar órdenes pendientes." };
     }
 
-    await prisma.ordenCompra.update({
-      where: { id },
-      data: { estado: "APROBADO", aprobadoPorId: usuario.id, fechaAprobacion: new Date(), comentarioRechazo: null },
+    const firmasPendientes = orden.firmas.filter((f) => f.estado === "PENDIENTE");
+    if (firmasPendientes.length === 0) {
+      return { error: "Esta orden no tiene firmas pendientes." };
+    }
+
+    const aprobadoresEspeciales = await obtenerAprobadoresEspeciales();
+    const aprobadorPorRol = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
+    const firmaDelUsuario = firmasPendientes.find((f) => aprobadorPorRol.get(f.rol) === usuario.id);
+    const firmaAUsar = firmaDelUsuario ?? (usuario.roles.includes("ADMIN") ? firmasPendientes[0] : undefined);
+
+    if (!firmaAUsar) {
+      return { error: "No tienes un rol de aprobación pendiente en esta orden." };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.ordenCompraFirma.update({
+        where: { id: firmaAUsar.id },
+        data: { estado: decision, usuarioId: usuario.id, fecha: new Date(), comentario: comentario || null },
+      });
+
+      if (decision === "RECHAZADO") {
+        await tx.ordenCompra.update({
+          where: { id },
+          data: {
+            estado: "RECHAZADO",
+            aprobadoPorId: usuario.id,
+            fechaAprobacion: new Date(),
+            comentarioRechazo: comentario || null,
+          },
+        });
+        return;
+      }
+
+      const todasLasFirmas = await tx.ordenCompraFirma.findMany({ where: { ordenCompraId: id } });
+      const todasAprobadas = todasLasFirmas.every((f) => (f.id === firmaAUsar.id ? true : f.estado === "APROBADO"));
+      if (todasAprobadas) {
+        await tx.ordenCompra.update({
+          where: { id },
+          data: { estado: "APROBADO", aprobadoPorId: usuario.id, fechaAprobacion: new Date(), comentarioRechazo: null },
+        });
+      }
     });
 
     revalidatePath("/logistica/ordenes-compra");
     revalidatePath(`/logistica/ordenes-compra/${id}`);
     return undefined;
   } catch (e) {
-    console.error("Error inesperado en aprobarOrdenCompraAction:", e);
-    return { error: e instanceof Error ? e.message : "Error inesperado al aprobar la orden." };
-  }
-}
-
-export async function rechazarOrdenCompraAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
-  try {
-    const usuario = await getUsuarioActual();
-    if (!usuario || !usuario.roles.includes("ADMIN")) {
-      return { error: "Solo un administrador puede rechazar órdenes." };
-    }
-
-    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
-    if (!orden) return { error: "La orden ya no existe." };
-    if (orden.estado !== "PENDIENTE") {
-      return { error: "Solo se pueden rechazar órdenes pendientes." };
-    }
-
-    await prisma.ordenCompra.update({
-      where: { id },
-      data: {
-        estado: "RECHAZADO",
-        aprobadoPorId: usuario.id,
-        fechaAprobacion: new Date(),
-        comentarioRechazo: comentario || null,
-      },
-    });
-
-    revalidatePath("/logistica/ordenes-compra");
-    revalidatePath(`/logistica/ordenes-compra/${id}`);
-    return undefined;
-  } catch (e) {
-    console.error("Error inesperado en rechazarOrdenCompraAction:", e);
-    return { error: e instanceof Error ? e.message : "Error inesperado al rechazar la orden." };
+    console.error("Error inesperado en firmarOrdenCompraAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al firmar la orden." };
   }
 }
 
@@ -201,7 +228,7 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
       const usuario = await getUsuarioActual();
       if (!usuario) return { error: "Debes iniciar sesión para anular una orden." };
 
-      if (!usuario.roles.includes("ADMIN")) {
+      if (!usuario.roles.includes("ADMIN") && !usuario.roles.includes("APROBADOR_GENERAL")) {
         const aprobadores = await obtenerAprobadoresArea();
         const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
         const areasOrden = new Set(orden.items.map((i) => i.centroCosto));

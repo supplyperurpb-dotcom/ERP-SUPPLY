@@ -22,6 +22,7 @@ enum RolNombre {
   ACOPIO
   COMEX
   APROBADOR
+  APROBADOR_GENERAL
   SOLO_LECTURA
 }
 
@@ -354,6 +355,53 @@ model AprobadorArea {
   @@map("aprobadores_area")
 }
 
+// Roles transversales (no atados a un área) para aprobación "sin
+// restricción de área" de Solped y para el flujo de firmas por monto de
+// OC/OS (ver OrdenCompraFirma y lib/compras.ts: rolesFirmaRequeridos).
+// Cada rol lo ocupa un único usuario a la vez.
+enum RolAprobadorEspecial {
+  GERENTE_SUPPLY
+  DISTRICT_CONTROLLER
+  GERENTE_GENERAL
+  GERENTE_RRHH
+}
+
+model AprobadorEspecial {
+  id        String               @id @default(cuid())
+  rol       RolAprobadorEspecial @unique
+  usuarioId String
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@map("aprobadores_especiales")
+}
+
+enum EstadoFirma {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+// Una OC/OS por encima de cierto monto (o con algún ítem de RRHH) necesita
+// la firma de uno o más roles especiales antes de quedar aprobada del
+// todo — ver rolesFirmaRequeridos en lib/compras.ts. Cada fila es la firma
+// pendiente/resuelta de un rol puntual para una orden puntual.
+model OrdenCompraFirma {
+  id            String               @id @default(cuid())
+  ordenCompraId String
+  rol           RolAprobadorEspecial
+  estado        EstadoFirma          @default(PENDIENTE)
+  usuarioId     String?
+  fecha         DateTime?
+  comentario    String?
+  createdAt     DateTime             @default(now())
+
+  ordenCompra OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+
+  @@unique([ordenCompraId, rol])
+  @@map("orden_compra_firmas")
+}
+
 model SolicitudPedidoItem {
   id                String      @id @default(cuid())
   solicitudPedidoId String
@@ -395,17 +443,22 @@ model OrdenCompra {
   igv         Decimal         @default(0) @db.Decimal(12, 2)
   montoTotal  Decimal         @default(0) @db.Decimal(12, 2)
   creadoPorId String?
-  // Decisión de aprobación (visto bueno): como una OC/OS puede jalar
-  // líneas de varias áreas a la vez, la aprueba un ADMIN (no hay un único
-  // aprobador de área que aplique siempre), a diferencia de SolicitudPedido.
+  // Decisión de aprobación (visto bueno) agregada: queda en PENDIENTE
+  // hasta que todas las firmas requeridas (ver OrdenCompraFirma, según el
+  // monto en USD y si hay ítems de RRHH — lib/compras.ts:
+  // rolesFirmaRequeridos) estén en APROBADO, momento en el que se setean
+  // estos campos con la última persona que firmó. Si alguna firma
+  // requerida se RECHAZA, la orden entera pasa a RECHAZADO. Un ADMIN
+  // puede firmar en lugar del titular de cualquier rol pendiente.
   aprobadoPorId     String?
   fechaAprobacion   DateTime?
   comentarioRechazo String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  proveedor Proveedor         @relation(fields: [proveedorId], references: [id])
+  proveedor Proveedor          @relation(fields: [proveedorId], references: [id])
   items     OrdenCompraItem[]
+  firmas    OrdenCompraFirma[]
 
   @@map("ordenes_compra")
 }

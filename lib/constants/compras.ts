@@ -52,3 +52,17 @@ export const NOMBRE_ORDEN: Record<CategoriaCompraCodigo, string> = {
   COMPRA: "Orden de compra",
   SERVICIO: "Orden de servicio",
 };
+
+// Tipo de cambio fijo usado solo para calcular en qué tramo de aprobación
+// por monto cae una OC/OS emitida en soles (ver rolesFirmaRequeridos en
+// lib/compras.ts). Si cambia, este es el único lugar que hay que tocar.
+export const TIPO_CAMBIO_USD_APROBACION = 3.3;
+
+export const ROLES_APROBADOR_ESPECIAL = [
+  { valor: "GERENTE_SUPPLY", nombre: "Gerente de Supply Chain" },
+  { valor: "DISTRICT_CONTROLLER", nombre: "District Controller" },
+  { valor: "GERENTE_GENERAL", nombre: "Gerente General" },
+  { valor: "GERENTE_RRHH", nombre: "Gerente de RRHH" },
+] as const;
+
+export type RolAprobadorEspecialCodigo = (typeof ROLES_APROBADOR_ESPECIAL)[number]["valor"];

@@ -9,9 +9,11 @@ import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import {
   solicitudPedidoSchema,
   aprobadoresAreaSchema,
+  aprobadoresEspecialesSchema,
   rechazarSolicitudPedidoSchema,
   type SolicitudPedidoInput,
   type AprobadoresAreaInput,
+  type AprobadoresEspecialesInput,
 } from "@/lib/validations/compras";
 
 export type SolicitudPedidoActionState = { error?: string; id?: string } | undefined;
@@ -239,5 +241,41 @@ export async function configurarAprobadoresAreaAction(
   } catch (e) {
     console.error("Error inesperado en configurarAprobadoresAreaAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al guardar los aprobadores." };
+  }
+}
+
+// Asigna qué usuario ocupa cada rol especial (Gerente de Supply, District
+// Controller, Gerente General, Gerente de RRHH), usados para aprobar
+// cualquier Solped sin restricción de área y para las firmas de OC/OS por
+// monto (ver rolesFirmaRequeridos en lib/compras.ts).
+export async function configurarAprobadoresEspecialesAction(
+  data: AprobadoresEspecialesInput
+): Promise<{ error?: string } | undefined> {
+  const parsed = aprobadoresEspecialesSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario || !usuario.roles.includes("ADMIN")) {
+      return { error: "Solo un administrador puede configurar los aprobadores especiales." };
+    }
+
+    await prisma.$transaction(
+      parsed.data.asignaciones.map((asignacion) =>
+        prisma.aprobadorEspecial.upsert({
+          where: { rol: asignacion.rol },
+          create: { rol: asignacion.rol, usuarioId: asignacion.usuarioId },
+          update: { usuarioId: asignacion.usuarioId },
+        })
+      )
+    );
+
+    revalidatePath("/logistica/solicitudes-pedido/aprobadores");
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en configurarAprobadoresEspecialesAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al guardar los aprobadores especiales." };
   }
 }

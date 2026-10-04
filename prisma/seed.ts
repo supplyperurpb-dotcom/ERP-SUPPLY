@@ -51,6 +51,7 @@ function descripcionRol(nombre: RolNombre): string {
     ACOPIO: "Registro de ingresos de fruta, tarjas y guías de remisión",
     COMEX: "Gestión de packing list, stock de cámara y embarques",
     APROBADOR: "Aprobación de documentos según reglas configuradas",
+    APROBADOR_GENERAL: "Aprobación de solicitudes y órdenes de cualquier área",
     SOLO_LECTURA: "Acceso de solo lectura a todos los módulos",
   };
   return descripciones[nombre];

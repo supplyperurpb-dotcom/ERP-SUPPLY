@@ -10,7 +10,7 @@ import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea } from "@/lib/compras";
-import { AprobarRechazarOrdenBotones, AnularOrdenBoton } from "./aprobar-rechazar-botones";
+import { AnularOrdenBoton } from "./aprobar-rechazar-botones";
 import type { EstadoDocumento, AreaEmpresa } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -34,13 +34,16 @@ export default async function OrdenesCompraPage() {
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   // Los compradores de Supply Chain gestionan las compras de toda la
-  // empresa, así que ven todas las OC/OS, no solo las de su área.
+  // empresa, y los aprobadores generales (Gerente de Supply, District
+  // Controller, Gerencia General) pueden aprobar cualquier OC/OS, así que
+  // ambos ven todas, no solo las de su área.
   const esSupplyChain = usuario?.area === "SUPPLY_CHAIN";
+  const esAprobadorGeneral = usuario?.roles.includes("APROBADOR_GENERAL") ?? false;
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   // Igual que en Solicitudes de pedido: todo usuario con área asignada
   // (sea o no aprobador) solo ve las OC/OS que tengan al menos una línea
-  // de su propia área; ADMIN y Supply Chain ven todas.
-  const areaUsuario = usuario && !esAdmin && !esSupplyChain ? usuario.area : null;
+  // de su propia área; ADMIN, Supply Chain y aprobadores generales ven todas.
+  const areaUsuario = usuario && !esAdmin && !esSupplyChain && !esAprobadorGeneral ? usuario.area : null;
 
   const ordenes = await prisma.ordenCompra.findMany({
     where: areaUsuario ? { items: { some: { centroCosto: areaUsuario as AreaEmpresa } } } : undefined,
@@ -124,9 +127,6 @@ export default async function OrdenesCompraPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap justify-end gap-1">
-                      {esAdmin && orden.estado === "PENDIENTE" && (
-                        <AprobarRechazarOrdenBotones id={orden.id} numero={orden.numero} />
-                      )}
                       {puedeAnular && <AnularOrdenBoton id={orden.id} numero={orden.numero} />}
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/logistica/ordenes-compra/${orden.id}`}>Ver</Link>

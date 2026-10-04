@@ -1,18 +1,25 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FileDown } from "lucide-react";
+import { FileDown, Check, X as XIcon, Clock } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AprobarRechazarOrdenBotones, AnularOrdenBoton } from "../aprobar-rechazar-botones";
+import { AnularOrdenBoton, FirmarOrdenBotones } from "../aprobar-rechazar-botones";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
-import { AREAS_EMPRESA, CATEGORIAS_COMPRA, IGV_TASA, NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import {
+  AREAS_EMPRESA,
+  CATEGORIAS_COMPRA,
+  IGV_TASA,
+  NOMBRE_ORDEN,
+  ROLES_APROBADOR_ESPECIAL,
+  type CategoriaCompraCodigo,
+} from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea } from "@/lib/compras";
-import type { EstadoDocumento } from "@prisma/client";
+import { obtenerAprobadoresArea, obtenerAprobadoresEspeciales } from "@/lib/compras";
+import type { EstadoDocumento, EstadoFirma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
@@ -30,8 +37,24 @@ const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secon
   ANULADO: "destructive",
 };
 
+const ESTADO_FIRMA_VARIANT: Record<EstadoFirma, "success" | "destructive" | "secondary"> = {
+  PENDIENTE: "secondary",
+  APROBADO: "success",
+  RECHAZADO: "destructive",
+};
+
+const ESTADO_FIRMA_LABEL: Record<EstadoFirma, string> = {
+  PENDIENTE: "Pendiente",
+  APROBADO: "Aprobado",
+  RECHAZADO: "Rechazado",
+};
+
 function nombreArea(valor: string) {
   return AREAS_EMPRESA.find((a) => a.valor === valor)?.nombre ?? valor;
+}
+
+function nombreRolEspecial(valor: string) {
+  return ROLES_APROBADOR_ESPECIAL.find((r) => r.valor === valor)?.nombre ?? valor;
 }
 
 export default async function OrdenCompraDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,26 +65,46 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
     include: {
       proveedor: true,
       items: { include: { sku: true, solicitudPedidoItem: { include: { solicitudPedido: true } } } },
+      firmas: true,
     },
   });
 
   if (!orden) notFound();
 
-  const [usuario, aprobador, aprobadores] = await Promise.all([
+  const idsFirmantes = orden.firmas.map((f) => f.usuarioId).filter((v): v is string => !!v);
+
+  const [usuario, aprobador, aprobadores, aprobadoresEspeciales, usuariosFirmantes] = await Promise.all([
     getUsuarioActual(),
     orden.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: orden.aprobadoPorId } }) : null,
     obtenerAprobadoresArea(),
+    obtenerAprobadoresEspeciales(),
+    idsFirmantes.length > 0 ? prisma.usuario.findMany({ where: { id: { in: idsFirmantes } } }) : Promise.resolve([]),
   ]);
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
-  const puedeAprobar = esAdmin && orden.estado === "PENDIENTE";
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
+  const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
+  const usuarioFirmantePorId = new Map(usuariosFirmantes.map((u) => [u.id, u]));
+
   const tienePermisoOrden =
-    esAdmin || (!!usuario && orden.items.some((i) => aprobadoresPorArea.get(i.centroCosto) === usuario.id));
+    esAdmin ||
+    (usuario?.roles.includes("APROBADOR_GENERAL") ?? false) ||
+    (!!usuario && orden.items.some((i) => aprobadoresPorArea.get(i.centroCosto) === usuario.id));
   // Antes de aprobada, anular equivale a borrar y lo puede usar cualquiera;
-  // ya aprobada, solo ADMIN o el aprobador de alguna de las áreas de la orden.
+  // ya aprobada, solo ADMIN, un aprobador general o el aprobador de alguna
+  // de las áreas de la orden.
   const puedeAnular =
     orden.estado === "APROBADO" ? tienePermisoOrden : orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
   const esServicio = orden.categoria === "SERVICIO";
+
+  // Firma(s) que el usuario actual puede resolver ahora mismo: la de su
+  // propio rol especial si está pendiente, o — si es ADMIN y no tiene un
+  // rol propio pendiente — la primera pendiente, como respaldo.
+  const firmasPendientes = orden.firmas.filter((f) => f.estado === "PENDIENTE");
+  const firmaPropiaId = usuario ? firmasPendientes.find((f) => aprobadorPorRolEspecial.get(f.rol) === usuario.id)?.id : undefined;
+  const firmaQuePuedeUsar =
+    orden.estado === "PENDIENTE"
+      ? (firmaPropiaId ?? (esAdmin && firmasPendientes.length > 0 ? firmasPendientes[0].id : undefined))
+      : undefined;
 
   return (
     <div className="space-y-6">
@@ -70,7 +113,13 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}`}
         acciones={
           <div className="flex gap-2">
-            {puedeAprobar && <AprobarRechazarOrdenBotones id={orden.id} numero={orden.numero} />}
+            {firmaQuePuedeUsar && (
+              <FirmarOrdenBotones
+                id={orden.id}
+                numero={orden.numero}
+                rolLabel={nombreRolEspecial(orden.firmas.find((f) => f.id === firmaQuePuedeUsar)!.rol)}
+              />
+            )}
             {puedeAnular && (
               <AnularOrdenBoton id={orden.id} numero={orden.numero} redirectTo="/logistica/ordenes-compra" />
             )}
@@ -154,6 +203,49 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
           )}
         </CardContent>
       </Card>
+
+      {orden.firmas.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Aprobaciones requeridas</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Según el monto de la orden{orden.firmas.some((f) => f.rol === "GERENTE_RRHH") ? " y sus ítems de RRHH" : ""},
+              necesita la firma de estos roles antes de quedar aprobada.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {orden.firmas.map((firma) => {
+              const firmante = firma.usuarioId ? usuarioFirmantePorId.get(firma.usuarioId) : null;
+              return (
+                <div key={firma.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                  <div className="flex items-center gap-2">
+                    {firma.estado === "PENDIENTE" ? (
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    ) : firma.estado === "APROBADO" ? (
+                      <Check className="h-4 w-4 text-green-700" />
+                    ) : (
+                      <XIcon className="h-4 w-4 text-destructive" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium">{nombreRolEspecial(firma.rol)}</p>
+                      {firmante ? (
+                        <p className="text-xs text-muted-foreground">
+                          {firmante.nombres} {firmante.apellidos}
+                          {firma.fecha ? ` · ${formatDateTime(firma.fecha)}` : ""}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Sin resolver</p>
+                      )}
+                      {firma.comentario && <p className="text-xs text-muted-foreground">&quot;{firma.comentario}&quot;</p>}
+                    </div>
+                  </div>
+                  <Badge variant={ESTADO_FIRMA_VARIANT[firma.estado]}>{ESTADO_FIRMA_LABEL[firma.estado]}</Badge>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

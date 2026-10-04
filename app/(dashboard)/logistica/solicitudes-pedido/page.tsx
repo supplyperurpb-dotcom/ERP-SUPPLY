@@ -34,13 +34,17 @@ export default async function SolicitudesPedidoPage() {
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   // Los compradores de Supply Chain gestionan las compras de toda la
-  // empresa, así que ven todas las solicitudes, no solo las de su área.
+  // empresa, y los aprobadores generales (Gerente de Supply, District
+  // Controller, Gerencia General) pueden aprobar cualquier solicitud, así
+  // que ambos ven todas, no solo las de su área.
   const esSupplyChain = usuario?.area === "SUPPLY_CHAIN";
+  const esAprobadorGeneral = usuario?.roles.includes("APROBADOR_GENERAL") ?? false;
   const puedeGenerarOrden = esAdmin || esSupplyChain;
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   // Todo usuario con área asignada (sea o no aprobador) solo ve las
-  // solicitudes de su propia área; ADMIN y Supply Chain ven todas.
-  const areaUsuario = usuario && !esAdmin && !esSupplyChain ? usuario.area : null;
+  // solicitudes de su propia área; ADMIN, Supply Chain y aprobadores
+  // generales ven todas.
+  const areaUsuario = usuario && !esAdmin && !esSupplyChain && !esAprobadorGeneral ? usuario.area : null;
 
   const solicitudes = await prisma.solicitudPedido.findMany({
     where: areaUsuario ? { area: areaUsuario as AreaEmpresa } : undefined,
