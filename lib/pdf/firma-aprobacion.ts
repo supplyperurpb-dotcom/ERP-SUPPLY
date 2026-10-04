@@ -17,6 +17,10 @@ export function dibujarFirmaAprobacion(
   const anchoLinea = 180;
   const xLinea = width / 2 - anchoLinea / 2;
 
+  const textoEtiqueta = "APROBADO POR:";
+  const anchoEtiqueta = bold.widthOfTextAtSize(textoEtiqueta, 7);
+  page.drawText(textoEtiqueta, { x: width / 2 - anchoEtiqueta / 2, y: yLinea + 10, size: 7, font: bold, color: GRIS });
+
   page.drawLine({
     start: { x: xLinea, y: yLinea },
     end: { x: xLinea + anchoLinea, y: yLinea },

@@ -32,7 +32,6 @@ function envolverTexto(texto: string, font: PDFFont, size: number, anchoMax: num
   return lineas.length > 0 ? lineas : [""];
 }
 
-const AZUL = rgb(0.11, 0.29, 0.63);
 const GRIS = rgb(0.4, 0.4, 0.4);
 const GRIS_CLARO = rgb(0.85, 0.85, 0.85);
 const NEGRO = rgb(0.1, 0.1, 0.1);
@@ -101,12 +100,17 @@ export async function generarSolicitudPedidoPdf({
   ];
 
   function dibujarEncabezadoTabla() {
-    page.drawRectangle({
-      x: MARGEN_X,
-      y: y - 4,
-      width: ANCHO_PAGINA - MARGEN_X * 2,
-      height: 16,
-      color: GRIS_CLARO,
+    page.drawLine({
+      start: { x: MARGEN_X, y: y + 10 },
+      end: { x: ANCHO_PAGINA - MARGEN_X, y: y + 10 },
+      thickness: 0.75,
+      color: NEGRO,
+    });
+    page.drawLine({
+      start: { x: MARGEN_X, y: y - 4 },
+      end: { x: ANCHO_PAGINA - MARGEN_X, y: y - 4 },
+      thickness: 0.75,
+      color: NEGRO,
     });
     for (const col of columnas) {
       page.drawText(col.titulo, { x: col.x + 3, y, size: 8, font: bold, color: NEGRO });
@@ -120,22 +124,36 @@ export async function generarSolicitudPedidoPdf({
     dibujarEncabezadoTabla();
   }
 
+  // Encabezado: logo con la razón social debajo (no al lado), y el nombre
+  // del documento con su número arriba a la derecha.
+  const yLogoSuperior = y;
   page.drawImage(logo, { x: MARGEN_X, y: y - logoAltura + 8, width: logoAncho, height: logoAltura });
-  page.drawText("REITER PERUVIAN BERRY SA", { x: MARGEN_X + logoAncho + 12, y, size: 12, font: bold, color: AZUL });
-  y -= 14;
-  page.drawText("Ica, Perú — Documento interno (no válido como comprobante SUNAT)", {
-    x: MARGEN_X + logoAncho + 12,
+
+  const sizeTitulo = 11;
+  const tituloCompleto = `${nombreDocumento.toUpperCase()} ${numero}`;
+  const anchoTitulo = bold.widthOfTextAtSize(tituloCompleto, sizeTitulo);
+  page.drawText(tituloCompleto, {
+    x: ANCHO_PAGINA - MARGEN_X - anchoTitulo,
     y,
+    size: sizeTitulo,
+    font: bold,
+    color: NEGRO,
+  });
+
+  let yEmpresa = yLogoSuperior - logoAltura + 8 - 12;
+  page.drawText("REITER PERUVIAN BERRY SA", { x: MARGEN_X, y: yEmpresa, size: 11, font: bold, color: NEGRO });
+  yEmpresa -= 12;
+  page.drawText("Ica, Perú — Documento interno (no válido como comprobante SUNAT)", {
+    x: MARGEN_X,
+    y: yEmpresa,
     size: 7,
     font: regular,
     color: GRIS,
   });
-  y -= 20;
-  page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: AZUL });
-  y -= 26;
 
-  page.drawText(`${nombreDocumento.toUpperCase()} ${numero}`, { x: MARGEN_X, y, size: 15, font: bold, color: NEGRO });
-  y -= 22;
+  y = Math.min(yLogoSuperior - logoAltura + 8, yEmpresa) - 14;
+  page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: NEGRO });
+  y -= 20;
 
   const colDatoX = MARGEN_X + 110;
   const colDatoX2 = MARGEN_X + 320;
