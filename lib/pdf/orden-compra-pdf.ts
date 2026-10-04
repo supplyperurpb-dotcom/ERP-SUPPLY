@@ -189,7 +189,18 @@ export async function generarOrdenCompraPdf({
   // Tabla de ítems.
   // ---------------------------------------------------------------------
   function dibujarEncabezadoTabla() {
-    page.drawRectangle({ x: MARGEN_X, y: y - 3, width: ANCHO_TABLA, height: 13, color: GRIS_CLARO });
+    page.drawLine({
+      start: { x: MARGEN_X, y: y + 10 },
+      end: { x: ANCHO_PAGINA - MARGEN_X, y: y + 10 },
+      thickness: 0.75,
+      color: NEGRO,
+    });
+    page.drawLine({
+      start: { x: MARGEN_X, y: y - 3 },
+      end: { x: ANCHO_PAGINA - MARGEN_X, y: y - 3 },
+      thickness: 0.75,
+      color: NEGRO,
+    });
     page.drawText("ITEM", { x: COL.item + 2, y, size: 7, font: bold, color: NEGRO });
     page.drawText("CÓDIGO", { x: COL.codigo + 2, y, size: 7, font: bold, color: NEGRO });
     page.drawText("DESCRIPCIÓN", { x: COL.descripcion + 2, y, size: 7, font: bold, color: NEGRO });
@@ -237,7 +248,7 @@ export async function generarOrdenCompraPdf({
   y -= 8;
 
   // ---------------------------------------------------------------------
-  // Observaciones y aviso fijo de vida útil (solo para compras físicas).
+  // Observaciones.
   // ---------------------------------------------------------------------
   if (observaciones) {
     if (y < MARGEN_INFERIOR + 40) nuevaPagina();
@@ -248,20 +259,6 @@ export async function generarOrdenCompraPdf({
       y -= 11;
     }
     y -= 4;
-  }
-
-  if (categoriaEsCompra) {
-    if (y < MARGEN_INFERIOR + 30) nuevaPagina();
-    for (const linea of envolverTextoPx(
-      "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
-      bold,
-      8,
-      ANCHO_TABLA
-    )) {
-      page.drawText(linea, { x: MARGEN_X, y, size: 8, font: bold, color: NEGRO });
-      y -= 11;
-    }
-    y -= 6;
   }
 
   // ---------------------------------------------------------------------
@@ -307,6 +304,44 @@ export async function generarOrdenCompraPdf({
   };
   filaPie("USUARIO CREACIÓN SOLPED:", usuarioSolped || "—");
   filaPie("USUARIO CREACIÓN OC/OS:", usuarioCreacion || "—");
+
+  // ---------------------------------------------------------------------
+  // Condiciones de facturación y recepción (solo para compras físicas),
+  // debajo de los usuarios, alineadas a la izquierda.
+  // ---------------------------------------------------------------------
+  if (categoriaEsCompra) {
+    y -= 12;
+    if (y < MARGEN_INFERIOR + 140) nuevaPagina();
+
+    const parrafo = (texto: string, negrita = false) => {
+      for (const linea of envolverTextoPx(texto, negrita ? bold : regular, 8, ANCHO_TABLA)) {
+        page.drawText(linea, { x: MARGEN_X, y, size: 8, font: negrita ? bold : regular, color: NEGRO });
+        y -= 11;
+      }
+    };
+    const bullet = (texto: string) => {
+      page.drawText("•", { x: MARGEN_X + 6, y, size: 8, font: regular, color: NEGRO });
+      for (const linea of envolverTextoPx(texto, regular, 8, ANCHO_TABLA - 24)) {
+        page.drawText(linea, { x: MARGEN_X + 18, y, size: 8, font: regular, color: NEGRO });
+        y -= 11;
+      }
+    };
+
+    parrafo("Las facturas solo deben ser enviadas al siguiente correo facturas.peru@berry.net adjuntando:");
+    y -= 3;
+    bullet("Factura electrónica en PDF y archivo XML");
+    bullet("Orden de Compra");
+    bullet("Guía de Remisión firmada y sellada por recepción de almacén RPB");
+    y -= 3;
+    parrafo("Para facturar deben referenciar el número de orden de compra u orden de servicio emitido por RPB.");
+    y -= 3;
+    parrafo("No se recepcionarán productos sin Orden de Compra, FT, HS y Certificado de metales pesados.");
+    y -= 3;
+    parrafo(
+      "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
+      true
+    );
+  }
 
   if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
   if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
