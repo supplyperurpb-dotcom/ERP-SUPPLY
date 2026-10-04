@@ -26,6 +26,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .filter((v): v is string => !!v)
   );
   for (const id of idsSolicitantes) idsUsuarios.add(id);
+  const idsAprobadoresSolped = new Set(
+    orden.items
+      .map((item) => item.solicitudPedidoItem?.solicitudPedido.aprobadoPorId)
+      .filter((v): v is string => !!v)
+  );
+  for (const id of idsAprobadoresSolped) idsUsuarios.add(id);
 
   const usuarios = idsUsuarios.size > 0 ? await prisma.usuario.findMany({ where: { id: { in: [...idsUsuarios] } } }) : [];
   const usuarioPorId = new Map(usuarios.map((u) => [u.id, u]));
@@ -35,6 +41,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   };
 
   const nombresSolicitantes = [...new Set([...idsSolicitantes].map((id) => nombreUsuario(id)).filter((n): n is string => !!n))];
+  const nombresAprobadoresSolped = [
+    ...new Set([...idsAprobadoresSolped].map((id) => nombreUsuario(id)).filter((n): n is string => !!n)),
+  ];
 
   const direccionProveedor = [
     orden.proveedor.direccion,
@@ -80,6 +89,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       : null,
     usuarioSolped: nombresSolicitantes.length > 0 ? nombresSolicitantes.join(", ") : null,
     usuarioCreacion: nombreUsuario(orden.creadoPorId),
+    solpedAprobadoPor: nombresAprobadoresSolped.length > 0 ? nombresAprobadoresSolped.join(", ") : null,
   });
 
   return new NextResponse(new Uint8Array(bytes), {

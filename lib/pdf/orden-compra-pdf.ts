@@ -60,6 +60,7 @@ export async function generarOrdenCompraPdf({
   aprobadoPor,
   usuarioSolped,
   usuarioCreacion,
+  solpedAprobadoPor,
 }: {
   nombreDocumento: string;
   numero: string;
@@ -88,6 +89,8 @@ export async function generarOrdenCompraPdf({
   aprobadoPor?: { nombre: string; cargo: string | null } | null;
   usuarioSolped: string | null;
   usuarioCreacion: string | null;
+  // Nombre de quien aprobó la(s) solicitud(es) de pedido de origen.
+  solpedAprobadoPor: string | null;
 }): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -293,20 +296,8 @@ export async function generarOrdenCompraPdf({
   y -= 16;
 
   // ---------------------------------------------------------------------
-  // Pie: usuarios y referencias internas.
-  // ---------------------------------------------------------------------
-  if (y < MARGEN_INFERIOR - 40) nuevaPagina();
-  const filaPie = (label: string, value: string) => {
-    page.drawText(label, { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
-    page.drawText(value, { x: MARGEN_X + 125, y, size: 7, font: regular, color: NEGRO });
-    y -= 11;
-  };
-  filaPie("USUARIO CREACIÓN SOLPED:", usuarioSolped || "—");
-  filaPie("USUARIO CREACIÓN OC/OS:", usuarioCreacion || "—");
-
-  // ---------------------------------------------------------------------
   // Condiciones de facturación y recepción (solo para compras físicas),
-  // debajo de los usuarios, alineadas a la izquierda.
+  // alineadas a la izquierda.
   // ---------------------------------------------------------------------
   if (categoriaEsCompra) {
     y -= 12;
@@ -340,7 +331,21 @@ export async function generarOrdenCompraPdf({
       "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
       true
     );
+    y -= 10;
   }
+
+  // ---------------------------------------------------------------------
+  // Pie: usuarios y referencias internas.
+  // ---------------------------------------------------------------------
+  if (y < MARGEN_INFERIOR - 40) nuevaPagina();
+  const filaPie = (label: string, value: string) => {
+    page.drawText(label, { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
+    page.drawText(value, { x: MARGEN_X + 125, y, size: 7, font: regular, color: NEGRO });
+    y -= 11;
+  };
+  filaPie("SOLICITADO POR:", usuarioSolped || "—");
+  filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
+  filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
 
   if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
   if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
