@@ -5,7 +5,6 @@ import { dibujarMarcaDeAguaDraft } from "./marca-agua";
 import { dibujarFirmaAprobacion } from "./firma-aprobacion";
 import { IGV_TASA } from "@/lib/constants/compras";
 
-const AZUL = rgb(0.11, 0.29, 0.63);
 const GRIS = rgb(0.35, 0.35, 0.35);
 const GRIS_CLARO = rgb(0.88, 0.88, 0.88);
 const NEGRO = rgb(0.05, 0.05, 0.05);
@@ -138,7 +137,7 @@ export async function generarOrdenCompraPdf({
   });
 
   y = Math.min(yLogoSuperior - logoAltura + 8, yEmpresa) - 14;
-  page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: AZUL });
+  page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: NEGRO });
   y -= 20;
 
   // ---------------------------------------------------------------------
@@ -279,11 +278,11 @@ export async function generarOrdenCompraPdf({
   const filaTotal = (label: string, value: number, destacar = false) => {
     const font = destacar ? bold : regular;
     const size = destacar ? 9 : 8;
-    page.drawText(label, { x: xLabelTotal, y, size, font: bold, color: destacar ? AZUL : NEGRO });
-    page.drawText(moneda, { x: xMonedaTotal, y, size, font, color: destacar ? AZUL : NEGRO });
+    page.drawText(label, { x: xLabelTotal, y, size, font: bold, color: NEGRO });
+    page.drawText(moneda, { x: xMonedaTotal, y, size, font, color: NEGRO });
     const texto = moneyFmt(value);
     const ancho = font.widthOfTextAtSize(texto, size);
-    page.drawText(texto, { x: ANCHO_PAGINA - MARGEN_X - ancho, y, size, font, color: destacar ? AZUL : NEGRO });
+    page.drawText(texto, { x: ANCHO_PAGINA - MARGEN_X - ancho, y, size, font, color: NEGRO });
     y -= destacar ? 15 : 13;
   };
   filaTotal("SUB TOTAL", subtotal);
