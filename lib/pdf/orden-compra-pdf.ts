@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { dibujarMarcaDeAguaDraft } from "./marca-agua";
 import { dibujarFirmaAprobacion } from "./firma-aprobacion";
 import { IGV_TASA } from "@/lib/constants/compras";
@@ -111,7 +111,7 @@ export async function generarOrdenCompraPdf({
   // ---------------------------------------------------------------------
   page.drawImage(logo, { x: MARGEN_X, y: y - logoAltura + 8, width: logoAncho, height: logoAltura });
 
-  const xDatosEmpresa = MARGEN_X + logoAncho + 30;
+  const xDatosEmpresa = MARGEN_X + logoAncho + 14;
   page.drawText("20610390341", { x: xDatosEmpresa, y, size: 10, font: bold, color: NEGRO });
 
   // Alineado a la derecha, a la misma altura que el RUC, con el número
@@ -243,9 +243,11 @@ export async function generarOrdenCompraPdf({
 
   if (categoriaEsCompra) {
     if (y < MARGEN_INFERIOR + 30) nuevaPagina();
-    for (const linea of partirTexto(
+    for (const linea of envolverTextoPx(
       "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
-      100
+      bold,
+      8,
+      ANCHO_TABLA
     )) {
       page.drawText(linea, { x: MARGEN_X, y, size: 8, font: bold, color: NEGRO });
       y -= 11;
@@ -294,11 +296,8 @@ export async function generarOrdenCompraPdf({
     page.drawText(value, { x: MARGEN_X + 125, y, size: 7, font: regular, color: NEGRO });
     y -= 11;
   };
-  filaPie("USUARIO SOLPED:", usuarioSolped || "—");
-  filaPie("USUARIO CREACIÓN OC:", usuarioCreacion || "—");
-  filaPie("USUARIO MODIFICACIÓN OC:", "—");
-  filaPie("REQUISICIÓN:", "—");
-  filaPie("PEP:", "—");
+  filaPie("USUARIO CREACIÓN SOLPED:", usuarioSolped || "—");
+  filaPie("USUARIO CREACIÓN OC/OS:", usuarioCreacion || "—");
 
   if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
   if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
@@ -308,6 +307,25 @@ export async function generarOrdenCompraPdf({
 
 function truncar(texto: string, max: number): string {
   return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
+}
+
+// Como partirTexto, pero envuelve por ancho real en puntos (no por cantidad
+// de caracteres), para aprovechar todo el margen disponible de la hoja.
+function envolverTextoPx(texto: string, font: PDFFont, size: number, anchoMax: number): string[] {
+  const palabras = texto.split(" ");
+  const lineas: string[] = [];
+  let actual = "";
+  for (const palabra of palabras) {
+    const candidata = actual ? `${actual} ${palabra}` : palabra;
+    if (font.widthOfTextAtSize(candidata, size) <= anchoMax) {
+      actual = candidata;
+    } else {
+      if (actual) lineas.push(actual);
+      actual = palabra;
+    }
+  }
+  if (actual) lineas.push(actual);
+  return lineas;
 }
 
 // Parte un texto largo en líneas de como mucho `max` caracteres, cortando
