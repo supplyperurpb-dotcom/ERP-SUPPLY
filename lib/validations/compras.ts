@@ -64,13 +64,6 @@ export const ordenCompraSchema = z.object({
 
 export type OrdenCompraInput = z.infer<typeof ordenCompraSchema>;
 
-export const actualizarDescripcionItemOrdenSchema = z.object({
-  itemId: z.string().min(1),
-  descripcion: z.string().max(500),
-});
-
-export type ActualizarDescripcionItemOrdenInput = z.infer<typeof actualizarDescripcionItemOrdenSchema>;
-
 export const aprobadoresAreaSchema = z.object({
   asignaciones: z.array(
     z.object({
