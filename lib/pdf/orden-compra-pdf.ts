@@ -106,17 +106,14 @@ export async function generarOrdenCompraPdf({
   let y = ALTO_PAGINA - 40;
 
   // ---------------------------------------------------------------------
-  // Encabezado: logo + RUC/razón social + centro emisor, y cajetín con el
-  // número de la orden arriba a la derecha.
+  // Encabezado: logo con la razón social y el RUC debajo (no al lado), y
+  // cajetín con el número de la orden arriba a la derecha.
   // ---------------------------------------------------------------------
+  const yLogoSuperior = y;
   page.drawImage(logo, { x: MARGEN_X, y: y - logoAltura + 8, width: logoAncho, height: logoAltura });
 
-  const xDatosEmpresa = MARGEN_X + logoAncho + 14;
-  page.drawText("20610390341", { x: xDatosEmpresa, y, size: 10, font: bold, color: NEGRO });
-
-  // Alineado a la derecha, a la misma altura que el RUC, con el número
-  // pegado justo después de la etiqueta (sin ancho fijo adivinado, para
-  // que nunca se encime con "REITER PERUVIAN BERRY S.A").
+  // Alineado a la derecha, a la misma altura que el logo, con el número
+  // pegado justo después de la etiqueta (sin ancho fijo adivinado).
   const sizeCaja = 11;
   const tituloCaja = `${nombreDocumento.toUpperCase()} N°`;
   const anchoNumero = bold.widthOfTextAtSize(numero, sizeCaja);
@@ -125,10 +122,12 @@ export async function generarOrdenCompraPdf({
   page.drawText(tituloCaja, { x: xNumero - anchoTitulo, y, size: sizeCaja, font: bold, color: NEGRO });
   page.drawText(numero, { x: xNumero, y, size: sizeCaja, font: bold, color: NEGRO });
 
-  y -= 13;
-  page.drawText("REITER PERUVIAN BERRY S.A", { x: xDatosEmpresa, y, size: 11, font: bold, color: NEGRO });
+  let yEmpresa = yLogoSuperior - logoAltura + 8 - 12;
+  page.drawText("REITER PERUVIAN BERRY S.A", { x: MARGEN_X, y: yEmpresa, size: 10, font: bold, color: NEGRO });
+  yEmpresa -= 12;
+  page.drawText("RUC: 20610390341", { x: MARGEN_X, y: yEmpresa, size: 8, font: regular, color: NEGRO });
 
-  y -= 22;
+  y = Math.min(yLogoSuperior - logoAltura + 8, yEmpresa) - 14;
   page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: AZUL });
   y -= 20;
 
