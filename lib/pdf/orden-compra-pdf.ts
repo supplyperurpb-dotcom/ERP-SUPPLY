@@ -344,8 +344,8 @@ export async function generarOrdenCompraPdf({
     y -= 11;
   };
   filaPie("SOLICITADO POR:", usuarioSolped || "—");
-  filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
   filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
+  filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
 
   if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
   if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
