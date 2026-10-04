@@ -133,7 +133,9 @@ export async function crearSkuServicioAction(data: SkuServicioInput): Promise<Sk
   const prefijo = "SERV";
 
   try {
-    const existente = await prisma.sku.findFirst({ where: { categoria: "Servicios", subfamilia } });
+    const existente = await prisma.sku.findFirst({
+      where: { categoria: "Servicios", subfamilia: { equals: subfamilia, mode: "insensitive" } },
+    });
     if (existente) {
       return { error: `Ya existe un SKU para "${subfamilia}": ${existente.codigo}. Úsalo al registrar la solicitud.` };
     }

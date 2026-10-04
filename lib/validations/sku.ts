@@ -76,7 +76,7 @@ export type SkuAgroquimicoInput = z.infer<typeof skuAgroquimicoSchema>;
 // describe al crear la solicitud, no aquí — por eso no lleva comentario.
 // ---------------------------------------------------------------------
 export const skuServicioSchema = z.object({
-  subfamilia: z.string().min(1, "Selecciona la subfamilia").max(100),
+  subfamilia: z.string().trim().min(1, "Escribe el nombre de la subfamilia").max(100),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10).default("UND"),
 });
 
