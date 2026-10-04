@@ -154,15 +154,6 @@ export async function generarSolicitudPedidoPdf({
     font: regular,
     color: NEGRO,
   });
-  yEmpresa -= 11;
-  page.drawText("Ica, Perú — Documento interno (no válido como comprobante SUNAT)", {
-    x: MARGEN_X,
-    y: yEmpresa,
-    size: 7,
-    font: regular,
-    color: GRIS,
-  });
-
   y = Math.min(yLogoSuperior - logoAltura + 8, yEmpresa) - 14;
   page.drawLine({ start: { x: MARGEN_X, y }, end: { x: ANCHO_PAGINA - MARGEN_X, y }, thickness: 1, color: NEGRO });
   y -= 20;
