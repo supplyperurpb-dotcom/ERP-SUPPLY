@@ -107,6 +107,13 @@ export async function generarOrdenCompraPdf({
   let page = pdfDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
   let y = ALTO_PAGINA - 40;
 
+  // Dibuja un texto alineado a la derecha de `xDerecha` (p. ej. P. Unitario
+  // y Subtotal de la tabla de ítems, que son columnas numéricas).
+  function drawTextRight(texto: string, xDerecha: number, yTexto: number, size: number, font: PDFFont) {
+    const ancho = font.widthOfTextAtSize(texto, size);
+    page.drawText(texto, { x: xDerecha - ancho, y: yTexto, size, font, color: NEGRO });
+  }
+
   // ---------------------------------------------------------------------
   // Encabezado: logo con la razón social y el RUC debajo (no al lado), y
   // cajetín con el número de la orden arriba a la derecha.
@@ -208,8 +215,8 @@ export async function generarOrdenCompraPdf({
     page.drawText("DESCRIPCIÓN", { x: COL.descripcion + 2, y, size: 7, font: bold, color: NEGRO });
     page.drawText("UM", { x: COL.um + 2, y, size: 7, font: bold, color: NEGRO });
     page.drawText("CANTIDAD", { x: COL.cantidad + 2, y, size: 7, font: bold, color: NEGRO });
-    page.drawText("P. UNITARIO", { x: COL.unitario + 2, y, size: 7, font: bold, color: NEGRO });
-    page.drawText("SUBTOTAL", { x: COL.subtotal + 2, y, size: 7, font: bold, color: NEGRO });
+    drawTextRight("P. UNITARIO", COL.subtotal - 4, y, 7, bold);
+    drawTextRight("SUBTOTAL", ANCHO_PAGINA - MARGEN_X - 2, y, 7, bold);
     y -= 17;
   }
 
@@ -235,8 +242,8 @@ export async function generarOrdenCompraPdf({
     }
     page.drawText(linea.unidadMedida, { x: COL.um + 2, y, size: 7, font: regular, color: NEGRO });
     page.drawText(linea.cantidad.toFixed(2), { x: COL.cantidad + 2, y, size: 7, font: regular, color: NEGRO });
-    page.drawText(moneyFmt(linea.precioUnitario), { x: COL.unitario + 2, y, size: 7, font: regular, color: NEGRO });
-    page.drawText(moneyFmt(linea.subtotal), { x: COL.subtotal + 2, y, size: 7, font: regular, color: NEGRO });
+    drawTextRight(moneyFmt(linea.precioUnitario), COL.subtotal - 4, y, 7, regular);
+    drawTextRight(moneyFmt(linea.subtotal), ANCHO_PAGINA - MARGEN_X - 2, y, 7, regular);
     y -= alturaFila;
     page.drawLine({
       start: { x: MARGEN_X, y: y + 3 },
