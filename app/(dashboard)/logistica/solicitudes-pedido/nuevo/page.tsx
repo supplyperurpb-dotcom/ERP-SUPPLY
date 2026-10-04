@@ -12,8 +12,16 @@ export default async function NuevaSolicitudPedidoPage({
   const { categoria } = await searchParams;
   const categoriaInicial: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
 
+  // En SERVICIO, el catálogo son solo los SKU de Servicios (uno por
+  // subfamilia, p. ej. "Apicultura"); en COMPRA se excluyen esos SKU.
   const [skus, existentes] = await Promise.all([
-    prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
+    prisma.sku.findMany({
+      where: {
+        activo: true,
+        categoria: categoriaInicial === "SERVICIO" ? "Servicios" : { not: "Servicios" },
+      },
+      orderBy: { codigo: "asc" },
+    }),
     prisma.solicitudPedido.findMany({ where: { categoria: categoriaInicial }, select: { numero: true } }),
   ]);
   // Solo un adelanto: el número real se asigna recién al guardar.

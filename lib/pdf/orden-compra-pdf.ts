@@ -200,15 +200,22 @@ export async function generarOrdenCompraPdf({
   dibujarEncabezadoTabla();
 
   lineas.forEach((linea, idx) => {
-    if (y < MARGEN_INFERIOR) nuevaPagina();
+    // La descripción puede traer el detalle de un servicio (más larga que
+    // un nombre de producto), así que se envuelve en varias líneas en vez
+    // de truncarse a una sola.
+    const lineasDescripcion = partirTexto(linea.descripcion, 48).slice(0, 4);
+    const alturaFila = 9 * lineasDescripcion.length + 1;
+    if (y - alturaFila < MARGEN_INFERIOR) nuevaPagina();
     page.drawText(String(idx + 1), { x: COL.item + 2, y, size: 7, font: regular, color: NEGRO });
     page.drawText(linea.codigo, { x: COL.codigo + 2, y, size: 7, font: regular, color: NEGRO });
-    page.drawText(truncar(linea.descripcion, 40), { x: COL.descripcion + 2, y, size: 7, font: regular, color: NEGRO });
+    for (let i = 0; i < lineasDescripcion.length; i++) {
+      page.drawText(lineasDescripcion[i], { x: COL.descripcion + 2, y: y - i * 9, size: 7, font: regular, color: NEGRO });
+    }
     page.drawText(linea.unidadMedida, { x: COL.um + 2, y, size: 7, font: regular, color: NEGRO });
     page.drawText(linea.cantidad.toFixed(2), { x: COL.cantidad + 2, y, size: 7, font: regular, color: NEGRO });
     page.drawText(moneyFmt(linea.precioUnitario), { x: COL.unitario + 2, y, size: 7, font: regular, color: NEGRO });
     page.drawText(moneyFmt(linea.subtotal), { x: COL.subtotal + 2, y, size: 7, font: regular, color: NEGRO });
-    y -= 10;
+    y -= alturaFila;
     page.drawLine({
       start: { x: MARGEN_X, y: y + 3 },
       end: { x: ANCHO_PAGINA - MARGEN_X, y: y + 3 },

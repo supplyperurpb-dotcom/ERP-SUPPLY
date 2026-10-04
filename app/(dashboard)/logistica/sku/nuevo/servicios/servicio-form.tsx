@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SUBFAMILIAS_SERVICIOS } from "@/lib/constants/sku";
 import { skuServicioSchema, type SkuServicioInput } from "@/lib/validations/sku";
@@ -21,7 +19,6 @@ export function ServicioForm() {
     resolver: zodResolver(skuServicioSchema),
     defaultValues: {
       subfamilia: SUBFAMILIAS_SERVICIOS[0],
-      comentario: "",
       unidadMedida: "UND",
     },
   });
@@ -76,10 +73,10 @@ export function ServicioForm() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="comentario">Comentario (opcional)</Label>
-            <Textarea id="comentario" rows={2} {...form.register("comentario")} />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Este SKU solo agrupa pedidos de este tipo de servicio; el detalle puntual (qué se necesita exactamente) se
+            describe al registrar la solicitud de pedido.
+          </p>
 
           <input type="hidden" {...form.register("unidadMedida")} />
         </CardContent>

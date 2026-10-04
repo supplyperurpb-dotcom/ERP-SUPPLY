@@ -24,6 +24,7 @@ type FilaSeleccion = {
   precioUnitario: string;
   gravado: boolean;
   centroCosto: string;
+  descripcion: string;
 };
 
 type ItemPlano = {
@@ -31,6 +32,7 @@ type ItemPlano = {
   skuId: string;
   codigo: string;
   descripcion: string;
+  descripcionServicio: string | null;
   cantidadPendiente: number;
   unidadMedida: string;
   centroCosto: string;
@@ -40,7 +42,13 @@ type ItemPlano = {
 };
 
 function filaVacia(item: ItemPlano): FilaSeleccion {
-  return { cantidad: String(item.cantidadPendiente), precioUnitario: "0", gravado: true, centroCosto: item.centroCosto };
+  return {
+    cantidad: String(item.cantidadPendiente),
+    precioUnitario: "0",
+    gravado: true,
+    centroCosto: item.centroCosto,
+    descripcion: item.descripcionServicio ?? "",
+  };
 }
 
 export function OrdenCompraForm({
@@ -79,6 +87,7 @@ export function OrdenCompraForm({
           skuId: item.skuId,
           codigo: item.codigo,
           descripcion: item.descripcion,
+          descripcionServicio: item.descripcionServicio,
           cantidadPendiente: item.cantidadPendiente,
           unidadMedida: item.unidadMedida,
           centroCosto: item.centroCosto,
@@ -195,6 +204,7 @@ export function OrdenCompraForm({
             precioUnitario: Number(fila.precioUnitario),
             gravado: fila.gravado,
             centroCosto: fila.centroCosto as (typeof AREAS_EMPRESA)[number]["valor"],
+            descripcion: fila.descripcion,
           };
         }),
       });
@@ -305,6 +315,9 @@ export function OrdenCompraForm({
                   <TableRow>
                     <TableHead className="w-28">Código</TableHead>
                     <TableHead className="min-w-[180px]">Producto</TableHead>
+                    {categoria === "SERVICIO" && (
+                      <TableHead className="min-w-[220px]">Descripción del servicio</TableHead>
+                    )}
                     <TableHead className="w-28">Solicitud</TableHead>
                     <TableHead className="text-right w-24">Pendiente</TableHead>
                     <TableHead className="w-24">Cantidad</TableHead>
@@ -322,6 +335,16 @@ export function OrdenCompraForm({
                       <TableRow key={item.id}>
                         <TableCell className="font-medium align-top">{item.codigo}</TableCell>
                         <TableCell className="align-top">{item.descripcion}</TableCell>
+                        {categoria === "SERVICIO" && (
+                          <TableCell className="align-top">
+                            <Textarea
+                              rows={2}
+                              placeholder="Detalle y alcance del servicio"
+                              value={fila.descripcion}
+                              onChange={(e) => actualizarFila(item.id, { descripcion: e.target.value })}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell className="align-top">{item.solicitudNumero}</TableCell>
                         <TableCell className="text-right align-top">
                           {item.cantidadPendiente} {item.unidadMedida}

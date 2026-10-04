@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AprobarRechazarOrdenBotones, AnularOrdenBoton } from "../aprobar-rechazar-botones";
+import { EditarDescripcionServicio } from "../editar-descripcion-servicio";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { AREAS_EMPRESA, CATEGORIAS_COMPRA, IGV_TASA, NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -61,6 +62,12 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   // ya aprobada, solo ADMIN o el aprobador de alguna de las áreas de la orden.
   const puedeAnular =
     orden.estado === "APROBADO" ? tienePermisoOrden : orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
+  const esServicio = orden.categoria === "SERVICIO";
+  const puedeEditarDescripcion =
+    esServicio &&
+    orden.estado !== "RECHAZADO" &&
+    orden.estado !== "ANULADO" &&
+    (esAdmin || usuario?.area === "SUPPLY_CHAIN");
 
   return (
     <div className="space-y-6">
@@ -165,6 +172,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Producto</TableHead>
+                  {esServicio && <TableHead className="min-w-[220px]">Descripción del servicio</TableHead>}
                   <TableHead>Solicitud origen</TableHead>
                   <TableHead>Centro de costo</TableHead>
                   <TableHead className="text-right">Cantidad</TableHead>
@@ -178,6 +186,15 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.sku.codigo}</TableCell>
                     <TableCell>{item.sku.descripcion}</TableCell>
+                    {esServicio && (
+                      <TableCell>
+                        <EditarDescripcionServicio
+                          itemId={item.id}
+                          descripcion={item.descripcion}
+                          editable={puedeEditarDescripcion}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       {item.solicitudPedidoItem ? (
                         <Link

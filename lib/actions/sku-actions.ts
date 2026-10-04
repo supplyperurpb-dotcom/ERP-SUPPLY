@@ -119,19 +119,25 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
 
 // ---------------------------------------------------------------------
 // Servicios: SERV + correlativo. Una sola serie para toda la categoría,
-// no depende de la subfamilia.
+// no depende de la subfamilia. El SKU es solo para agrupar (un SKU por
+// subfamilia, p. ej. "Apicultura"): no se permite crear dos para la misma.
 // ---------------------------------------------------------------------
 export async function crearSkuServicioAction(data: SkuServicioInput): Promise<SkuCreacionState> {
   const parsed = skuServicioSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { subfamilia, comentario, unidadMedida } = parsed.data;
+  const { subfamilia, unidadMedida } = parsed.data;
 
-  const descripcion = comentario?.trim() ? `${subfamilia} - ${comentario.trim()}` : subfamilia;
+  const descripcion = subfamilia;
   const prefijo = "SERV";
 
   try {
+    const existente = await prisma.sku.findFirst({ where: { categoria: "Servicios", subfamilia } });
+    if (existente) {
+      return { error: `Ya existe un SKU para "${subfamilia}": ${existente.codigo}. Úsalo al registrar la solicitud.` };
+    }
+
     const usuario = await getUsuarioActual();
 
     const nuevoSku = await prisma.$transaction(async (tx) => {

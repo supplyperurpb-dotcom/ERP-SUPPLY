@@ -60,7 +60,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     moneda: orden.moneda,
     lineas: orden.items.map((item) => ({
       codigo: item.sku.codigo,
-      descripcion: item.sku.descripcion,
+      descripcion: item.descripcion ? `${item.sku.descripcion} — ${item.descripcion}` : item.sku.descripcion,
       cantidad: Number(item.cantidad),
       unidadMedida: item.sku.unidadMedida,
       precioUnitario: Number(item.precioUnitario),

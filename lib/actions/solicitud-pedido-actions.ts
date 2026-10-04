@@ -54,6 +54,7 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
             unidadMedida: item.unidadMedida,
             centroCosto: item.centroCosto,
             observaciones: item.observaciones || null,
+            descripcion: item.descripcion || null,
           },
         });
       }

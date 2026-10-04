@@ -9,17 +9,33 @@ const itemSolicitudPedidoSchema = z.object({
   unidadMedida: z.string().min(1),
   centroCosto: z.enum(AREAS, { required_error: "Selecciona el centro de costo" }),
   observaciones: z.string().max(300).optional().or(z.literal("")),
+  // Solo para categoría Servicio: detalle puntual del servicio pedido
+  // (el SKU solo agrupa, p. ej. "Apicultura").
+  descripcion: z.string().max(500).optional().or(z.literal("")),
 });
 
-export const solicitudPedidoSchema = z.object({
-  categoria: z.enum(CATEGORIAS, { required_error: "Selecciona si es una solicitud de compra o de servicio" }),
-  area: z.enum(AREAS, { required_error: "Selecciona el área" }),
-  fecha: z.coerce.date({ required_error: "La fecha de pedido es obligatoria" }),
-  fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),
-  tipoNecesidad: z.enum(["URGENTE", "ESTANDAR"], { required_error: "Selecciona el tipo de necesidad" }),
-  justificacion: z.string().max(500).optional().or(z.literal("")),
-  items: z.array(itemSolicitudPedidoSchema).min(1, "Agrega al menos un producto"),
-});
+export const solicitudPedidoSchema = z
+  .object({
+    categoria: z.enum(CATEGORIAS, { required_error: "Selecciona si es una solicitud de compra o de servicio" }),
+    area: z.enum(AREAS, { required_error: "Selecciona el área" }),
+    fecha: z.coerce.date({ required_error: "La fecha de pedido es obligatoria" }),
+    fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),
+    tipoNecesidad: z.enum(["URGENTE", "ESTANDAR"], { required_error: "Selecciona el tipo de necesidad" }),
+    justificacion: z.string().max(500).optional().or(z.literal("")),
+    items: z.array(itemSolicitudPedidoSchema).min(1, "Agrega al menos un producto"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.categoria !== "SERVICIO") return;
+    data.items.forEach((item, i) => {
+      if (!item.descripcion?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Describe el detalle del servicio",
+          path: ["items", i, "descripcion"],
+        });
+      }
+    });
+  });
 
 export type SolicitudPedidoInput = z.infer<typeof solicitudPedidoSchema>;
 
@@ -30,6 +46,9 @@ const itemOrdenCompraSchema = z.object({
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   gravado: z.coerce.boolean().default(true),
   centroCosto: z.enum(AREAS, { required_error: "Selecciona el centro de costo" }),
+  // Solo para categoría Servicio (OS): detalle y alcance del servicio,
+  // precargado de la solicitud y editable aquí.
+  descripcion: z.string().max(500).optional().or(z.literal("")),
 });
 
 export const ordenCompraSchema = z.object({
@@ -44,6 +63,13 @@ export const ordenCompraSchema = z.object({
 });
 
 export type OrdenCompraInput = z.infer<typeof ordenCompraSchema>;
+
+export const actualizarDescripcionItemOrdenSchema = z.object({
+  itemId: z.string().min(1),
+  descripcion: z.string().max(500),
+});
+
+export type ActualizarDescripcionItemOrdenInput = z.infer<typeof actualizarDescripcionItemOrdenSchema>;
 
 export const aprobadoresAreaSchema = z.object({
   asignaciones: z.array(

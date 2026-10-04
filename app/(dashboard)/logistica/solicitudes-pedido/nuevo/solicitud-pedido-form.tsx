@@ -20,7 +20,14 @@ import { crearSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actio
 
 type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida: string };
 
-const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "", centroCosto: "PRODUCCION" as const, observaciones: "" };
+const ITEM_VACIO = {
+  skuId: "",
+  cantidad: 0,
+  unidadMedida: "",
+  centroCosto: "PRODUCCION" as const,
+  observaciones: "",
+  descripcion: "",
+};
 
 export function SolicitudPedidoForm({
   skus,
@@ -177,7 +184,10 @@ export function SolicitudPedidoForm({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-28">Código</TableHead>
-                  <TableHead className="min-w-[220px]">Producto</TableHead>
+                  <TableHead className="min-w-[180px]">Producto</TableHead>
+                  {categoriaInicial === "SERVICIO" && (
+                    <TableHead className="min-w-[220px]">Descripción del servicio</TableHead>
+                  )}
                   <TableHead className="w-28">Cantidad</TableHead>
                   <TableHead className="w-20">U.M.</TableHead>
                   <TableHead className="w-44">Centro de costo</TableHead>
@@ -214,6 +224,20 @@ export function SolicitudPedidoForm({
                           </p>
                         )}
                       </TableCell>
+                      {categoriaInicial === "SERVICIO" && (
+                        <TableCell className="align-top">
+                          <Textarea
+                            rows={2}
+                            placeholder="Ej. Cambio de cableado en tablero 3"
+                            {...form.register(`items.${index}.descripcion`)}
+                          />
+                          {form.formState.errors.items?.[index]?.descripcion && (
+                            <p className="mt-1 text-xs font-medium text-destructive">
+                              {form.formState.errors.items[index]?.descripcion?.message}
+                            </p>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="align-top">
                         <Input type="number" min={0} step="0.001" {...form.register(`items.${index}.cantidad`)} />
                         {form.formState.errors.items?.[index]?.cantidad && (

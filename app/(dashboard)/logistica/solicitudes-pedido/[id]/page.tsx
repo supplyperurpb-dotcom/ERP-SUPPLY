@@ -184,6 +184,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Producto</TableHead>
+                  {solicitud.categoria === "SERVICIO" && <TableHead>Descripción del servicio</TableHead>}
                   <TableHead className="text-right">Solicitado</TableHead>
                   <TableHead className="text-right">Con OC</TableHead>
                   <TableHead className="text-right">Pendiente</TableHead>
@@ -203,6 +204,9 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.sku.codigo}</TableCell>
                       <TableCell>{item.sku.descripcion}</TableCell>
+                      {solicitud.categoria === "SERVICIO" && (
+                        <TableCell className="max-w-xs whitespace-pre-wrap">{item.descripcion || "—"}</TableCell>
+                      )}
                       <TableCell className="text-right">
                         {cantidad} {item.unidadMedida}
                       </TableCell>

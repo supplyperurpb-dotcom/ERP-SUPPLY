@@ -6,7 +6,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
 import { IGV_TASA, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { cantidadPendiente, categoriaDeItem, obtenerAprobadoresArea } from "@/lib/compras";
-import { ordenCompraSchema, type OrdenCompraInput } from "@/lib/validations/compras";
+import { ordenCompraSchema, actualizarDescripcionItemOrdenSchema, type OrdenCompraInput } from "@/lib/validations/compras";
 
 export type OrdenCompraActionState = { error?: string; id?: string } | undefined;
 
@@ -103,6 +103,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
             subtotal: subtotales[i],
             gravado: item.gravado,
             centroCosto: item.centroCosto,
+            descripcion: item.descripcion || null,
           },
         });
       }
@@ -236,5 +237,50 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
   } catch (e) {
     console.error("Error inesperado en anularOrdenCompraAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al anular la orden." };
+  }
+}
+
+// Permite afinar el detalle y alcance de un servicio después de creada la
+// OS (el SKU solo agrupa, p. ej. "Apicultura"; esto es el detalle puntual).
+// Solo aplica a órdenes de categoría Servicio, activas, y solo pueden
+// editarlo Supply Chain (quienes generan las OC/OS) o un administrador.
+export async function actualizarDescripcionItemOrdenAction(
+  itemId: string,
+  descripcion: string
+): Promise<{ error?: string } | undefined> {
+  const parsed = actualizarDescripcionItemOrdenSchema.safeParse({ itemId, descripcion });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+    if (!usuario.roles.includes("ADMIN") && usuario.area !== "SUPPLY_CHAIN") {
+      return { error: "Solo Supply Chain o un administrador puede editar la descripción del servicio." };
+    }
+
+    const item = await prisma.ordenCompraItem.findUnique({
+      where: { id: parsed.data.itemId },
+      include: { ordenCompra: true },
+    });
+    if (!item) return { error: "El ítem ya no existe." };
+    if (item.ordenCompra.categoria !== "SERVICIO") {
+      return { error: "Solo se puede editar la descripción en órdenes de servicio." };
+    }
+    if (item.ordenCompra.estado === "RECHAZADO" || item.ordenCompra.estado === "ANULADO") {
+      return { error: "Esta orden ya no está activa." };
+    }
+
+    await prisma.ordenCompraItem.update({
+      where: { id: parsed.data.itemId },
+      data: { descripcion: parsed.data.descripcion || null },
+    });
+
+    revalidatePath(`/logistica/ordenes-compra/${item.ordenCompraId}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en actualizarDescripcionItemOrdenAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al actualizar la descripción." };
   }
 }

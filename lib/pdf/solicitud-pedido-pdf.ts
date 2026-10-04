@@ -1,8 +1,36 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { dibujarMarcaDeAguaDraft } from "./marca-agua";
 import { dibujarFirmaAprobacion } from "./firma-aprobacion";
+
+// Parte un texto en líneas que caben en `anchoMax` (p. ej. la descripción
+// de un servicio, que puede ser larga), hasta un máximo de líneas.
+function envolverTexto(texto: string, font: PDFFont, size: number, anchoMax: number, maxLineas = 4): string[] {
+  const palabras = texto.split(/\s+/).filter(Boolean);
+  const lineas: string[] = [];
+  let actual = "";
+  for (const palabra of palabras) {
+    const candidata = actual ? `${actual} ${palabra}` : palabra;
+    if (font.widthOfTextAtSize(candidata, size) <= anchoMax) {
+      actual = candidata;
+    } else {
+      if (actual) lineas.push(actual);
+      actual = palabra;
+    }
+  }
+  if (actual) lineas.push(actual);
+  if (lineas.length > maxLineas) {
+    const resto = lineas.slice(0, maxLineas);
+    let ultima = resto[maxLineas - 1];
+    while (font.widthOfTextAtSize(`${ultima}…`, size) > anchoMax && ultima.length > 1) {
+      ultima = ultima.slice(0, -1);
+    }
+    resto[maxLineas - 1] = `${ultima}…`;
+    return resto;
+  }
+  return lineas.length > 0 ? lineas : [""];
+}
 
 const AZUL = rgb(0.11, 0.29, 0.63);
 const GRIS = rgb(0.4, 0.4, 0.4);
@@ -133,13 +161,18 @@ export async function generarSolicitudPedidoPdf({
   dibujarEncabezadoTabla();
 
   for (const linea of lineas) {
-    if (y < MARGEN_INFERIOR) nuevaPagina();
+    const lineasDescripcion = envolverTexto(linea.descripcion, regular, 8, columnas[1].ancho - 6);
+    const alturaFila = 10 * lineasDescripcion.length + 2;
+    if (y - alturaFila < MARGEN_INFERIOR) nuevaPagina();
+
     page.drawText(linea.codigo, { x: columnas[0].x + 3, y, size: 8, font: regular, color: NEGRO });
-    page.drawText(truncar(linea.descripcion, 34), { x: columnas[1].x + 3, y, size: 8, font: regular, color: NEGRO });
+    for (let i = 0; i < lineasDescripcion.length; i++) {
+      page.drawText(lineasDescripcion[i], { x: columnas[1].x + 3, y: y - i * 10, size: 8, font: regular, color: NEGRO });
+    }
     page.drawText(`${linea.cantidad} ${linea.unidadMedida}`, { x: columnas[2].x + 3, y, size: 8, font: regular, color: NEGRO });
     page.drawText(truncar(linea.centroCosto, 18), { x: columnas[3].x + 3, y, size: 8, font: regular, color: NEGRO });
     page.drawText(truncar(linea.observaciones ?? "—", 28), { x: columnas[4].x + 3, y, size: 8, font: regular, color: NEGRO });
-    y -= 12;
+    y -= alturaFila;
     page.drawLine({
       start: { x: MARGEN_X, y: y + 4 },
       end: { x: ANCHO_PAGINA - MARGEN_X, y: y + 4 },

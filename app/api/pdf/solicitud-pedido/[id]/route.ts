@@ -30,7 +30,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     justificacion: solicitud.justificacion,
     lineas: solicitud.items.map((item) => ({
       codigo: item.sku.codigo,
-      descripcion: item.sku.descripcion,
+      descripcion: item.descripcion ? `${item.sku.descripcion} — ${item.descripcion}` : item.sku.descripcion,
       cantidad: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
       centroCosto: AREAS_EMPRESA.find((a) => a.valor === item.centroCosto)?.nombre ?? item.centroCosto,

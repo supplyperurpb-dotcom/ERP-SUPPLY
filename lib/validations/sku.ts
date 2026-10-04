@@ -72,10 +72,11 @@ export type SkuAgroquimicoInput = z.infer<typeof skuAgroquimicoSchema>;
 
 // ---------------------------------------------------------------------
 // Servicios: SERV + correlativo (una sola serie, no depende de subfamilia).
+// El SKU solo agrupa (p. ej. "Apicultura"); el detalle de cada pedido se
+// describe al crear la solicitud, no aquí — por eso no lleva comentario.
 // ---------------------------------------------------------------------
 export const skuServicioSchema = z.object({
   subfamilia: z.string().min(1, "Selecciona la subfamilia").max(100),
-  comentario: z.string().max(300).optional().or(z.literal("")),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10).default("UND"),
 });
 

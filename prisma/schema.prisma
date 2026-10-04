@@ -362,6 +362,10 @@ model SolicitudPedidoItem {
   unidadMedida      String
   centroCosto       AreaEmpresa
   observaciones     String?
+  // Solo para categoría Servicio: el SKU agrupa (p. ej. "Apicultura"), este
+  // campo describe el detalle puntual del servicio pedido (p. ej. "cambio
+  // de cableado"). No aplica a Compra.
+  descripcion       String?
 
   solicitudPedido  SolicitudPedido   @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
   sku              Sku               @relation(fields: [skuId], references: [id])
@@ -423,6 +427,10 @@ model OrdenCompraItem {
   // pero se puede editar en la OC.
   gravado               Boolean     @default(true)
   centroCosto           AreaEmpresa
+  // Solo para categoría Servicio (OS): se precarga desde
+  // SolicitudPedidoItem.descripcion y se puede seguir editando aquí para
+  // afinar el detalle y alcance del servicio.
+  descripcion           String?
 
   ordenCompra         OrdenCompra          @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
   solicitudPedidoItem SolicitudPedidoItem? @relation(fields: [solicitudPedidoItemId], references: [id])
