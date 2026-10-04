@@ -163,11 +163,11 @@ export async function generarSolicitudPedidoPdf({
   const colDatoX = MARGEN_X + 110;
   const colDatoX2 = MARGEN_X + 320;
   const filaDato = (label: string, value: string, col2Label?: string, col2Value?: string) => {
-    page.drawText(label, { x: MARGEN_X, y, size: 9, font: regular, color: GRIS });
-    page.drawText(value, { x: colDatoX, y, size: 9, font: bold, color: NEGRO });
+    page.drawText(label, { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
+    page.drawText(value, { x: colDatoX, y, size: 9, font: regular, color: NEGRO });
     if (col2Label) {
-      page.drawText(col2Label, { x: colDatoX2, y, size: 9, font: regular, color: GRIS });
-      page.drawText(col2Value ?? "", { x: colDatoX2 + 90, y, size: 9, font: bold, color: NEGRO });
+      page.drawText(col2Label, { x: colDatoX2, y, size: 9, font: bold, color: GRIS });
+      page.drawText(col2Value ?? "", { x: colDatoX2 + 90, y, size: 9, font: regular, color: NEGRO });
     }
     y -= 14;
   };
@@ -175,8 +175,8 @@ export async function generarSolicitudPedidoPdf({
   filaDato("Fecha de pedido:", fecha.toLocaleDateString("es-PE"), "Tipo de necesidad:", tipoNecesidad);
   filaDato("Fecha de necesidad:", fechaNecesidad.toLocaleDateString("es-PE"));
   if (justificacion) {
-    page.drawText("Justificación:", { x: MARGEN_X, y, size: 9, font: regular, color: GRIS });
-    page.drawText(truncar(justificacion, 85), { x: colDatoX, y, size: 9, font: bold, color: NEGRO });
+    page.drawText("Justificación:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
+    page.drawText(truncar(justificacion, 85), { x: colDatoX, y, size: 9, font: regular, color: NEGRO });
     y -= 14;
   }
   y -= 10;
