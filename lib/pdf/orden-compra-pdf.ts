@@ -330,7 +330,7 @@ export async function generarOrdenCompraPdf({
     y -= 3;
     bullet("Factura electrónica en PDF y archivo XML");
     bullet("Orden de Compra");
-    bullet("Guía de Remisión firmada y sellada por recepción de almacén RPB");
+    bullet("Guía de Remisión firmada y sellada por almacén de RPB");
     y -= 3;
     parrafo("Para facturar deben referenciar el número de orden de compra u orden de servicio emitido por RPB.");
     y -= 3;
