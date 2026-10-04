@@ -166,11 +166,19 @@ export async function crearSkuServicioAction(data: SkuServicioInput): Promise<Sk
   }
 }
 
+// Editar o eliminar un SKU (de cualquier categoría: Agroquímicos,
+// Fertilizantes, Ósmosis, Suministros o Servicios) es solo para
+// administradores; el resto de usuarios solo puede crear SKU nuevos.
 export async function actualizarSkuAction(
   id: string,
   _prevState: SkuActionState,
   formData: FormData
 ): Promise<SkuActionState> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.roles.includes("ADMIN")) {
+    return { error: "Solo un administrador puede editar un SKU." };
+  }
+
   const parsed = skuSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -182,7 +190,13 @@ export async function actualizarSkuAction(
   return { success: true };
 }
 
-export async function eliminarSkuAction(id: string) {
+export async function eliminarSkuAction(id: string): Promise<{ error?: string } | undefined> {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !usuario.roles.includes("ADMIN")) {
+    return { error: "Solo un administrador puede eliminar un SKU." };
+  }
+
   await prisma.sku.delete({ where: { id } });
   revalidatePath("/logistica/sku");
+  return undefined;
 }

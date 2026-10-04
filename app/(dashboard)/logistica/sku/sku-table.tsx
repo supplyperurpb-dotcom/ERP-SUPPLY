@@ -10,13 +10,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { eliminarSkuAction } from "@/lib/actions/sku-actions";
 import { SkuFormDialog } from "./sku-form-dialog";
 
-export function SkuTable({ skus }: { skus: Sku[] }) {
+export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
 
   function handleEliminar(id: string, codigo: string) {
     if (!confirm(`¿Eliminar el SKU ${codigo}? Esta acción no se puede deshacer.`)) return;
     startTransition(async () => {
-      await eliminarSkuAction(id);
+      const resultado = await eliminarSkuAction(id);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
       toast.success("SKU eliminado");
     });
   }
@@ -31,7 +35,7 @@ export function SkuTable({ skus }: { skus: Sku[] }) {
           <TableHead>Unidad</TableHead>
           <TableHead>Subfamilia</TableHead>
           <TableHead>Estado</TableHead>
-          <TableHead className="text-right">Acciones</TableHead>
+          {esAdmin && <TableHead className="text-right">Acciones</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -45,17 +49,19 @@ export function SkuTable({ skus }: { skus: Sku[] }) {
             <TableCell>
               <Badge variant={sku.activo ? "success" : "secondary"}>{sku.activo ? "Activo" : "Inactivo"}</Badge>
             </TableCell>
-            <TableCell className="flex justify-end gap-1">
-              <SkuFormDialog sku={sku} />
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={isPending}
-                onClick={() => handleEliminar(sku.id, sku.codigo)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </TableCell>
+            {esAdmin && (
+              <TableCell className="flex justify-end gap-1">
+                <SkuFormDialog sku={sku} />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={isPending}
+                  onClick={() => handleEliminar(sku.id, sku.codigo)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

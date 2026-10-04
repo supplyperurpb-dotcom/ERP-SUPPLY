@@ -5,10 +5,16 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db/prisma";
 import { serializar } from "@/lib/utils";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { SkuTable } from "./sku-table";
 
 export default async function SkuPage() {
-  const skus = serializar(await prisma.sku.findMany({ orderBy: { createdAt: "desc" } }));
+  const [skusRaw, usuario] = await Promise.all([
+    prisma.sku.findMany({ orderBy: { createdAt: "desc" } }),
+    getUsuarioActual(),
+  ]);
+  const skus = serializar(skusRaw);
+  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
 
   return (
     <div>
@@ -46,7 +52,7 @@ export default async function SkuPage() {
           descripcion="Crea el primer código SKU con uno de los botones de arriba, según la categoría."
         />
       ) : (
-        <SkuTable skus={skus} />
+        <SkuTable skus={skus} esAdmin={esAdmin} />
       )}
     </div>
   );
