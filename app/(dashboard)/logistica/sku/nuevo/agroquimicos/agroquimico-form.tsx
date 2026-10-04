@@ -38,8 +38,8 @@ export function AgroquimicoForm() {
     [campos.noValorado, tipoInfo]
   );
   const descripcionPreview = useMemo(
-    () => [campos.producto, campos.activo, campos.clasificacion].map((v) => v?.trim()).filter(Boolean).join(" "),
-    [campos]
+    () => `${campos.producto?.trim() ?? ""}${campos.noValorado && campos.producto?.trim() ? " NV" : ""}`,
+    [campos.producto, campos.noValorado]
   );
 
   async function onSubmit(data: SkuAgroquimicoInput) {
@@ -192,7 +192,7 @@ export function AgroquimicoForm() {
               )}
             />
             <Label htmlFor="noValorado" className="cursor-pointer">
-              No valorado (antepone &quot;NV&quot; al código)
+              No valorado (antepone &quot;NV&quot; al código y lo agrega al final del nombre)
             </Label>
           </div>
 

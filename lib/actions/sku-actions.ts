@@ -82,10 +82,10 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
   const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === (tipo as TipoAgroquimicoCodigo));
   if (!tipoInfo) return { error: "Tipo inválido." };
 
-  const descripcion = [producto, activo, clasificacion]
-    .map((v) => v?.trim())
-    .filter((v): v is string => !!v)
-    .join(" ");
+  // El nombre del producto sale solo de "Producto"; activo/clasificación son
+  // solo para clasificar, no forman parte del nombre. Si es no valorado, se
+  // antepone "NV" al código y se agrega "NV" al final del nombre.
+  const descripcion = `${producto.trim()}${noValorado ? " NV" : ""}`;
 
   const prefijo = `${noValorado ? "NV" : ""}${tipoInfo.prefijo}`;
 
