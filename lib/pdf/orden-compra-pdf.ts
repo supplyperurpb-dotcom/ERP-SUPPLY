@@ -157,7 +157,7 @@ export async function generarOrdenCompraPdf({
     y -= 13;
   };
 
-  filaIzq("CÓDIGO (RUC):", rucProveedor || "—");
+  filaIzq("RUC:", rucProveedor || "—");
   filaIzq("RAZÓN SOCIAL:", truncar(proveedor, 42));
   const lineasDireccion = partirTexto(direccionProveedor || "—", 44);
   page.drawText("DIRECCIÓN:", { x: xEtiquetaIzq, y, size: 8, font: bold, color: GRIS });
