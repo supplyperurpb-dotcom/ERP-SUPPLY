@@ -1,14 +1,42 @@
 import { z } from "zod";
 
-export const almacenSchema = z.object({
-  codigo: z.string().min(1, "El código es obligatorio").max(30),
-  nombre: z.string().min(1, "El nombre es obligatorio").max(150),
-  tipo: z.enum(["INSUMOS", "AGROQUIMICOS", "MATERIAL_EMPAQUE", "CAMARA_FRIO", "OTRO"], {
-    required_error: "Selecciona el tipo",
-  }),
-  ubicacion: z.string().max(200).optional().or(z.literal("")),
-  activo: z.coerce.boolean().default(true),
-});
+const CATEGORIAS_GENERAL = ["PACKING", "AGROQUIMICOS_FERTILIZANTES", "COMBUSTIBLE", "SUMINISTROS"] as const;
+
+// Un almacén general es donde se registran los ingresos (ver
+// ingresoAlmacenSchema); un sub-almacén solo recibe por traslado desde su
+// general (o de otro sub), nunca por ingreso directo.
+export const almacenSchema = z
+  .object({
+    codigo: z.string().min(1, "El código es obligatorio").max(30),
+    nombre: z.string().min(1, "El nombre es obligatorio").max(150),
+    tipo: z.enum(["INSUMOS", "AGROQUIMICOS", "MATERIAL_EMPAQUE", "CAMARA_FRIO", "OTRO"], {
+      required_error: "Selecciona el tipo",
+    }),
+    ubicacion: z.string().max(200).optional().or(z.literal("")),
+    activo: z.coerce.boolean().default(true),
+    esGeneral: z.coerce.boolean().default(true),
+    // Obligatoria si esGeneral=true: determina si en el ingreso el
+    // lote/fechas son obligatorios, opcionales o no aplican.
+    categoriaGeneral: z.enum(CATEGORIAS_GENERAL).optional().or(z.literal("")),
+    // Obligatorio si esGeneral=false: a qué almacén general pertenece.
+    almacenPadreId: z.string().optional().or(z.literal("")),
+  })
+  .superRefine((data, ctx) => {
+    if (data.esGeneral && !data.categoriaGeneral) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona la categoría del almacén general",
+        path: ["categoriaGeneral"],
+      });
+    }
+    if (!data.esGeneral && !data.almacenPadreId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el almacén general al que pertenece",
+        path: ["almacenPadreId"],
+      });
+    }
+  });
 
 export type AlmacenInput = z.infer<typeof almacenSchema>;
 
@@ -23,23 +51,30 @@ const datosTransporte = {
   flete: z.coerce.number().min(0, "El flete no puede ser negativo").optional().nullable(),
 };
 
+// El ingreso ahora se arma a partir de una Orden de Compra real: cada línea
+// apunta a su OrdenCompraItem (de ahí sale el sku/precio, ver
+// crearIngresoAlmacenAction) y solo se captura cuánto se recibe ahora —
+// nunca más que lo pendiente de esa línea — y, según la categoría del
+// almacén general, el lote/fechas (obligatorios en Agroquímicos y
+// Fertilizantes, opcionales en Suministros, no aplican en los demás).
 const itemIngresoSchema = z.object({
-  skuId: z.string().min(1, "Selecciona un producto"),
+  ordenCompraItemId: z.string().min(1, "Falta el origen de esta línea"),
+  skuId: z.string().min(1),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
-  precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   lote: z.string().max(60).optional().or(z.literal("")),
+  fechaProduccion: z.coerce.date().optional(),
+  fechaVencimiento: z.coerce.date().optional(),
 });
 
 export const ingresoAlmacenSchema = z.object({
-  fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-  ocNumero: z.string().max(60).optional().or(z.literal("")),
-  moneda: z.enum(["PEN", "USD"]).default("PEN"),
-  proveedorId: z.string().optional().or(z.literal("")),
+  fecha: z.coerce.date({ required_error: "La fecha de recepción es obligatoria" }),
+  ordenCompraId: z.string().min(1, "Selecciona una orden de compra"),
   almacenId: z.string().min(1, "Selecciona el almacén"),
+  guiaRemision: z.string().max(60).optional().or(z.literal("")),
+  flete: z.coerce.number().min(0, "El flete no puede ser negativo").optional().nullable(),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   items: z.array(itemIngresoSchema).min(1, "Agrega al menos un producto"),
-  ...datosTransporte,
 });
 
 export type IngresoAlmacenInput = z.infer<typeof ingresoAlmacenSchema>;

@@ -17,17 +17,29 @@ const TIPO_LABEL: Record<TipoAlmacen, string> = {
   OTRO: "Otro",
 };
 
+const CATEGORIA_GENERAL_LABEL: Record<string, string> = {
+  PACKING: "Packing",
+  AGROQUIMICOS_FERTILIZANTES: "Agroquímicos y Fertilizantes",
+  COMBUSTIBLE: "Combustible",
+  SUMINISTROS: "Suministros",
+};
+
 export default async function AlmacenesPage() {
   const almacenes = await prisma.almacen.findMany({
-    orderBy: { codigo: "asc" },
+    orderBy: [{ esGeneral: "desc" }, { codigo: "asc" }],
   });
+
+  const almacenesGenerales = almacenes
+    .filter((a) => a.esGeneral)
+    .map((a) => ({ id: a.id, nombre: a.nombre }));
+  const nombrePorId = new Map(almacenes.map((a) => [a.id, a.nombre]));
 
   return (
     <div>
       <PageHeader
         titulo="Almacenes"
-        descripcion="Catálogo de almacenes y cámaras de frío de la planta, usados como origen o destino de los movimientos de inventario."
-        acciones={<AlmacenFormDialog />}
+        descripcion="Catálogo de almacenes generales (donde se registran los ingresos) y sus sub-almacenes (que reciben inventario por traslado)."
+        acciones={<AlmacenFormDialog almacenesGenerales={almacenesGenerales} />}
       />
 
       {almacenes.length === 0 ? (
@@ -42,6 +54,7 @@ export default async function AlmacenesPage() {
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>Jerarquía</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Ubicación</TableHead>
               <TableHead>Estado</TableHead>
@@ -53,6 +66,25 @@ export default async function AlmacenesPage() {
               <TableRow key={almacen.id}>
                 <TableCell className="font-medium">{almacen.codigo}</TableCell>
                 <TableCell>{almacen.nombre}</TableCell>
+                <TableCell>
+                  {almacen.esGeneral ? (
+                    <div className="space-y-1">
+                      <Badge variant="success">General</Badge>
+                      {almacen.categoriaGeneral && (
+                        <p className="text-xs text-muted-foreground">
+                          {CATEGORIA_GENERAL_LABEL[almacen.categoriaGeneral] ?? almacen.categoriaGeneral}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Badge variant="secondary">Sub-almacén</Badge>
+                      <p className="text-xs text-muted-foreground">
+                        de {almacen.almacenPadreId ? (nombrePorId.get(almacen.almacenPadreId) ?? "—") : "—"}
+                      </p>
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>{TIPO_LABEL[almacen.tipo]}</TableCell>
                 <TableCell>{almacen.ubicacion ?? "—"}</TableCell>
                 <TableCell>
@@ -64,7 +96,7 @@ export default async function AlmacenesPage() {
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/logistica/almacenes/${almacen.id}`}>Ver stock</Link>
                   </Button>
-                  <AlmacenFormDialog almacen={almacen} />
+                  <AlmacenFormDialog almacen={almacen} almacenesGenerales={almacenesGenerales} />
                 </TableCell>
               </TableRow>
             ))}

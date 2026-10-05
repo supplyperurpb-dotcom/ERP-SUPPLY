@@ -247,6 +247,17 @@ model Sku {
   @@map("skus")
 }
 
+// Un almacén "general" es donde se registran los ingresos (ver
+// IngresoAlmacen); sus sub-almacenes reciben inventario solo por traslado
+// desde el general (o entre sí), nunca por ingreso directo — ver
+// crearIngresoAlmacenAction, que exige esGeneral=true.
+enum AlmacenCategoriaGeneral {
+  PACKING
+  AGROQUIMICOS_FERTILIZANTES
+  COMBUSTIBLE
+  SUMINISTROS
+}
+
 model Almacen {
   id        String      @id @default(cuid())
   codigo    String      @unique
@@ -254,8 +265,21 @@ model Almacen {
   tipo      TipoAlmacen
   ubicacion String?
   activo    Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  // Si es un almacén general (recibe ingresos) o un sub-almacén (solo
+  // recibe por traslado). Por defecto true para no romper los almacenes
+  // existentes antes de esta jerarquía.
+  esGeneral        Boolean                  @default(true)
+  almacenPadreId   String?
+  // Solo tiene sentido en un almacén general: a qué categoría de productos
+  // está dedicado (determina, en el ingreso, si lote/fecha de
+  // producción/vencimiento son obligatorios, opcionales o no aplican — ver
+  // crearIngresoAlmacenAction).
+  categoriaGeneral AlmacenCategoriaGeneral?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  almacenPadre  Almacen?  @relation("JerarquiaAlmacen", fields: [almacenPadreId], references: [id])
+  subAlmacenes  Almacen[] @relation("JerarquiaAlmacen")
 
   movimientosOrigen  MovimientoStock[] @relation("MovimientoOrigen")
   movimientosDestino MovimientoStock[] @relation("MovimientoDestino")
@@ -459,9 +483,10 @@ model OrdenCompra {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  proveedor Proveedor          @relation(fields: [proveedorId], references: [id])
-  items     OrdenCompraItem[]
-  firmas    OrdenCompraFirma[]
+  proveedor       Proveedor          @relation(fields: [proveedorId], references: [id])
+  items           OrdenCompraItem[]
+  firmas          OrdenCompraFirma[]
+  ingresosAlmacen IngresoAlmacen[]
 
   @@map("ordenes_compra")
 }
@@ -488,9 +513,10 @@ model OrdenCompraItem {
   // afinar el detalle y alcance del servicio.
   descripcion           String?
 
-  ordenCompra         OrdenCompra          @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
-  solicitudPedidoItem SolicitudPedidoItem? @relation(fields: [solicitudPedidoItemId], references: [id])
-  sku                 Sku                  @relation(fields: [skuId], references: [id])
+  ordenCompra          OrdenCompra           @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  solicitudPedidoItem  SolicitudPedidoItem?  @relation(fields: [solicitudPedidoItemId], references: [id])
+  sku                  Sku                   @relation(fields: [skuId], references: [id])
+  ingresosAlmacenItem  IngresoAlmacenItem[]
 
   @@map("orden_compra_items")
 }
@@ -511,6 +537,10 @@ model IngresoAlmacen {
   numero        String   @unique // IA-0001
   fecha         DateTime
   ocNumero      String?
+  // Orden de compra real de donde se jalaron los items (ver
+  // crearIngresoAlmacenAction) — null en ingresos antiguos, de antes de
+  // este cambio, que solo guardaban ocNumero como texto libre.
+  ordenCompraId String?
   guiaRemision  String?
   remitenteRuc  String?
   remitente     String?
@@ -532,9 +562,10 @@ model IngresoAlmacen {
   creadoPorId   String?
   createdAt     DateTime @default(now())
 
-  proveedor Proveedor?           @relation(fields: [proveedorId], references: [id])
-  almacen   Almacen              @relation("IngresosAlmacen", fields: [almacenId], references: [id])
-  items     IngresoAlmacenItem[]
+  proveedor   Proveedor?           @relation(fields: [proveedorId], references: [id])
+  almacen     Almacen              @relation("IngresosAlmacen", fields: [almacenId], references: [id])
+  ordenCompra OrdenCompra?         @relation(fields: [ordenCompraId], references: [id])
+  items       IngresoAlmacenItem[]
 
   @@map("ingresos_almacen")
 }
@@ -557,9 +588,17 @@ model IngresoAlmacenItem {
   fleteAsignado     Decimal @default(0) @db.Decimal(14, 4)
   fleteAsignadoUsd  Decimal @default(0) @db.Decimal(14, 4)
   lote              String?
+  fechaProduccion   DateTime?
+  fechaVencimiento  DateTime?
+  // Línea de la OC de donde se jaló esta cantidad (ver
+  // crearIngresoAlmacenAction: la cantidad pendiente de un
+  // OrdenCompraItem es su cantidad menos la suma de IngresoAlmacenItem.cantidad
+  // de todos los ingresos que apuntan a él). Null en ingresos antiguos.
+  ordenCompraItemId String?
 
-  ingresoAlmacen IngresoAlmacen @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
-  sku            Sku            @relation(fields: [skuId], references: [id])
+  ingresoAlmacen IngresoAlmacen   @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
+  sku            Sku              @relation(fields: [skuId], references: [id])
+  ordenCompraItem OrdenCompraItem? @relation(fields: [ordenCompraItemId], references: [id])
 
   @@map("ingreso_almacen_items")
 }

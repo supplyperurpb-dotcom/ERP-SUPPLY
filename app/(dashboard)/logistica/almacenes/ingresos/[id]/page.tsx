@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
-import { formatDateTime, formatMoneda } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
 import { eliminarIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
 
@@ -15,7 +15,7 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
 
   const ingreso = await prisma.ingresoAlmacen.findUnique({
     where: { id },
-    include: { almacen: true, proveedor: true, items: { include: { sku: true } } },
+    include: { almacen: true, proveedor: true, ordenCompra: true, items: { include: { sku: true } } },
   });
   if (!ingreso) notFound();
 
@@ -32,12 +32,14 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
         descripcion={`${ingreso.almacen.nombre} · ${formatDateTime(ingreso.fecha)}`}
         acciones={
           <>
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/logistica/almacenes/ingresos/${ingreso.id}/editar`}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </Link>
-            </Button>
+            {ingreso.ordenCompraId && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/logistica/almacenes/ingresos/${ingreso.id}/editar`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </Link>
+              </Button>
+            )}
             <EliminarMovimientoButton
               id={ingreso.id}
               numero={ingreso.numero}
@@ -56,7 +58,13 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
         </div>
         <div>
           <p className="text-muted-foreground">N° de OC</p>
-          <p className="font-medium">{ingreso.ocNumero ?? "—"}</p>
+          {ingreso.ordenCompraId ? (
+            <Link href={`/logistica/ordenes-compra/${ingreso.ordenCompraId}`} className="font-medium underline underline-offset-2">
+              {ingreso.ocNumero}
+            </Link>
+          ) : (
+            <p className="font-medium">{ingreso.ocNumero ?? "—"}</p>
+          )}
         </div>
         <div>
           <p className="text-muted-foreground">Moneda</p>
@@ -90,6 +98,8 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
             <TableHead>Código</TableHead>
             <TableHead>Producto</TableHead>
             <TableHead>Lote</TableHead>
+            <TableHead>F. producción</TableHead>
+            <TableHead>F. vencimiento</TableHead>
             <TableHead className="text-right">Cantidad</TableHead>
             <TableHead>U.M.</TableHead>
             <TableHead className="text-right">Precio unit.</TableHead>
@@ -104,6 +114,8 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
               <TableCell className="font-medium">{item.sku.codigo}</TableCell>
               <TableCell>{item.sku.descripcion}</TableCell>
               <TableCell>{item.lote ?? "—"}</TableCell>
+              <TableCell>{item.fechaProduccion ? formatDate(item.fechaProduccion) : "—"}</TableCell>
+              <TableCell>{item.fechaVencimiento ? formatDate(item.fechaVencimiento) : "—"}</TableCell>
               <TableCell className="text-right">{Number(item.cantidad).toLocaleString("es-PE")}</TableCell>
               <TableCell>{item.unidadMedida}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.precioUnitario), moneda)}</TableCell>

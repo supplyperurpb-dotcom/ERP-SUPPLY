@@ -2,9 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { almacenSchema } from "@/lib/validations/almacen";
+import { almacenSchema, type AlmacenInput } from "@/lib/validations/almacen";
 
 export type AlmacenActionState = { error?: string; success?: boolean } | undefined;
+
+function datosAlmacen(data: AlmacenInput) {
+  const { codigo, nombre, tipo, ubicacion, activo, esGeneral, categoriaGeneral, almacenPadreId } = data;
+  return {
+    codigo,
+    nombre,
+    tipo,
+    ubicacion: ubicacion || null,
+    activo,
+    esGeneral,
+    categoriaGeneral: esGeneral ? categoriaGeneral || null : null,
+    almacenPadreId: esGeneral ? null : almacenPadreId || null,
+  };
+}
 
 export async function crearAlmacenAction(_prevState: AlmacenActionState, formData: FormData): Promise<AlmacenActionState> {
   const parsed = almacenSchema.safeParse(Object.fromEntries(formData));
@@ -18,9 +32,7 @@ export async function crearAlmacenAction(_prevState: AlmacenActionState, formDat
   }
 
   try {
-    await prisma.almacen.create({
-      data: { ...parsed.data, ubicacion: parsed.data.ubicacion || null },
-    });
+    await prisma.almacen.create({ data: datosAlmacen(parsed.data) });
   } catch (e) {
     return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al crear el almacén." };
   }
@@ -39,11 +51,12 @@ export async function actualizarAlmacenAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
+  if (!parsed.data.esGeneral && parsed.data.almacenPadreId === id) {
+    return { error: "Un almacén no puede ser su propio almacén general." };
+  }
+
   try {
-    await prisma.almacen.update({
-      where: { id },
-      data: { ...parsed.data, ubicacion: parsed.data.ubicacion || null },
-    });
+    await prisma.almacen.update({ where: { id }, data: datosAlmacen(parsed.data) });
   } catch (e) {
     return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al guardar el almacén." };
   }

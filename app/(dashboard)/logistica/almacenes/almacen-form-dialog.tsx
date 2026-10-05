@@ -27,8 +27,25 @@ const TIPO_LABEL: Record<string, string> = {
   OTRO: "Otro",
 };
 
-export function AlmacenFormDialog({ almacen }: { almacen?: Almacen }) {
+const CATEGORIA_GENERAL_LABEL: Record<string, string> = {
+  PACKING: "Packing",
+  AGROQUIMICOS_FERTILIZANTES: "Agroquímicos y Fertilizantes",
+  COMBUSTIBLE: "Combustible",
+  SUMINISTROS: "Suministros",
+};
+
+type AlmacenGeneralOpcion = { id: string; nombre: string };
+
+export function AlmacenFormDialog({
+  almacen,
+  almacenesGenerales,
+}: {
+  almacen?: Almacen;
+  /** Almacenes generales disponibles para elegir como padre de un sub-almacén. */
+  almacenesGenerales: AlmacenGeneralOpcion[];
+}) {
   const [open, setOpen] = useState(false);
+  const [esGeneral, setEsGeneral] = useState(almacen?.esGeneral ?? true);
   const esEdicion = !!almacen;
   const action = esEdicion ? actualizarAlmacenAction.bind(null, almacen.id) : crearAlmacenAction;
   const [state, formAction] = useFormState<AlmacenActionState, FormData>(action, undefined);
@@ -39,6 +56,8 @@ export function AlmacenFormDialog({ almacen }: { almacen?: Almacen }) {
       setOpen(false);
     }
   }, [state, esEdicion]);
+
+  const padresDisponibles = esEdicion ? almacenesGenerales.filter((a) => a.id !== almacen!.id) : almacenesGenerales;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -97,6 +116,65 @@ export function AlmacenFormDialog({ almacen }: { almacen?: Almacen }) {
           <div className="space-y-2">
             <Label htmlFor="ubicacion">Ubicación (opcional)</Label>
             <Input id="ubicacion" name="ubicacion" defaultValue={almacen?.ubicacion ?? ""} />
+          </div>
+
+          <div className="space-y-2 rounded-md border p-3">
+            <Label>Jerarquía</Label>
+            <Select
+              value={esGeneral ? "GENERAL" : "SUB"}
+              onValueChange={(v) => setEsGeneral(v === "GENERAL")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="GENERAL">Almacén general (recibe ingresos)</SelectItem>
+                <SelectItem value="SUB">Sub-almacén (recibe solo por traslado)</SelectItem>
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="esGeneral" value={esGeneral ? "true" : "false"} />
+            <p className="text-xs text-muted-foreground">
+              Los ingresos a almacén solo se registran en un almacén general; un sub-almacén recibe inventario por
+              traslado desde su general (o entre sí).
+            </p>
+
+            {esGeneral ? (
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="categoriaGeneral">Categoría</Label>
+                <Select name="categoriaGeneral" defaultValue={almacen?.categoriaGeneral ?? undefined}>
+                  <SelectTrigger id="categoriaGeneral">
+                    <SelectValue placeholder="Selecciona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(CATEGORIA_GENERAL_LABEL).map(([valor, etiqueta]) => (
+                      <SelectItem key={valor} value={valor}>
+                        {etiqueta}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  En Agroquímicos y Fertilizantes, lote/fecha de producción/vencimiento son obligatorios al
+                  ingresar; en Suministros son opcionales; en los demás no aplican.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="almacenPadreId">Almacén general</Label>
+                <Select name="almacenPadreId" defaultValue={almacen?.almacenPadreId ?? undefined}>
+                  <SelectTrigger id="almacenPadreId">
+                    <SelectValue placeholder="Selecciona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {padresDisponibles.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <input type="hidden" name="activo" value={(almacen?.activo ?? true) ? "true" : "false"} />

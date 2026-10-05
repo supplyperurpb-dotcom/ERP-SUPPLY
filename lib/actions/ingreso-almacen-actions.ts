@@ -4,50 +4,88 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
-import { convertirAUsd } from "@/lib/constants/moneda";
-import { stockDisponible } from "@/lib/stock-almacen";
+import { convertirAUsd, type MonedaCodigo } from "@/lib/constants/moneda";
+import { stockDisponible, cantidadPendienteIngresoOC } from "@/lib/stock-almacen";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
+import type { Prisma } from "@prisma/client";
 
 export type IngresoAlmacenActionState = { error?: string; id?: string } | undefined;
+
+type Tx = Prisma.TransactionClient;
+
+// Valida el almacén (debe ser general) y la OC (aprobada, de categoría
+// Compra) de donde se van a jalar los items, y devuelve lo que se necesita
+// para armar el ingreso: moneda/proveedor de la OC y, por cada línea
+// enviada, su OrdenCompraItem real (nunca se confía en lo que mande el
+// cliente para sku/precio — se vuelve a leer de la OC).
+async function validarOrigen(tx: Tx, data: IngresoAlmacenInput) {
+  const almacen = await tx.almacen.findUnique({ where: { id: data.almacenId } });
+  if (!almacen) throw new Error("El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo.");
+  if (!almacen.esGeneral) {
+    throw new Error("Los ingresos solo se registran en un almacén general; este es un sub-almacén.");
+  }
+
+  const orden = await tx.ordenCompra.findUnique({
+    where: { id: data.ordenCompraId },
+    include: { proveedor: true },
+  });
+  if (!orden) throw new Error("La orden de compra seleccionada ya no existe. Actualiza la página e intenta de nuevo.");
+  if (orden.estado !== "APROBADO" || orden.categoria !== "COMPRA") {
+    throw new Error("Solo se puede ingresar desde una orden de compra aprobada.");
+  }
+
+  const itemsOc = await tx.ordenCompraItem.findMany({
+    where: { ordenCompraId: orden.id },
+    include: { sku: true },
+  });
+  const itemOcPorId = new Map(itemsOc.map((i) => [i.id, i]));
+
+  for (const item of data.items) {
+    const itemOc = itemOcPorId.get(item.ordenCompraItemId);
+    if (!itemOc) {
+      throw new Error("Uno de los productos no pertenece a la orden de compra seleccionada.");
+    }
+    const pendiente = await cantidadPendienteIngresoOC(item.ordenCompraItemId, tx);
+    // Al editar, la línea que se está editando ya "libera" su propia
+    // cantidad anterior porque actualizarIngresoAlmacenAction borra los
+    // items viejos antes de llamar aquí dentro de la misma transacción.
+    if (item.cantidad > pendiente) {
+      throw new Error(
+        `La cantidad de ${itemOc.sku.codigo} supera lo pendiente de la OC (disponible: ${pendiente}, ingresado ahora: ${item.cantidad}). Actualiza la página e intenta de nuevo.`
+      );
+    }
+    if (almacen.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES") {
+      if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {
+        throw new Error(
+          `${itemOc.sku.codigo}: lote, fecha de producción y fecha de vencimiento son obligatorios en un almacén de Agroquímicos y Fertilizantes.`
+        );
+      }
+    }
+  }
+
+  return { almacen, orden, itemOcPorId };
+}
 
 export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Promise<IngresoAlmacenActionState> {
   const parsed = ingresoAlmacenSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const {
-    fecha,
-    ocNumero,
-    moneda,
-    guiaRemision,
-    remitenteRuc,
-    remitente,
-    flete,
-    proveedorId,
-    almacenId,
-    observaciones,
-    items,
-  } = parsed.data;
-
-  const almacen = await prisma.almacen.findUnique({ where: { id: almacenId } });
-  if (!almacen) {
-    return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
-  }
-
-  // El flete se prorratea entre los items según su participación en el
-  // subtotal (cantidad x precio unitario) del ingreso, ambos en la moneda
-  // del documento. El costeo del stock (mapaCostosAlmacen) usa el
-  // equivalente en Dólares de cada uno, para que un mismo producto no
-  // mezcle Soles y Dólares entre ingresos distintos (ver convertirAUsd).
-  const subtotales = items.map((item) => item.cantidad * item.precioUnitario);
-  const fletePorItem = prorratear(flete, subtotales);
-  const subtotalesUsd = subtotales.map((s) => convertirAUsd(s, moneda));
-  const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
+  const { fecha, almacenId, ordenCompraId, guiaRemision, flete, observaciones, items } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoIngreso = await prisma.$transaction(async (tx) => {
+      const { orden, itemOcPorId } = await validarOrigen(tx, parsed.data);
+      const moneda = orden.moneda as MonedaCodigo;
+
+      const precios = items.map((item) => Number(itemOcPorId.get(item.ordenCompraItemId)!.precioUnitario));
+      const subtotales = items.map((item, i) => item.cantidad * precios[i]);
+      const fletePorItem = prorratear(flete ?? 0, subtotales);
+      const subtotalesUsd = subtotales.map((s) => convertirAUsd(s, moneda));
+      const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
+
       const existentes = await tx.ingresoAlmacen.findMany({ select: { numero: true } });
       const numero = siguienteNumero(existentes.map((i) => i.numero), "IA-");
 
@@ -55,13 +93,14 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
         data: {
           numero,
           fecha,
-          ocNumero: ocNumero || null,
+          ocNumero: orden.numero,
+          ordenCompraId: orden.id,
           moneda,
           guiaRemision: guiaRemision || null,
-          remitenteRuc: remitenteRuc || null,
-          remitente: remitente || null,
+          remitenteRuc: orden.proveedor.tipoDocumento === "RUC" ? orden.proveedor.numeroDocumento : null,
+          remitente: orden.proveedor.razonSocial,
           flete: flete || null,
-          proveedorId: proveedorId || null,
+          proveedorId: orden.proveedorId,
           almacenId,
           observaciones: observaciones || null,
           creadoPorId: usuario?.id,
@@ -70,6 +109,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
+        const itemOc = itemOcPorId.get(item.ordenCompraItemId)!;
         const subtotal = subtotales[i];
         const fleteAsignado = fletePorItem[i];
         const subtotalUsd = subtotalesUsd[i];
@@ -78,26 +118,29 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
         await tx.ingresoAlmacenItem.create({
           data: {
             ingresoAlmacenId: ingreso.id,
-            skuId: item.skuId,
+            ordenCompraItemId: item.ordenCompraItemId,
+            skuId: itemOc.skuId,
             cantidad: item.cantidad,
-            unidadMedida: item.unidadMedida,
-            precioUnitario: item.precioUnitario,
+            unidadMedida: itemOc.sku.unidadMedida,
+            precioUnitario: precios[i],
             subtotal,
             precioUnitarioUsd: subtotalUsd / item.cantidad,
             subtotalUsd,
             fleteAsignado,
             fleteAsignadoUsd,
             lote: item.lote || null,
+            fechaProduccion: item.fechaProduccion ?? null,
+            fechaVencimiento: item.fechaVencimiento ?? null,
           },
         });
 
         await tx.movimientoStock.create({
           data: {
-            skuId: item.skuId,
+            skuId: itemOc.skuId,
             almacenDestinoId: almacenId,
             tipo: "INGRESO",
             cantidad: item.cantidad,
-            unidadMedida: item.unidadMedida,
+            unidadMedida: itemOc.sku.unidadMedida,
             documentoOrigenTipo: "INGRESO_ALMACEN",
             documentoOrigenId: ingreso.id,
             fecha,
@@ -127,19 +170,7 @@ export async function actualizarIngresoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const {
-    fecha,
-    ocNumero,
-    moneda,
-    guiaRemision,
-    remitenteRuc,
-    remitente,
-    flete,
-    proveedorId,
-    almacenId,
-    observaciones,
-    items,
-  } = parsed.data;
+  const { fecha, almacenId, ordenCompraId, guiaRemision, flete, observaciones, items } = parsed.data;
 
   const existente = await prisma.ingresoAlmacen.findUnique({ where: { id }, include: { items: true } });
   if (!existente) return { error: "El ingreso ya no existe." };
@@ -157,34 +188,37 @@ export async function actualizarIngresoAlmacenAction(
     }
   }
 
-  const almacen = await prisma.almacen.findUnique({ where: { id: almacenId } });
-  if (!almacen) {
-    return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
-  }
-
-  const subtotales = items.map((item) => item.cantidad * item.precioUnitario);
-  const fletePorItem = prorratear(flete, subtotales);
-  const subtotalesUsd = subtotales.map((s) => convertirAUsd(s, moneda));
-  const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
-
   try {
     const usuario = await getUsuarioActual();
 
     await prisma.$transaction(async (tx) => {
+      // Se borran las líneas viejas ANTES de validar lo pendiente de la OC,
+      // dentro de la misma transacción, para que la cantidad que este mismo
+      // ingreso había tomado quede libre otra vez al revalidar.
       await tx.movimientoStock.deleteMany({ where: { documentoOrigenId: id, documentoOrigenTipo: "INGRESO_ALMACEN" } });
       await tx.ingresoAlmacenItem.deleteMany({ where: { ingresoAlmacenId: id } });
+
+      const { orden, itemOcPorId } = await validarOrigen(tx, parsed.data);
+      const moneda = orden.moneda as MonedaCodigo;
+
+      const precios = items.map((item) => Number(itemOcPorId.get(item.ordenCompraItemId)!.precioUnitario));
+      const subtotales = items.map((item, i) => item.cantidad * precios[i]);
+      const fletePorItem = prorratear(flete ?? 0, subtotales);
+      const subtotalesUsd = subtotales.map((s) => convertirAUsd(s, moneda));
+      const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
 
       await tx.ingresoAlmacen.update({
         where: { id },
         data: {
           fecha,
-          ocNumero: ocNumero || null,
+          ocNumero: orden.numero,
+          ordenCompraId: orden.id,
           moneda,
           guiaRemision: guiaRemision || null,
-          remitenteRuc: remitenteRuc || null,
-          remitente: remitente || null,
+          remitenteRuc: orden.proveedor.tipoDocumento === "RUC" ? orden.proveedor.numeroDocumento : null,
+          remitente: orden.proveedor.razonSocial,
           flete: flete || null,
-          proveedorId: proveedorId || null,
+          proveedorId: orden.proveedorId,
           almacenId,
           observaciones: observaciones || null,
         },
@@ -192,6 +226,7 @@ export async function actualizarIngresoAlmacenAction(
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
+        const itemOc = itemOcPorId.get(item.ordenCompraItemId)!;
         const subtotal = subtotales[i];
         const fleteAsignado = fletePorItem[i];
         const subtotalUsd = subtotalesUsd[i];
@@ -200,26 +235,29 @@ export async function actualizarIngresoAlmacenAction(
         await tx.ingresoAlmacenItem.create({
           data: {
             ingresoAlmacenId: id,
-            skuId: item.skuId,
+            ordenCompraItemId: item.ordenCompraItemId,
+            skuId: itemOc.skuId,
             cantidad: item.cantidad,
-            unidadMedida: item.unidadMedida,
-            precioUnitario: item.precioUnitario,
+            unidadMedida: itemOc.sku.unidadMedida,
+            precioUnitario: precios[i],
             subtotal,
             precioUnitarioUsd: subtotalUsd / item.cantidad,
             subtotalUsd,
             fleteAsignado,
             fleteAsignadoUsd,
             lote: item.lote || null,
+            fechaProduccion: item.fechaProduccion ?? null,
+            fechaVencimiento: item.fechaVencimiento ?? null,
           },
         });
 
         await tx.movimientoStock.create({
           data: {
-            skuId: item.skuId,
+            skuId: itemOc.skuId,
             almacenDestinoId: almacenId,
             tipo: "INGRESO",
             cantidad: item.cantidad,
-            unidadMedida: item.unidadMedida,
+            unidadMedida: itemOc.sku.unidadMedida,
             documentoOrigenTipo: "INGRESO_ALMACEN",
             documentoOrigenId: id,
             fecha,

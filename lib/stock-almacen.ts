@@ -146,3 +146,94 @@ export async function precioUnitarioPonderado(almacenId: string, skuId: string, 
   const mapa = await mapaCostosAlmacen(almacenId, db);
   return mapa.get(skuId)?.precioUnitarioPonderado ?? null;
 }
+
+// ---------------------------------------------------------------------
+// Ingreso a almacén desde Orden de Compra: la cantidad pendiente de
+// recibir de un OrdenCompraItem es su cantidad menos la suma de
+// IngresoAlmacenItem.cantidad de todos los ingresos que ya se hicieron
+// contra él (no hay ingresos "rechazados/anulados" — se valida dentro de
+// la transacción al crear, igual que cantidadPendiente en lib/compras.ts).
+export async function cantidadPendienteIngresoOC(ordenCompraItemId: string, db: Db = prisma): Promise<number> {
+  const item = await db.ordenCompraItem.findUnique({ where: { id: ordenCompraItemId } });
+  if (!item) return 0;
+  const recibido = await db.ingresoAlmacenItem.aggregate({
+    where: { ordenCompraItemId },
+    _sum: { cantidad: true },
+  });
+  return Number(item.cantidad) - Number(recibido._sum.cantidad ?? 0);
+}
+
+export type ItemOcPendienteIngreso = {
+  id: string; // OrdenCompraItem.id
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  precioUnitario: number;
+  cantidadOc: number;
+  cantidadPendiente: number;
+};
+
+export type OrdenCompraConPendientesIngreso = {
+  id: string;
+  numero: string;
+  moneda: string;
+  proveedorId: string;
+  proveedorRazonSocial: string;
+  proveedorRuc: string;
+  items: ItemOcPendienteIngreso[];
+};
+
+// Todas las OC APROBADAS (categoría Compra) con al menos un ítem con
+// cantidad pendiente de recibir, para el buscador de "Nuevo ingreso". Un
+// ítem que ya se recibió por completo (en uno o varios ingresos) deja de
+// aparecer.
+export async function calcularOcPendientesIngreso(db: Db = prisma): Promise<OrdenCompraConPendientesIngreso[]> {
+  const ordenes = await db.ordenCompra.findMany({
+    where: { estado: "APROBADO", categoria: "COMPRA" },
+    include: { proveedor: true, items: { include: { sku: true } } },
+    orderBy: { fecha: "asc" },
+  });
+
+  const itemIds = ordenes.flatMap((o) => o.items.map((i) => i.id));
+  if (itemIds.length === 0) return [];
+
+  const recibidoPorItem = await db.ingresoAlmacenItem.groupBy({
+    by: ["ordenCompraItemId"],
+    where: { ordenCompraItemId: { in: itemIds } },
+    _sum: { cantidad: true },
+  });
+  const recibidoMap = new Map(recibidoPorItem.map((r) => [r.ordenCompraItemId as string, Number(r._sum.cantidad ?? 0)]));
+
+  const resultado: OrdenCompraConPendientesIngreso[] = [];
+  for (const orden of ordenes) {
+    const items: ItemOcPendienteIngreso[] = [];
+    for (const item of orden.items) {
+      const cantidadOc = Number(item.cantidad);
+      const recibido = recibidoMap.get(item.id) ?? 0;
+      const cantidadPendiente = Math.round((cantidadOc - recibido) * 1000) / 1000;
+      if (cantidadPendiente <= 0) continue;
+      items.push({
+        id: item.id,
+        skuId: item.skuId,
+        codigo: item.sku.codigo,
+        descripcion: item.sku.descripcion,
+        unidadMedida: item.sku.unidadMedida,
+        precioUnitario: Number(item.precioUnitario),
+        cantidadOc,
+        cantidadPendiente,
+      });
+    }
+    if (items.length === 0) continue;
+    resultado.push({
+      id: orden.id,
+      numero: orden.numero,
+      moneda: orden.moneda,
+      proveedorId: orden.proveedorId,
+      proveedorRazonSocial: orden.proveedor.razonSocial,
+      proveedorRuc: orden.proveedor.tipoDocumento === "RUC" ? orden.proveedor.numeroDocumento : "",
+      items,
+    });
+  }
+  return resultado;
+}

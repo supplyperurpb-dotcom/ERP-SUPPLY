@@ -52,6 +52,7 @@ export default async function IngresosAlmacenPage() {
               <TableHead>Número</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Almacén</TableHead>
+              <TableHead>N° OC</TableHead>
               <TableHead>Proveedor</TableHead>
               <TableHead>Guía</TableHead>
               <TableHead className="text-right">Ítems</TableHead>
@@ -64,6 +65,7 @@ export default async function IngresosAlmacenPage() {
                 <TableCell className="font-medium">{ingreso.numero}</TableCell>
                 <TableCell>{formatDateTime(ingreso.fecha)}</TableCell>
                 <TableCell>{ingreso.almacen.nombre}</TableCell>
+                <TableCell>{ingreso.ocNumero ?? "—"}</TableCell>
                 <TableCell>{ingreso.proveedor?.razonSocial ?? "—"}</TableCell>
                 <TableCell>{ingreso.guiaRemision ?? "—"}</TableCell>
                 <TableCell className="text-right">{ingreso._count.items}</TableCell>

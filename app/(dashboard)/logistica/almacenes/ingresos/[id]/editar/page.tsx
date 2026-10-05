@@ -1,55 +1,83 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { cantidadPendienteIngresoOC } from "@/lib/stock-almacen";
 import { IngresoAlmacenForm } from "../../nuevo/ingreso-almacen-form";
-import type { IngresoAlmacenInput } from "@/lib/validations/almacen";
 
 export default async function EditarIngresoAlmacenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [ingreso, almacenes, proveedores, skus] = await Promise.all([
-    prisma.ingresoAlmacen.findUnique({ where: { id }, include: { items: true } }),
-    prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
-    prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
-    prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
-  ]);
+  const ingreso = await prisma.ingresoAlmacen.findUnique({
+    where: { id },
+    include: {
+      almacen: true,
+      ordenCompra: { include: { proveedor: true } },
+      items: { include: { sku: true, ordenCompraItem: true } },
+    },
+  });
   if (!ingreso) notFound();
 
-  const valoresIniciales: IngresoAlmacenInput = {
-    fecha: ingreso.fecha.toISOString().slice(0, 10) as unknown as Date,
-    ocNumero: ingreso.ocNumero ?? "",
-    moneda: ingreso.moneda as "PEN" | "USD",
-    guiaRemision: ingreso.guiaRemision ?? "",
-    remitenteRuc: ingreso.remitenteRuc ?? "",
-    remitente: ingreso.remitente ?? "",
-    flete: ingreso.flete !== null ? Number(ingreso.flete) : 0,
-    proveedorId: ingreso.proveedorId ?? "",
-    almacenId: ingreso.almacenId,
-    observaciones: ingreso.observaciones ?? "",
-    items: ingreso.items.map((item) => ({
-      skuId: item.skuId,
-      cantidad: Number(item.cantidad),
-      unidadMedida: item.unidadMedida,
-      precioUnitario: Number(item.precioUnitario),
-      lote: item.lote ?? "",
-    })),
-  };
+  if (!ingreso.ordenCompra) {
+    return (
+      <div>
+        <PageHeader titulo={`Editar ingreso ${ingreso.numero}`} />
+        <p className="text-sm text-muted-foreground">
+          Este ingreso se registró antes del nuevo flujo basado en órdenes de compra y ya no se puede editar aquí.
+          Si necesitas corregirlo, elimínalo desde su detalle y regístralo de nuevo con la OC correspondiente.
+        </p>
+      </div>
+    );
+  }
+
+  const filas = await Promise.all(
+    ingreso.items.map(async (item) => {
+      const pendienteActual = item.ordenCompraItemId ? await cantidadPendienteIngresoOC(item.ordenCompraItemId) : 0;
+      return {
+        id: item.ordenCompraItemId!,
+        skuId: item.skuId,
+        codigo: item.sku.codigo,
+        descripcion: item.sku.descripcion,
+        unidadMedida: item.unidadMedida,
+        precioUnitario: Number(item.precioUnitario),
+        cantidadOc: item.ordenCompraItem ? Number(item.ordenCompraItem.cantidad) : Number(item.cantidad),
+        // Lo pendiente "visible" en edición es lo pendiente real más lo que
+        // este mismo ingreso ya había tomado (que se libera al editar).
+        cantidadPendiente: Math.round((pendienteActual + Number(item.cantidad)) * 1000) / 1000,
+        cantidad: String(Number(item.cantidad)),
+        lote: item.lote ?? "",
+        fechaProduccion: item.fechaProduccion ? item.fechaProduccion.toISOString().slice(0, 10) : "",
+        fechaVencimiento: item.fechaVencimiento ? item.fechaVencimiento.toISOString().slice(0, 10) : "",
+      };
+    })
+  );
 
   return (
     <div>
       <PageHeader
         titulo={`Editar ingreso ${ingreso.numero}`}
-        descripcion="Modifica los datos de este ingreso. El stock y el costeo del almacén se recalculan al guardar."
+        descripcion="Modifica la cantidad recibida, el lote/fechas, la guía de remisión o el flete. El stock y el costeo del almacén se recalculan al guardar."
       />
       <IngresoAlmacenForm
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
-        proveedores={proveedores.map((p) => ({
-          id: p.id,
-          razonSocial: p.razonSocial,
-          ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
-        }))}
-        skus={skus.map((s) => ({ id: s.id, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida }))}
-        edicion={{ id: ingreso.id, valoresIniciales }}
+        almacenes={[{ id: ingreso.almacen.id, nombre: ingreso.almacen.nombre, categoriaGeneral: ingreso.almacen.categoriaGeneral }]}
+        ordenesCompra={[]}
+        edicion={{
+          id: ingreso.id,
+          almacenId: ingreso.almacenId,
+          ordenCompra: {
+            id: ingreso.ordenCompra.id,
+            numero: ingreso.ordenCompra.numero,
+            moneda: ingreso.ordenCompra.moneda,
+            proveedorRazonSocial: ingreso.ordenCompra.proveedor.razonSocial,
+            proveedorRuc:
+              ingreso.ordenCompra.proveedor.tipoDocumento === "RUC" ? ingreso.ordenCompra.proveedor.numeroDocumento : "",
+            items: [],
+          },
+          fecha: ingreso.fecha.toISOString().slice(0, 10),
+          guiaRemision: ingreso.guiaRemision ?? "",
+          flete: ingreso.flete !== null ? String(Number(ingreso.flete)) : "0",
+          observaciones: ingreso.observaciones ?? "",
+          filas,
+        }}
       />
     </div>
   );
