@@ -3,31 +3,13 @@ import { ShoppingCart, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea } from "@/lib/compras";
-import { AnularOrdenBoton } from "./aprobar-rechazar-botones";
-import type { EstadoDocumento, AreaEmpresa } from "@prisma/client";
-
-const ESTADO_LABEL: Record<EstadoDocumento, string> = {
-  BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente VB",
-  APROBADO: "Aprobada",
-  RECHAZADO: "Rechazada",
-  ANULADO: "Anulada",
-};
-
-const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secondary"> = {
-  BORRADOR: "secondary",
-  PENDIENTE: "secondary",
-  APROBADO: "success",
-  RECHAZADO: "destructive",
-  ANULADO: "destructive",
-};
+import { OrdenesCompraTable, type FilaOrdenCompra } from "./ordenes-compra-table";
+import type { AreaEmpresa } from "@prisma/client";
 
 export default async function OrdenesCompraPage() {
   const [usuario, aprobadores] = await Promise.all([getUsuarioActual(), obtenerAprobadoresArea()]);
@@ -50,6 +32,29 @@ export default async function OrdenesCompraPage() {
     include: { proveedor: true, items: { select: { centroCosto: true } } },
     orderBy: { createdAt: "desc" },
     take: 100,
+  });
+
+  const filas: FilaOrdenCompra[] = ordenes.map((orden) => {
+    const tienePermisoOrden =
+      esAdmin || (!!usuario && orden.items.some((i) => aprobadoresPorArea.get(i.centroCosto) === usuario.id));
+    // Antes de aprobada, anular equivale a borrar y lo puede usar
+    // cualquiera; ya aprobada, solo ADMIN o el aprobador de alguna de las
+    // áreas de la orden.
+    const puedeAnular =
+      orden.estado === "APROBADO" ? tienePermisoOrden : orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
+    return {
+      id: orden.id,
+      numero: orden.numero,
+      categoria: orden.categoria as "COMPRA" | "SERVICIO",
+      categoriaLabel: CATEGORIAS_COMPRA.find((c) => c.valor === orden.categoria)?.nombre ?? orden.categoria,
+      proveedorRazonSocial: orden.proveedor.razonSocial,
+      estado: orden.estado,
+      fecha: formatDate(orden.fecha),
+      subtotal: formatMoneda(orden.subtotal.toString(), orden.moneda),
+      igv: formatMoneda(orden.igv.toString(), orden.moneda),
+      montoTotal: formatMoneda(orden.montoTotal.toString(), orden.moneda),
+      puedeAnular,
+    };
   });
 
   return (
@@ -82,62 +87,7 @@ export default async function OrdenesCompraPage() {
           descripcion="Genera la primera con los botones de arriba, jalando ítems pendientes de una o varias solicitudes de la misma categoría."
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Categoría</TableHead>
-              <TableHead>Proveedor</TableHead>
-              <TableHead>Estatus</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead className="text-right">Subtotal</TableHead>
-              <TableHead className="text-right">IGV</TableHead>
-              <TableHead className="text-right">Monto total</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ordenes.map((orden) => {
-              const tienePermisoOrden =
-                esAdmin || (!!usuario && orden.items.some((i) => aprobadoresPorArea.get(i.centroCosto) === usuario.id));
-              // Antes de aprobada, anular equivale a borrar y lo puede usar
-              // cualquiera; ya aprobada, solo ADMIN o el aprobador de
-              // alguna de las áreas de la orden.
-              const puedeAnular =
-                orden.estado === "APROBADO"
-                  ? tienePermisoOrden
-                  : orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
-              return (
-                <TableRow key={orden.id}>
-                  <TableCell className="font-medium">{orden.numero}</TableCell>
-                  <TableCell>
-                    <Badge variant={orden.categoria === "SERVICIO" ? "secondary" : "success"}>
-                      {CATEGORIAS_COMPRA.find((c) => c.valor === orden.categoria)?.nombre ?? orden.categoria}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{orden.proveedor.razonSocial}</TableCell>
-                  <TableCell>
-                    <Badge variant={ESTADO_VARIANT[orden.estado]}>{ESTADO_LABEL[orden.estado]}</Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(orden.fecha)}</TableCell>
-                  <TableCell className="text-right">{formatMoneda(orden.subtotal.toString(), orden.moneda)}</TableCell>
-                  <TableCell className="text-right">{formatMoneda(orden.igv.toString(), orden.moneda)}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatMoneda(orden.montoTotal.toString(), orden.moneda)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {puedeAnular && <AnularOrdenBoton id={orden.id} numero={orden.numero} />}
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/logistica/ordenes-compra/${orden.id}`}>Ver</Link>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <OrdenesCompraTable filas={filas} />
       )}
     </div>
   );
