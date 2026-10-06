@@ -47,7 +47,6 @@ export type LineaSolicitudPedidoPdf = {
   cantidad: number;
   unidadMedida: string;
   centroCosto: string;
-  observaciones: string | null;
   campo: string | null;
 };
 
@@ -98,11 +97,10 @@ export async function generarSolicitudPedidoPdf({
 
   const columnas = [
     { titulo: "Código", x: MARGEN_X, ancho: 50 },
-    { titulo: "Producto", x: MARGEN_X + 50, ancho: 125 },
-    { titulo: "Cantidad", x: MARGEN_X + 175, ancho: 45 },
-    { titulo: "Centro costo", x: MARGEN_X + 220, ancho: 75 },
-    { titulo: "Campo", x: MARGEN_X + 295, ancho: 80 },
-    { titulo: "Observación", x: MARGEN_X + 375, ancho: 140 },
+    { titulo: "Producto", x: MARGEN_X + 50, ancho: 215 },
+    { titulo: "Cantidad", x: MARGEN_X + 265, ancho: 45 },
+    { titulo: "Centro costo", x: MARGEN_X + 310, ancho: 75 },
+    { titulo: "Campo", x: MARGEN_X + 385, ancho: 130 },
   ];
 
   function dibujarEncabezadoTabla() {
@@ -198,8 +196,7 @@ export async function generarSolicitudPedidoPdf({
     }
     page.drawText(`${linea.cantidad} ${linea.unidadMedida}`, { x: columnas[2].x + 3, y, size: 8, font: regular, color: NEGRO });
     page.drawText(truncar(linea.centroCosto, 15), { x: columnas[3].x + 3, y, size: 8, font: regular, color: NEGRO });
-    page.drawText(truncar(linea.campo ?? "—", 16), { x: columnas[4].x + 3, y, size: 8, font: regular, color: NEGRO });
-    page.drawText(truncar(linea.observaciones ?? "—", 26), { x: columnas[5].x + 3, y, size: 8, font: regular, color: NEGRO });
+    page.drawText(truncar(linea.campo ?? "—", 24), { x: columnas[4].x + 3, y, size: 8, font: regular, color: NEGRO });
     y -= alturaFila;
     page.drawLine({
       start: { x: MARGEN_X, y: y + 4 },

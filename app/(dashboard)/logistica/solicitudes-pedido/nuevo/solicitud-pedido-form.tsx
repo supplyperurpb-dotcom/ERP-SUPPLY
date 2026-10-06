@@ -25,7 +25,6 @@ const ITEM_VACIO = {
   cantidad: 0,
   unidadMedida: "",
   centroCosto: "PRODUCCION" as const,
-  observaciones: "",
   descripcion: "",
   campo: "" as const,
 };
@@ -193,7 +192,6 @@ export function SolicitudPedidoForm({
                   <TableHead className="w-20">U.M.</TableHead>
                   <TableHead className="w-44">Centro de costo</TableHead>
                   <TableHead className="w-40">Campo</TableHead>
-                  <TableHead className="min-w-[180px]">Observación</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -291,9 +289,6 @@ export function SolicitudPedidoForm({
                             </Select>
                           )}
                         />
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <Input {...form.register(`items.${index}.observaciones`)} />
                       </TableCell>
                       <TableCell className="align-top">
                         <Button

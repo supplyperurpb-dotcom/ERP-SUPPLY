@@ -34,7 +34,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       cantidad: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
       centroCosto: AREAS_EMPRESA.find((a) => a.valor === item.centroCosto)?.nombre ?? item.centroCosto,
-      observaciones: item.observaciones,
       campo: item.campo,
     })),
     aprobado: solicitud.estado === "APROBADO",

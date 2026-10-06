@@ -9,7 +9,6 @@ const itemSolicitudPedidoSchema = z.object({
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
   centroCosto: z.enum(AREAS, { required_error: "Selecciona el centro de costo" }),
-  observaciones: z.string().max(300).optional().or(z.literal("")),
   // Solo para categoría Servicio: detalle puntual del servicio pedido
   // (el SKU solo agrupa, p. ej. "Apicultura").
   descripcion: z.string().max(500).optional().or(z.literal("")),

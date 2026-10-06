@@ -55,7 +55,6 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
             centroCosto: item.centroCosto,
-            observaciones: item.observaciones || null,
             descripcion: item.descripcion || null,
             campo: item.campo || null,
           },
