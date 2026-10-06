@@ -208,13 +208,13 @@ export async function firmarOrdenCompraAction(
   }
 }
 
-// Anular reemplaza por completo a "eliminar": es exclusivo de quien tenga
-// el rol ANULADOR, sin importar el estado de la orden (ni ADMIN, ni
-// APROBADOR_GENERAL, ni el aprobador de área lo habilitan por sí solos).
-// Antes de estar aprobada (PENDIENTE/BORRADOR) se borra directamente; ya
-// APROBADA, no se borra, queda en estado ANULADO (lo que además libera de
-// vuelta a "pendiente" las cantidades que había jalado de sus solicitudes
-// de origen).
+// Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
+// estado de la orden (ni ADMIN, ni APROBADOR_GENERAL, ni el aprobador de
+// área lo habilitan por sí solos). Nunca se borra el registro: en
+// cualquier estado (BORRADOR/PENDIENTE/APROBADO) solo se bloquea, pasando
+// a ANULADO — lo que además libera de vuelta a "pendiente" las cantidades
+// que había jalado de sus solicitudes de origen, y la saca de la lista de
+// OC disponibles para ingresar a almacén (solo se jalan OC APROBADO).
 export async function anularOrdenCompraAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
   try {
     const usuario = await getUsuarioActual();
@@ -223,28 +223,21 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
       return { error: "No tienes permiso para anular órdenes de compra." };
     }
 
-    const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { items: true } });
+    const orden = await prisma.ordenCompra.findUnique({ where: { id } });
     if (!orden) return { error: "La orden ya no existe." };
     if (orden.estado === "RECHAZADO" || orden.estado === "ANULADO") {
       return { error: "Esta orden ya no está activa." };
     }
 
-    if (orden.estado === "APROBADO") {
-      await prisma.ordenCompra.update({
-        where: { id },
-        data: {
-          estado: "ANULADO",
-          aprobadoPorId: usuario.id,
-          fechaAprobacion: new Date(),
-          comentarioRechazo: comentario || null,
-        },
-      });
-    } else {
-      await prisma.$transaction(async (tx) => {
-        await tx.ordenCompraItem.deleteMany({ where: { ordenCompraId: id } });
-        await tx.ordenCompra.delete({ where: { id } });
-      });
-    }
+    await prisma.ordenCompra.update({
+      where: { id },
+      data: {
+        estado: "ANULADO",
+        aprobadoPorId: usuario.id,
+        fechaAprobacion: new Date(),
+        comentarioRechazo: comentario || null,
+      },
+    });
 
     revalidatePath("/logistica/ordenes-compra");
     revalidatePath(`/logistica/ordenes-compra/${id}`);

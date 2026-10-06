@@ -55,13 +55,10 @@ export function FirmarOrdenBotones({ id, numero, rolLabel }: { id: string; numer
   );
 }
 
-// Separado de AprobarRechazarOrdenBotones porque aplica en cualquier
-// momento del ciclo de vida: antes de aprobada, anular equivale a borrar y
-// lo puede usar cualquiera; ya aprobada (solo ADMIN o el aprobador de
-// alguna de las áreas de la orden) no se borra, queda registrada como
-// ANULADO y sus cantidades jaladas vuelven a quedar pendientes en sus
-// solicitudes de origen — la acción en el servidor vuelve a verificar el
-// permiso.
+// Exclusivo de quien tenga el rol ANULADOR (la acción en el servidor
+// vuelve a verificar el permiso). Nunca borra el registro: en cualquier
+// estado solo lo bloquea, pasando a ANULADO, y sus cantidades jaladas
+// vuelven a quedar pendientes en sus solicitudes de origen.
 export function AnularOrdenBoton({
   id,
   numero,
@@ -69,7 +66,7 @@ export function AnularOrdenBoton({
 }: {
   id: string;
   numero: string;
-  /** Solo se usa en la página de detalle: si la orden aún no estaba aprobada, anular la borra, así que no queda nada que refrescar. */
+  /** Solo se usa en la página de detalle, para volver al listado tras anular. */
   redirectTo?: string;
 }) {
   const [pending, startTransition] = useTransition();
