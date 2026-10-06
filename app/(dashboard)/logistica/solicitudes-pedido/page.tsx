@@ -46,15 +46,17 @@ export default async function SolicitudesPedidoPage() {
     take: 100,
   });
 
+  // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
+  // estado de la solicitud.
+  const puedeAnularGlobal = usuario?.roles.includes("ANULADOR") ?? false;
+
   const filas: FilaSolicitudPedido[] = solicitudes.map((solicitud) => {
     const tienePermisoArea =
       !!usuario &&
       puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
     const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
-    // Antes de aprobada, anular equivale a borrar y lo puede usar
-    // cualquiera; ya aprobada, solo el aprobador del área.
     const puedeAnular =
-      solicitud.estado === "APROBADO" ? tienePermisoArea : solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
+      puedeAnularGlobal && solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
     const tienePendiente = solicitud.items.some((item) => {
       const jalado = item.ordenCompraItems.reduce((acc, oci) => acc + Number(oci.cantidad), 0);
       return Number(item.cantidad) - jalado > 0;

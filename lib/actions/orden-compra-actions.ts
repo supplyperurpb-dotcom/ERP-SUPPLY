@@ -9,7 +9,6 @@ import {
   cantidadPendiente,
   categoriaDeItem,
   montoEnUsd,
-  obtenerAprobadoresArea,
   obtenerAprobadoresEspeciales,
   rolesFirmaRequeridos,
 } from "@/lib/compras";
@@ -209,15 +208,21 @@ export async function firmarOrdenCompraAction(
   }
 }
 
-// Anular reemplaza por completo a "eliminar": antes de estar aprobada
-// (PENDIENTE/BORRADOR) cualquier usuario con sesión puede anularla y se
-// borra directamente; una vez APROBADA, como una OC/OS puede jalar líneas
-// de varias áreas a la vez, solo puede anularla un ADMIN o el aprobador
-// configurado de alguna de esas áreas — y en ese caso no se borra, queda
-// en estado ANULADO (lo que además libera de vuelta a "pendiente" las
-// cantidades que había jalado de sus solicitudes de origen).
+// Anular reemplaza por completo a "eliminar": es exclusivo de quien tenga
+// el rol ANULADOR, sin importar el estado de la orden (ni ADMIN, ni
+// APROBADOR_GENERAL, ni el aprobador de área lo habilitan por sí solos).
+// Antes de estar aprobada (PENDIENTE/BORRADOR) se borra directamente; ya
+// APROBADA, no se borra, queda en estado ANULADO (lo que además libera de
+// vuelta a "pendiente" las cantidades que había jalado de sus solicitudes
+// de origen).
 export async function anularOrdenCompraAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
   try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para anular una orden." };
+    if (!usuario.roles.includes("ANULADOR")) {
+      return { error: "No tienes permiso para anular órdenes de compra." };
+    }
+
     const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { items: true } });
     if (!orden) return { error: "La orden ya no existe." };
     if (orden.estado === "RECHAZADO" || orden.estado === "ANULADO") {
@@ -225,19 +230,6 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
     }
 
     if (orden.estado === "APROBADO") {
-      const usuario = await getUsuarioActual();
-      if (!usuario) return { error: "Debes iniciar sesión para anular una orden." };
-
-      if (!usuario.roles.includes("ADMIN") && !usuario.roles.includes("APROBADOR_GENERAL")) {
-        const aprobadores = await obtenerAprobadoresArea();
-        const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
-        const areasOrden = new Set(orden.items.map((i) => i.centroCosto));
-        const esAprobadorDeAlgunArea = [...areasOrden].some((area) => aprobadoresPorArea.get(area) === usuario.id);
-        if (!esAprobadorDeAlgunArea) {
-          return { error: "Solo el aprobador de alguna de las áreas de esta orden puede anularla." };
-        }
-      }
-
       await prisma.ordenCompra.update({
         where: { id },
         data: {
@@ -248,9 +240,6 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
         },
       });
     } else {
-      const usuario = await getUsuarioActual();
-      if (!usuario) return { error: "Debes iniciar sesión para anular una orden." };
-
       await prisma.$transaction(async (tx) => {
         await tx.ordenCompraItem.deleteMany({ where: { ordenCompraId: id } });
         await tx.ordenCompra.delete({ where: { id } });

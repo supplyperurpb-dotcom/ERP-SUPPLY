@@ -154,13 +154,13 @@ export async function rechazarSolicitudPedidoAction(
   }
 }
 
-// Anular reemplaza por completo a "eliminar": antes de estar aprobada
-// (PENDIENTE/BORRADOR) cualquier usuario con sesión puede anularla y se
-// borra directamente, sin necesitar ningún permiso especial; una vez
-// APROBADA, solo el aprobador configurado de esa área (o un ADMIN) puede
-// anularla, y en ese caso no se borra — queda en estado ANULADO para dejar
-// rastro de quién la anuló y por qué. Si ya hay una OC que jaló de esta
-// solicitud, no se puede anular en ningún caso.
+// Anular reemplaza por completo a "eliminar": es exclusivo de quien tenga
+// el rol ANULADOR, sin importar el estado de la solicitud (ni ADMIN, ni
+// APROBADOR_GENERAL, ni el aprobador del área lo habilitan por sí solos).
+// Antes de estar aprobada (PENDIENTE/BORRADOR) se borra directamente; ya
+// APROBADA, no se borra — queda en estado ANULADO para dejar rastro de
+// quién la anuló y por qué. Si ya hay una OC que jaló de esta solicitud,
+// no se puede anular en ningún caso.
 export async function anularSolicitudPedidoAction(id: string, comentario?: string): Promise<{ error?: string } | undefined> {
   const parsed = rechazarSolicitudPedidoSchema.safeParse({ comentario });
   if (!parsed.success) {
@@ -168,6 +168,12 @@ export async function anularSolicitudPedidoAction(id: string, comentario?: strin
   }
 
   try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para anular una solicitud." };
+    if (!usuario.roles.includes("ANULADOR")) {
+      return { error: "No tienes permiso para anular solicitudes de pedido." };
+    }
+
     const solicitud = await prisma.solicitudPedido.findUnique({ where: { id } });
     if (!solicitud) return { error: "La solicitud ya no existe." };
     if (solicitud.estado === "RECHAZADO" || solicitud.estado === "ANULADO") {
@@ -182,22 +188,16 @@ export async function anularSolicitudPedidoAction(id: string, comentario?: strin
     }
 
     if (solicitud.estado === "APROBADO") {
-      const permiso = await verificarPermisoAprobacion(solicitud.area);
-      if ("error" in permiso) return permiso;
-
       await prisma.solicitudPedido.update({
         where: { id },
         data: {
           estado: "ANULADO",
-          aprobadoPorId: permiso.usuarioId,
+          aprobadoPorId: usuario.id,
           fechaAprobacion: new Date(),
           comentarioRechazo: parsed.data.comentario || null,
         },
       });
     } else {
-      const usuario = await getUsuarioActual();
-      if (!usuario) return { error: "Debes iniciar sesión para anular una solicitud." };
-
       await prisma.$transaction(async (tx) => {
         await tx.solicitudPedidoItem.deleteMany({ where: { solicitudPedidoId: id } });
         await tx.solicitudPedido.delete({ where: { id } });

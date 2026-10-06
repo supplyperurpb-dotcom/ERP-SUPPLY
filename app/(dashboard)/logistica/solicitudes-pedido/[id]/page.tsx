@@ -61,12 +61,12 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     !!usuario &&
     puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
   const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
-  // Antes de aprobada, anular equivale a borrar y lo puede usar cualquiera;
-  // ya aprobada, solo el aprobador del área.
+  // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
+  // estado de la solicitud.
   const puedeAnular =
-    solicitud.estado === "APROBADO"
-      ? tienePermisoArea
-      : solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
+    (usuario?.roles.includes("ANULADOR") ?? false) &&
+    solicitud.estado !== "RECHAZADO" &&
+    solicitud.estado !== "ANULADO";
   // Los compradores de Supply Chain generan las OC/OS para toda la empresa.
   const puedeGenerarOrden = (usuario?.roles.includes("ADMIN") ?? false) || usuario?.area === "SUPPLY_CHAIN";
   const tienePendiente = solicitud.items.some((item) => {

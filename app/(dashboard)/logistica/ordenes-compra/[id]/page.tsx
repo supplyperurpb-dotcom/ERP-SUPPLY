@@ -18,7 +18,7 @@ import {
   type CategoriaCompraCodigo,
 } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea, obtenerAprobadoresEspeciales } from "@/lib/compras";
+import { obtenerAprobadoresEspeciales } from "@/lib/compras";
 import type { EstadoDocumento, EstadoFirma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -73,27 +73,20 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
 
   const idsFirmantes = orden.firmas.map((f) => f.usuarioId).filter((v): v is string => !!v);
 
-  const [usuario, aprobador, aprobadores, aprobadoresEspeciales, usuariosFirmantes] = await Promise.all([
+  const [usuario, aprobador, aprobadoresEspeciales, usuariosFirmantes] = await Promise.all([
     getUsuarioActual(),
     orden.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: orden.aprobadoPorId } }) : null,
-    obtenerAprobadoresArea(),
     obtenerAprobadoresEspeciales(),
     idsFirmantes.length > 0 ? prisma.usuario.findMany({ where: { id: { in: idsFirmantes } } }) : Promise.resolve([]),
   ]);
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
-  const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
   const usuarioFirmantePorId = new Map(usuariosFirmantes.map((u) => [u.id, u]));
 
-  const tienePermisoOrden =
-    esAdmin ||
-    (usuario?.roles.includes("APROBADOR_GENERAL") ?? false) ||
-    (!!usuario && orden.items.some((i) => aprobadoresPorArea.get(i.centroCosto) === usuario.id));
-  // Antes de aprobada, anular equivale a borrar y lo puede usar cualquiera;
-  // ya aprobada, solo ADMIN, un aprobador general o el aprobador de alguna
-  // de las áreas de la orden.
+  // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
+  // estado de la orden.
   const puedeAnular =
-    orden.estado === "APROBADO" ? tienePermisoOrden : orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
+    (usuario?.roles.includes("ANULADOR") ?? false) && orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
   const esServicio = orden.categoria === "SERVICIO";
 
   // Firma(s) que el usuario actual puede resolver ahora mismo: la de su

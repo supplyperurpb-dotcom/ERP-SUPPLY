@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/button";
 import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea } from "@/lib/compras";
 import { OrdenesCompraTable, type FilaOrdenCompra } from "./ordenes-compra-table";
 import type { AreaEmpresa } from "@prisma/client";
 
 export default async function OrdenesCompraPage() {
-  const [usuario, aprobadores] = await Promise.all([getUsuarioActual(), obtenerAprobadoresArea()]);
+  const usuario = await getUsuarioActual();
 
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
   // Los compradores de Supply Chain gestionan las compras de toda la
@@ -21,7 +20,6 @@ export default async function OrdenesCompraPage() {
   // ambos ven todas, no solo las de su área.
   const esSupplyChain = usuario?.area === "SUPPLY_CHAIN";
   const esAprobadorGeneral = usuario?.roles.includes("APROBADOR_GENERAL") ?? false;
-  const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   // Igual que en Solicitudes de pedido: todo usuario con área asignada
   // (sea o no aprobador) solo ve las OC/OS que tengan al menos una línea
   // de su propia área; ADMIN, Supply Chain y aprobadores generales ven todas.
@@ -29,19 +27,17 @@ export default async function OrdenesCompraPage() {
 
   const ordenes = await prisma.ordenCompra.findMany({
     where: areaUsuario ? { items: { some: { centroCosto: areaUsuario as AreaEmpresa } } } : undefined,
-    include: { proveedor: true, items: { select: { centroCosto: true } } },
+    include: { proveedor: true },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
 
+  // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
+  // estado de la orden.
+  const puedeAnularGlobal = usuario?.roles.includes("ANULADOR") ?? false;
+
   const filas: FilaOrdenCompra[] = ordenes.map((orden) => {
-    const tienePermisoOrden =
-      esAdmin || (!!usuario && orden.items.some((i) => aprobadoresPorArea.get(i.centroCosto) === usuario.id));
-    // Antes de aprobada, anular equivale a borrar y lo puede usar
-    // cualquiera; ya aprobada, solo ADMIN o el aprobador de alguna de las
-    // áreas de la orden.
-    const puedeAnular =
-      orden.estado === "APROBADO" ? tienePermisoOrden : orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
+    const puedeAnular = puedeAnularGlobal && orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
     return {
       id: orden.id,
       numero: orden.numero,

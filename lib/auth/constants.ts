@@ -10,6 +10,10 @@ export const ROLES = {
   // aprueba lo de su propia área. No da los demás permisos de ADMIN
   // (gestión de usuarios, SKU, etc.).
   APROBADOR_GENERAL: "APROBADOR_GENERAL",
+  // Único permiso que habilita anular Solpeds y OC/OS (en cualquier
+  // estado) — ni ADMIN, ni APROBADOR_GENERAL, ni el aprobador de área lo
+  // dan por sí solos; es exclusivo de quien tenga este rol.
+  ANULADOR: "ANULADOR",
   SOLO_LECTURA: "SOLO_LECTURA",
 } as const;
 
@@ -22,6 +26,7 @@ export const ROL_LABELS: Record<RolNombre, string> = {
   COMEX: "Comex",
   APROBADOR: "Aprobador",
   APROBADOR_GENERAL: "Aprobador general",
+  ANULADOR: "Anulador exclusivo",
   SOLO_LECTURA: "Solo lectura",
 };
 
@@ -45,6 +50,7 @@ export const ACCESO_MODULO_POR_ROL: Record<RolNombre, Modulo[]> = {
   COMEX: [MODULOS.COMEX],
   APROBADOR: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.COMEX],
   APROBADOR_GENERAL: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.COMEX],
+  ANULADOR: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.COMEX],
   SOLO_LECTURA: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.USUARIOS, MODULOS.COMEX],
 };
 

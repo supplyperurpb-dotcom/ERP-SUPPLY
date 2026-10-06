@@ -52,6 +52,7 @@ function descripcionRol(nombre: RolNombre): string {
     COMEX: "Gestión de packing list, stock de cámara y embarques",
     APROBADOR: "Aprobación de documentos según reglas configuradas",
     APROBADOR_GENERAL: "Aprobación de solicitudes y órdenes de cualquier área",
+    ANULADOR: "Único permiso habilitado para anular solicitudes de pedido y órdenes de compra/servicio",
     SOLO_LECTURA: "Acceso de solo lectura a todos los módulos",
   };
   return descripciones[nombre];
