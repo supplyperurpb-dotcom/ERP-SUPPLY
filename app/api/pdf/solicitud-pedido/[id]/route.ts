@@ -38,6 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       campo: item.campo,
     })),
     aprobado: solicitud.estado === "APROBADO",
+    anulado: solicitud.estado === "ANULADO",
     aprobadoPor: aprobador ? { nombre: `${aprobador.nombres} ${aprobador.apellidos}`, cargo: aprobador.cargo } : null,
   });
 

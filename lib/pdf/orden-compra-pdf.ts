@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
-import { dibujarMarcaDeAguaDraft } from "./marca-agua";
+import { dibujarMarcaDeAgua } from "./marca-agua";
 import { dibujarFirmaAprobacion } from "./firma-aprobacion";
 import { IGV_TASA } from "@/lib/constants/compras";
 
@@ -57,6 +57,7 @@ export async function generarOrdenCompraPdf({
   igv,
   montoTotal,
   aprobado,
+  anulado,
   aprobadoPor,
   usuarioSolped,
   usuarioCreacion,
@@ -85,6 +86,9 @@ export async function generarOrdenCompraPdf({
   // Mientras no esté aprobada (pendiente de VB, rechazada, borrador), se
   // marca el PDF como borrador. Desaparece en cuanto queda APROBADO.
   aprobado: boolean;
+  // Si quedó ANULADA, se marca con esa marca de agua en lugar de BORRADOR
+  // (son excluyentes: una orden anulada no está aprobada).
+  anulado?: boolean;
   // Nombre (y cargo) de quien aprobó; se muestra al pie solo si aprobado=true.
   aprobadoPor?: { nombre: string; cargo: string | null } | null;
   usuarioSolped: string | null;
@@ -354,7 +358,8 @@ export async function generarOrdenCompraPdf({
   filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
   filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
 
-  if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
+  if (anulado) dibujarMarcaDeAgua(pdfDoc, bold, "ANULADA");
+  else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
   if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
 
   return pdfDoc.save();

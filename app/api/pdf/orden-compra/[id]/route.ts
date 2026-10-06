@@ -81,6 +81,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     igv: Number(orden.igv),
     montoTotal: Number(orden.montoTotal),
     aprobado: orden.estado === "APROBADO",
+    anulado: orden.estado === "ANULADO",
     aprobadoPor: orden.aprobadoPorId
       ? (() => {
           const u = usuarioPorId.get(orden.aprobadoPorId!);

@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
-import { dibujarMarcaDeAguaDraft } from "./marca-agua";
+import { dibujarMarcaDeAgua } from "./marca-agua";
 import { dibujarFirmaAprobacion } from "./firma-aprobacion";
 
 // Parte un texto en líneas que caben en `anchoMax` (p. ej. la descripción
@@ -62,6 +62,7 @@ export async function generarSolicitudPedidoPdf({
   justificacion,
   lineas,
   aprobado,
+  anulado,
   aprobadoPor,
 }: {
   nombreDocumento: string;
@@ -77,6 +78,9 @@ export async function generarSolicitudPedidoPdf({
   // marca el PDF como borrador para que no se confunda con el documento
   // final. Desaparece en cuanto queda APROBADO.
   aprobado: boolean;
+  // Si quedó ANULADA, se marca con esa marca de agua en lugar de BORRADOR
+  // (son excluyentes: una solicitud anulada no está aprobada).
+  anulado?: boolean;
   // Nombre (y cargo) de quien aprobó; se muestra al pie solo si aprobado=true.
   aprobadoPor?: { nombre: string; cargo: string | null } | null;
 }): Promise<Uint8Array> {
@@ -206,7 +210,8 @@ export async function generarSolicitudPedidoPdf({
     y -= 4;
   }
 
-  if (!aprobado) dibujarMarcaDeAguaDraft(pdfDoc, bold);
+  if (anulado) dibujarMarcaDeAgua(pdfDoc, bold, "ANULADA");
+  else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
   if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
 
   return pdfDoc.save();
