@@ -127,7 +127,13 @@ export function SolicitudPedidoForm({
 
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de pedido</Label>
-            <Input id="fecha" type="date" {...form.register("fecha")} />
+            <Input
+              id="fecha"
+              type="date"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("fecha")}
+            />
             {form.formState.errors.fecha && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.fecha.message}</p>
             )}
@@ -135,7 +141,7 @@ export function SolicitudPedidoForm({
 
           <div className="space-y-2">
             <Label htmlFor="fechaNecesidad">Fecha estimada de necesidad</Label>
-            <Input id="fechaNecesidad" type="date" {...form.register("fechaNecesidad")} />
+            <Input id="fechaNecesidad" type="date" min={fechaLocalHoy()} {...form.register("fechaNecesidad")} />
             {form.formState.errors.fechaNecesidad && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.fechaNecesidad.message}</p>
             )}
@@ -164,8 +170,11 @@ export function SolicitudPedidoForm({
           </div>
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-4">
-            <Label htmlFor="justificacion">Justificación / observación (opcional)</Label>
+            <Label htmlFor="justificacion">Justificación / observación</Label>
             <Textarea id="justificacion" rows={2} {...form.register("justificacion")} />
+            {form.formState.errors.justificacion && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.justificacion.message}</p>
+            )}
           </div>
         </CardContent>
       </Card>

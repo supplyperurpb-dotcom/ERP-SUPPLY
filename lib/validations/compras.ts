@@ -23,10 +23,17 @@ export const solicitudPedidoSchema = z
     fecha: z.coerce.date({ required_error: "La fecha de pedido es obligatoria" }),
     fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),
     tipoNecesidad: z.enum(["URGENTE", "ESTANDAR"], { required_error: "Selecciona el tipo de necesidad" }),
-    justificacion: z.string().max(500).optional().or(z.literal("")),
+    justificacion: z.string().trim().min(1, "La justificación es obligatoria").max(500),
     items: z.array(itemSolicitudPedidoSchema).min(1, "Agrega al menos un producto"),
   })
   .superRefine((data, ctx) => {
+    if (data.fechaNecesidad < data.fecha) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La fecha estimada de necesidad no puede ser anterior a la fecha de pedido",
+        path: ["fechaNecesidad"],
+      });
+    }
     if (data.categoria !== "SERVICIO") return;
     data.items.forEach((item, i) => {
       if (!item.descripcion?.trim()) {
