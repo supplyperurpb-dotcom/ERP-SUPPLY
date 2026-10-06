@@ -80,7 +80,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
       });
     }
 
-    revalidatePath("/usuarios");
+    revalidatePath("/usuarios/lista");
     revalidatePath("/usuarios/roles");
     return { id: nuevoUsuario.id };
   } catch (e) {

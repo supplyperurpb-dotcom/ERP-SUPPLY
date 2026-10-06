@@ -45,6 +45,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: "Logística / Compras",
     icono: Truck,
     items: [
+      { titulo: "Inicio", href: "/logistica", icono: LayoutGrid },
       { titulo: "Solicitudes de pedido", href: "/logistica/solicitudes-pedido", icono: ClipboardList },
       { titulo: "Órdenes de compra", href: "/logistica/ordenes-compra", icono: ShoppingCart },
       { titulo: "Proveedores", href: "/logistica/proveedores", icono: Users },
@@ -78,7 +79,8 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: "Usuarios",
     icono: ShieldCheck,
     items: [
-      { titulo: "Usuarios", href: "/usuarios", icono: Users },
+      { titulo: "Inicio", href: "/usuarios", icono: LayoutGrid },
+      { titulo: "Usuarios", href: "/usuarios/lista", icono: Users },
       { titulo: "Roles", href: "/usuarios/roles", icono: ShieldCheck },
       { titulo: "Pendientes de aprobación", href: "/usuarios/aprobaciones", icono: ShieldCheck },
     ],
@@ -88,6 +90,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
     titulo: "Comex",
     icono: Snowflake,
     items: [
+      { titulo: "Inicio", href: "/comex", icono: LayoutGrid },
       { titulo: "Packing list", href: "/comex/packing-list", icono: FileSpreadsheet },
       { titulo: "Stock de cámara", href: "/comex/stock-camara", icono: Thermometer },
       { titulo: "Formatos de exportación", href: "/comex/formatos-exportacion", icono: Package },

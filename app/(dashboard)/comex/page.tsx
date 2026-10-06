@@ -1,33 +1,33 @@
 import Link from "next/link";
-import { Users, ShieldCheck } from "lucide-react";
+import { FileSpreadsheet, Package, Thermometer } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const TILES = [
   {
-    titulo: "Usuarios",
-    descripcion: "Cuentas con acceso al sistema y su rol.",
-    href: "/usuarios/lista",
-    icono: Users,
+    titulo: "Packing list",
+    descripcion: "Listas de empaque de los embarques de exportación.",
+    href: "/comex/packing-list",
+    icono: FileSpreadsheet,
   },
   {
-    titulo: "Roles",
-    descripcion: "Roles disponibles y qué módulos puede usar cada uno.",
-    href: "/usuarios/roles",
-    icono: ShieldCheck,
+    titulo: "Stock de cámara",
+    descripcion: "Existencias disponibles en cámara de frío.",
+    href: "/comex/stock-camara",
+    icono: Thermometer,
   },
   {
-    titulo: "Pendientes de aprobación",
-    descripcion: "Bandeja de documentos esperando una decisión de aprobación.",
-    href: "/usuarios/aprobaciones",
-    icono: ShieldCheck,
+    titulo: "Formatos de exportación",
+    descripcion: "Catálogo de formatos y presentaciones para exportación.",
+    href: "/comex/formatos-exportacion",
+    icono: Package,
   },
 ];
 
-export default function UsuariosInicioPage() {
+export default function ComexInicioPage() {
   return (
     <div>
-      <PageHeader titulo="Usuarios" descripcion="Elige un submódulo para continuar." />
+      <PageHeader titulo="Comex" descripcion="Elige un submódulo para continuar." />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {TILES.map((tile) => (
           <Link key={tile.href} href={tile.href}>

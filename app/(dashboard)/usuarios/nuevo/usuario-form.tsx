@@ -58,7 +58,7 @@ export function UsuarioForm() {
       return;
     }
     toast.success(`Usuario creado. Comparte la contraseña "${data.password}" con ${data.nombres} por un canal seguro.`);
-    router.push("/usuarios");
+    router.push("/usuarios/lista");
   }
 
   return (
