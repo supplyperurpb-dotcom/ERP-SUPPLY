@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowLeftRight,
   ClipboardList,
+  List,
   Package,
   PackageMinus,
   PackagePlus,
@@ -67,6 +68,12 @@ const TILES = [
     descripcion: "Salidas de inventario de un almacén.",
     href: "/logistica/almacenes/consumos",
     icono: PackageMinus,
+  },
+  {
+    titulo: "Listas",
+    descripcion: "Catálogos editables usados en las Solpeds, como el centro de costo y el campo/fundo.",
+    href: "/logistica/listas",
+    icono: List,
   },
 ];
 

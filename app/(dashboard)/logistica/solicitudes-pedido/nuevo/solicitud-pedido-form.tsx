@@ -14,34 +14,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, CAMPOS_SOLPED, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { solicitudPedidoSchema, type SolicitudPedidoInput } from "@/lib/validations/compras";
 import { crearSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 
 type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida: string };
 
-const ITEM_VACIO = {
-  skuId: "",
-  cantidad: 0,
-  unidadMedida: "",
-  centroCosto: "PRODUCCION" as const,
-  descripcion: "",
-  campo: "" as const,
-};
+function itemVacio(centroCostoInicial: string) {
+  return {
+    skuId: "",
+    cantidad: 0,
+    unidadMedida: "",
+    centroCosto: centroCostoInicial,
+    descripcion: "",
+    campo: "",
+  };
+}
 
 export function SolicitudPedidoForm({
   skus,
   categoriaInicial = "COMPRA",
   areaInicial = "PRODUCCION",
   areaEditable = true,
+  centrosCosto,
+  campos,
 }: {
   skus: SkuOpcion[];
   categoriaInicial?: CategoriaCompraCodigo;
   areaInicial?: AreaEmpresaCodigo;
   areaEditable?: boolean;
+  centrosCosto: string[];
+  campos: string[];
 }) {
   const router = useRouter();
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
+  const centroCostoInicial = centrosCosto[0] ?? "";
 
   const form = useForm<SolicitudPedidoInput>({
     resolver: zodResolver(solicitudPedidoSchema),
@@ -52,7 +59,7 @@ export function SolicitudPedidoForm({
       fechaNecesidad: fechaLocalHoy() as unknown as Date,
       tipoNecesidad: "ESTANDAR",
       justificacion: "",
-      items: [ITEM_VACIO],
+      items: [itemVacio(centroCostoInicial)],
     },
   });
 
@@ -189,7 +196,7 @@ export function SolicitudPedidoForm({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Productos</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={() => append(ITEM_VACIO)}>
+          <Button type="button" variant="outline" size="sm" onClick={() => append(itemVacio(centroCostoInicial))}>
             <Plus className="mr-2 h-4 w-4" />
             Agregar producto
           </Button>
@@ -275,9 +282,9 @@ export function SolicitudPedidoForm({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {AREAS_EMPRESA.map((a) => (
-                                  <SelectItem key={a.valor} value={a.valor}>
-                                    {a.nombre}
+                                {centrosCosto.map((c) => (
+                                  <SelectItem key={c} value={c}>
+                                    {c}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -296,7 +303,7 @@ export function SolicitudPedidoForm({
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="__ninguno__">—</SelectItem>
-                                {CAMPOS_SOLPED.map((c) => (
+                                {campos.map((c) => (
                                   <SelectItem key={c} value={c}>
                                     {c}
                                   </SelectItem>

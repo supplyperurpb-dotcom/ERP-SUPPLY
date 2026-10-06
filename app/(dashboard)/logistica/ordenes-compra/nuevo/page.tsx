@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { calcularSolicitudesConPendientes } from "@/lib/compras";
+import { obtenerValoresActivos } from "@/lib/listas";
 import { siguienteNumero } from "@/lib/utils";
 import { NOMBRE_ORDEN, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { OrdenCompraForm } from "./orden-compra-form";
@@ -13,10 +14,11 @@ export default async function NuevaOrdenCompraPage({
   const { categoria, solicitudId } = await searchParams;
   const categoriaSeleccionada: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
 
-  const [solicitudes, proveedores, existentes] = await Promise.all([
+  const [solicitudes, proveedores, existentes, centrosCosto] = await Promise.all([
     calcularSolicitudesConPendientes(prisma, categoriaSeleccionada),
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     prisma.ordenCompra.findMany({ where: { categoria: categoriaSeleccionada }, select: { numero: true } }),
+    obtenerValoresActivos("CENTRO_COSTO"),
   ]);
   // Solo un adelanto: el número real se asigna recién al guardar (dentro
   // de la misma transacción) para no pisarse si dos personas crean una
@@ -39,6 +41,7 @@ export default async function NuevaOrdenCompraPage({
           razonSocial: p.razonSocial,
           ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
         }))}
+        centrosCosto={centrosCosto}
       />
     </div>
   );

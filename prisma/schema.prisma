@@ -315,8 +315,12 @@ model MovimientoStock {
   @@map("movimientos_stock")
 }
 
-// Área solicitante de una SolicitudPedido y centro de costo de cada línea
-// (misma lista de valores para ambos conceptos, ver lib/constants/compras.ts).
+// Área solicitante de una SolicitudPedido (ver lib/constants/compras.ts).
+// El centro de costo de cada línea ya NO usa este enum: es un catálogo
+// editable aparte (ver ListaValor, tipo CENTRO_COSTO) porque, aunque antes
+// compartían la misma lista de valores, son conceptos distintos (el área
+// que pide no siempre es el centro que paga) y el centro de costo necesita
+// poder crecer sin tocar código.
 enum AreaEmpresa {
   PRODUCCION
   SUPPLY_CHAIN
@@ -324,6 +328,32 @@ enum AreaEmpresa {
   GERENCIA_GENERAL
   SERVICIOS_GENERALES
   RRHH
+}
+
+// Listas editables desde el submódulo Logística > Listas (ver
+// lib/constants/listas.ts). Cada tipo nuevo que se agregue ahí necesita su
+// propia UI (aunque sea genérica) para elegirlo en el formulario que
+// corresponda — esto solo es el catálogo de valores en sí.
+enum TipoLista {
+  CENTRO_COSTO
+  CAMPO
+}
+
+// Valor de una lista editable (p. ej. "Producción" para CENTRO_COSTO,
+// "Achirana Blue" para CAMPO). Nunca se borra un valor ya usado por algún
+// documento: se desactiva (activo=false) para que deje de ofrecerse en
+// formularios nuevos pero los documentos existentes conserven su texto.
+model ListaValor {
+  id        String    @id @default(cuid())
+  tipo      TipoLista
+  nombre    String
+  activo    Boolean   @default(true)
+  orden     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([tipo, nombre])
+  @@map("lista_valores")
 }
 
 enum TipoNecesidad {
@@ -433,13 +463,16 @@ model SolicitudPedidoItem {
   skuId             String
   cantidad          Decimal     @db.Decimal(12, 3)
   unidadMedida      String
-  centroCosto       AreaEmpresa
+  // Nombre de un valor activo (o ya desactivado, si el documento es viejo)
+  // de ListaValor con tipo CENTRO_COSTO — ya no es el enum AreaEmpresa.
+  centroCosto       String
   // Solo para categoría Servicio: el SKU agrupa (p. ej. "Apicultura"), este
   // campo describe el detalle puntual del servicio pedido (p. ej. "cambio
   // de cableado"). No aplica a Compra.
   descripcion       String?
-  // Campo/fundo al que corresponde el pedido (p. ej. "Achirana Blue"),
-  // de la lista fija en lib/constants/compras.ts: CAMPOS_SOLPED.
+  // Campo/fundo al que corresponde el pedido (p. ej. "Achirana Blue"):
+  // nombre de un valor activo (o ya desactivado) de ListaValor con tipo
+  // CAMPO.
   campo             String?
 
   solicitudPedido  SolicitudPedido   @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
@@ -507,7 +540,10 @@ model OrdenCompraItem {
   // Si el producto está gravado con IGV. Se precarga desde la solicitud
   // pero se puede editar en la OC.
   gravado               Boolean     @default(true)
-  centroCosto           AreaEmpresa
+  // Nombre de un valor activo (o ya desactivado) de ListaValor con tipo
+  // CENTRO_COSTO — ya no es el enum AreaEmpresa. Normalmente se precarga
+  // desde SolicitudPedidoItem.centroCosto.
+  centroCosto           String
   // Solo para categoría Servicio (OS): se precarga desde
   // SolicitudPedidoItem.descripcion y se puede seguir editando aquí para
   // afinar el detalle y alcance del servicio.

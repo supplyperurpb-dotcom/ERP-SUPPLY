@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { obtenerValoresActivos } from "@/lib/listas";
 import { siguienteNumero } from "@/lib/utils";
 import { NOMBRE_SOLICITUD, PREFIJO_SOLICITUD, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { SolicitudPedidoForm } from "./solicitud-pedido-form";
@@ -23,7 +24,7 @@ export default async function NuevaSolicitudPedidoPage({
 
   // En SERVICIO, el catálogo son solo los SKU de Servicios (uno por
   // subfamilia, p. ej. "Apicultura"); en COMPRA se excluyen esos SKU.
-  const [skus, existentes] = await Promise.all([
+  const [skus, existentes, centrosCosto, campos] = await Promise.all([
     prisma.sku.findMany({
       where: {
         activo: true,
@@ -32,6 +33,8 @@ export default async function NuevaSolicitudPedidoPage({
       orderBy: { codigo: "asc" },
     }),
     prisma.solicitudPedido.findMany({ where: { categoria: categoriaInicial }, select: { numero: true } }),
+    obtenerValoresActivos("CENTRO_COSTO"),
+    obtenerValoresActivos("CAMPO"),
   ]);
   // Solo un adelanto: el número real se asigna recién al guardar.
   const numeroTentativo = siguienteNumero(existentes.map((s) => s.numero), PREFIJO_SOLICITUD[categoriaInicial], 9);
@@ -47,6 +50,8 @@ export default async function NuevaSolicitudPedidoPage({
         categoriaInicial={categoriaInicial}
         areaInicial={areaInicial}
         areaEditable={areaEditable}
+        centrosCosto={centrosCosto}
+        campos={campos}
       />
     </div>
   );

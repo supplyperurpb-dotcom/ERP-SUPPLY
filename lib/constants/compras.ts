@@ -66,8 +66,3 @@ export const ROLES_APROBADOR_ESPECIAL = [
 ] as const;
 
 export type RolAprobadorEspecialCodigo = (typeof ROLES_APROBADOR_ESPECIAL)[number]["valor"];
-
-// Campo/fundo al que corresponde cada línea de una solicitud de pedido.
-export const CAMPOS_SOLPED = ["Achirana Blue", "Papito", "San Antonio Conv.", "San Antonio Org."] as const;
-
-export type CampoSolpedCodigo = (typeof CAMPOS_SOLPED)[number];

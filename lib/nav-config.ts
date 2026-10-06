@@ -9,6 +9,7 @@ import {
   Home,
   LayoutGrid,
   Layers,
+  List,
   Package,
   PackageMinus,
   PackagePlus,
@@ -55,6 +56,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
       { titulo: "Ingresos de almacén", href: "/logistica/almacenes/ingresos", icono: PackagePlus },
       { titulo: "Traslados", href: "/logistica/almacenes/traslados", icono: ArrowLeftRight },
       { titulo: "Consumos", href: "/logistica/almacenes/consumos", icono: PackageMinus },
+      { titulo: "Listas", href: "/logistica/listas", icono: List },
     ],
   },
   {

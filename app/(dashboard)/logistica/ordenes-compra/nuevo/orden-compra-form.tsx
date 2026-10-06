@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
-import { AREAS_EMPRESA, IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
@@ -56,12 +56,14 @@ export function OrdenCompraForm({
   categoria,
   proveedores,
   solicitudIdInicial,
+  centrosCosto,
 }: {
   solicitudes: SolicitudConPendientes[];
   categoria: CategoriaCompraCodigo;
   proveedores: ProveedorOpcionSelect[];
   /** Si se llega desde el botón "Generar OC/OS" de una solicitud puntual, sus ítems se precargan ya marcados. */
   solicitudIdInicial?: string;
+  centrosCosto: string[];
 }) {
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
@@ -203,7 +205,7 @@ export function OrdenCompraForm({
             cantidad: Number(fila.cantidad),
             precioUnitario: Number(fila.precioUnitario),
             gravado: fila.gravado,
-            centroCosto: fila.centroCosto as (typeof AREAS_EMPRESA)[number]["valor"],
+            centroCosto: fila.centroCosto,
             descripcion: fila.descripcion,
           };
         }),
@@ -382,9 +384,9 @@ export function OrdenCompraForm({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {AREAS_EMPRESA.map((a) => (
-                                <SelectItem key={a.valor} value={a.valor}>
-                                  {a.nombre}
+                              {centrosCosto.map((c) => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -459,16 +461,16 @@ export function OrdenCompraForm({
               />
             </div>
             <div className="space-y-1">
-              <Label>Área</Label>
+              <Label>Centro de costo</Label>
               <Select value={filtroArea || "__todas__"} onValueChange={(v) => setFiltroArea(v === "__todas__" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__todas__">Todas las áreas</SelectItem>
-                  {AREAS_EMPRESA.map((a) => (
-                    <SelectItem key={a.valor} value={a.valor}>
-                      {a.nombre}
+                  <SelectItem value="__todas__">Todos</SelectItem>
+                  {centrosCosto.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -513,7 +515,7 @@ export function OrdenCompraForm({
                       <TableCell className="font-medium">{item.codigo}</TableCell>
                       <TableCell>{item.descripcion}</TableCell>
                       <TableCell>{item.solicitudNumero}</TableCell>
-                      <TableCell>{AREAS_EMPRESA.find((a) => a.valor === item.centroCosto)?.nombre ?? item.centroCosto}</TableCell>
+                      <TableCell>{item.centroCosto}</TableCell>
                       <TableCell className="text-right">
                         {item.cantidadPendiente} {item.unidadMedida}
                       </TableCell>

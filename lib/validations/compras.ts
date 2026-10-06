@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CAMPOS_SOLPED } from "@/lib/constants/compras";
 
 const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SERVICIOS_GENERALES", "RRHH"] as const;
 const CATEGORIAS = ["COMPRA", "SERVICIO"] as const;
@@ -8,12 +7,15 @@ const itemSolicitudPedidoSchema = z.object({
   skuId: z.string().min(1, "Selecciona un producto"),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
-  centroCosto: z.enum(AREAS, { required_error: "Selecciona el centro de costo" }),
+  // Nombre de un valor de la lista editable Centro de costo (ver
+  // lib/listas.ts) — ya no es un enum fijo.
+  centroCosto: z.string().min(1, "Selecciona el centro de costo"),
   // Solo para categoría Servicio: detalle puntual del servicio pedido
   // (el SKU solo agrupa, p. ej. "Apicultura").
   descripcion: z.string().max(500).optional().or(z.literal("")),
-  // Campo/fundo al que corresponde el pedido.
-  campo: z.enum(CAMPOS_SOLPED).optional().or(z.literal("")),
+  // Campo/fundo al que corresponde el pedido: nombre de un valor de la
+  // lista editable Campo (ver lib/listas.ts).
+  campo: z.string().optional().or(z.literal("")),
 });
 
 export const solicitudPedidoSchema = z
@@ -54,7 +56,7 @@ const itemOrdenCompraSchema = z.object({
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   gravado: z.coerce.boolean().default(true),
-  centroCosto: z.enum(AREAS, { required_error: "Selecciona el centro de costo" }),
+  centroCosto: z.string().min(1, "Selecciona el centro de costo"),
   // Solo para categoría Servicio (OS): detalle y alcance del servicio,
   // precargado de la solicitud y editable aquí.
   descripcion: z.string().max(500).optional().or(z.literal("")),
