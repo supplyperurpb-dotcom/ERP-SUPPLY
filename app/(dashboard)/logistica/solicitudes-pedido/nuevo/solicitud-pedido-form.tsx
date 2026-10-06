@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, CAMPOS_SOLPED, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, CAMPOS_SOLPED, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { solicitudPedidoSchema, type SolicitudPedidoInput } from "@/lib/validations/compras";
 import { crearSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 
@@ -32,9 +32,13 @@ const ITEM_VACIO = {
 export function SolicitudPedidoForm({
   skus,
   categoriaInicial = "COMPRA",
+  areaInicial = "PRODUCCION",
+  areaEditable = true,
 }: {
   skus: SkuOpcion[];
   categoriaInicial?: CategoriaCompraCodigo;
+  areaInicial?: AreaEmpresaCodigo;
+  areaEditable?: boolean;
 }) {
   const router = useRouter();
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
@@ -43,7 +47,7 @@ export function SolicitudPedidoForm({
     resolver: zodResolver(solicitudPedidoSchema),
     defaultValues: {
       categoria: categoriaInicial,
-      area: "PRODUCCION",
+      area: areaInicial,
       fecha: fechaLocalHoy() as unknown as Date,
       fechaNecesidad: fechaLocalHoy() as unknown as Date,
       tipoNecesidad: "ESTANDAR",
@@ -109,8 +113,8 @@ export function SolicitudPedidoForm({
               control={form.control}
               name="area"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
+                <Select value={field.value} onValueChange={field.onChange} disabled={!areaEditable}>
+                  <SelectTrigger className={!areaEditable ? "cursor-not-allowed bg-muted opacity-70" : undefined}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -123,6 +127,9 @@ export function SolicitudPedidoForm({
                 </Select>
               )}
             />
+            {!areaEditable && (
+              <p className="text-xs text-muted-foreground">Fijada según tu área asignada.</p>
+            )}
           </div>
 
           <div className="space-y-2">

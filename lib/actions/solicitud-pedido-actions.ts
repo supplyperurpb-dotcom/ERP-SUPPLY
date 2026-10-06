@@ -23,10 +23,15 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { categoria, area, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
+  const { categoria, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
+    // El área solo es editable para Supply Chain y ADMIN (ver
+    // solicitud-pedido-form.tsx); para cualquier otro usuario se fuerza la
+    // suya propia aquí, sin confiar en el valor que llegó del cliente.
+    const areaPuedeElegir = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
+    const area = areaPuedeElegir ? parsed.data.area : (usuario!.area as typeof parsed.data.area);
 
     const nuevaSolicitud = await prisma.$transaction(async (tx) => {
       const existentes = await tx.solicitudPedido.findMany({ where: { categoria }, select: { numero: true } });

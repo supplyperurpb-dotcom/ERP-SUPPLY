@@ -1,7 +1,8 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { NOMBRE_SOLICITUD, PREFIJO_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { NOMBRE_SOLICITUD, PREFIJO_SOLICITUD, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { SolicitudPedidoForm } from "./solicitud-pedido-form";
 
 export default async function NuevaSolicitudPedidoPage({
@@ -11,6 +12,14 @@ export default async function NuevaSolicitudPedidoPage({
 }) {
   const { categoria } = await searchParams;
   const categoriaInicial: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
+
+  const usuario = await getUsuarioActual();
+  const areaInicial: AreaEmpresaCodigo = (usuario?.area as AreaEmpresaCodigo | null) ?? "PRODUCCION";
+  // Supply Chain gestiona pedidos de cualquier área en nombre de otros, así
+  // que a ellos (y a un ADMIN) se les deja elegir; el resto queda fijo en
+  // la suya propia (ver también crearSolicitudPedidoAction, que la vuelve a
+  // forzar en el servidor por si se manipula el valor enviado).
+  const areaEditable = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
 
   // En SERVICIO, el catálogo son solo los SKU de Servicios (uno por
   // subfamilia, p. ej. "Apicultura"); en COMPRA se excluyen esos SKU.
@@ -36,6 +45,8 @@ export default async function NuevaSolicitudPedidoPage({
       <SolicitudPedidoForm
         skus={skus.map((s) => ({ id: s.id, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida }))}
         categoriaInicial={categoriaInicial}
+        areaInicial={areaInicial}
+        areaEditable={areaEditable}
       />
     </div>
   );
