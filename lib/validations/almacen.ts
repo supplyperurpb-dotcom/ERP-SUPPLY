@@ -72,6 +72,10 @@ export const ingresoAlmacenSchema = z.object({
   ordenCompraId: z.string().min(1, "Selecciona una orden de compra"),
   almacenId: z.string().min(1, "Selecciona el almacén"),
   guiaRemision: z.string().max(60).optional().or(z.literal("")),
+  // Ruta en Supabase Storage del archivo ya subido (foto/escaneo/PDF) de
+  // la guía de remisión física — ver lib/storage.ts. Obligatorio: sin
+  // sustento no se puede registrar el ingreso.
+  guiaRemisionArchivo: z.string().min(1, "Adjunta la guía de remisión (foto o PDF)"),
   flete: z.coerce.number().min(0, "El flete no puede ser negativo").optional().nullable(),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   items: z.array(itemIngresoSchema).min(1, "Agrega al menos un producto"),

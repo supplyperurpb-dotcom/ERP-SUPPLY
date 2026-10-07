@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Download, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,6 +19,10 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
   });
   if (!ingreso) notFound();
 
+  const registradoPor = ingreso.creadoPorId
+    ? await prisma.usuario.findUnique({ where: { id: ingreso.creadoPorId }, select: { nombres: true, apellidos: true } })
+    : null;
+
   const moneda = ingreso.moneda as "PEN" | "USD";
   const subtotal = ingreso.items.reduce((acc, item) => acc + Number(item.subtotal), 0);
   const flete = ingreso.items.reduce((acc, item) => acc + Number(item.fleteAsignado), 0);
@@ -32,6 +36,14 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
         descripcion={`${ingreso.almacen.nombre} · ${formatDateTime(ingreso.fecha)}`}
         acciones={
           <>
+            {ingreso.guiaRemisionArchivo && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/api/almacenes/ingresos/${ingreso.id}/guia`} target="_blank" rel="noopener noreferrer">
+                  <Download className="mr-2 h-4 w-4" />
+                  Descargar guía
+                </a>
+              </Button>
+            )}
             {ingreso.ordenCompraId && (
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/logistica/almacenes/ingresos/${ingreso.id}/editar`}>
@@ -89,6 +101,12 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
         <div>
           <p className="text-muted-foreground">Observaciones</p>
           <p className="font-medium">{ingreso.observaciones ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Registrado por</p>
+          <p className="font-medium">
+            {registradoPor ? `${registradoPor.nombres} ${registradoPor.apellidos}` : "—"}
+          </p>
         </div>
       </div>
 

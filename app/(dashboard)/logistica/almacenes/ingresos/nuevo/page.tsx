@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { calcularOcPendientesIngreso } from "@/lib/stock-almacen";
-import { IngresoAlmacenForm } from "./ingreso-almacen-form";
+import { IngresoAlmacenWizard } from "./ingreso-almacen-wizard";
 
 export default async function NuevoIngresoAlmacenPage({
   searchParams,
@@ -10,18 +12,21 @@ export default async function NuevoIngresoAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const [almacenesGenerales, ordenesConPendientes] = await Promise.all([
+  const [usuario, almacenesGenerales, ordenesConPendientes] = await Promise.all([
+    getUsuarioActual(),
     prisma.almacen.findMany({ where: { activo: true, esGeneral: true }, orderBy: { nombre: "asc" } }),
     calcularOcPendientesIngreso(),
   ]);
+  if (!usuario) redirect("/login");
 
   return (
     <div>
       <PageHeader
         titulo="Nuevo ingreso a almacén"
-        descripcion="Selecciona el almacén general y la orden de compra de origen: el proveedor, el SKU y el precio se jalan de la OC. Solo ingresas la guía de remisión, la fecha de recepción y cuánto estás recibiendo de cada producto."
+        descripcion="Elige la orden de compra de origen y los ítems a recibir: el proveedor, el SKU y el precio se jalan de la OC."
       />
-      <IngresoAlmacenForm
+      <IngresoAlmacenWizard
+        usuario={{ nombres: usuario.nombres, apellidos: usuario.apellidos }}
         almacenes={almacenesGenerales.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         ordenesCompra={ordenesConPendientes.map((o) => ({
           id: o.id,

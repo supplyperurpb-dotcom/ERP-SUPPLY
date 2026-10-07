@@ -6,10 +6,45 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
 import { convertirAUsd, type MonedaCodigo } from "@/lib/constants/moneda";
 import { stockDisponible, cantidadPendienteIngresoOC } from "@/lib/stock-almacen";
+import { subirArchivo } from "@/lib/storage";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
 import type { Prisma } from "@prisma/client";
 
-export type IngresoAlmacenActionState = { error?: string; id?: string } | undefined;
+export type IngresoAlmacenActionState = { error?: string; id?: string; numero?: string } | undefined;
+
+const TIPOS_GUIA_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic"];
+
+// Sube la foto/escaneo/PDF de la guía de remisión antes de registrar el
+// ingreso (el formulario primero sube el archivo y recién con la ruta
+// devuelta llama a crearIngresoAlmacenAction). Nunca se confía en el
+// nombre de archivo del cliente para la ruta final, para evitar
+// colisiones o path traversal.
+export async function subirGuiaRemisionIngresoAction(formData: FormData): Promise<{ path?: string; error?: string }> {
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Selecciona un archivo." };
+  }
+  if (!TIPOS_GUIA_PERMITIDOS.includes(archivo.type)) {
+    return { error: "Formato no permitido. Sube una foto (JPG/PNG/HEIC) o un PDF." };
+  }
+  if (archivo.size > 10 * 1024 * 1024) {
+    return { error: "El archivo no puede superar 10 MB." };
+  }
+
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const extension = archivo.name.includes(".") ? archivo.name.split(".").pop() : "bin";
+  const ruta = `ingresos-almacen/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+
+  try {
+    const path = await subirArchivo(ruta, archivo);
+    return { path };
+  } catch (e) {
+    console.error("Error subiendo guía de remisión:", e);
+    return { error: e instanceof Error ? e.message : "No se pudo subir el archivo." };
+  }
+}
 
 type Tx = Prisma.TransactionClient;
 
@@ -71,7 +106,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, ordenCompraId, guiaRemision, flete, observaciones, items } = parsed.data;
+  const { fecha, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, flete, observaciones, items } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
@@ -97,6 +132,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
           ordenCompraId: orden.id,
           moneda,
           guiaRemision: guiaRemision || null,
+          guiaRemisionArchivo,
           remitenteRuc: orden.proveedor.tipoDocumento === "RUC" ? orden.proveedor.numeroDocumento : null,
           remitente: orden.proveedor.razonSocial,
           flete: flete || null,
@@ -155,7 +191,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
     revalidatePath("/logistica/almacenes");
     revalidatePath(`/logistica/almacenes/${almacenId}`);
     revalidatePath("/logistica/almacenes/ingresos");
-    return { id: nuevoIngreso.id };
+    return { id: nuevoIngreso.id, numero: nuevoIngreso.numero };
   } catch (e) {
     console.error("Error inesperado en crearIngresoAlmacenAction:", e);
     return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al guardar el ingreso." };
@@ -170,7 +206,7 @@ export async function actualizarIngresoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, ordenCompraId, guiaRemision, flete, observaciones, items } = parsed.data;
+  const { fecha, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, flete, observaciones, items } = parsed.data;
 
   const existente = await prisma.ingresoAlmacen.findUnique({ where: { id }, include: { items: true } });
   if (!existente) return { error: "El ingreso ya no existe." };
@@ -215,6 +251,7 @@ export async function actualizarIngresoAlmacenAction(
           ordenCompraId: orden.id,
           moneda,
           guiaRemision: guiaRemision || null,
+          guiaRemisionArchivo,
           remitenteRuc: orden.proveedor.tipoDocumento === "RUC" ? orden.proveedor.numeroDocumento : null,
           remitente: orden.proveedor.razonSocial,
           flete: flete || null,

@@ -58,11 +58,9 @@ export default async function EditarIngresoAlmacenPage({ params }: { params: Pro
         descripcion="Modifica la cantidad recibida, el lote/fechas, la guía de remisión o el flete. El stock y el costeo del almacén se recalculan al guardar."
       />
       <IngresoAlmacenForm
-        almacenes={[{ id: ingreso.almacen.id, nombre: ingreso.almacen.nombre, categoriaGeneral: ingreso.almacen.categoriaGeneral }]}
-        ordenesCompra={[]}
+        almacen={{ id: ingreso.almacen.id, nombre: ingreso.almacen.nombre, categoriaGeneral: ingreso.almacen.categoriaGeneral }}
         edicion={{
           id: ingreso.id,
-          almacenId: ingreso.almacenId,
           ordenCompra: {
             id: ingreso.ordenCompra.id,
             numero: ingreso.ordenCompra.numero,
@@ -74,6 +72,7 @@ export default async function EditarIngresoAlmacenPage({ params }: { params: Pro
           },
           fecha: ingreso.fecha.toISOString().slice(0, 10),
           guiaRemision: ingreso.guiaRemision ?? "",
+          guiaRemisionArchivo: ingreso.guiaRemisionArchivo ?? "",
           flete: ingreso.flete !== null ? String(Number(ingreso.flete)) : "0",
           observaciones: ingreso.observaciones ?? "",
           filas,

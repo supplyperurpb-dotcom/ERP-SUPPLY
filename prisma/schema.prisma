@@ -260,12 +260,12 @@ enum AlmacenCategoriaGeneral {
 }
 
 model Almacen {
-  id        String      @id @default(cuid())
-  codigo    String      @unique
-  nombre    String
-  tipo      TipoAlmacen
-  ubicacion String?
-  activo    Boolean     @default(true)
+  id               String                   @id @default(cuid())
+  codigo           String                   @unique
+  nombre           String
+  tipo             TipoAlmacen
+  ubicacion        String?
+  activo           Boolean                  @default(true)
   // Si es un almacén general (recibe ingresos) o un sub-almacén (solo
   // recibe por traslado). Por defecto true para no romper los almacenes
   // existentes antes de esta jerarquía.
@@ -279,8 +279,8 @@ model Almacen {
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
 
-  almacenPadre  Almacen?  @relation("JerarquiaAlmacen", fields: [almacenPadreId], references: [id])
-  subAlmacenes  Almacen[] @relation("JerarquiaAlmacen")
+  almacenPadre Almacen?  @relation("JerarquiaAlmacen", fields: [almacenPadreId], references: [id])
+  subAlmacenes Almacen[] @relation("JerarquiaAlmacen")
 
   movimientosOrigen  MovimientoStock[] @relation("MovimientoOrigen")
   movimientosDestino MovimientoStock[] @relation("MovimientoDestino")
@@ -371,17 +371,17 @@ enum CategoriaCompra {
 }
 
 model SolicitudPedido {
-  id             String          @id @default(cuid())
-  numero         String          @unique // serie-número interno, ej. SP-000000001 / SS-000000001
-  categoria      CategoriaCompra @default(COMPRA)
-  solicitanteId  String?
-  area           AreaEmpresa
-  estado         EstadoDocumento @default(BORRADOR)
-  fecha          DateTime        @default(now())
-  fechaNecesidad DateTime
-  tipoNecesidad  TipoNecesidad   @default(ESTANDAR)
-  justificacion  String?
-  creadoPorId    String?
+  id                String          @id @default(cuid())
+  numero            String          @unique // serie-número interno, ej. SP-000000001 / SS-000000001
+  categoria         CategoriaCompra @default(COMPRA)
+  solicitanteId     String?
+  area              AreaEmpresa
+  estado            EstadoDocumento @default(BORRADOR)
+  fecha             DateTime        @default(now())
+  fechaNecesidad    DateTime
+  tipoNecesidad     TipoNecesidad   @default(ESTANDAR)
+  justificacion     String?
+  creadoPorId       String?
   // Decisión de aprobación: la toma el usuario configurado en AprobadorArea
   // para el área de la solicitud (o un ADMIN). Solo las solicitudes
   // APROBADO pueden jalarse hacia una Orden de Compra (ver
@@ -458,10 +458,10 @@ model OrdenCompraFirma {
 }
 
 model SolicitudPedidoItem {
-  id                String      @id @default(cuid())
+  id                String  @id @default(cuid())
   solicitudPedidoId String
   skuId             String
-  cantidad          Decimal     @db.Decimal(12, 3)
+  cantidad          Decimal @db.Decimal(12, 3)
   unidadMedida      String
   // Nombre de un valor activo (o ya desactivado, si el documento es viejo)
   // de ListaValor con tipo CENTRO_COSTO — ya no es el enum AreaEmpresa.
@@ -483,26 +483,26 @@ model SolicitudPedidoItem {
 }
 
 model OrdenCompra {
-  id          String          @id @default(cuid())
-  numero      String          @unique // serie-número interno, ej. OC-000000001 / OS-000000001
-  categoria   CategoriaCompra @default(COMPRA)
-  proveedorId String
-  estado      EstadoDocumento @default(BORRADOR)
-  fecha       DateTime        @default(now())
+  id                String          @id @default(cuid())
+  numero            String          @unique // serie-número interno, ej. OC-000000001 / OS-000000001
+  categoria         CategoriaCompra @default(COMPRA)
+  proveedorId       String
+  estado            EstadoDocumento @default(BORRADOR)
+  fecha             DateTime        @default(now())
   // Datos propios del formato impreso de la OC/OS (ver lib/pdf/orden-compra-pdf.ts).
-  fechaEntrega   DateTime?
-  condicionPago  String?
-  lugarEntrega   String?
-  observaciones  String?
+  fechaEntrega      DateTime?
+  condicionPago     String?
+  lugarEntrega      String?
+  observaciones     String?
   // Una sola moneda para toda la OC (ver lib/constants/moneda.ts).
-  moneda      String          @default("PEN")
+  moneda            String          @default("PEN")
   // subtotal = suma de subtotal de todas las líneas (gravadas y no
   // gravadas). igv = 18% solo de las líneas gravadas. montoTotal =
   // subtotal + igv.
-  subtotal    Decimal         @default(0) @db.Decimal(12, 2)
-  igv         Decimal         @default(0) @db.Decimal(12, 2)
-  montoTotal  Decimal         @default(0) @db.Decimal(12, 2)
-  creadoPorId String?
+  subtotal          Decimal         @default(0) @db.Decimal(12, 2)
+  igv               Decimal         @default(0) @db.Decimal(12, 2)
+  montoTotal        Decimal         @default(0) @db.Decimal(12, 2)
+  creadoPorId       String?
   // Decisión de aprobación (visto bueno) agregada: queda en PENDIENTE
   // hasta que todas las firmas requeridas (ver OrdenCompraFirma, según el
   // monto en USD y si hay ítems de RRHH — lib/compras.ts:
@@ -525,7 +525,7 @@ model OrdenCompra {
 }
 
 model OrdenCompraItem {
-  id                    String      @id @default(cuid())
+  id                    String  @id @default(cuid())
   ordenCompraId         String
   // De qué línea de qué solicitud de pedido se "jaló" esta línea (ver
   // calcularPendientesSolicitudes en lib/compras.ts: la cantidad pendiente
@@ -534,12 +534,12 @@ model OrdenCompraItem {
   // apuntan a él).
   solicitudPedidoItemId String?
   skuId                 String
-  cantidad              Decimal     @db.Decimal(12, 3)
-  precioUnitario        Decimal     @db.Decimal(12, 2)
-  subtotal              Decimal     @db.Decimal(12, 2)
+  cantidad              Decimal @db.Decimal(12, 3)
+  precioUnitario        Decimal @db.Decimal(12, 2)
+  subtotal              Decimal @db.Decimal(12, 2)
   // Si el producto está gravado con IGV. Se precarga desde la solicitud
   // pero se puede editar en la OC.
-  gravado               Boolean     @default(true)
+  gravado               Boolean @default(true)
   // Nombre de un valor activo (o ya desactivado) de ListaValor con tipo
   // CENTRO_COSTO — ya no es el enum AreaEmpresa. Normalmente se precarga
   // desde SolicitudPedidoItem.centroCosto.
@@ -549,10 +549,10 @@ model OrdenCompraItem {
   // afinar el detalle y alcance del servicio.
   descripcion           String?
 
-  ordenCompra          OrdenCompra           @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
-  solicitudPedidoItem  SolicitudPedidoItem?  @relation(fields: [solicitudPedidoItemId], references: [id])
-  sku                  Sku                   @relation(fields: [skuId], references: [id])
-  ingresosAlmacenItem  IngresoAlmacenItem[]
+  ordenCompra         OrdenCompra          @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  solicitudPedidoItem SolicitudPedidoItem? @relation(fields: [solicitudPedidoItemId], references: [id])
+  sku                 Sku                  @relation(fields: [skuId], references: [id])
+  ingresosAlmacenItem IngresoAlmacenItem[]
 
   @@map("orden_compra_items")
 }
@@ -569,34 +569,40 @@ model OrdenCompraItem {
 // =========================================================================
 
 model IngresoAlmacen {
-  id            String   @id @default(cuid())
-  numero        String   @unique // IA-0001
-  fecha         DateTime
-  ocNumero      String?
+  id                  String   @id @default(cuid())
+  numero              String   @unique // IA-0001
+  fecha               DateTime
+  ocNumero            String?
   // Orden de compra real de donde se jalaron los items (ver
   // crearIngresoAlmacenAction) — null en ingresos antiguos, de antes de
   // este cambio, que solo guardaban ocNumero como texto libre.
-  ordenCompraId String?
-  guiaRemision  String?
-  remitenteRuc  String?
-  remitente     String?
-  proveedorId   String?
-  almacenId     String
+  ordenCompraId       String?
+  guiaRemision        String?
+  // Ruta (no URL pública) del archivo subido con la guía de remisión física
+  // (foto/escaneo/PDF), dentro del bucket privado de Supabase Storage (ver
+  // lib/storage.ts). Se descarga via GET /api/almacenes/ingresos/[id]/guia,
+  // que genera una URL firmada de corta duración en cada pedido — nunca se
+  // guarda la URL directa porque el bucket no es público.
+  guiaRemisionArchivo String?
+  remitenteRuc        String?
+  remitente           String?
+  proveedorId         String?
+  almacenId           String
   // Moneda en la que se pactó/registró este ingreso ("PEN" | "USD"). Los
   // montos de precioUnitario/subtotal/flete se guardan en ESTA moneda (lo
   // que dice la factura/guía); el costeo del stock usa su equivalente en
   // USD (ver *Usd en IngresoAlmacenItem y convertirAUsd en
   // lib/constants/moneda.ts).
-  moneda        String   @default("PEN")
+  moneda              String   @default("PEN")
   // Costo del transporte de este ingreso, en la moneda de arriba,
   // prorrateado entre los items según su participación en el subtotal (ver
   // crearIngresoAlmacenAction). Se suma al costo del producto para el
   // costeo ponderado del stock (ver mapaCostosAlmacen en
   // lib/stock-almacen.ts).
-  flete         Decimal? @db.Decimal(12, 2)
-  observaciones String?
-  creadoPorId   String?
-  createdAt     DateTime @default(now())
+  flete               Decimal? @db.Decimal(12, 2)
+  observaciones       String?
+  creadoPorId         String?
+  createdAt           DateTime @default(now())
 
   proveedor   Proveedor?           @relation(fields: [proveedorId], references: [id])
   almacen     Almacen              @relation("IngresosAlmacen", fields: [almacenId], references: [id])
@@ -607,22 +613,22 @@ model IngresoAlmacen {
 }
 
 model IngresoAlmacenItem {
-  id                String  @id @default(cuid())
+  id                String    @id @default(cuid())
   ingresoAlmacenId  String
   skuId             String
-  cantidad          Decimal @db.Decimal(12, 3)
+  cantidad          Decimal   @db.Decimal(12, 3)
   unidadMedida      String
   // precioUnitario/subtotal/fleteAsignado: en la moneda del ingreso (lo que
   // dice la factura). *Usd: el mismo monto convertido a Dólares (tipo de
   // cambio fijo, ver convertirAUsd) — es lo que usa el costeo del stock
   // (mapaCostosAlmacen), para que un mismo producto no mezcle Soles y
   // Dólares entre distintos ingresos.
-  precioUnitario    Decimal @db.Decimal(12, 4)
-  subtotal          Decimal @db.Decimal(14, 4)
-  precioUnitarioUsd Decimal @db.Decimal(12, 4)
-  subtotalUsd       Decimal @db.Decimal(14, 4)
-  fleteAsignado     Decimal @default(0) @db.Decimal(14, 4)
-  fleteAsignadoUsd  Decimal @default(0) @db.Decimal(14, 4)
+  precioUnitario    Decimal   @db.Decimal(12, 4)
+  subtotal          Decimal   @db.Decimal(14, 4)
+  precioUnitarioUsd Decimal   @db.Decimal(12, 4)
+  subtotalUsd       Decimal   @db.Decimal(14, 4)
+  fleteAsignado     Decimal   @default(0) @db.Decimal(14, 4)
+  fleteAsignadoUsd  Decimal   @default(0) @db.Decimal(14, 4)
   lote              String?
   fechaProduccion   DateTime?
   fechaVencimiento  DateTime?
@@ -632,8 +638,8 @@ model IngresoAlmacenItem {
   // de todos los ingresos que apuntan a él). Null en ingresos antiguos.
   ordenCompraItemId String?
 
-  ingresoAlmacen IngresoAlmacen   @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
-  sku            Sku              @relation(fields: [skuId], references: [id])
+  ingresoAlmacen  IngresoAlmacen   @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
+  sku             Sku              @relation(fields: [skuId], references: [id])
   ordenCompraItem OrdenCompraItem? @relation(fields: [ordenCompraItemId], references: [id])
 
   @@map("ingreso_almacen_items")
