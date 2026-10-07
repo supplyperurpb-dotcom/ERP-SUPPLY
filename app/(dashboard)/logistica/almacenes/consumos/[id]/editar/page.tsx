@@ -8,9 +8,14 @@ import type { ConsumoAlmacenInput } from "@/lib/validations/almacen";
 export default async function EditarConsumoAlmacenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [consumo, almacenes] = await Promise.all([
+  const [consumo, almacenes, retiradores] = await Promise.all([
     prisma.consumoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true } } } }),
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
+    prisma.retiradorAutorizado.findMany({
+      where: { activo: true },
+      include: { almacenesPermitidos: true },
+      orderBy: { apellidos: "asc" },
+    }),
   ]);
   if (!consumo) notFound();
 
@@ -46,6 +51,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
     horaRetiro: consumo.horaRetiro ?? "",
     almacenOrigenId: consumo.almacenOrigenId,
     retiradoPor: consumo.retiradoPor ?? "",
+    retiradoPorDni: consumo.retiradoPorDni ?? "",
     firmaArchivo: consumo.firmaArchivo ?? "",
     fotoEvidenciaArchivo: consumo.fotoEvidenciaArchivo ?? "",
     observaciones: consumo.observaciones ?? "",
@@ -65,6 +71,12 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
       <ConsumoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
         stockPorAlmacen={stockPorAlmacen}
+        retiradores={retiradores.map((r) => ({
+          id: r.id,
+          nombreCompleto: `${r.nombres} ${r.apellidos}`,
+          dni: r.dni,
+          almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),
+        }))}
         edicion={{ id: consumo.id, valoresIniciales }}
       />
     </div>

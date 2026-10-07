@@ -60,6 +60,10 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
           <p className="font-medium">{consumo.retiradoPor ?? "—"}</p>
         </div>
         <div>
+          <p className="text-muted-foreground">DNI de quien retira</p>
+          <p className="font-medium">{consumo.retiradoPorDni ?? "—"}</p>
+        </div>
+        <div>
           <p className="text-muted-foreground">Registrado por</p>
           <p className="font-medium">{registrador ? `${registrador.nombres} ${registrador.apellidos}` : "—"}</p>
         </div>

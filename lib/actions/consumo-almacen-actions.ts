@@ -12,6 +12,24 @@ export type ConsumoAlmacenActionState = { error?: string; id?: string } | undefi
 
 const TIPOS_FOTO_PERMITIDOS = ["image/jpeg", "image/png"];
 
+// El combobox del formulario ya solo ofrece retiradores con permiso en el
+// almacén elegido, pero nunca se confía en lo que mande el cliente: se
+// vuelve a verificar acá que el DNI recibido sea un RetiradorAutorizado
+// activo y con ese almacén en su lista de permitidos.
+async function verificarRetiradorAutorizado(dni: string, almacenId: string): Promise<{ error?: string }> {
+  const retirador = await prisma.retiradorAutorizado.findUnique({
+    where: { dni },
+    include: { almacenesPermitidos: true },
+  });
+  if (!retirador || !retirador.activo) {
+    return { error: "Esa persona no está en la lista de retiradores autorizados." };
+  }
+  if (!retirador.almacenesPermitidos.some((p) => p.almacenId === almacenId)) {
+    return { error: `${retirador.nombres} ${retirador.apellidos} no tiene permiso de retirar de este almacén.` };
+  }
+  return {};
+}
+
 // Sube la firma táctil (siempre PNG, capturada en un <canvas>) antes de
 // registrar el consumo — mismo patrón de "subir primero, recién con la
 // ruta llamar a la action de crear" que subirGuiaRemisionIngresoAction.
@@ -71,13 +89,16 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
+  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, retiradoPorDni, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
     parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
   if (!almacen) {
     return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
   }
+
+  const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
+  if (permiso.error) return permiso;
 
   const cantidadPorSku = new Map<string, number>();
   for (const item of items) {
@@ -118,6 +139,7 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
           horaRetiro,
           almacenOrigenId,
           retiradoPor,
+          retiradoPorDni,
           firmaArchivo,
           fotoEvidenciaArchivo,
           observaciones: observaciones || null,
@@ -177,13 +199,16 @@ export async function actualizarConsumoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
+  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, retiradoPorDni, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
     parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
   if (!almacen) {
     return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
   }
+
+  const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
+  if (permiso.error) return permiso;
 
   const cantidadPorSku = new Map<string, number>();
   for (const item of items) {
@@ -231,6 +256,7 @@ export async function actualizarConsumoAlmacenAction(
           horaRetiro,
           almacenOrigenId,
           retiradoPor,
+          retiradoPorDni,
           firmaArchivo,
           fotoEvidenciaArchivo,
           observaciones: observaciones || null,

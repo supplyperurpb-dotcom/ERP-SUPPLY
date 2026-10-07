@@ -139,7 +139,15 @@ export const consumoAlmacenSchema = z.object({
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
   horaRetiro: z.string().min(1, "La hora es obligatoria"),
   almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
-  retiradoPor: z.string().trim().min(1, "El nombre de quien retira es obligatorio").max(150),
+  // Seleccionado del catálogo RetiradorAutorizado (ver
+  // lib/validations/retirador-autorizado.ts) — ya no es texto libre, el
+  // combobox del formulario solo ofrece retiradores con permiso en el
+  // almacén elegido.
+  retiradoPor: z.string().trim().min(1, "Selecciona quién retira el material").max(150),
+  retiradoPorDni: z
+    .string()
+    .trim()
+    .regex(/^\d{8}$/, "El DNI de quien retira es obligatorio"),
   // Rutas en Supabase Storage de la firma (PNG, capturada en un <canvas>) y
   // de la foto de evidencia del despacho — ver lib/storage.ts. Ambas
   // obligatorias: sin sustento no se puede registrar el consumo.

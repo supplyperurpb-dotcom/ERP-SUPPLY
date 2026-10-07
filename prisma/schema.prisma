@@ -803,6 +803,11 @@ model ConsumoAlmacen {
   // usuario del sistema (a diferencia de creadoPorId, que es quien lo
   // registró acá).
   retiradoPor          String?
+  // DNI de quien retira, jalado del catálogo RetiradorAutorizado al
+  // seleccionarlo — igual que retiradoPor, queda guardado como texto plano
+  // (no FK) para que el historial no cambie si luego se edita/desactiva
+  // ese retirador.
+  retiradoPorDni       String?
   // Ruta (no URL pública) de la firma táctil capturada en un <canvas> y
   // subida como PNG, y de la foto de evidencia del despacho — ambas en el
   // bucket privado de Supabase Storage (ver lib/storage.ts), igual que

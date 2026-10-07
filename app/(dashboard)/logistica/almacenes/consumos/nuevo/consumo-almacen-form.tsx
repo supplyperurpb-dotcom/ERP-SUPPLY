@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { FirmaCanvas } from "@/components/shared/firma-canvas";
+import { RetiradorAutorizadoCombobox } from "@/components/shared/retirador-autorizado-combobox";
 import { fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 import {
@@ -26,17 +27,20 @@ import {
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; nombre: string };
+type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
 
 const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "" };
 
 export function ConsumoAlmacenForm({
   almacenes,
   stockPorAlmacen,
+  retiradores,
   almacenIdInicial,
   edicion,
 }: {
   almacenes: Opcion[];
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
+  retiradores: RetiradorOpcion[];
   almacenIdInicial?: string;
   /** Presente solo cuando el formulario edita un consumo ya existente.
    * `stockPorAlmacen` ya viene ajustado por la página (ver
@@ -56,6 +60,7 @@ export function ConsumoAlmacenForm({
       horaRetiro: horaLocalAhora(),
       almacenOrigenId: almacenIdInicial ?? "",
       retiradoPor: "",
+      retiradoPorDni: "",
       firmaArchivo: "",
       fotoEvidenciaArchivo: "",
       observaciones: "",
@@ -68,6 +73,12 @@ export function ConsumoAlmacenForm({
   const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
   const firmaArchivoActual = edicion?.valoresIniciales.firmaArchivo;
   const fotoArchivoActual = edicion?.valoresIniciales.fotoEvidenciaArchivo;
+  const retiradoPorDni = useWatch({ control: form.control, name: "retiradoPorDni" });
+
+  // Solo se puede elegir a alguien con permiso de retirar de ESTE almacén —
+  // ver Listas > Retiradores autorizados.
+  const retiradoresDisponibles = almacenOrigenId ? retiradores.filter((r) => r.almacenesIds.includes(almacenOrigenId)) : [];
+  const retiradorSeleccionadoId = retiradoresDisponibles.find((r) => r.dni === retiradoPorDni)?.id ?? "";
 
   // Solo se puede consumir lo que el almacén realmente tiene en stock: el
   // combobox de producto se restringe a esa lista, y sirve también para
@@ -174,8 +185,12 @@ export function ConsumoAlmacenForm({
                   onValueChange={(valor) => {
                     field.onChange(valor);
                     // Los productos de las líneas ya cargadas pueden no
-                    // tener stock en el nuevo almacén: se limpian.
+                    // tener stock en el nuevo almacén: se limpian. Lo mismo
+                    // el usuario elegido: puede no tener permiso de retirar
+                    // del nuevo almacén.
                     replace([ITEM_VACIO]);
+                    form.setValue("retiradoPor", "");
+                    form.setValue("retiradoPorDni", "");
                   }}
                 >
                   <SelectTrigger>
@@ -213,10 +228,26 @@ export function ConsumoAlmacenForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="retiradoPor">Nombre de quien retira</Label>
-            <Input id="retiradoPor" {...form.register("retiradoPor")} />
+            <Label>Usuario</Label>
+            <RetiradorAutorizadoCombobox
+              retiradores={retiradoresDisponibles}
+              value={retiradorSeleccionadoId}
+              disabled={!almacenOrigenId}
+              onSelect={(r) => {
+                form.setValue("retiradoPor", r.nombreCompleto, { shouldValidate: true });
+                form.setValue("retiradoPorDni", r.dni, { shouldValidate: true });
+              }}
+            />
             {form.formState.errors.retiradoPor && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.retiradoPor.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="retiradoPorDni">DNI</Label>
+            <Input id="retiradoPorDni" disabled value={retiradoPorDni || ""} />
+            {form.formState.errors.retiradoPorDni && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.retiradoPorDni.message}</p>
             )}
           </div>
 

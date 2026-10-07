@@ -10,7 +10,14 @@ export default async function NuevoConsumoAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const almacenes = await prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } });
+  const [almacenes, retiradores] = await Promise.all([
+    prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
+    prisma.retiradorAutorizado.findMany({
+      where: { activo: true },
+      include: { almacenesPermitidos: true },
+      orderBy: { apellidos: "asc" },
+    }),
+  ]);
   const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
   const stockPorAlmacen: Record<string, Awaited<ReturnType<typeof calcularStockAlmacen>>> = {};
   almacenes.forEach((a, i) => {
@@ -26,6 +33,12 @@ export default async function NuevoConsumoAlmacenPage({
       <ConsumoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
         stockPorAlmacen={stockPorAlmacen}
+        retiradores={retiradores.map((r) => ({
+          id: r.id,
+          nombreCompleto: `${r.nombres} ${r.apellidos}`,
+          dni: r.dni,
+          almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),
+        }))}
         almacenIdInicial={almacenId}
       />
     </div>
