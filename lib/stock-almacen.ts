@@ -332,11 +332,12 @@ export async function calcularSolicitudesTrasladoPendientes(db: Db = prisma): Pr
 // ---------------------------------------------------------------------
 // Stock por lote (solo tiene sentido donde el ingreso ya exige lote, ver
 // almacén.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES"): cuánto queda
-// de cada lote que entró por ingreso, menos lo que ya se consumió de ESE
-// mismo lote. No contempla traslados (TrasladoAlmacenItem no registra
-// lote), así que asume que todo lo ingresado a este almacén se consume
-// desde aquí mismo — el tope real (que si contempla traslados) lo sigue
-// poniendo costosParaValidacion/stockDisponible al guardar el consumo.
+// de cada lote, sumando lo que entró por ingreso o traslado (recibido) y
+// restando lo que ya se consumió o se trasladó (enviado) de ESE mismo
+// lote. Un sub-almacén (que nunca recibe ingreso directo) solo tiene stock
+// por lote si llegó por traslado — ver crearTrasladoDesdeSolicitudAction,
+// que exige lote cuando el origen es de esa categoría y lo hace viajar
+// hasta el ítem de traslado, igual que el costo unitario.
 export type LoteStock = {
   lote: string;
   fechaProduccion: Date | null;
@@ -346,34 +347,48 @@ export type LoteStock = {
 };
 
 export async function calcularStockPorLote(almacenId: string, skuId: string, db: Db = prisma): Promise<LoteStock[]> {
-  const ingresos = await db.ingresoAlmacenItem.findMany({
-    where: { skuId, lote: { not: null }, ingresoAlmacen: { almacenId } },
-    select: { lote: true, fechaProduccion: true, fechaVencimiento: true, cantidad: true, unidadMedida: true },
-  });
-  const consumos = await db.consumoAlmacenItem.findMany({
-    where: { skuId, lote: { not: null }, consumoAlmacen: { almacenOrigenId: almacenId } },
-    select: { lote: true, cantidad: true },
-  });
+  const [ingresos, consumos, trasladosEntrantes, trasladosSalientes] = await Promise.all([
+    db.ingresoAlmacenItem.findMany({
+      where: { skuId, lote: { not: null }, ingresoAlmacen: { almacenId } },
+      select: { lote: true, fechaProduccion: true, fechaVencimiento: true, cantidad: true, unidadMedida: true },
+    }),
+    db.consumoAlmacenItem.findMany({
+      where: { skuId, lote: { not: null }, consumoAlmacen: { almacenOrigenId: almacenId } },
+      select: { lote: true, cantidad: true },
+    }),
+    db.trasladoAlmacenItem.findMany({
+      where: { skuId, lote: { not: null }, trasladoAlmacen: { almacenDestinoId: almacenId } },
+      select: { lote: true, fechaProduccion: true, fechaVencimiento: true, cantidad: true, unidadMedida: true },
+    }),
+    db.trasladoAlmacenItem.findMany({
+      where: { skuId, lote: { not: null }, trasladoAlmacen: { almacenOrigenId: almacenId } },
+      select: { lote: true, cantidad: true },
+    }),
+  ]);
 
   const porLote = new Map<string, LoteStock>();
-  for (const ing of ingresos) {
-    const lote = ing.lote!;
+  function sumar(lote: string, cantidad: number, fechaProduccion: Date | null, fechaVencimiento: Date | null, unidadMedida: string) {
     const existente = porLote.get(lote);
     if (existente) {
-      existente.cantidad += Number(ing.cantidad);
+      existente.cantidad += cantidad;
     } else {
-      porLote.set(lote, {
-        lote,
-        fechaProduccion: ing.fechaProduccion,
-        fechaVencimiento: ing.fechaVencimiento,
-        cantidad: Number(ing.cantidad),
-        unidadMedida: ing.unidadMedida,
-      });
+      porLote.set(lote, { lote, fechaProduccion, fechaVencimiento, cantidad, unidadMedida });
     }
+  }
+
+  for (const ing of ingresos) {
+    sumar(ing.lote!, Number(ing.cantidad), ing.fechaProduccion, ing.fechaVencimiento, ing.unidadMedida);
+  }
+  for (const t of trasladosEntrantes) {
+    sumar(t.lote!, Number(t.cantidad), t.fechaProduccion, t.fechaVencimiento, t.unidadMedida);
   }
   for (const c of consumos) {
     const existente = porLote.get(c.lote!);
     if (existente) existente.cantidad -= Number(c.cantidad);
+  }
+  for (const t of trasladosSalientes) {
+    const existente = porLote.get(t.lote!);
+    if (existente) existente.cantidad -= Number(t.cantidad);
   }
 
   return [...porLote.values()]

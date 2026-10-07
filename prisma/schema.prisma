@@ -718,29 +718,37 @@ model TrasladoAlmacen {
 }
 
 model TrasladoAlmacenItem {
-  id                      String  @id @default(cuid())
+  id                      String    @id @default(cuid())
   trasladoAlmacenId       String
   skuId                   String
-  cantidad                Decimal @db.Decimal(12, 3)
+  cantidad                Decimal   @db.Decimal(12, 3)
   unidadMedida            String
   // Costo unitario ponderado del almacén de origen en el momento del
   // traslado (ver precioUnitarioPonderado en lib/stock-almacen.ts): el
   // producto "viaja" con ese costo, así que el almacén de destino lo suma a
   // su propio valor de inventario en vez de perder el costeo al moverse.
-  costoUnitario           Decimal @db.Decimal(12, 4)
-  valorTotal              Decimal @db.Decimal(14, 4)
+  costoUnitario           Decimal   @db.Decimal(12, 4)
+  valorTotal              Decimal   @db.Decimal(14, 4)
   // Parte del flete del traslado que le corresponde a esta línea (prorrateo
   // por valorTotal), en la moneda del traslado. *Usd: convertido a Dólares,
   // usado por el costeo del almacén de DESTINO (mapaCostosAlmacen); el
   // almacén de origen no se ve afectado por el costo de sacar el producto.
-  fleteAsignado           Decimal @default(0) @db.Decimal(14, 4)
-  fleteAsignadoUsd        Decimal @default(0) @db.Decimal(14, 4)
+  fleteAsignado           Decimal   @default(0) @db.Decimal(14, 4)
+  fleteAsignadoUsd        Decimal   @default(0) @db.Decimal(14, 4)
   // De qué línea de qué Solicitud de Traslado se ejecutó esta línea (ver
   // cantidadPendienteTrasladoItem en lib/stock-almacen.ts: lo pendiente de
   // un SolicitudTrasladoItem es su cantidad menos la suma de
   // TrasladoAlmacenItem.cantidad que lo referencian). Null en traslados
   // libres (sin solicitud), de antes de este flujo.
   solicitudTrasladoItemId String?
+  // De qué lote salió (obligatorio solo si el almacén de origen es de
+  // categoría AGROQUIMICOS_FERTILIZANTES, igual que ingreso/consumo) — y
+  // con qué lote llega al almacén de destino, para que
+  // calcularStockPorLote en lib/stock-almacen.ts pueda seguirle el rastro
+  // ahí también.
+  lote                    String?
+  fechaProduccion         DateTime?
+  fechaVencimiento        DateTime?
 
   trasladoAlmacen       TrasladoAlmacen        @relation(fields: [trasladoAlmacenId], references: [id], onDelete: Cascade)
   sku                   Sku                    @relation(fields: [skuId], references: [id])

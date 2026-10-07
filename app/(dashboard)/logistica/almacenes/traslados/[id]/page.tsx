@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
-import { formatDateTime, formatMoneda } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
 import { eliminarTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
 
@@ -80,6 +80,9 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
           <TableRow>
             <TableHead>Código</TableHead>
             <TableHead>Producto</TableHead>
+            <TableHead>Lote</TableHead>
+            <TableHead>F. producción</TableHead>
+            <TableHead>F. vencimiento</TableHead>
             <TableHead className="text-right">Cantidad</TableHead>
             <TableHead>U.M.</TableHead>
             <TableHead className="text-right">Costo unit. ponderado (US$)</TableHead>
@@ -93,6 +96,9 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.sku.codigo}</TableCell>
               <TableCell>{item.sku.descripcion}</TableCell>
+              <TableCell>{item.lote ?? "—"}</TableCell>
+              <TableCell>{item.fechaProduccion ? formatDate(item.fechaProduccion) : "—"}</TableCell>
+              <TableCell>{item.fechaVencimiento ? formatDate(item.fechaVencimiento) : "—"}</TableCell>
               <TableCell className="text-right">{Number(item.cantidad).toLocaleString("es-PE")}</TableCell>
               <TableCell>{item.unidadMedida}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.costoUnitario), "USD")}</TableCell>

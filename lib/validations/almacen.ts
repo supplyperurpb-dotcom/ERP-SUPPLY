@@ -116,6 +116,13 @@ const itemTrasladoDesdeSolicitudSchema = z.object({
   skuId: z.string().min(1),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
+  // Obligatorios solo si el almacén de origen es de categoría
+  // AGROQUIMICOS_FERTILIZANTES (lo exige el servidor, ver
+  // crearTrasladoDesdeSolicitudAction) — de qué lote sale, y ese mismo
+  // lote viaja con el ítem hasta el almacén de destino.
+  lote: z.string().max(60).optional().or(z.literal("")),
+  fechaProduccion: z.coerce.date().optional(),
+  fechaVencimiento: z.coerce.date().optional(),
 });
 
 export const trasladoDesdeSolicitudSchema = z.object({

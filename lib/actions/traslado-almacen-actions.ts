@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
 import { convertirAUsd } from "@/lib/constants/moneda";
-import { costosParaValidacion, stockDisponible, cantidadPendienteTrasladoItem } from "@/lib/stock-almacen";
+import { costosParaValidacion, stockDisponible, cantidadPendienteTrasladoItem, calcularStockPorLote } from "@/lib/stock-almacen";
 import {
   trasladoAlmacenSchema,
   trasladoDesdeSolicitudSchema,
@@ -319,6 +319,8 @@ async function validarSolicitud(tx: Tx, data: TrasladoDesdeSolicitudInput) {
   });
   const itemPorId = new Map(itemsSolicitud.map((i) => [i.id, i]));
 
+  const exigeLote = solicitud.almacenOrigen.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
+
   for (const item of data.items) {
     const itemSolicitud = itemPorId.get(item.solicitudTrasladoItemId);
     if (!itemSolicitud) {
@@ -329,6 +331,20 @@ async function validarSolicitud(tx: Tx, data: TrasladoDesdeSolicitudInput) {
       throw new Error(
         `La cantidad de ${itemSolicitud.sku.codigo} supera lo pendiente de la solicitud (disponible: ${pendiente}, ingresado ahora: ${item.cantidad}). Actualiza la página e intenta de nuevo.`
       );
+    }
+    if (exigeLote) {
+      if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {
+        throw new Error(
+          `${itemSolicitud.sku.codigo}: lote, fecha de producción y fecha de vencimiento son obligatorios al trasladar desde un almacén de Agroquímicos y Fertilizantes.`
+        );
+      }
+      const lotes = await calcularStockPorLote(solicitud.almacenOrigenId, itemSolicitud.skuId, tx);
+      const disponibleLote = lotes.find((l) => l.lote === item.lote)?.cantidad ?? 0;
+      if (item.cantidad > disponibleLote) {
+        throw new Error(
+          `No hay suficiente stock del lote ${item.lote} de ${itemSolicitud.sku.codigo} en ${solicitud.almacenOrigen.nombre} (disponible: ${disponibleLote}, solicitado: ${item.cantidad}).`
+        );
+      }
     }
   }
 
@@ -405,6 +421,9 @@ export async function crearTrasladoDesdeSolicitudAction(
             valorTotal: valoresTotales[i],
             fleteAsignado: fletePorItem[i],
             fleteAsignadoUsd: fletePorItemUsd[i],
+            lote: item.lote || null,
+            fechaProduccion: item.fechaProduccion ?? null,
+            fechaVencimiento: item.fechaVencimiento ?? null,
           },
         });
 

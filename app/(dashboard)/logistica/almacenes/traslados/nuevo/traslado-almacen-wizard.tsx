@@ -17,15 +17,23 @@ import {
 import { fechaLocalHoy } from "@/lib/utils";
 import { crearTrasladoDesdeSolicitudAction } from "@/lib/actions/traslado-almacen-actions";
 import type { TrasladoDesdeSolicitudInput } from "@/lib/validations/almacen";
-import type { SolicitudTrasladoConPendientes, ItemSolicitudTrasladoPendiente } from "@/lib/stock-almacen";
+import type { SolicitudTrasladoConPendientes, ItemSolicitudTrasladoPendiente, LoteStock } from "@/lib/stock-almacen";
 
-type Fila = ItemSolicitudTrasladoPendiente & { cantidad: string };
+type Fila = ItemSolicitudTrasladoPendiente & { cantidad: string; lote: string; fechaProduccion: string; fechaVencimiento: string };
+
+function soloFecha(d: Date | string | undefined): string {
+  if (!d) return "";
+  return (typeof d === "string" ? d : d.toISOString()).slice(0, 10);
+}
 
 export function TrasladoAlmacenWizard({
   solicitudes,
+  lotesPorSolicitud,
   solicitudIdInicial,
 }: {
   solicitudes: SolicitudTrasladoConPendientes[];
+  /** Solo trae datos para solicitudes cuyo almacén origen es de categoría AGROQUIMICOS_FERTILIZANTES. */
+  lotesPorSolicitud: Record<string, Record<string, LoteStock[]>>;
   solicitudIdInicial?: string;
 }) {
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
@@ -44,6 +52,16 @@ export function TrasladoAlmacenWizard({
   const [resultado, setResultado] = useState<{ id: string; numero: string } | null>(null);
 
   const solicitud = solicitudes.find((s) => s.id === solicitudId);
+  const muestraLote = !!lotesPorSolicitud[solicitudId];
+
+  function lotesDe(skuId: string): LoteStock[] {
+    return lotesPorSolicitud[solicitudId]?.[skuId] ?? [];
+  }
+
+  function stockDisponibleEfectivo(f: Fila) {
+    if (!muestraLote) return f.cantidadPendiente;
+    return lotesDe(f.skuId).find((l) => l.lote === f.lote)?.cantidad ?? 0;
+  }
 
   function seleccionarSolicitud(opcion: SolicitudTrasladoPendienteOpcion) {
     setSolicitudId(opcion.id);
@@ -65,19 +83,24 @@ export function TrasladoAlmacenWizard({
       return;
     }
     const items = solicitud.items.filter((i) => seleccionados.has(i.id));
-    setFilas(items.map((item) => ({ ...item, cantidad: String(item.cantidadPendiente) })));
+    setFilas(items.map((item) => ({ ...item, cantidad: String(item.cantidadPendiente), lote: "", fechaProduccion: "", fechaVencimiento: "" })));
     setPaso(2);
   }
 
-  function actualizarFila(itemId: string, cantidad: string) {
-    setFilas((prev) => prev.map((f) => (f.id === itemId ? { ...f, cantidad } : f)));
+  function actualizarFila(itemId: string, cambios: Partial<Fila>) {
+    setFilas((prev) => prev.map((f) => (f.id === itemId ? { ...f, ...cambios } : f)));
   }
 
   async function handleRegistrar() {
     for (const f of filas) {
       const cantidad = Number(f.cantidad) || 0;
-      if (cantidad <= 0 || cantidad > f.cantidadPendiente) {
-        toast.error(`La cantidad a trasladar de ${f.codigo} debe ser mayor a 0 y no superar lo pendiente (${f.cantidadPendiente})`);
+      const disponible = stockDisponibleEfectivo(f);
+      if (cantidad <= 0 || cantidad > disponible) {
+        toast.error(`La cantidad a trasladar de ${f.codigo} debe ser mayor a 0 y no superar lo disponible (${disponible})`);
+        return;
+      }
+      if (muestraLote && (!f.lote.trim() || !f.fechaProduccion || !f.fechaVencimiento)) {
+        toast.error(`${f.codigo}: selecciona el lote (exige lote, fecha de producción y vencimiento en este almacén)`);
         return;
       }
     }
@@ -96,6 +119,9 @@ export function TrasladoAlmacenWizard({
           skuId: f.skuId,
           cantidad: Number(f.cantidad),
           unidadMedida: f.unidadMedida,
+          lote: f.lote,
+          fechaProduccion: f.fechaProduccion ? (new Date(f.fechaProduccion) as unknown as Date) : undefined,
+          fechaVencimiento: f.fechaVencimiento ? (new Date(f.fechaVencimiento) as unknown as Date) : undefined,
         })),
       };
       const resultadoAccion = await crearTrasladoDesdeSolicitudAction(payload);
@@ -233,28 +259,72 @@ export function TrasladoAlmacenWizard({
                     <TableHead className="text-right w-28">Solicitado</TableHead>
                     <TableHead className="text-right w-28">Pendiente</TableHead>
                     <TableHead className="w-32">Cant. a Trasladar</TableHead>
+                    {muestraLote && (
+                      <>
+                        <TableHead className="w-48">Lote *</TableHead>
+                        <TableHead className="w-32">F. producción</TableHead>
+                        <TableHead className="w-32">F. vencimiento</TableHead>
+                      </>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filas.map((f) => (
-                    <TableRow key={f.id}>
-                      <TableCell className="font-medium align-top">{f.codigo}</TableCell>
-                      <TableCell className="align-top">{f.descripcion}</TableCell>
-                      <TableCell className="align-top">{f.unidadMedida}</TableCell>
-                      <TableCell className="text-right align-top pt-4">{f.cantidadSolicitada}</TableCell>
-                      <TableCell className="text-right align-top pt-4">{f.cantidadPendiente}</TableCell>
-                      <TableCell className="align-top">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={f.cantidadPendiente}
-                          step="0.001"
-                          value={f.cantidad}
-                          onChange={(e) => actualizarFila(f.id, e.target.value)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filas.map((f) => {
+                    const lotesSku = lotesDe(f.skuId);
+                    return (
+                      <TableRow key={f.id}>
+                        <TableCell className="font-medium align-top">{f.codigo}</TableCell>
+                        <TableCell className="align-top">{f.descripcion}</TableCell>
+                        <TableCell className="align-top">{f.unidadMedida}</TableCell>
+                        <TableCell className="text-right align-top pt-4">{f.cantidadSolicitada}</TableCell>
+                        <TableCell className="text-right align-top pt-4">{f.cantidadPendiente}</TableCell>
+                        <TableCell className="align-top">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={stockDisponibleEfectivo(f)}
+                            step="0.001"
+                            value={f.cantidad}
+                            onChange={(e) => actualizarFila(f.id, { cantidad: e.target.value })}
+                          />
+                        </TableCell>
+                        {muestraLote && (
+                          <>
+                            <TableCell className="align-top">
+                              <Select
+                                value={f.lote || ""}
+                                onValueChange={(valor) => {
+                                  const lote = lotesSku.find((l) => l.lote === valor);
+                                  actualizarFila(f.id, {
+                                    lote: valor,
+                                    fechaProduccion: soloFecha(lote?.fechaProduccion ?? undefined),
+                                    fechaVencimiento: soloFecha(lote?.fechaVencimiento ?? undefined),
+                                  });
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecciona un lote" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {lotesSku.length === 0 ? (
+                                    <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
+                                  ) : (
+                                    lotesSku.map((l) => (
+                                      <SelectItem key={l.lote} value={l.lote}>
+                                        {l.lote} — {l.cantidad} {l.unidadMedida}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="align-top pt-4 text-sm text-muted-foreground">{f.fechaProduccion || "—"}</TableCell>
+                            <TableCell className="align-top pt-4 text-sm text-muted-foreground">{f.fechaVencimiento || "—"}</TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
