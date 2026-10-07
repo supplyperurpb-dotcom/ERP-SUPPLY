@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { FileDown, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,6 +31,12 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
         descripcion={`${traslado.almacenOrigen.nombre} → ${traslado.almacenDestino.nombre} · ${formatDateTime(traslado.fecha)}`}
         acciones={
           <>
+            <Button variant="outline" asChild>
+              <a href={`/api/pdf/traslado-almacen/${traslado.id}`} target="_blank" rel="noopener noreferrer">
+                <FileDown className="mr-2 h-4 w-4" />
+                Descargar acta
+              </a>
+            </Button>
             <Button variant="outline" size="sm" asChild>
               <Link href={`/logistica/almacenes/traslados/${traslado.id}/editar`}>
                 <Pencil className="mr-2 h-4 w-4" />

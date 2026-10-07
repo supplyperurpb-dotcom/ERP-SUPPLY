@@ -185,6 +185,11 @@ export function TrasladoAlmacenWizard({
             <Button variant="outline" asChild>
               <Link href="/logistica/almacenes/traslados">Ver todos los traslados</Link>
             </Button>
+            <Button variant="outline" asChild>
+              <a href={`/api/pdf/traslado-almacen/${resultado.id}`} target="_blank" rel="noopener noreferrer">
+                Descargar acta
+              </a>
+            </Button>
             <Button asChild>
               <Link href={`/logistica/almacenes/traslados/${resultado.id}`}>Ver detalle completo</Link>
             </Button>
