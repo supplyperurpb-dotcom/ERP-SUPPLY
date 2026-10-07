@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftRight, PackagePlus, Warehouse } from "lucide-react";
+import { Warehouse } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
@@ -44,30 +44,16 @@ export default async function AlmacenesPage() {
         titulo="Almacenes"
         descripcion="Catálogo de almacenes generales (donde se registran los ingresos) y sus sub-almacenes (que reciben inventario por traslado)."
         acciones={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/logistica/almacenes/ingresos">
-                <PackagePlus className="mr-2 h-4 w-4" />
-                Ingresos
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/logistica/almacenes/traslados">
-                <ArrowLeftRight className="mr-2 h-4 w-4" />
-                Traslados
-              </Link>
-            </Button>
-            <NuevoMovimientoDialog
-              almacenesGenerales={almacenesGenerales}
-              almacenesTodos={almacenesActivos.map((a) => ({ id: a.id, nombre: a.nombre }))}
-              solicitudesTraslado={solicitudesTraslado.map((s) => ({
-                id: s.id,
-                numero: s.numero,
-                almacenOrigenNombre: s.almacenOrigenNombre,
-                almacenDestinoNombre: s.almacenDestinoNombre,
-              }))}
-            />
-          </div>
+          <NuevoMovimientoDialog
+            almacenesGenerales={almacenesGenerales}
+            almacenesTodos={almacenesActivos.map((a) => ({ id: a.id, nombre: a.nombre }))}
+            solicitudesTraslado={solicitudesTraslado.map((s) => ({
+              id: s.id,
+              numero: s.numero,
+              almacenOrigenNombre: s.almacenOrigenNombre,
+              almacenDestinoNombre: s.almacenDestinoNombre,
+            }))}
+          />
         }
       />
 
