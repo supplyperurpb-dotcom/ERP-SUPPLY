@@ -39,14 +39,13 @@ export default async function AlmacenesPage() {
       <PageHeader
         titulo="Almacenes"
         descripcion="Catálogo de almacenes generales (donde se registran los ingresos) y sus sub-almacenes (que reciben inventario por traslado)."
-        acciones={<AlmacenFormDialog almacenesGenerales={almacenesGenerales} />}
       />
 
       {almacenes.length === 0 ? (
         <EmptyState
           icono={Warehouse}
           titulo="Aún no hay almacenes registrados"
-          descripcion="Crea el primer almacén con el botón 'Nuevo almacén' de arriba."
+          descripcion="Los almacenes se crean fuera de la aplicación."
         />
       ) : (
         <Table>
