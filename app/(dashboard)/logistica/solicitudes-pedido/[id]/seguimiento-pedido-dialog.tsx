@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResumenOrdenDialog, type ResumenOrden } from "@/components/shared/resumen-orden-dialog";
 
 export type ItemSeguimientoPedido = {
   id: string;
@@ -29,6 +29,7 @@ export function SeguimientoPedidoDialog({
   aprobadoPor,
   esServicio,
   items,
+  resumenesOrdenes,
 }: {
   numero: string;
   fecha: string;
@@ -38,8 +39,10 @@ export function SeguimientoPedidoDialog({
   aprobadoPor: string | null;
   esServicio: boolean;
   items: ItemSeguimientoPedido[];
+  resumenesOrdenes: Record<string, ResumenOrden>;
 }) {
   const [open, setOpen] = useState(false);
+  const [resumenAbierto, setResumenAbierto] = useState<ResumenOrden | null>(null);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -111,13 +114,14 @@ export function SeguimientoPedidoDialog({
                     ) : (
                       <div className="flex flex-wrap gap-1">
                         {item.ordenes.map((oc) => (
-                          <Link
+                          <button
                             key={oc.id}
-                            href={`/logistica/ordenes-compra/${oc.id}`}
+                            type="button"
                             className="underline underline-offset-2"
+                            onClick={() => setResumenAbierto(resumenesOrdenes[oc.id] ?? null)}
                           >
                             {oc.numero}
-                          </Link>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -136,6 +140,8 @@ export function SeguimientoPedidoDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ResumenOrdenDialog resumen={resumenAbierto} onClose={() => setResumenAbierto(null)} />
     </Dialog>
   );
 }

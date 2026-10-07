@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResumenSolpedDialog, type ResumenSolped } from "@/components/shared/resumen-solped-dialog";
 
 export type ItemSeguimientoOrden = {
   id: string;
@@ -28,6 +28,7 @@ export function SeguimientoOrdenDialog({
   aprobadoPor,
   esServicio,
   items,
+  resumenesSolpeds,
 }: {
   numero: string;
   fecha: string;
@@ -37,8 +38,10 @@ export function SeguimientoOrdenDialog({
   aprobadoPor: string | null;
   esServicio: boolean;
   items: ItemSeguimientoOrden[];
+  resumenesSolpeds: Record<string, ResumenSolped>;
 }) {
   const [open, setOpen] = useState(false);
+  const [resumenAbierto, setResumenAbierto] = useState<ResumenSolped | null>(null);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -104,12 +107,13 @@ export function SeguimientoOrdenDialog({
                   <TableCell className="text-right">{item.cantidad}</TableCell>
                   <TableCell>
                     {item.solicitud ? (
-                      <Link
-                        href={`/logistica/solicitudes-pedido/${item.solicitud.id}`}
+                      <button
+                        type="button"
                         className="underline underline-offset-2"
+                        onClick={() => setResumenAbierto(resumenesSolpeds[item.solicitud!.id] ?? null)}
                       >
                         {item.solicitud.numero}
-                      </Link>
+                      </button>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -128,6 +132,8 @@ export function SeguimientoOrdenDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ResumenSolpedDialog resumen={resumenAbierto} onClose={() => setResumenAbierto(null)} />
     </Dialog>
   );
 }

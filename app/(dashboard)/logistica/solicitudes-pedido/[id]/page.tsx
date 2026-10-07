@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AprobarRechazarBotones, AnularSolicitudBoton } from "../aprobar-rechazar-botones";
 import { SeguimientoPedidoDialog, type ItemSeguimientoPedido } from "./seguimiento-pedido-dialog";
+import type { ResumenOrden } from "@/components/shared/resumen-orden-dialog";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -109,6 +110,38 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     };
   });
 
+  // Para el "Ir a vista OC" del seguimiento sin salir de esta pantalla: un
+  // resumen (con su propia lista completa de productos) de cada OC distinta
+  // referenciada por algún item de esta solicitud.
+  const ocIds = [...new Set(itemsSeguimiento.flatMap((i) => i.ordenes.map((o) => o.id)))];
+  const ordenesReferenciadas =
+    ocIds.length > 0
+      ? await prisma.ordenCompra.findMany({
+          where: { id: { in: ocIds } },
+          include: { proveedor: true, items: { include: { sku: true } } },
+        })
+      : [];
+  const resumenesOrdenes: Record<string, ResumenOrden> = {};
+  for (const oc of ordenesReferenciadas) {
+    resumenesOrdenes[oc.id] = {
+      id: oc.id,
+      numero: oc.numero,
+      esServicio: oc.categoria === "SERVICIO",
+      proveedor: oc.proveedor.razonSocial,
+      fecha: formatDate(oc.fecha),
+      estadoLabel: ESTADO_LABEL[oc.estado],
+      moneda: oc.moneda,
+      items: oc.items.map((item) => ({
+        codigo: item.sku.codigo,
+        descripcion: item.sku.descripcion,
+        descripcionServicio: item.descripcion,
+        unidadMedida: item.sku.unidadMedida,
+        cantidad: Number(item.cantidad),
+        subtotal: Number(item.subtotal),
+      })),
+    };
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -135,6 +168,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
               aprobadoPor={aprobador ? `${aprobador.nombres} ${aprobador.apellidos}` : null}
               esServicio={solicitud.categoria === "SERVICIO"}
               items={itemsSeguimiento}
+              resumenesOrdenes={resumenesOrdenes}
             />
             {puedeGenerarOrden &&
               solicitud.estado === "APROBADO" &&

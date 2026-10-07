@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AnularOrdenBoton, FirmarOrdenBotones } from "../aprobar-rechazar-botones";
 import { SeguimientoOrdenDialog, type ItemSeguimientoOrden } from "./seguimiento-orden-dialog";
+import type { ResumenSolped } from "@/components/shared/resumen-solped-dialog";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import {
@@ -130,6 +131,37 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
     };
   });
 
+  // Para el "Ir a vista Solped" del seguimiento sin salir de esta pantalla:
+  // un resumen (con su propia lista completa de productos) de cada
+  // solicitud distinta referenciada por algún item de esta OC.
+  const solpedIds = [...new Set(itemsSeguimiento.map((i) => i.solicitud?.id).filter((v): v is string => !!v))];
+  const solicitudesReferenciadas =
+    solpedIds.length > 0
+      ? await prisma.solicitudPedido.findMany({
+          where: { id: { in: solpedIds } },
+          include: { items: { include: { sku: true } } },
+        })
+      : [];
+  const resumenesSolpeds: Record<string, ResumenSolped> = {};
+  for (const sp of solicitudesReferenciadas) {
+    resumenesSolpeds[sp.id] = {
+      id: sp.id,
+      numero: sp.numero,
+      categoriaLabel: CATEGORIAS_COMPRA.find((c) => c.valor === sp.categoria)?.nombre ?? sp.categoria,
+      esServicio: sp.categoria === "SERVICIO",
+      area: nombreArea(sp.area),
+      fecha: formatDate(sp.fecha),
+      estadoLabel: ESTADO_LABEL[sp.estado],
+      items: sp.items.map((item) => ({
+        codigo: item.sku.codigo,
+        descripcion: item.sku.descripcion,
+        descripcionServicio: item.descripcion,
+        unidadMedida: item.unidadMedida,
+        cantidad: Number(item.cantidad),
+      })),
+    };
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -162,6 +194,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
               aprobadoPor={aprobador ? `${aprobador.nombres} ${aprobador.apellidos}` : null}
               esServicio={esServicio}
               items={itemsSeguimiento}
+              resumenesSolpeds={resumenesSolpeds}
             />
           </div>
         }
