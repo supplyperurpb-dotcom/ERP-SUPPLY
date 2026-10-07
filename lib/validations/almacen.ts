@@ -133,6 +133,12 @@ const itemConsumoSchema = z.object({
   skuId: z.string().min(1, "Selecciona un producto"),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
+  // Obligatorios solo en almacenes de categoría AGROQUIMICOS_FERTILIZANTES
+  // (lo exige el servidor, ver crearConsumoAlmacenAction) — igual que en el
+  // ingreso, acá quedan opcionales porque en los demás almacenes no aplican.
+  lote: z.string().max(60).optional().or(z.literal("")),
+  fechaProduccion: z.coerce.date().optional(),
+  fechaVencimiento: z.coerce.date().optional(),
 });
 
 export const consumoAlmacenSchema = z.object({

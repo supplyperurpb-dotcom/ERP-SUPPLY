@@ -825,13 +825,20 @@ model ConsumoAlmacen {
 }
 
 model ConsumoAlmacenItem {
-  id                      String  @id @default(cuid())
+  id                      String    @id @default(cuid())
   consumoAlmacenId        String
   skuId                   String
-  cantidad                Decimal @db.Decimal(12, 3)
+  cantidad                Decimal   @db.Decimal(12, 3)
   unidadMedida            String
-  precioUnitarioPonderado Decimal @db.Decimal(12, 4)
-  valorConsumido          Decimal @db.Decimal(14, 4)
+  precioUnitarioPonderado Decimal   @db.Decimal(12, 4)
+  valorConsumido          Decimal   @db.Decimal(14, 4)
+  // De qué lote se despachó (obligatorio solo en almacenes de categoría
+  // AGROQUIMICOS_FERTILIZANTES, igual que en el ingreso — ver
+  // calcularStockPorLote en lib/stock-almacen.ts, que resta lo ya
+  // consumido de cada lote de lo que entró por ingreso).
+  lote                    String?
+  fechaProduccion         DateTime?
+  fechaVencimiento        DateTime?
 
   consumoAlmacen ConsumoAlmacen @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
   sku            Sku            @relation(fields: [skuId], references: [id])

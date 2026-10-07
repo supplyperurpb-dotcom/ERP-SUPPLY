@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
-import { formatDateTime, formatMoneda } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { eliminarConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
 
 export default async function ConsumoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -110,6 +110,9 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
           <TableRow>
             <TableHead>Código</TableHead>
             <TableHead>Producto</TableHead>
+            <TableHead>Lote</TableHead>
+            <TableHead>F. producción</TableHead>
+            <TableHead>F. vencimiento</TableHead>
             <TableHead className="text-right">Cantidad</TableHead>
             <TableHead>U.M.</TableHead>
             <TableHead className="text-right">Precio unit. ponderado (US$)</TableHead>
@@ -121,6 +124,9 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.sku.codigo}</TableCell>
               <TableCell>{item.sku.descripcion}</TableCell>
+              <TableCell>{item.lote ?? "—"}</TableCell>
+              <TableCell>{item.fechaProduccion ? formatDate(item.fechaProduccion) : "—"}</TableCell>
+              <TableCell>{item.fechaVencimiento ? formatDate(item.fechaVencimiento) : "—"}</TableCell>
               <TableCell className="text-right">{Number(item.cantidad).toLocaleString("es-PE")}</TableCell>
               <TableCell>{item.unidadMedida}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.precioUnitarioPonderado), "USD")}</TableCell>

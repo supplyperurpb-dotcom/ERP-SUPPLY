@@ -24,22 +24,30 @@ import {
   subirFirmaConsumoAction,
   subirEvidenciaConsumoAction,
 } from "@/lib/actions/consumo-almacen-actions";
-import type { FilaStockAlmacen } from "@/lib/stock-almacen";
+import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
 
-type Opcion = { id: string; nombre: string };
+type Opcion = { id: string; nombre: string; categoriaGeneral: string | null };
 type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
 
-const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "" };
+const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "", lote: "", fechaProduccion: undefined, fechaVencimiento: undefined };
+
+function soloFecha(d: Date | string | undefined): string {
+  if (!d) return "";
+  return (typeof d === "string" ? d : d.toISOString()).slice(0, 10);
+}
 
 export function ConsumoAlmacenForm({
   almacenes,
   stockPorAlmacen,
+  lotesPorAlmacen,
   retiradores,
   almacenIdInicial,
   edicion,
 }: {
   almacenes: Opcion[];
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
+  /** Solo trae datos para almacenes de categoría AGROQUIMICOS_FERTILIZANTES. */
+  lotesPorAlmacen: Record<string, Record<string, LoteStock[]>>;
   retiradores: RetiradorOpcion[];
   almacenIdInicial?: string;
   /** Presente solo cuando el formulario edita un consumo ya existente.
@@ -96,6 +104,23 @@ export function ConsumoAlmacenForm({
     return stockPorSkuId.get(skuId)?.cantidad ?? 0;
   }
 
+  // Agroquímicos y Fertilizantes exige elegir de qué lote se despacha —
+  // igual que ya exige lote/fechas al ingresar — y la cantidad a consumir
+  // no puede superar lo que queda de ESE lote puntual, no solo el total
+  // del SKU en el almacén.
+  const almacenActual = almacenes.find((a) => a.id === almacenOrigenId);
+  const muestraLote = almacenActual?.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
+
+  function lotesDe(skuId: string): LoteStock[] {
+    if (!muestraLote || !almacenOrigenId || !skuId) return [];
+    return lotesPorAlmacen[almacenOrigenId]?.[skuId] ?? [];
+  }
+
+  function stockDisponibleEfectivo(skuId: string, lote: string) {
+    if (!muestraLote) return stockDisponibleDe(skuId);
+    return lotesDe(skuId).find((l) => l.lote === lote)?.cantidad ?? 0;
+  }
+
   async function handleSubmitConArchivos(e: React.FormEvent) {
     e.preventDefault();
     if (!firmaFile && !firmaArchivoActual) {
@@ -137,9 +162,15 @@ export function ConsumoAlmacenForm({
   }
 
   async function onSubmit(data: ConsumoAlmacenInput) {
-    const excedeAlgunaLinea = data.items.some((item) => item.cantidad > stockDisponibleDe(item.skuId));
+    const excedeAlgunaLinea = data.items.some(
+      (item) => item.cantidad > stockDisponibleEfectivo(item.skuId, item.lote ?? "")
+    );
     if (excedeAlgunaLinea) {
       toast.error("Hay productos cuya cantidad excede el stock disponible en el almacén. Corrígelo antes de guardar.");
+      return;
+    }
+    if (muestraLote && data.items.some((item) => !item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento)) {
+      toast.error("Selecciona el lote de cada producto en este almacén (exige lote, fecha de producción y vencimiento).");
       return;
     }
 
@@ -324,13 +355,22 @@ export function ConsumoAlmacenForm({
                     <TableHead className="w-28">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
                     <TableHead className="w-28">Stock disponible</TableHead>
+                    {muestraLote && (
+                      <>
+                        <TableHead className="w-48">Lote *</TableHead>
+                        <TableHead className="w-32">F. producción</TableHead>
+                        <TableHead className="w-32">F. vencimiento</TableHead>
+                      </>
+                    )}
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {fields.map((field, index) => {
                     const skuId = items[index]?.skuId ?? "";
-                    const disponible = stockDisponibleDe(skuId);
+                    const loteElegido = items[index]?.lote ?? "";
+                    const lotesSku = lotesDe(skuId);
+                    const disponible = stockDisponibleEfectivo(skuId, loteElegido);
                     const cantidad = Number(items[index]?.cantidad) || 0;
                     const excede = skuId !== "" && cantidad > disponible;
                     return (
@@ -350,6 +390,10 @@ export function ConsumoAlmacenForm({
                                 onSelect={(sku) => {
                                   selectField.onChange(sku.id);
                                   form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
+                                  // Los lotes dependen del producto: se limpian al cambiarlo.
+                                  form.setValue(`items.${index}.lote`, "");
+                                  form.setValue(`items.${index}.fechaProduccion`, undefined);
+                                  form.setValue(`items.${index}.fechaVencimiento`, undefined);
                                 }}
                               />
                             )}
@@ -383,6 +427,55 @@ export function ConsumoAlmacenForm({
                           {items[index]?.unidadMedida || "—"}
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm">{skuId ? disponible : "—"}</TableCell>
+                        {muestraLote && (
+                          <>
+                            <TableCell className="align-top">
+                              <Controller
+                                control={form.control}
+                                name={`items.${index}.lote`}
+                                render={({ field: loteField }) => (
+                                  <Select
+                                    value={loteField.value || ""}
+                                    onValueChange={(valor) => {
+                                      loteField.onChange(valor);
+                                      const lote = lotesSku.find((l) => l.lote === valor);
+                                      form.setValue(
+                                        `items.${index}.fechaProduccion`,
+                                        lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
+                                      );
+                                      form.setValue(
+                                        `items.${index}.fechaVencimiento`,
+                                        lote?.fechaVencimiento ? (soloFecha(lote.fechaVencimiento) as unknown as Date) : undefined
+                                      );
+                                    }}
+                                    disabled={!skuId}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecciona un lote" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {lotesSku.length === 0 ? (
+                                        <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
+                                      ) : (
+                                        lotesSku.map((l) => (
+                                          <SelectItem key={l.lote} value={l.lote}>
+                                            {l.lote} — {l.cantidad} {l.unidadMedida}
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell className="align-top pt-4 text-sm text-muted-foreground">
+                              {soloFecha(items[index]?.fechaProduccion as unknown as string) || "—"}
+                            </TableCell>
+                            <TableCell className="align-top pt-4 text-sm text-muted-foreground">
+                              {soloFecha(items[index]?.fechaVencimiento as unknown as string) || "—"}
+                            </TableCell>
+                          </>
+                        )}
                         <TableCell className="align-top">
                           <Button
                             type="button"

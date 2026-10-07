@@ -4,11 +4,55 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { costosParaValidacion } from "@/lib/stock-almacen";
+import { costosParaValidacion, calcularStockPorLote } from "@/lib/stock-almacen";
 import { subirArchivo } from "@/lib/storage";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
+import type { Prisma, PrismaClient } from "@prisma/client";
 
 export type ConsumoAlmacenActionState = { error?: string; id?: string } | undefined;
+
+type Db = PrismaClient | Prisma.TransactionClient;
+
+// En un almacén de Agroquímicos y Fertilizantes, cada línea debe indicar de
+// qué lote se despacha (igual que el ingreso exige lote al entrar), y esa
+// cantidad no puede superar lo que queda de ese lote puntual — no solo el
+// total del SKU en el almacén (que ya valida costosParaValidacion aparte).
+async function validarLotesSiAplica(
+  almacen: { nombre: string; categoriaGeneral: string | null },
+  almacenId: string,
+  items: ConsumoAlmacenInput["items"],
+  db: Db
+): Promise<{ error?: string }> {
+  if (almacen.categoriaGeneral !== "AGROQUIMICOS_FERTILIZANTES") return {};
+
+  for (const item of items) {
+    if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {
+      const sku = await db.sku.findUnique({ where: { id: item.skuId }, select: { codigo: true } });
+      return {
+        error: `${sku?.codigo ?? item.skuId}: lote, fecha de producción y fecha de vencimiento son obligatorios en este almacén.`,
+      };
+    }
+  }
+
+  const cantidadPorSkuLote = new Map<string, number>();
+  for (const item of items) {
+    const clave = `${item.skuId}::${item.lote}`;
+    cantidadPorSkuLote.set(clave, (cantidadPorSkuLote.get(clave) ?? 0) + item.cantidad);
+  }
+  for (const item of items) {
+    const clave = `${item.skuId}::${item.lote}`;
+    const cantidadSolicitada = cantidadPorSkuLote.get(clave)!;
+    const lotes = await calcularStockPorLote(almacenId, item.skuId, db);
+    const disponible = lotes.find((l) => l.lote === item.lote)?.cantidad ?? 0;
+    if (cantidadSolicitada > disponible) {
+      const sku = await db.sku.findUnique({ where: { id: item.skuId }, select: { codigo: true } });
+      return {
+        error: `No hay suficiente stock del lote ${item.lote} de ${sku?.codigo ?? item.skuId} en ${almacen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`,
+      };
+    }
+  }
+  return {};
+}
 
 const TIPOS_FOTO_PERMITIDOS = ["image/jpeg", "image/png"];
 
@@ -100,6 +144,9 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
   const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
   if (permiso.error) return permiso;
 
+  const permisoLotes = await validarLotesSiAplica(almacen, almacenOrigenId, items, prisma);
+  if (permisoLotes.error) return permisoLotes;
+
   const cantidadPorSku = new Map<string, number>();
   for (const item of items) {
     cantidadPorSku.set(item.skuId, (cantidadPorSku.get(item.skuId) ?? 0) + item.cantidad);
@@ -159,6 +206,9 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
             unidadMedida: item.unidadMedida,
             precioUnitarioPonderado: precioUnitarioPonderadoValor,
             valorConsumido,
+            lote: item.lote || null,
+            fechaProduccion: item.fechaProduccion ?? null,
+            fechaVencimiento: item.fechaVencimiento ?? null,
           },
         });
 
@@ -229,6 +279,9 @@ export async function actualizarConsumoAlmacenAction(
       await tx.movimientoStock.deleteMany({ where: { documentoOrigenId: id, documentoOrigenTipo: "CONSUMO_ALMACEN" } });
       await tx.consumoAlmacenItem.deleteMany({ where: { consumoAlmacenId: id } });
 
+      const permisoLotes = await validarLotesSiAplica(almacen, almacenOrigenId, items, tx);
+      if (permisoLotes.error) throw new Error(permisoLotes.error);
+
       const costosOrigen = await costosParaValidacion(almacenOrigenId, tx);
       const precioPorSku = new Map<string, number>();
       for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
@@ -275,6 +328,9 @@ export async function actualizarConsumoAlmacenAction(
             unidadMedida: item.unidadMedida,
             precioUnitarioPonderado: precioUnitarioPonderadoValor,
             valorConsumido,
+            lote: item.lote || null,
+            fechaProduccion: item.fechaProduccion ?? null,
+            fechaVencimiento: item.fechaVencimiento ?? null,
           },
         });
 

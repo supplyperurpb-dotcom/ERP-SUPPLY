@@ -328,3 +328,56 @@ export async function calcularSolicitudesTrasladoPendientes(db: Db = prisma): Pr
   }
   return resultado;
 }
+
+// ---------------------------------------------------------------------
+// Stock por lote (solo tiene sentido donde el ingreso ya exige lote, ver
+// almacén.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES"): cuánto queda
+// de cada lote que entró por ingreso, menos lo que ya se consumió de ESE
+// mismo lote. No contempla traslados (TrasladoAlmacenItem no registra
+// lote), así que asume que todo lo ingresado a este almacén se consume
+// desde aquí mismo — el tope real (que si contempla traslados) lo sigue
+// poniendo costosParaValidacion/stockDisponible al guardar el consumo.
+export type LoteStock = {
+  lote: string;
+  fechaProduccion: Date | null;
+  fechaVencimiento: Date | null;
+  cantidad: number;
+  unidadMedida: string;
+};
+
+export async function calcularStockPorLote(almacenId: string, skuId: string, db: Db = prisma): Promise<LoteStock[]> {
+  const ingresos = await db.ingresoAlmacenItem.findMany({
+    where: { skuId, lote: { not: null }, ingresoAlmacen: { almacenId } },
+    select: { lote: true, fechaProduccion: true, fechaVencimiento: true, cantidad: true, unidadMedida: true },
+  });
+  const consumos = await db.consumoAlmacenItem.findMany({
+    where: { skuId, lote: { not: null }, consumoAlmacen: { almacenOrigenId: almacenId } },
+    select: { lote: true, cantidad: true },
+  });
+
+  const porLote = new Map<string, LoteStock>();
+  for (const ing of ingresos) {
+    const lote = ing.lote!;
+    const existente = porLote.get(lote);
+    if (existente) {
+      existente.cantidad += Number(ing.cantidad);
+    } else {
+      porLote.set(lote, {
+        lote,
+        fechaProduccion: ing.fechaProduccion,
+        fechaVencimiento: ing.fechaVencimiento,
+        cantidad: Number(ing.cantidad),
+        unidadMedida: ing.unidadMedida,
+      });
+    }
+  }
+  for (const c of consumos) {
+    const existente = porLote.get(c.lote!);
+    if (existente) existente.cantidad -= Number(c.cantidad);
+  }
+
+  return [...porLote.values()]
+    .map((l) => ({ ...l, cantidad: Math.round(l.cantidad * 1000) / 1000 }))
+    .filter((l) => l.cantidad > 0)
+    .sort((a, b) => a.lote.localeCompare(b.lote));
+}
