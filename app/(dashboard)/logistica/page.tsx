@@ -3,7 +3,6 @@ import {
   ClipboardList,
   List,
   Package,
-  PackageMinus,
   PackageSearch,
   Repeat,
   ShoppingCart,
@@ -55,12 +54,6 @@ const TILES = [
     descripcion: "Solicitudes internas para mover stock entre almacenes, punto de partida de los traslados.",
     href: "/logistica/solicitudes-traslado",
     icono: Repeat,
-  },
-  {
-    titulo: "Consumos",
-    descripcion: "Salidas de inventario de un almacén.",
-    href: "/logistica/almacenes/consumos",
-    icono: PackageMinus,
   },
   {
     titulo: "Listas",
