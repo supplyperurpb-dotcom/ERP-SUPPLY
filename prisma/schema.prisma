@@ -283,15 +283,16 @@ model Almacen {
   almacenPadre Almacen?  @relation("JerarquiaAlmacen", fields: [almacenPadreId], references: [id])
   subAlmacenes Almacen[] @relation("JerarquiaAlmacen")
 
-  movimientosOrigen          MovimientoStock[]   @relation("MovimientoOrigen")
-  movimientosDestino         MovimientoStock[]   @relation("MovimientoDestino")
+  movimientosOrigen          MovimientoStock[]           @relation("MovimientoOrigen")
+  movimientosDestino         MovimientoStock[]           @relation("MovimientoDestino")
   stockCamara                StockCamara[]
-  ingresosAlmacen            IngresoAlmacen[]    @relation("IngresosAlmacen")
-  trasladosOrigen            TrasladoAlmacen[]   @relation("TrasladosOrigen")
-  trasladosDestino           TrasladoAlmacen[]   @relation("TrasladosDestino")
-  consumosAlmacen            ConsumoAlmacen[]    @relation("ConsumosAlmacen")
-  solicitudesTrasladoOrigen  SolicitudTraslado[] @relation("SolicitudesTrasladoOrigen")
-  solicitudesTrasladoDestino SolicitudTraslado[] @relation("SolicitudesTrasladoDestino")
+  ingresosAlmacen            IngresoAlmacen[]            @relation("IngresosAlmacen")
+  trasladosOrigen            TrasladoAlmacen[]           @relation("TrasladosOrigen")
+  trasladosDestino           TrasladoAlmacen[]           @relation("TrasladosDestino")
+  consumosAlmacen            ConsumoAlmacen[]            @relation("ConsumosAlmacen")
+  solicitudesTrasladoOrigen  SolicitudTraslado[]         @relation("SolicitudesTrasladoOrigen")
+  solicitudesTrasladoDestino SolicitudTraslado[]         @relation("SolicitudesTrasladoDestino")
+  retiradoresPermitidos      RetiradorAlmacenPermitido[] @relation("RetiradorAlmacenesPermitidos")
 
   @@map("almacenes")
 }
@@ -357,6 +358,39 @@ model ListaValor {
 
   @@unique([tipo, nombre])
   @@map("lista_valores")
+}
+
+// Persona autorizada a retirar materiales en un Consumo de almacén (ver
+// ConsumoAlmacen.retiradoPor, hoy solo texto libre) — no necesariamente un
+// Usuario del sistema, solo alguien identificado por DNI. No todos pueden
+// retirar de todos los almacenes: qué almacenes tiene permitidos se fija
+// al crearlo/editarlo (ver RetiradorAlmacenPermitido). Nunca se borra un
+// registro ya usado: se desactiva (activo=false), igual que ListaValor.
+model RetiradorAutorizado {
+  id        String      @id @default(cuid())
+  nombres   String
+  apellidos String
+  dni       String      @unique
+  area      AreaEmpresa
+  activo    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  almacenesPermitidos RetiradorAlmacenPermitido[]
+
+  @@map("retiradores_autorizados")
+}
+
+model RetiradorAlmacenPermitido {
+  id                    String @id @default(cuid())
+  retiradorAutorizadoId String
+  almacenId             String
+
+  retiradorAutorizado RetiradorAutorizado @relation(fields: [retiradorAutorizadoId], references: [id], onDelete: Cascade)
+  almacen             Almacen             @relation("RetiradorAlmacenesPermitidos", fields: [almacenId], references: [id])
+
+  @@unique([retiradorAutorizadoId, almacenId])
+  @@map("retirador_almacen_permitidos")
 }
 
 enum TipoNecesidad {
