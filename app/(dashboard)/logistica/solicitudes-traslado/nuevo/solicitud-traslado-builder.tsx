@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import { fechaLocalHoy } from "@/lib/utils";
 import { crearSolicitudTrasladoAction } from "@/lib/actions/solicitud-traslado-actions";
 import type { SolicitudTrasladoInput } from "@/lib/validations/solicitud-traslado";
@@ -47,9 +47,16 @@ export function SolicitudTrasladoBuilder({
 
   const [resultado, setResultado] = useState<{ id: string; numero: string } | null>(null);
 
+  const [filtroProducto, setFiltroProducto] = useState("");
+
   const almacenOrigen = almacenes.find((a) => a.id === almacenOrigenId);
   const almacenDestino = almacenes.find((a) => a.id === almacenDestinoId);
   const stockOrigen = almacenOrigenId ? stockPorAlmacen[almacenOrigenId] ?? [] : [];
+  const stockOrigenFiltrado = stockOrigen.filter((fila) => {
+    const termino = filtroProducto.trim().toLowerCase();
+    if (!termino) return true;
+    return `${fila.codigo} ${fila.descripcion}`.toLowerCase().includes(termino);
+  });
 
   function cantidadYaAgregada(skuId: string) {
     return items.find((i) => i.skuId === skuId)?.cantidad ?? 0;
@@ -58,6 +65,7 @@ export function SolicitudTrasladoBuilder({
   function cambiarOrigen(id: string) {
     setAlmacenOrigenId(id);
     setItems([]); // el stock disponible cambia por completo con el almacén
+    setFiltroProducto("");
   }
 
   function abrirDialogo(fila: FilaStockAlmacen) {
@@ -244,34 +252,51 @@ export function SolicitudTrasladoBuilder({
             <CardTitle className="text-base">Stock disponible en {almacenOrigen?.nombre}</CardTitle>
             <p className="text-sm text-muted-foreground">Haz clic en un producto para indicar cuánto quieres trasladar.</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {stockOrigen.length === 0 ? (
               <p className="text-sm text-muted-foreground">Este almacén no tiene stock disponible.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-24">Código</TableHead>
-                      <TableHead className="min-w-[180px]">Producto</TableHead>
-                      <TableHead className="w-16">U.M.</TableHead>
-                      <TableHead className="text-right w-28">Disponible</TableHead>
-                      <TableHead className="text-right w-28">Ya agregado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stockOrigen.map((fila) => (
-                      <TableRow key={fila.skuId} className="cursor-pointer" onClick={() => abrirDialogo(fila)}>
-                        <TableCell className="font-medium">{fila.codigo}</TableCell>
-                        <TableCell>{fila.descripcion}</TableCell>
-                        <TableCell>{fila.unidadMedida}</TableCell>
-                        <TableCell className="text-right">{fila.cantidad}</TableCell>
-                        <TableCell className="text-right">{cantidadYaAgregada(fila.skuId) || "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <>
+                <div className="relative max-w-sm">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Filtrar por código o nombre de producto..."
+                    value={filtroProducto}
+                    onChange={(e) => setFiltroProducto(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                {stockOrigenFiltrado.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Ningún producto coincide con &quot;{filtroProducto}&quot;.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-24">Código</TableHead>
+                          <TableHead className="min-w-[180px]">Producto</TableHead>
+                          <TableHead className="w-16">U.M.</TableHead>
+                          <TableHead className="text-right w-28">Disponible</TableHead>
+                          <TableHead className="text-right w-28">Ya agregado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stockOrigenFiltrado.map((fila) => (
+                          <TableRow key={fila.skuId} className="cursor-pointer" onClick={() => abrirDialogo(fila)}>
+                            <TableCell className="font-medium">{fila.codigo}</TableCell>
+                            <TableCell>{fila.descripcion}</TableCell>
+                            <TableCell>{fila.unidadMedida}</TableCell>
+                            <TableCell className="text-right">{fila.cantidad}</TableCell>
+                            <TableCell className="text-right">{cantidadYaAgregada(fila.skuId) || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
