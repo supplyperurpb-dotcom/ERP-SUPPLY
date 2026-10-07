@@ -83,10 +83,7 @@ export function ResumenOrdenDialog({ resumen, onClose }: { resumen: ResumenOrden
                 </TableBody>
               </Table>
             </div>
-            <DialogFooter className="gap-2 sm:justify-between">
-              <Button variant="outline" onClick={onClose}>
-                Cerrar
-              </Button>
+            <DialogFooter>
               <Button onClick={() => router.push(`/logistica/ordenes-compra/${resumen.id}`)}>
                 Ir a vista {resumen.esServicio ? "OS" : "OC"}
               </Button>

@@ -80,10 +80,7 @@ export function ResumenSolpedDialog({ resumen, onClose }: { resumen: ResumenSolp
                 </TableBody>
               </Table>
             </div>
-            <DialogFooter className="gap-2 sm:justify-between">
-              <Button variant="outline" onClick={onClose}>
-                Cerrar
-              </Button>
+            <DialogFooter>
               <Button onClick={() => router.push(`/logistica/solicitudes-pedido/${resumen.id}`)}>
                 Ir a vista Solped
               </Button>

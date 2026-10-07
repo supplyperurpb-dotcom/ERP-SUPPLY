@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResumenOrdenDialog, type ResumenOrden } from "@/components/shared/resumen-orden-dialog";
 
@@ -133,12 +133,6 @@ export function SeguimientoPedidoDialog({
             </TableBody>
           </Table>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cerrar
-          </Button>
-        </DialogFooter>
       </DialogContent>
 
       <ResumenOrdenDialog resumen={resumenAbierto} onClose={() => setResumenAbierto(null)} />
