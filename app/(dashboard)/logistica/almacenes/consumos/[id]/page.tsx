@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { FileDown, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,15 +18,25 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
   });
   if (!consumo) notFound();
 
+  const registrador = consumo.creadoPorId
+    ? await prisma.usuario.findUnique({ where: { id: consumo.creadoPorId } })
+    : null;
+
   const valorConsumido = consumo.items.reduce((acc, item) => acc + Number(item.valorConsumido), 0);
 
   return (
     <div className="space-y-6">
       <PageHeader
         titulo={`Consumo ${consumo.numero}`}
-        descripcion={`${consumo.almacen.nombre} · ${formatDateTime(consumo.fecha)}`}
+        descripcion={`${consumo.almacen.nombre} · ${formatDateTime(consumo.fecha)}${consumo.horaRetiro ? ` ${consumo.horaRetiro}` : ""}`}
         acciones={
           <>
+            <Button variant="outline" asChild>
+              <a href={`/api/pdf/consumo-almacen/${consumo.id}`} target="_blank" rel="noopener noreferrer">
+                <FileDown className="mr-2 h-4 w-4" />
+                Descargar PDF
+              </a>
+            </Button>
             <Button variant="outline" size="sm" asChild>
               <Link href={`/logistica/almacenes/consumos/${consumo.id}/editar`}>
                 <Pencil className="mr-2 h-4 w-4" />
@@ -44,9 +54,52 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
         }
       />
 
-      {consumo.observaciones && (
-        <p className="text-sm text-muted-foreground">Observaciones: {consumo.observaciones}</p>
-      )}
+      <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className="text-muted-foreground">Retirado por</p>
+          <p className="font-medium">{consumo.retiradoPor ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Registrado por</p>
+          <p className="font-medium">{registrador ? `${registrador.nombres} ${registrador.apellidos}` : "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Hora de retiro</p>
+          <p className="font-medium">{consumo.horaRetiro ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Evidencia de despacho</p>
+          {consumo.fotoEvidenciaArchivo ? (
+            <a
+              href={`/api/almacenes/consumos/${consumo.id}/foto`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium underline underline-offset-2"
+            >
+              Ver foto
+            </a>
+          ) : (
+            <p className="font-medium">—</p>
+          )}
+        </div>
+        {consumo.observaciones && (
+          <div className="sm:col-span-2 lg:col-span-4">
+            <p className="text-muted-foreground">Observaciones</p>
+            <p className="font-medium">{consumo.observaciones}</p>
+          </div>
+        )}
+        {consumo.firmaArchivo && (
+          <div className="sm:col-span-2 lg:col-span-4">
+            <p className="text-muted-foreground mb-1">Firma de quien retira</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/almacenes/consumos/${consumo.id}/firma`}
+              alt="Firma de quien retira el material"
+              className="h-24 w-auto rounded border bg-white"
+            />
+          </div>
+        )}
+      </div>
 
       <Table>
         <TableHeader>

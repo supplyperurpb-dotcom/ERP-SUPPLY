@@ -43,7 +43,11 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
 
   const valoresIniciales: ConsumoAlmacenInput = {
     fecha: consumo.fecha.toISOString().slice(0, 10) as unknown as Date,
+    horaRetiro: consumo.horaRetiro ?? "",
     almacenOrigenId: consumo.almacenOrigenId,
+    retiradoPor: consumo.retiradoPor ?? "",
+    firmaArchivo: consumo.firmaArchivo ?? "",
+    fotoEvidenciaArchivo: consumo.fotoEvidenciaArchivo ?? "",
     observaciones: consumo.observaciones ?? "",
     items: consumo.items.map((item) => ({
       skuId: item.skuId,

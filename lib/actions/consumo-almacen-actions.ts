@@ -5,16 +5,74 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
 import { costosParaValidacion } from "@/lib/stock-almacen";
+import { subirArchivo } from "@/lib/storage";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 
 export type ConsumoAlmacenActionState = { error?: string; id?: string } | undefined;
+
+const TIPOS_FOTO_PERMITIDOS = ["image/jpeg", "image/png"];
+
+// Sube la firma táctil (siempre PNG, capturada en un <canvas>) antes de
+// registrar el consumo — mismo patrón de "subir primero, recién con la
+// ruta llamar a la action de crear" que subirGuiaRemisionIngresoAction.
+export async function subirFirmaConsumoAction(formData: FormData): Promise<{ path?: string; error?: string }> {
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Captura la firma." };
+  }
+  if (archivo.type !== "image/png") {
+    return { error: "La firma debe subirse como imagen PNG." };
+  }
+
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const ruta = `consumos-almacen/firmas/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.png`;
+  try {
+    const path = await subirArchivo(ruta, archivo);
+    return { path };
+  } catch (e) {
+    console.error("Error subiendo firma de consumo:", e);
+    return { error: e instanceof Error ? e.message : "No se pudo subir la firma." };
+  }
+}
+
+// Sube la foto de evidencia del despacho. Se restringe a JPG/PNG (no HEIC)
+// a propósito: el PDF del consumo la incrusta directamente y pdf-lib solo
+// puede incrustar esos dos formatos.
+export async function subirEvidenciaConsumoAction(formData: FormData): Promise<{ path?: string; error?: string }> {
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Selecciona una foto." };
+  }
+  if (!TIPOS_FOTO_PERMITIDOS.includes(archivo.type)) {
+    return { error: "Formato no permitido. Sube una foto en JPG o PNG." };
+  }
+  if (archivo.size > 10 * 1024 * 1024) {
+    return { error: "El archivo no puede superar 10 MB." };
+  }
+
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const extension = archivo.type === "image/png" ? "png" : "jpg";
+  const ruta = `consumos-almacen/evidencias/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+  try {
+    const path = await subirArchivo(ruta, archivo);
+    return { path };
+  } catch (e) {
+    console.error("Error subiendo evidencia de despacho:", e);
+    return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
+  }
+}
 
 export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Promise<ConsumoAlmacenActionState> {
   const parsed = consumoAlmacenSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, observaciones, items } = parsed.data;
+  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
+    parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
   if (!almacen) {
@@ -57,7 +115,11 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
         data: {
           numero,
           fecha,
+          horaRetiro,
           almacenOrigenId,
+          retiradoPor,
+          firmaArchivo,
+          fotoEvidenciaArchivo,
           observaciones: observaciones || null,
           creadoPorId: usuario?.id,
         },
@@ -115,7 +177,8 @@ export async function actualizarConsumoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, observaciones, items } = parsed.data;
+  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
+    parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
   if (!almacen) {
@@ -163,7 +226,15 @@ export async function actualizarConsumoAlmacenAction(
 
       await tx.consumoAlmacen.update({
         where: { id },
-        data: { fecha, almacenOrigenId, observaciones: observaciones || null },
+        data: {
+          fecha,
+          horaRetiro,
+          almacenOrigenId,
+          retiradoPor,
+          firmaArchivo,
+          fotoEvidenciaArchivo,
+          observaciones: observaciones || null,
+        },
       });
 
       for (const item of items) {

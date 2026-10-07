@@ -137,7 +137,14 @@ const itemConsumoSchema = z.object({
 
 export const consumoAlmacenSchema = z.object({
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+  horaRetiro: z.string().min(1, "La hora es obligatoria"),
   almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
+  retiradoPor: z.string().trim().min(1, "El nombre de quien retira es obligatorio").max(150),
+  // Rutas en Supabase Storage de la firma (PNG, capturada en un <canvas>) y
+  // de la foto de evidencia del despacho — ver lib/storage.ts. Ambas
+  // obligatorias: sin sustento no se puede registrar el consumo.
+  firmaArchivo: z.string().min(1, "Captura la firma de quien retira el material"),
+  fotoEvidenciaArchivo: z.string().min(1, "Adjunta una foto de evidencia del despacho"),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   items: z.array(itemConsumoSchema).min(1, "Agrega al menos un producto"),
 });

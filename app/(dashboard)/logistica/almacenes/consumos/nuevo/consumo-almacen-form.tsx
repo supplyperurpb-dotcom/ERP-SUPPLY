@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -13,9 +14,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy } from "@/lib/utils";
+import { FirmaCanvas } from "@/components/shared/firma-canvas";
+import { fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
-import { crearConsumoAlmacenAction, actualizarConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
+import {
+  crearConsumoAlmacenAction,
+  actualizarConsumoAlmacenAction,
+  subirFirmaConsumoAction,
+  subirEvidenciaConsumoAction,
+} from "@/lib/actions/consumo-almacen-actions";
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; nombre: string };
@@ -38,12 +45,19 @@ export function ConsumoAlmacenForm({
   edicion?: { id: string; valoresIniciales: ConsumoAlmacenInput };
 }) {
   const router = useRouter();
+  const [firmaFile, setFirmaFile] = useState<File | null>(null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [subiendoArchivos, setSubiendoArchivos] = useState(false);
 
   const form = useForm<ConsumoAlmacenInput>({
     resolver: zodResolver(consumoAlmacenSchema),
     defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
+      horaRetiro: horaLocalAhora(),
       almacenOrigenId: almacenIdInicial ?? "",
+      retiradoPor: "",
+      firmaArchivo: "",
+      fotoEvidenciaArchivo: "",
       observaciones: "",
       items: [ITEM_VACIO],
     },
@@ -52,6 +66,8 @@ export function ConsumoAlmacenForm({
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
+  const firmaArchivoActual = edicion?.valoresIniciales.firmaArchivo;
+  const fotoArchivoActual = edicion?.valoresIniciales.fotoEvidenciaArchivo;
 
   // Solo se puede consumir lo que el almacén realmente tiene en stock: el
   // combobox de producto se restringe a esa lista, y sirve también para
@@ -67,6 +83,46 @@ export function ConsumoAlmacenForm({
 
   function stockDisponibleDe(skuId: string) {
     return stockPorSkuId.get(skuId)?.cantidad ?? 0;
+  }
+
+  async function handleSubmitConArchivos(e: React.FormEvent) {
+    e.preventDefault();
+    if (!firmaFile && !firmaArchivoActual) {
+      toast.error("Captura la firma de quien retira el material");
+      return;
+    }
+    if (!fotoFile && !fotoArchivoActual) {
+      toast.error("Adjunta una foto de evidencia del despacho");
+      return;
+    }
+
+    setSubiendoArchivos(true);
+    try {
+      if (firmaFile) {
+        const fd = new FormData();
+        fd.set("archivo", firmaFile);
+        const resultado = await subirFirmaConsumoAction(fd);
+        if (resultado.error || !resultado.path) {
+          toast.error(resultado.error ?? "No se pudo subir la firma");
+          return;
+        }
+        form.setValue("firmaArchivo", resultado.path, { shouldValidate: true });
+      }
+      if (fotoFile) {
+        const fd = new FormData();
+        fd.set("archivo", fotoFile);
+        const resultado = await subirEvidenciaConsumoAction(fd);
+        if (resultado.error || !resultado.path) {
+          toast.error(resultado.error ?? "No se pudo subir la foto");
+          return;
+        }
+        form.setValue("fotoEvidenciaArchivo", resultado.path, { shouldValidate: true });
+      }
+    } finally {
+      setSubiendoArchivos(false);
+    }
+
+    await form.handleSubmit(onSubmit)();
   }
 
   async function onSubmit(data: ConsumoAlmacenInput) {
@@ -101,7 +157,7 @@ export function ConsumoAlmacenForm({
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmitConArchivos} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos del consumo</CardTitle>
@@ -148,9 +204,58 @@ export function ConsumoAlmacenForm({
             )}
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="horaRetiro">Hora de retiro</Label>
+            <Input id="horaRetiro" type="time" {...form.register("horaRetiro")} />
+            {form.formState.errors.horaRetiro && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.horaRetiro.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="retiradoPor">Nombre de quien retira</Label>
+            <Input id="retiradoPor" {...form.register("retiradoPor")} />
+            {form.formState.errors.retiradoPor && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.retiradoPor.message}</p>
+            )}
+          </div>
+
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>
             <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Firma de quien retira</Label>
+            <FirmaCanvas onChange={setFirmaFile} />
+            {firmaArchivoActual && !firmaFile && (
+              <p className="text-xs text-muted-foreground">
+                Ya hay una firma guardada; dibuja una nueva solo si quieres reemplazarla.
+              </p>
+            )}
+            {form.formState.errors.firmaArchivo && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.firmaArchivo.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fotoEvidencia">Foto de evidencia del despacho</Label>
+            <Input
+              id="fotoEvidencia"
+              type="file"
+              accept="image/jpeg,image/png"
+              capture="environment"
+              onChange={(e) => setFotoFile(e.target.files?.[0] ?? null)}
+            />
+            {fotoFile && <p className="text-xs text-muted-foreground">Seleccionada: {fotoFile.name}</p>}
+            {fotoArchivoActual && !fotoFile && (
+              <p className="text-xs text-muted-foreground">
+                Ya hay una foto guardada; adjunta una nueva solo si quieres reemplazarla.
+              </p>
+            )}
+            {form.formState.errors.fotoEvidenciaArchivo && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.fotoEvidenciaArchivo.message}</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -272,8 +377,12 @@ export function ConsumoAlmacenForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar consumo"}
+        <Button type="submit" disabled={form.formState.isSubmitting || subiendoArchivos}>
+          {subiendoArchivos || form.formState.isSubmitting
+            ? "Guardando..."
+            : edicion
+              ? "Guardar cambios"
+              : "Registrar consumo"}
         </Button>
       </div>
     </form>

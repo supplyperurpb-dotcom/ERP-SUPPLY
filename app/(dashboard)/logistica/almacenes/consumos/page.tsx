@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PackageMinus, Download } from "lucide-react";
+import { PackageMinus, Download, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,11 @@ export default async function ConsumosAlmacenPage() {
                 <TableCell>{consumo.almacen.nombre}</TableCell>
                 <TableCell className="text-right">{consumo._count.items}</TableCell>
                 <TableCell className="flex justify-end gap-1">
+                  <Button variant="outline" size="sm" asChild title="Vista previa en PDF">
+                    <a href={`/api/pdf/consumo-almacen/${consumo.id}`} target="_blank" rel="noopener noreferrer">
+                      <FileDown className="h-4 w-4" />
+                    </a>
+                  </Button>
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/logistica/almacenes/consumos/${consumo.id}`}>Ver</Link>
                   </Button>

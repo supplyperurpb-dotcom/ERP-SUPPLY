@@ -25,3 +25,13 @@ export async function obtenerUrlFirmadaArchivo(ruta: string, expiraEnSegundos = 
   if (error || !data) throw new Error(`No se pudo generar el enlace de descarga: ${error?.message ?? "desconocido"}`);
   return data.signedUrl;
 }
+
+// Descarga el contenido de un archivo privado directamente (sin pasar por
+// una URL firmada) — usado al generar un PDF que necesita incrustar la
+// imagen (p. ej. la firma de un consumo), no solo enlazarla.
+export async function descargarArchivo(ruta: string): Promise<Uint8Array> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.storage.from(BUCKET).download(ruta);
+  if (error || !data) throw new Error(`No se pudo descargar el archivo: ${error?.message ?? "desconocido"}`);
+  return new Uint8Array(await data.arrayBuffer());
+}
