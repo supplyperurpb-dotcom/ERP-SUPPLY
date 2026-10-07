@@ -94,6 +94,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     const ingresos = ocsActivas.flatMap((oci) => oci.ingresosAlmacenItem);
     const cantidadRecibida = ingresos.reduce((acc, ing) => acc + Number(ing.cantidad), 0);
     const guiasRemision = [...new Set(ingresos.map((ing) => ing.ingresoAlmacen.guiaRemision).filter((g): g is string => !!g))];
+    const ordenes = ocsActivas.map((oci) => ({ id: oci.ordenCompra.id, numero: oci.ordenCompra.numero }));
     return {
       id: item.id,
       codigo: item.sku.codigo,
@@ -102,6 +103,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
       unidadMedida: item.unidadMedida,
       cantidad: Number(item.cantidad),
       cantidadConOc,
+      ordenes,
       guiasRemision,
       cantidadRecibida,
     };
@@ -130,6 +132,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
               responsable={solicitante ? `${solicitante.nombres} ${solicitante.apellidos}` : "—"}
               fechaCreacion={formatDateTime(solicitud.createdAt)}
               fechaAprobacion={solicitud.fechaAprobacion ? formatDateTime(solicitud.fechaAprobacion) : null}
+              aprobadoPor={aprobador ? `${aprobador.nombres} ${aprobador.apellidos}` : null}
               esServicio={solicitud.categoria === "SERVICIO"}
               items={itemsSeguimiento}
             />

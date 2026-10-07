@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AnularOrdenBoton, FirmarOrdenBotones } from "../aprobar-rechazar-botones";
+import { SeguimientoOrdenDialog, type ItemSeguimientoOrden } from "./seguimiento-orden-dialog";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import {
@@ -64,7 +65,13 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
     where: { id },
     include: {
       proveedor: true,
-      items: { include: { sku: true, solicitudPedidoItem: { include: { solicitudPedido: true } } } },
+      items: {
+        include: {
+          sku: true,
+          solicitudPedidoItem: { include: { solicitudPedido: true } },
+          ingresosAlmacenItem: { include: { ingresoAlmacen: true } },
+        },
+      },
       firmas: true,
     },
   });
@@ -73,9 +80,10 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
 
   const idsFirmantes = orden.firmas.map((f) => f.usuarioId).filter((v): v is string => !!v);
 
-  const [usuario, aprobador, aprobadoresEspeciales, usuariosFirmantes] = await Promise.all([
+  const [usuario, aprobador, creador, aprobadoresEspeciales, usuariosFirmantes] = await Promise.all([
     getUsuarioActual(),
     orden.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: orden.aprobadoPorId } }) : null,
+    orden.creadoPorId ? prisma.usuario.findUnique({ where: { id: orden.creadoPorId } }) : null,
     obtenerAprobadoresEspeciales(),
     idsFirmantes.length > 0 ? prisma.usuario.findMany({ where: { id: { in: idsFirmantes } } }) : Promise.resolve([]),
   ]);
@@ -98,6 +106,29 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
     orden.estado === "PENDIENTE"
       ? (firmaPropiaId ?? (esAdmin && firmasPendientes.length > 0 ? firmasPendientes[0].id : undefined))
       : undefined;
+
+  // Para el seguimiento: por cada línea, de qué solicitud vino y cuánto ya
+  // se recibió en almacén (y con qué guía de remisión) — una línea puede
+  // recibirse en más de un ingreso.
+  const itemsSeguimiento: ItemSeguimientoOrden[] = orden.items.map((item) => {
+    const cantidadRecibida = item.ingresosAlmacenItem.reduce((acc, ing) => acc + Number(ing.cantidad), 0);
+    const guiasRemision = [
+      ...new Set(item.ingresosAlmacenItem.map((ing) => ing.ingresoAlmacen.guiaRemision).filter((g): g is string => !!g)),
+    ];
+    return {
+      id: item.id,
+      codigo: item.sku.codigo,
+      descripcion: item.sku.descripcion,
+      descripcionServicio: item.descripcion,
+      unidadMedida: item.sku.unidadMedida,
+      cantidad: Number(item.cantidad),
+      solicitud: item.solicitudPedidoItem
+        ? { id: item.solicitudPedidoItem.solicitudPedidoId, numero: item.solicitudPedidoItem.solicitudPedido.numero }
+        : null,
+      guiasRemision,
+      cantidadRecibida,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -122,6 +153,16 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                 Descargar PDF
               </a>
             </Button>
+            <SeguimientoOrdenDialog
+              numero={orden.numero}
+              fecha={formatDate(orden.fecha)}
+              responsable={creador ? `${creador.nombres} ${creador.apellidos}` : "—"}
+              fechaCreacion={formatDateTime(orden.createdAt)}
+              fechaAprobacion={orden.fechaAprobacion ? formatDateTime(orden.fechaAprobacion) : null}
+              aprobadoPor={aprobador ? `${aprobador.nombres} ${aprobador.apellidos}` : null}
+              esServicio={esServicio}
+              items={itemsSeguimiento}
+            />
           </div>
         }
       />

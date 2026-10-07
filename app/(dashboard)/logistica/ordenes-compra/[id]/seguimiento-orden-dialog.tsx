@@ -7,20 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-export type ItemSeguimientoPedido = {
+export type ItemSeguimientoOrden = {
   id: string;
   codigo: string;
   descripcion: string;
   descripcionServicio: string | null;
   unidadMedida: string;
   cantidad: number;
-  cantidadConOc: number;
-  ordenes: { id: string; numero: string }[];
+  solicitud: { id: string; numero: string } | null;
   guiasRemision: string[];
   cantidadRecibida: number;
 };
 
-export function SeguimientoPedidoDialog({
+export function SeguimientoOrdenDialog({
   numero,
   fecha,
   responsable,
@@ -37,7 +36,7 @@ export function SeguimientoPedidoDialog({
   fechaAprobacion: string | null;
   aprobadoPor: string | null;
   esServicio: boolean;
-  items: ItemSeguimientoPedido[];
+  items: ItemSeguimientoOrden[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -54,7 +53,7 @@ export function SeguimientoPedidoDialog({
 
         <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <p className="text-muted-foreground">N° de pedido</p>
+            <p className="text-muted-foreground">N° de OC/OS</p>
             <p className="font-medium">{numero}</p>
           </div>
           <div>
@@ -88,8 +87,7 @@ export function SeguimientoPedidoDialog({
                 {esServicio && <TableHead>Descripción del servicio</TableHead>}
                 <TableHead>U.M.</TableHead>
                 <TableHead className="text-right">Cantidad</TableHead>
-                <TableHead className="text-right">Con OC</TableHead>
-                <TableHead>N° de OC</TableHead>
+                <TableHead>N° de solicitud</TableHead>
                 <TableHead>Guía de remisión</TableHead>
                 <TableHead className="text-right">Recibido</TableHead>
               </TableRow>
@@ -104,22 +102,16 @@ export function SeguimientoPedidoDialog({
                   )}
                   <TableCell>{item.unidadMedida}</TableCell>
                   <TableCell className="text-right">{item.cantidad}</TableCell>
-                  <TableCell className="text-right">{item.cantidadConOc}</TableCell>
                   <TableCell>
-                    {item.ordenes.length === 0 ? (
-                      <span className="text-muted-foreground">—</span>
+                    {item.solicitud ? (
+                      <Link
+                        href={`/logistica/solicitudes-pedido/${item.solicitud.id}`}
+                        className="underline underline-offset-2"
+                      >
+                        {item.solicitud.numero}
+                      </Link>
                     ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {item.ordenes.map((oc) => (
-                          <Link
-                            key={oc.id}
-                            href={`/logistica/ordenes-compra/${oc.id}`}
-                            className="underline underline-offset-2"
-                          >
-                            {oc.numero}
-                          </Link>
-                        ))}
-                      </div>
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>{item.guiasRemision.length > 0 ? item.guiasRemision.join(", ") : "—"}</TableCell>
