@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AprobarRechazarBotones, AnularSolicitudBoton } from "../aprobar-rechazar-botones";
+import { SeguimientoPedidoDialog, type ItemSeguimientoPedido } from "./seguimiento-pedido-dialog";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -43,7 +44,12 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
       items: {
         include: {
           sku: true,
-          ordenCompraItems: { include: { ordenCompra: true } },
+          ordenCompraItems: {
+            include: {
+              ordenCompra: true,
+              ingresosAlmacenItem: { include: { ingresoAlmacen: true } },
+            },
+          },
         },
       },
     },
@@ -51,10 +57,11 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
 
   if (!solicitud) notFound();
 
-  const [usuario, aprobadores, aprobador] = await Promise.all([
+  const [usuario, aprobadores, aprobador, solicitante] = await Promise.all([
     getUsuarioActual(),
     obtenerAprobadoresArea(),
     solicitud.aprobadoPorId ? prisma.usuario.findUnique({ where: { id: solicitud.aprobadoPorId } }) : null,
+    solicitud.solicitanteId ? prisma.usuario.findUnique({ where: { id: solicitud.solicitanteId } }) : null,
   ]);
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   const tienePermisoArea =
@@ -76,6 +83,30 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     return Number(item.cantidad) - jalado > 0;
   });
 
+  // Para el seguimiento: por cada línea, cuánto ya se recibió en almacén (a
+  // través de las OC activas que jalaron de ella) y con qué guía(s) de
+  // remisión — una línea puede recibirse en más de un ingreso.
+  const itemsSeguimiento: ItemSeguimientoPedido[] = solicitud.items.map((item) => {
+    const ocsActivas = item.ordenCompraItems.filter(
+      (oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO"
+    );
+    const cantidadConOc = ocsActivas.reduce((acc, oci) => acc + Number(oci.cantidad), 0);
+    const ingresos = ocsActivas.flatMap((oci) => oci.ingresosAlmacenItem);
+    const cantidadRecibida = ingresos.reduce((acc, ing) => acc + Number(ing.cantidad), 0);
+    const guiasRemision = [...new Set(ingresos.map((ing) => ing.ingresoAlmacen.guiaRemision).filter((g): g is string => !!g))];
+    return {
+      id: item.id,
+      codigo: item.sku.codigo,
+      descripcion: item.sku.descripcion,
+      descripcionServicio: item.descripcion,
+      unidadMedida: item.unidadMedida,
+      cantidad: Number(item.cantidad),
+      cantidadConOc,
+      guiasRemision,
+      cantidadRecibida,
+    };
+  });
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -93,6 +124,15 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                 Descargar PDF
               </a>
             </Button>
+            <SeguimientoPedidoDialog
+              numero={solicitud.numero}
+              fecha={formatDate(solicitud.fecha)}
+              responsable={solicitante ? `${solicitante.nombres} ${solicitante.apellidos}` : "—"}
+              fechaCreacion={formatDateTime(solicitud.createdAt)}
+              fechaAprobacion={solicitud.fechaAprobacion ? formatDateTime(solicitud.fechaAprobacion) : null}
+              esServicio={solicitud.categoria === "SERVICIO"}
+              items={itemsSeguimiento}
+            />
             {puedeGenerarOrden &&
               solicitud.estado === "APROBADO" &&
               (tienePendiente ? (
