@@ -1,39 +1,22 @@
 import { PageHeader } from "@/components/shared/page-header";
-import { prisma } from "@/lib/db/prisma";
-import { calcularStockAlmacen } from "@/lib/stock-almacen";
-import { TrasladoAlmacenForm } from "./traslado-almacen-form";
+import { calcularSolicitudesTrasladoPendientes } from "@/lib/stock-almacen";
+import { TrasladoAlmacenWizard } from "./traslado-almacen-wizard";
 
 export default async function NuevoTrasladoAlmacenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ almacenId?: string }>;
+  searchParams: Promise<{ solicitudId?: string }>;
 }) {
-  const { almacenId } = await searchParams;
-
-  const almacenes = await prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } });
-  const proveedores = await prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } });
-  const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
-  const stockPorAlmacen: Record<string, Awaited<ReturnType<typeof calcularStockAlmacen>>> = {};
-  almacenes.forEach((a, i) => {
-    stockPorAlmacen[a.id] = stocks[i];
-  });
+  const { solicitudId } = await searchParams;
+  const solicitudesPendientes = await calcularSolicitudesTrasladoPendientes();
 
   return (
     <div>
       <PageHeader
         titulo="Nuevo traslado entre almacenes"
-        descripcion="Mueve productos de un almacén a otro. Solo se pueden trasladar productos con stock disponible en el almacén de origen elegido."
+        descripcion="Ejecuta una solicitud de traslado pendiente: elige qué ítems mover ahora (pueden ser menos de lo solicitado, el resto queda pendiente para después)."
       />
-      <TrasladoAlmacenForm
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
-        proveedores={proveedores.map((p) => ({
-          id: p.id,
-          razonSocial: p.razonSocial,
-          ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
-        }))}
-        stockPorAlmacen={stockPorAlmacen}
-        almacenOrigenIdInicial={almacenId}
-      />
+      <TrasladoAlmacenWizard solicitudes={solicitudesPendientes} solicitudIdInicial={solicitudId} />
     </div>
   );
 }

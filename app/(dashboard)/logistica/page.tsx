@@ -7,6 +7,7 @@ import {
   PackageMinus,
   PackagePlus,
   PackageSearch,
+  Repeat,
   ShoppingCart,
   Users,
   Warehouse,
@@ -56,6 +57,12 @@ const TILES = [
     descripcion: "Ingresos de productos a los almacenes generales, desde una orden de compra.",
     href: "/logistica/almacenes/ingresos",
     icono: PackagePlus,
+  },
+  {
+    titulo: "Solicitudes de traslado",
+    descripcion: "Solicitudes internas para mover stock entre almacenes, punto de partida de los traslados.",
+    href: "/logistica/solicitudes-traslado",
+    icono: Repeat,
   },
   {
     titulo: "Traslados",

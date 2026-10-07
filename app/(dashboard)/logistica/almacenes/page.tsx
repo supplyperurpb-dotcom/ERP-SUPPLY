@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { TipoAlmacen } from "@prisma/client";
 import { AlmacenFormDialog } from "./almacen-form-dialog";
+import { NuevoMovimientoDialog } from "./nuevo-movimiento-dialog";
+import { calcularSolicitudesTrasladoPendientes } from "@/lib/stock-almacen";
 
 const TIPO_LABEL: Record<TipoAlmacen, string> = {
   INSUMOS: "Insumos",
@@ -25,11 +27,13 @@ const CATEGORIA_GENERAL_LABEL: Record<string, string> = {
 };
 
 export default async function AlmacenesPage() {
-  const almacenes = await prisma.almacen.findMany({
-    orderBy: [{ esGeneral: "desc" }, { codigo: "asc" }],
-  });
+  const [almacenes, solicitudesTraslado] = await Promise.all([
+    prisma.almacen.findMany({ orderBy: [{ esGeneral: "desc" }, { codigo: "asc" }] }),
+    calcularSolicitudesTrasladoPendientes(),
+  ]);
 
-  const almacenesGenerales = almacenes
+  const almacenesActivos = almacenes.filter((a) => a.activo);
+  const almacenesGenerales = almacenesActivos
     .filter((a) => a.esGeneral)
     .map((a) => ({ id: a.id, nombre: a.nombre }));
   const nombrePorId = new Map(almacenes.map((a) => [a.id, a.nombre]));
@@ -39,6 +43,18 @@ export default async function AlmacenesPage() {
       <PageHeader
         titulo="Almacenes"
         descripcion="Catálogo de almacenes generales (donde se registran los ingresos) y sus sub-almacenes (que reciben inventario por traslado)."
+        acciones={
+          <NuevoMovimientoDialog
+            almacenesGenerales={almacenesGenerales}
+            almacenesTodos={almacenesActivos.map((a) => ({ id: a.id, nombre: a.nombre }))}
+            solicitudesTraslado={solicitudesTraslado.map((s) => ({
+              id: s.id,
+              numero: s.numero,
+              almacenOrigenNombre: s.almacenOrigenNombre,
+              almacenDestinoNombre: s.almacenDestinoNombre,
+            }))}
+          />
+        }
       />
 
       {almacenes.length === 0 ? (

@@ -237,13 +237,14 @@ model Sku {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  movimientosStock     MovimientoStock[]
-  solicitudPedidoItem  SolicitudPedidoItem[]
-  ordenCompraItem      OrdenCompraItem[]
-  stockCamara          StockCamara[]
-  ingresoAlmacenItems  IngresoAlmacenItem[]
-  trasladoAlmacenItems TrasladoAlmacenItem[]
-  consumoAlmacenItems  ConsumoAlmacenItem[]
+  movimientosStock       MovimientoStock[]
+  solicitudPedidoItem    SolicitudPedidoItem[]
+  ordenCompraItem        OrdenCompraItem[]
+  stockCamara            StockCamara[]
+  ingresoAlmacenItems    IngresoAlmacenItem[]
+  trasladoAlmacenItems   TrasladoAlmacenItem[]
+  consumoAlmacenItems    ConsumoAlmacenItem[]
+  solicitudTrasladoItems SolicitudTrasladoItem[]
 
   @@map("skus")
 }
@@ -282,13 +283,15 @@ model Almacen {
   almacenPadre Almacen?  @relation("JerarquiaAlmacen", fields: [almacenPadreId], references: [id])
   subAlmacenes Almacen[] @relation("JerarquiaAlmacen")
 
-  movimientosOrigen  MovimientoStock[] @relation("MovimientoOrigen")
-  movimientosDestino MovimientoStock[] @relation("MovimientoDestino")
-  stockCamara        StockCamara[]
-  ingresosAlmacen    IngresoAlmacen[]  @relation("IngresosAlmacen")
-  trasladosOrigen    TrasladoAlmacen[] @relation("TrasladosOrigen")
-  trasladosDestino   TrasladoAlmacen[] @relation("TrasladosDestino")
-  consumosAlmacen    ConsumoAlmacen[]  @relation("ConsumosAlmacen")
+  movimientosOrigen          MovimientoStock[]   @relation("MovimientoOrigen")
+  movimientosDestino         MovimientoStock[]   @relation("MovimientoDestino")
+  stockCamara                StockCamara[]
+  ingresosAlmacen            IngresoAlmacen[]    @relation("IngresosAlmacen")
+  trasladosOrigen            TrasladoAlmacen[]   @relation("TrasladosOrigen")
+  trasladosDestino           TrasladoAlmacen[]   @relation("TrasladosDestino")
+  consumosAlmacen            ConsumoAlmacen[]    @relation("ConsumosAlmacen")
+  solicitudesTrasladoOrigen  SolicitudTraslado[] @relation("SolicitudesTrasladoOrigen")
+  solicitudesTrasladoDestino SolicitudTraslado[] @relation("SolicitudesTrasladoDestino")
 
   @@map("almacenes")
 }
@@ -646,58 +649,112 @@ model IngresoAlmacenItem {
 }
 
 model TrasladoAlmacen {
-  id               String   @id @default(cuid())
-  numero           String   @unique // TA-0001
-  fecha            DateTime
-  almacenOrigenId  String
-  almacenDestinoId String
-  guiaRemision     String?
-  remitenteRuc     String?
-  remitente        String?
+  id                  String   @id @default(cuid())
+  numero              String   @unique // TA-0001
+  fecha               DateTime
+  almacenOrigenId     String
+  almacenDestinoId    String
+  // De qué Solicitud de Traslado se ejecutó (ver crearTrasladoDesdeSolicitudAction)
+  // — null en traslados viejos, de antes de este flujo, que se creaban
+  // libremente sin solicitud.
+  solicitudTrasladoId String?
+  guiaRemision        String?
+  remitenteRuc        String?
+  remitente           String?
   // Moneda del precio del flete de este traslado ("PEN" | "USD"). El costeo
   // del stock siempre usa el equivalente en Dólares (ver fleteAsignadoUsd en
   // TrasladoAlmacenItem y convertirAUsd en lib/constants/moneda.ts).
-  moneda           String   @default("PEN")
+  moneda              String   @default("PEN")
   // Costo del transporte de este traslado, en la moneda de arriba,
   // prorrateado entre los items según su valor (ver
   // crearTrasladoAlmacenAction). Se suma al costo que el producto ya traía
   // del origen para el costeo ponderado del almacén de destino (ver
   // mapaCostosAlmacen en lib/stock-almacen.ts).
-  flete            Decimal? @db.Decimal(12, 2)
-  observaciones    String?
-  creadoPorId      String?
-  createdAt        DateTime @default(now())
+  flete               Decimal? @db.Decimal(12, 2)
+  observaciones       String?
+  creadoPorId         String?
+  createdAt           DateTime @default(now())
 
-  almacenOrigen  Almacen               @relation("TrasladosOrigen", fields: [almacenOrigenId], references: [id])
-  almacenDestino Almacen               @relation("TrasladosDestino", fields: [almacenDestinoId], references: [id])
-  items          TrasladoAlmacenItem[]
+  almacenOrigen     Almacen               @relation("TrasladosOrigen", fields: [almacenOrigenId], references: [id])
+  almacenDestino    Almacen               @relation("TrasladosDestino", fields: [almacenDestinoId], references: [id])
+  solicitudTraslado SolicitudTraslado?    @relation(fields: [solicitudTrasladoId], references: [id])
+  items             TrasladoAlmacenItem[]
 
   @@map("traslados_almacen")
 }
 
 model TrasladoAlmacenItem {
-  id                String  @id @default(cuid())
-  trasladoAlmacenId String
-  skuId             String
-  cantidad          Decimal @db.Decimal(12, 3)
-  unidadMedida      String
+  id                      String  @id @default(cuid())
+  trasladoAlmacenId       String
+  skuId                   String
+  cantidad                Decimal @db.Decimal(12, 3)
+  unidadMedida            String
   // Costo unitario ponderado del almacén de origen en el momento del
   // traslado (ver precioUnitarioPonderado en lib/stock-almacen.ts): el
   // producto "viaja" con ese costo, así que el almacén de destino lo suma a
   // su propio valor de inventario en vez de perder el costeo al moverse.
-  costoUnitario     Decimal @db.Decimal(12, 4)
-  valorTotal        Decimal @db.Decimal(14, 4)
+  costoUnitario           Decimal @db.Decimal(12, 4)
+  valorTotal              Decimal @db.Decimal(14, 4)
   // Parte del flete del traslado que le corresponde a esta línea (prorrateo
   // por valorTotal), en la moneda del traslado. *Usd: convertido a Dólares,
   // usado por el costeo del almacén de DESTINO (mapaCostosAlmacen); el
   // almacén de origen no se ve afectado por el costo de sacar el producto.
-  fleteAsignado     Decimal @default(0) @db.Decimal(14, 4)
-  fleteAsignadoUsd  Decimal @default(0) @db.Decimal(14, 4)
+  fleteAsignado           Decimal @default(0) @db.Decimal(14, 4)
+  fleteAsignadoUsd        Decimal @default(0) @db.Decimal(14, 4)
+  // De qué línea de qué Solicitud de Traslado se ejecutó esta línea (ver
+  // cantidadPendienteTrasladoItem en lib/stock-almacen.ts: lo pendiente de
+  // un SolicitudTrasladoItem es su cantidad menos la suma de
+  // TrasladoAlmacenItem.cantidad que lo referencian). Null en traslados
+  // libres (sin solicitud), de antes de este flujo.
+  solicitudTrasladoItemId String?
 
-  trasladoAlmacen TrasladoAlmacen @relation(fields: [trasladoAlmacenId], references: [id], onDelete: Cascade)
-  sku             Sku             @relation(fields: [skuId], references: [id])
+  trasladoAlmacen       TrasladoAlmacen        @relation(fields: [trasladoAlmacenId], references: [id], onDelete: Cascade)
+  sku                   Sku                    @relation(fields: [skuId], references: [id])
+  solicitudTrasladoItem SolicitudTrasladoItem? @relation(fields: [solicitudTrasladoItemId], references: [id])
 
   @@map("traslado_almacen_items")
+}
+
+// Solicitud interna para mover stock propio entre almacenes: mismo
+// correlativo/estructura que SolicitudPedido (ver lib/validations/compras.ts)
+// pero SIN aprobación — el stock ya es de la empresa, no hay compra de por
+// medio, así que es utilizable apenas se crea. A diferencia de Solped (que
+// nunca fija proveedor), aquí el almacén origen Y destino quedan fijos
+// desde la creación. Su "estado" (pendiente/parcial/ejecutada) se calcula
+// comparando cada item contra lo ya movido en TrasladoAlmacenItem — no hay
+// columna de estado.
+model SolicitudTraslado {
+  id               String   @id @default(cuid())
+  numero           String   @unique // ST-000000000
+  almacenOrigenId  String
+  almacenDestinoId String
+  fecha            DateTime @default(now())
+  observaciones    String?
+  solicitanteId    String?
+  creadoPorId      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  almacenOrigen  Almacen                 @relation("SolicitudesTrasladoOrigen", fields: [almacenOrigenId], references: [id])
+  almacenDestino Almacen                 @relation("SolicitudesTrasladoDestino", fields: [almacenDestinoId], references: [id])
+  items          SolicitudTrasladoItem[]
+  traslados      TrasladoAlmacen[]
+
+  @@map("solicitudes_traslado")
+}
+
+model SolicitudTrasladoItem {
+  id                  String  @id @default(cuid())
+  solicitudTrasladoId String
+  skuId               String
+  cantidad            Decimal @db.Decimal(12, 3)
+  unidadMedida        String
+
+  solicitudTraslado    SolicitudTraslado     @relation(fields: [solicitudTrasladoId], references: [id], onDelete: Cascade)
+  sku                  Sku                   @relation(fields: [skuId], references: [id])
+  trasladoAlmacenItems TrasladoAlmacenItem[]
+
+  @@map("solicitud_traslado_items")
 }
 
 model ConsumoAlmacen {

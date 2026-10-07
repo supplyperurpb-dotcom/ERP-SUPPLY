@@ -237,3 +237,94 @@ export async function calcularOcPendientesIngreso(db: Db = prisma): Promise<Orde
   }
   return resultado;
 }
+
+// ---------------------------------------------------------------------
+// Traslado desde Solicitud de Traslado: la cantidad pendiente de ejecutar
+// de un SolicitudTrasladoItem es su cantidad menos la suma de
+// TrasladoAlmacenItem.cantidad de todos los traslados que ya se hicieron
+// contra él. A diferencia de cantidadPendiente en lib/compras.ts, no hay
+// estado de aprobación que verificar: una Solicitud de Traslado es
+// utilizable apenas se crea.
+export async function cantidadPendienteTrasladoItem(solicitudTrasladoItemId: string, db: Db = prisma): Promise<number> {
+  const item = await db.solicitudTrasladoItem.findUnique({ where: { id: solicitudTrasladoItemId } });
+  if (!item) return 0;
+  const movido = await db.trasladoAlmacenItem.aggregate({
+    where: { solicitudTrasladoItemId },
+    _sum: { cantidad: true },
+  });
+  return Number(item.cantidad) - Number(movido._sum.cantidad ?? 0);
+}
+
+export type ItemSolicitudTrasladoPendiente = {
+  id: string; // SolicitudTrasladoItem.id
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  cantidadSolicitada: number;
+  cantidadPendiente: number;
+};
+
+export type SolicitudTrasladoConPendientes = {
+  id: string;
+  numero: string;
+  fecha: Date;
+  almacenOrigenId: string;
+  almacenOrigenNombre: string;
+  almacenDestinoId: string;
+  almacenDestinoNombre: string;
+  items: ItemSolicitudTrasladoPendiente[];
+};
+
+// Todas las Solicitudes de Traslado con al menos un ítem pendiente de
+// ejecutar, para el buscador de "Nuevo Movimiento > Traslados". Una
+// solicitud que ya se ejecutó por completo (en uno o varios traslados) deja
+// de aparecer.
+export async function calcularSolicitudesTrasladoPendientes(db: Db = prisma): Promise<SolicitudTrasladoConPendientes[]> {
+  const solicitudes = await db.solicitudTraslado.findMany({
+    include: { almacenOrigen: true, almacenDestino: true, items: { include: { sku: true } } },
+    orderBy: { fecha: "asc" },
+  });
+
+  const itemIds = solicitudes.flatMap((s) => s.items.map((i) => i.id));
+  if (itemIds.length === 0) return [];
+
+  const movidoPorItem = await db.trasladoAlmacenItem.groupBy({
+    by: ["solicitudTrasladoItemId"],
+    where: { solicitudTrasladoItemId: { in: itemIds } },
+    _sum: { cantidad: true },
+  });
+  const movidoMap = new Map(movidoPorItem.map((m) => [m.solicitudTrasladoItemId as string, Number(m._sum.cantidad ?? 0)]));
+
+  const resultado: SolicitudTrasladoConPendientes[] = [];
+  for (const solicitud of solicitudes) {
+    const items: ItemSolicitudTrasladoPendiente[] = [];
+    for (const item of solicitud.items) {
+      const cantidadSolicitada = Number(item.cantidad);
+      const movido = movidoMap.get(item.id) ?? 0;
+      const cantidadPendiente = Math.round((cantidadSolicitada - movido) * 1000) / 1000;
+      if (cantidadPendiente <= 0) continue;
+      items.push({
+        id: item.id,
+        skuId: item.skuId,
+        codigo: item.sku.codigo,
+        descripcion: item.sku.descripcion,
+        unidadMedida: item.unidadMedida,
+        cantidadSolicitada,
+        cantidadPendiente,
+      });
+    }
+    if (items.length === 0) continue;
+    resultado.push({
+      id: solicitud.id,
+      numero: solicitud.numero,
+      fecha: solicitud.fecha,
+      almacenOrigenId: solicitud.almacenOrigenId,
+      almacenOrigenNombre: solicitud.almacenOrigen.nombre,
+      almacenDestinoId: solicitud.almacenDestinoId,
+      almacenDestinoNombre: solicitud.almacenDestino.nombre,
+      items,
+    });
+  }
+  return resultado;
+}
