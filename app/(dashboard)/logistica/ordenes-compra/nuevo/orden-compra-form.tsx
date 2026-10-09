@@ -45,7 +45,7 @@ type ItemPlano = {
 function filaVacia(item: ItemPlano): FilaSeleccion {
   return {
     cantidad: String(item.cantidadPendiente),
-    precioUnitario: "0",
+    precioUnitario: "",
     gravado: true,
     centroCosto: item.centroCosto,
     descripcion: item.descripcionServicio ?? "",
