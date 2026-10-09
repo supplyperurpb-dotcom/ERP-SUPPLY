@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -405,25 +406,18 @@ export function OrdenCompraForm({
                         )}
                         <TableCell className="align-top">{item.solicitudNumero}</TableCell>
                         <TableCell className="text-right align-top">
-                          {item.cantidadPendiente} {item.unidadMedida}
+                          {item.cantidadPendiente.toLocaleString("es-PE")} {item.unidadMedida}
                         </TableCell>
                         <TableCell className="align-top">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={item.cantidadPendiente}
-                            step="0.001"
+                          <NumberInput
                             value={fila.cantidad}
-                            onChange={(e) => actualizarFila(item.id, { cantidad: e.target.value })}
+                            onChange={(v) => actualizarFila(item.id, { cantidad: v })}
                           />
                         </TableCell>
                         <TableCell className="align-top">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                          <NumberInput
                             value={fila.precioUnitario}
-                            onChange={(e) => actualizarFila(item.id, { precioUnitario: e.target.value })}
+                            onChange={(v) => actualizarFila(item.id, { precioUnitario: v })}
                           />
                         </TableCell>
                         <TableCell className="align-top">
