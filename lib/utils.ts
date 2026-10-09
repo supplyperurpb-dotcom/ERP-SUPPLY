@@ -121,6 +121,18 @@ export function fechaLocalHoy(): string {
   return `${hoy.getFullYear()}-${mes}-${dia}`;
 }
 
+// Día siguiente al de hoy, como valor "YYYY-MM-DD" (igual que
+// fechaLocalHoy), saltando domingo -> lunes. Se usa como fecha de entrega
+// por defecto al crear una Orden de Compra.
+export function fechaLocalManana(): string {
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  if (manana.getDay() === 0) manana.setDate(manana.getDate() + 1); // domingo -> lunes
+  const mes = String(manana.getMonth() + 1).padStart(2, "0");
+  const dia = String(manana.getDate()).padStart(2, "0");
+  return `${manana.getFullYear()}-${mes}-${dia}`;
+}
+
 export function horaLocalAhora(): string {
   const ahora = new Date();
   const horas = String(ahora.getHours()).padStart(2, "0");

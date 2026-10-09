@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
-import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
+import { fechaLocalHoy, fechaLocalManana, formatMoneda } from "@/lib/utils";
 import { CONDICIONES_PAGO, IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
@@ -71,7 +71,7 @@ export function OrdenCompraForm({
   const [proveedorId, setProveedorId] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<ProveedorOpcionSelect | null>(null);
   const [fecha, setFecha] = useState(fechaLocalHoy());
-  const [fechaEntrega, setFechaEntrega] = useState("");
+  const [fechaEntrega, setFechaEntrega] = useState(fechaLocalManana());
   const [condicionPago, setCondicionPago] = useState<string>(CONDICIONES_PAGO[2]);
   const [lugarEntrega, setLugarEntrega] = useState("");
   const [moneda, setMoneda] = useState<"PEN" | "USD">("PEN");
