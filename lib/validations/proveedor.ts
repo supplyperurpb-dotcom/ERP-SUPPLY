@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONDICIONES_PAGO } from "@/lib/constants/compras";
 
 // Campo de texto opcional: normaliza "" (lo que llega de un <input> vacío
 // en el FormData) a undefined para que Prisma guarde null en vez de "".
@@ -27,6 +28,7 @@ export const proveedorSchema = z
       z.string().email("Correo inválido").max(150).optional()
     ),
     contactoNombre: opcional(150),
+    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     activo: z.coerce.boolean().default(true),
   })
   .superRefine((data, ctx) => {

@@ -66,3 +66,21 @@ export const ROLES_APROBADOR_ESPECIAL = [
 ] as const;
 
 export type RolAprobadorEspecialCodigo = (typeof ROLES_APROBADOR_ESPECIAL)[number]["valor"];
+
+// Lista fija de condiciones de pago: la elige cada Proveedor como su
+// condición por defecto (ver Proveedor.condicionPago) y se precarga —
+// editable — al generar una Orden de Compra para ese proveedor. La OC
+// guarda su propio valor, así que cambiar la del proveedor después no
+// altera las OC ya emitidas.
+export const CONDICIONES_PAGO = [
+  "CREDITO 7 DIAS",
+  "CREDITO 15 DIAS",
+  "CREDITO 30 DIAS",
+  "CREDITO 60 DIAS",
+  "FACTURA NEGOCIABLE 30 DIAS",
+  "FACTURA NEGOCIABLE 45 DIAS",
+  "FACTURA NEGOCIABLE 60 DIAS",
+  "FACTURA NEGOCIABLE 120 DIAS",
+] as const;
+
+export type CondicionPagoCodigo = (typeof CONDICIONES_PAGO)[number];

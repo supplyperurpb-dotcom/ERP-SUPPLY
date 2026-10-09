@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONDICIONES_PAGO } from "@/lib/constants/compras";
 
 const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SERVICIOS_GENERALES", "RRHH"] as const;
 const CATEGORIAS = ["COMPRA", "SERVICIO"] as const;
@@ -65,8 +66,8 @@ const itemOrdenCompraSchema = z.object({
 export const ordenCompraSchema = z.object({
   proveedorId: z.string().min(1, "Selecciona un proveedor"),
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-  fechaEntrega: z.coerce.date().optional(),
-  condicionPago: z.string().max(100).optional().or(z.literal("")),
+  fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
+  condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
   lugarEntrega: z.string().max(150).optional().or(z.literal("")),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   moneda: z.enum(["PEN", "USD"]).default("PEN"),

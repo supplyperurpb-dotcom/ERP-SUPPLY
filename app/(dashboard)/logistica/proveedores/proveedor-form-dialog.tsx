@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TIPOS_PROVEEDOR } from "@/lib/validations/proveedor";
+import { CONDICIONES_PAGO } from "@/lib/constants/compras";
 import {
   crearProveedorAction,
   actualizarProveedorAction,
@@ -108,6 +109,25 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="condicionPago">Condición de pago</Label>
+            <Select name="condicionPago" defaultValue={proveedor?.condicionPago ?? CONDICIONES_PAGO[2]}>
+              <SelectTrigger id="condicionPago">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CONDICIONES_PAGO.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Se precarga al generar una Orden de Compra para este proveedor (se puede cambiar ahí sin afectar este valor).
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

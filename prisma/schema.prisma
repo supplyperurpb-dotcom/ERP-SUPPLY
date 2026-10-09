@@ -206,6 +206,12 @@ model Proveedor {
   telefono        String?
   email           String?
   contactoNombre  String?
+  // Condición de pago por defecto de este proveedor (p. ej. "CREDITO 30
+  // DIAS"), de una lista fija (ver CONDICIONES_PAGO en
+  // lib/constants/compras.ts). Al crear una Orden de Compra se precarga
+  // este valor, pero la OC guarda su propia copia (OrdenCompra.condicionPago)
+  // — si luego se cambia la del proveedor, las OC ya emitidas no se alteran.
+  condicionPago   String                 @default("CREDITO 30 DIAS")
   activo          Boolean                @default(true)
   creadoPorId     String?
   createdAt       DateTime               @default(now())

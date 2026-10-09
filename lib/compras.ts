@@ -34,6 +34,7 @@ export type SolicitudConPendientes = {
   fechaNecesidad: Date;
   tipoNecesidad: string;
   solicitanteId: string | null;
+  justificacion: string | null;
   items: ItemPendiente[];
 };
 
@@ -102,6 +103,7 @@ export async function calcularSolicitudesConPendientes(
       fechaNecesidad: solicitud.fechaNecesidad,
       tipoNecesidad: solicitud.tipoNecesidad,
       solicitanteId: solicitud.solicitanteId,
+      justificacion: solicitud.justificacion,
       items,
     });
   }

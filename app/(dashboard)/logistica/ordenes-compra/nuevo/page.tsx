@@ -40,6 +40,7 @@ export default async function NuevaOrdenCompraPage({
           id: p.id,
           razonSocial: p.razonSocial,
           ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
+          condicionPago: p.condicionPago,
         }))}
         centrosCosto={centrosCosto}
       />

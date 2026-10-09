@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
-import { IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { CONDICIONES_PAGO, IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
@@ -39,6 +39,7 @@ type ItemPlano = {
   solicitudId: string;
   solicitudNumero: string;
   solicitudArea: string;
+  solicitudJustificacion: string | null;
 };
 
 function filaVacia(item: ItemPlano): FilaSeleccion {
@@ -68,11 +69,11 @@ export function OrdenCompraForm({
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
   const [proveedorId, setProveedorId] = useState("");
+  const [proveedorSeleccionado, setProveedorSeleccionado] = useState<ProveedorOpcionSelect | null>(null);
   const [fecha, setFecha] = useState(fechaLocalHoy());
   const [fechaEntrega, setFechaEntrega] = useState("");
-  const [condicionPago, setCondicionPago] = useState("");
+  const [condicionPago, setCondicionPago] = useState<string>(CONDICIONES_PAGO[2]);
   const [lugarEntrega, setLugarEntrega] = useState("");
-  const [observaciones, setObservaciones] = useState("");
   const [moneda, setMoneda] = useState<"PEN" | "USD">("PEN");
   const [enviando, setEnviando] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -96,6 +97,7 @@ export function OrdenCompraForm({
           solicitudId: solicitud.id,
           solicitudNumero: solicitud.numero,
           solicitudArea: solicitud.area,
+          solicitudJustificacion: solicitud.justificacion,
         });
       }
     }
@@ -139,6 +141,23 @@ export function OrdenCompraForm({
 
   const itemsEnOrden = itemsPlanos.filter((item) => filas[item.id]);
 
+  // En vez de observaciones libres, la OC lleva las justificaciones de las
+  // solicitudes de las que se jaló algún ítem — una debajo de otra si son
+  // varias — para que quede trazado el motivo de la compra sin duplicar lo
+  // que ya se escribió en la Solped.
+  const justificaciones = useMemo(() => {
+    const vistos = new Set<string>();
+    const textos: string[] = [];
+    for (const item of itemsEnOrden) {
+      if (vistos.has(item.solicitudId)) continue;
+      vistos.add(item.solicitudId);
+      if (item.solicitudJustificacion?.trim()) {
+        textos.push(`${item.solicitudNumero}: ${item.solicitudJustificacion.trim()}`);
+      }
+    }
+    return textos.join("\n");
+  }, [itemsEnOrden]);
+
   const subtotalesPorFila = new Map<string, number>();
   for (const item of itemsEnOrden) {
     const fila = filas[item.id];
@@ -170,6 +189,10 @@ export function OrdenCompraForm({
       toast.error("Selecciona un proveedor");
       return;
     }
+    if (!fechaEntrega) {
+      toast.error("La fecha de entrega es obligatoria");
+      return;
+    }
     if (itemsEnOrden.length === 0) {
       toast.error("Agrega al menos un producto con el botón 'Agregar producto'");
       return;
@@ -192,10 +215,10 @@ export function OrdenCompraForm({
       const resultado = await crearOrdenCompraAction({
         proveedorId,
         fecha: new Date(fecha) as unknown as Date,
-        fechaEntrega: fechaEntrega ? (new Date(fechaEntrega) as unknown as Date) : undefined,
-        condicionPago,
+        fechaEntrega: new Date(fechaEntrega) as unknown as Date,
+        condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
         lugarEntrega,
-        observaciones,
+        observaciones: justificaciones,
         moneda,
         items: itemsEnOrden.map((item) => {
           const fila = filas[item.id];
@@ -239,15 +262,33 @@ export function OrdenCompraForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>Proveedor</Label>
-            <ProveedorSelectCombobox proveedores={proveedores} value={proveedorId} onSelect={(p) => setProveedorId(p?.id ?? "")} />
+            <ProveedorSelectCombobox
+              proveedores={proveedores}
+              value={proveedorId}
+              onSelect={(p) => {
+                setProveedorId(p?.id ?? "");
+                setProveedorSeleccionado(p);
+                setCondicionPago(p?.condicionPago ?? CONDICIONES_PAGO[2]);
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ruc">RUC</Label>
+            <Input id="ruc" disabled value={proveedorSeleccionado?.ruc || "—"} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de emisión</Label>
             <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="fechaEntrega">Fecha de entrega (opcional)</Label>
-            <Input id="fechaEntrega" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
+            <Label htmlFor="fechaEntrega">Fecha de entrega</Label>
+            <Input
+              id="fechaEntrega"
+              type="date"
+              required
+              value={fechaEntrega}
+              onChange={(e) => setFechaEntrega(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label>Moneda</Label>
@@ -266,13 +307,22 @@ export function OrdenCompraForm({
             <p className="text-xs text-muted-foreground">Toda la {nombreDocumento.toLowerCase()} se emite en una sola moneda.</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="condicionPago">Condición de pago (opcional)</Label>
-            <Input
-              id="condicionPago"
-              placeholder="Ej. Crédito 7 días, Contado"
-              value={condicionPago}
-              onChange={(e) => setCondicionPago(e.target.value)}
-            />
+            <Label htmlFor="condicionPago">Condición de pago</Label>
+            <Select value={condicionPago} onValueChange={setCondicionPago}>
+              <SelectTrigger id="condicionPago">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CONDICIONES_PAGO.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Se precarga del proveedor; cambiarla aquí no afecta su condición por defecto.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="lugarEntrega">Lugar de entrega (opcional)</Label>
@@ -284,8 +334,14 @@ export function OrdenCompraForm({
             />
           </div>
           <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
-            <Textarea id="observaciones" rows={2} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+            <Label htmlFor="observaciones">Justificación (de las solicitudes jaladas)</Label>
+            <Textarea
+              id="observaciones"
+              rows={3}
+              readOnly
+              className="cursor-not-allowed bg-muted"
+              value={justificaciones || "Agrega productos para ver aquí la justificación de sus solicitudes de origen."}
+            />
           </div>
         </CardContent>
       </Card>

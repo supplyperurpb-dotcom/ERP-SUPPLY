@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
-export type ProveedorOpcionSelect = { id: string; razonSocial: string; ruc?: string };
+export type ProveedorOpcionSelect = { id: string; razonSocial: string; ruc?: string; condicionPago?: string };
 
 const SIN_PROVEEDOR = "__sin_proveedor__";
 
