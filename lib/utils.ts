@@ -105,6 +105,14 @@ export function formatKg(value: number | string) {
   return `${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} kg`;
 }
 
+// Cantidad simple (no moneda) con comas de miles, p. ej. 20000 -> "20,000".
+// Hasta 3 decimales (igual que el Decimal(12,3) típico de cantidad en
+// Prisma), sin forzar decimales de más si el número es entero.
+export function formatCantidad(value: number | string) {
+  const n = typeof value === "string" ? Number(value) : value;
+  return n.toLocaleString("es-PE", { maximumFractionDigits: 3 });
+}
+
 export function formatMoneda(value: number | string, moneda: string = "PEN") {
   const n = typeof value === "string" ? Number(value) : value;
   return new Intl.NumberFormat("es-PE", { style: "currency", currency: moneda }).format(n);

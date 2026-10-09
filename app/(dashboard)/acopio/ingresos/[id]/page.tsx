@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatDateTime, formatKg } from "@/lib/utils";
+import { formatDate, formatDateTime, formatKg, formatCantidad } from "@/lib/utils";
 import type { EstadoDocumento, EstadoPallet } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -131,7 +131,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
                       <TableCell>{linea.tipoProducto}</TableCell>
                       <TableCell>{linea.tipoBandeja.nombre}</TableCell>
                       <TableCell>{linea.tipoPallet?.nombre ?? "—"}</TableCell>
-                      <TableCell>{linea.cantidadBandejas}</TableCell>
+                      <TableCell>{formatCantidad(linea.cantidadBandejas)}</TableCell>
                       <TableCell>{formatKg(Number(linea.pesoBrutoTotalKg))}</TableCell>
                       <TableCell>{formatKg(Number(linea.pesoTaraTotalKg))}</TableCell>
                       <TableCell className="font-medium">{formatKg(Number(linea.pesoNetoKg))}</TableCell>
@@ -162,7 +162,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
 
               <div className="mt-4 flex flex-wrap justify-end gap-6 border-t pt-4 text-sm">
                 <p>
-                  Total bandejas: <span className="font-medium">{totalBandejas}</span>
+                  Total bandejas: <span className="font-medium">{formatCantidad(totalBandejas)}</span>
                 </p>
                 <p>
                   Peso bruto: <span className="font-medium">{formatKg(totalBruto)}</span>

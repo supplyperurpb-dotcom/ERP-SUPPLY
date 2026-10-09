@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCantidad } from "@/lib/utils";
 import { eliminarSolicitudTrasladoAction } from "@/lib/actions/solicitud-traslado-actions";
 import type { EstadoSolicitudTraslado } from "../solicitudes-traslado-table";
 
@@ -141,13 +141,13 @@ export default async function SolicitudTrasladoDetallePage({ params }: { params:
                       <TableCell className="font-medium">{item.sku.codigo}</TableCell>
                       <TableCell>{item.sku.descripcion}</TableCell>
                       <TableCell className="text-right">
-                        {cantidad} {item.unidadMedida}
+                        {formatCantidad(cantidad)} {item.unidadMedida}
                       </TableCell>
                       <TableCell className="text-right">
-                        {movido} {item.unidadMedida}
+                        {formatCantidad(movido)} {item.unidadMedida}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {pendiente} {item.unidadMedida}
+                        {formatCantidad(pendiente)} {item.unidadMedida}
                       </TableCell>
                       <TableCell>
                         {traslados.length === 0 ? (

@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatCantidad } from "@/lib/utils";
 import type { TipoMovimientoStock } from "@prisma/client";
 
 const TIPO_LABEL: Record<TipoMovimientoStock, string> = {
@@ -62,7 +62,7 @@ export default async function InventarioPage() {
                   <Badge variant={TIPO_VARIANT[movimiento.tipo]}>{TIPO_LABEL[movimiento.tipo]}</Badge>
                 </TableCell>
                 <TableCell>
-                  {movimiento.cantidad.toString()} {movimiento.unidadMedida}
+                  {formatCantidad(movimiento.cantidad.toString())} {movimiento.unidadMedida}
                 </TableCell>
                 <TableCell>{movimiento.almacenOrigen?.nombre ?? "—"}</TableCell>
                 <TableCell>{movimiento.almacenDestino?.nombre ?? "—"}</TableCell>

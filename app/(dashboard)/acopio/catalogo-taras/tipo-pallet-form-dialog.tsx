@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   crearTipoPalletAction,
@@ -24,6 +25,7 @@ import {
 
 export function TipoPalletFormDialog({ tipoPallet }: { tipoPallet?: TipoPallet }) {
   const [open, setOpen] = useState(false);
+  const [pesoTaraKg, setPesoTaraKg] = useState(tipoPallet?.pesoTaraKg.toString() ?? "");
   const esEdicion = !!tipoPallet;
   const action = esEdicion ? actualizarTipoPalletAction.bind(null, tipoPallet.id) : crearTipoPalletAction;
   const [state, formAction] = useFormState<TaraActionState, FormData>(action, undefined);
@@ -69,15 +71,7 @@ export function TipoPalletFormDialog({ tipoPallet }: { tipoPallet?: TipoPallet }
 
           <div className="space-y-2">
             <Label htmlFor="pesoTaraKg">Peso tara (kg)</Label>
-            <Input
-              id="pesoTaraKg"
-              name="pesoTaraKg"
-              type="number"
-              step="0.001"
-              min={0}
-              defaultValue={tipoPallet?.pesoTaraKg.toString()}
-              required
-            />
+            <NumberInput id="pesoTaraKg" name="pesoTaraKg" value={pesoTaraKg} onChange={setPesoTaraKg} required />
           </div>
 
           <input type="hidden" name="activo" value={(tipoPallet?.activo ?? true) ? "true" : "false"} />

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResumenSolpedDialog, type ResumenSolped } from "@/components/shared/resumen-solped-dialog";
+import { formatCantidad } from "@/lib/utils";
 
 export type ItemSeguimientoOrden = {
   id: string;
@@ -104,7 +105,7 @@ export function SeguimientoOrdenDialog({
                     <TableCell className="max-w-xs whitespace-pre-wrap">{item.descripcionServicio || "—"}</TableCell>
                   )}
                   <TableCell>{item.unidadMedida}</TableCell>
-                  <TableCell className="text-right">{item.cantidad}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(item.cantidad)}</TableCell>
                   <TableCell>
                     {item.solicitud ? (
                       <button
@@ -119,7 +120,7 @@ export function SeguimientoOrdenDialog({
                     )}
                   </TableCell>
                   <TableCell>{item.guiasRemision.length > 0 ? item.guiasRemision.join(", ") : "—"}</TableCell>
-                  <TableCell className="text-right">{item.cantidadRecibida}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(item.cantidadRecibida)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

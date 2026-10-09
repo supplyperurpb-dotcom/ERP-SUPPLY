@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCantidad } from "@/lib/utils";
 
 export default async function GuiasRemisionPage() {
   const guias = await prisma.guiaRemision.findMany({
@@ -54,7 +54,7 @@ export default async function GuiasRemisionPage() {
                 <TableCell>{guia.tipoGuia === "REMITENTE" ? "Remitente" : "Transportista"}</TableCell>
                 <TableCell>{guia.ingresoFruta.proveedor.razonSocial}</TableCell>
                 <TableCell>{formatDate(guia.fechaTraslado)}</TableCell>
-                <TableCell>{guia.pesoBrutoTotalKg.toString()} kg</TableCell>
+                <TableCell>{formatCantidad(Number(guia.pesoBrutoTotalKg))} kg</TableCell>
                 <TableCell>
                   <Badge variant={guia.estado === "EMITIDA" ? "success" : "secondary"}>
                     {guia.estado === "EMITIDA" ? "Emitida" : "Anulada"}

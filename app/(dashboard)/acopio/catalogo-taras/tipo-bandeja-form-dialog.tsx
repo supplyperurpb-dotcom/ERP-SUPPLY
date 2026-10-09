@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   crearTipoBandejaAction,
@@ -24,6 +25,7 @@ import {
 
 export function TipoBandejaFormDialog({ tipoBandeja }: { tipoBandeja?: TipoBandeja }) {
   const [open, setOpen] = useState(false);
+  const [pesoTaraKg, setPesoTaraKg] = useState(tipoBandeja?.pesoTaraKg.toString() ?? "");
   const esEdicion = !!tipoBandeja;
   const action = esEdicion ? actualizarTipoBandejaAction.bind(null, tipoBandeja.id) : crearTipoBandejaAction;
   const [state, formAction] = useFormState<TaraActionState, FormData>(action, undefined);
@@ -69,15 +71,7 @@ export function TipoBandejaFormDialog({ tipoBandeja }: { tipoBandeja?: TipoBande
 
           <div className="space-y-2">
             <Label htmlFor="pesoTaraKg">Peso tara (kg)</Label>
-            <Input
-              id="pesoTaraKg"
-              name="pesoTaraKg"
-              type="number"
-              step="0.001"
-              min={0}
-              defaultValue={tipoBandeja?.pesoTaraKg.toString()}
-              required
-            />
+            <NumberInput id="pesoTaraKg" name="pesoTaraKg" value={pesoTaraKg} onChange={setPesoTaraKg} required />
           </div>
 
           <input type="hidden" name="activo" value={(tipoBandeja?.activo ?? true) ? "true" : "false"} />

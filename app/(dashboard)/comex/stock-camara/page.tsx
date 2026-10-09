@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
+import { formatCantidad } from "@/lib/utils";
 
 export default async function StockCamaraPage() {
   const stock = await prisma.stockCamara.findMany({
@@ -43,7 +44,7 @@ export default async function StockCamaraPage() {
                 <TableCell>{item.almacen.nombre}</TableCell>
                 <TableCell>{item.cliente?.razonSocial ?? "—"}</TableCell>
                 <TableCell>
-                  {item.cantidadDisponible.toString()} {item.unidadMedida}
+                  {formatCantidad(item.cantidadDisponible.toString())} {item.unidadMedida}
                 </TableCell>
               </TableRow>
             ))}

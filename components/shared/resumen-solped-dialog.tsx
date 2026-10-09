@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatCantidad } from "@/lib/utils";
 
 export type ResumenSolpedItem = {
   codigo: string;
@@ -73,7 +74,7 @@ export function ResumenSolpedDialog({ resumen, onClose }: { resumen: ResumenSolp
                       {resumen.esServicio && (
                         <TableCell className="max-w-xs whitespace-pre-wrap">{item.descripcionServicio || "—"}</TableCell>
                       )}
-                      <TableCell className="text-right">{item.cantidad}</TableCell>
+                      <TableCell className="text-right">{formatCantidad(item.cantidad)}</TableCell>
                       <TableCell>{item.unidadMedida}</TableCell>
                     </TableRow>
                   ))}

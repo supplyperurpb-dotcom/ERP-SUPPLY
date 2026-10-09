@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatKg } from "@/lib/utils";
+import { formatDate, formatKg, formatCantidad } from "@/lib/utils";
 import type { Prisma } from "@prisma/client";
 
 export default async function DespachoIQFPage({
@@ -110,7 +110,7 @@ export default async function DespachoIQFPage({
                       {d.horaDespacho ? ` ${d.horaDespacho}` : ""}
                     </TableCell>
                     <TableCell>{d.tarjas.length}</TableCell>
-                    <TableCell>{totalBandejas}</TableCell>
+                    <TableCell>{formatCantidad(totalBandejas)}</TableCell>
                     <TableCell>{formatKg(totalNeto)}</TableCell>
                   </TableRow>
                 );

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { eliminarTipoPalletAction } from "@/lib/actions/tara-actions";
+import { formatKg } from "@/lib/utils";
 import { TipoPalletFormDialog } from "./tipo-pallet-form-dialog";
 
 export function TipoPalletTable({ tiposPallet }: { tiposPallet: TipoPallet[] }) {
@@ -35,7 +36,7 @@ export function TipoPalletTable({ tiposPallet }: { tiposPallet: TipoPallet[] }) 
         {tiposPallet.map((tipoPallet) => (
           <TableRow key={tipoPallet.id}>
             <TableCell className="font-medium">{tipoPallet.nombre}</TableCell>
-            <TableCell>{tipoPallet.pesoTaraKg.toString()}</TableCell>
+            <TableCell>{formatKg(Number(tipoPallet.pesoTaraKg))}</TableCell>
             <TableCell>
               <Badge variant={tipoPallet.activo ? "success" : "secondary"}>
                 {tipoPallet.activo ? "Activo" : "Inactivo"}

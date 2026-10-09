@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
 import { prisma } from "@/lib/db/prisma";
-import { formatKg, rangoFechaCosecha } from "@/lib/utils";
+import { formatKg, formatCantidad, rangoFechaCosecha } from "@/lib/utils";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import type { Prisma } from "@prisma/client";
 import { TarjaBoton } from "./tarja-boton";
@@ -167,7 +167,7 @@ export default async function TarjasPage({
                       {detalle || "—"}
                     </TableCell>
                     <TableCell>
-                      {pallet.cantidadBandejas} / {CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET}
+                      {formatCantidad(pallet.cantidadBandejas)} / {CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET}
                     </TableCell>
                     <TableCell>{formatKg(Number(pallet.pesoNetoKg))}</TableCell>
                     <TableCell>

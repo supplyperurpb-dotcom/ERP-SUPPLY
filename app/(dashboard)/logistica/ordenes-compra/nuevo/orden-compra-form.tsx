@@ -567,7 +567,7 @@ export function OrdenCompraForm({
                       <TableCell>{item.solicitudNumero}</TableCell>
                       <TableCell>{item.centroCosto}</TableCell>
                       <TableCell className="text-right">
-                        {item.cantidadPendiente} {item.unidadMedida}
+                        {item.cantidadPendiente.toLocaleString("es-PE")} {item.unidadMedida}
                       </TableCell>
                     </TableRow>
                   ))

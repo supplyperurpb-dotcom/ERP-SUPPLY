@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatKg, rangoFechaIngreso } from "@/lib/utils";
+import { formatDate, formatKg, formatCantidad, rangoFechaIngreso } from "@/lib/utils";
 import type { EstadoDocumento, Prisma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -147,7 +147,7 @@ export default async function IngresoIQFPage({
                     </TableCell>
                     <TableCell>{formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" })}</TableCell>
                     <TableCell>{ingreso._count.pallets}</TableCell>
-                    <TableCell>{totalBandejas}</TableCell>
+                    <TableCell>{formatCantidad(totalBandejas)}</TableCell>
                     <TableCell>{formatKg(pesoNetoTotal)}</TableCell>
                     <TableCell>
                       <Badge variant={ESTADO_VARIANT[ingreso.estado]}>{ESTADO_LABEL[ingreso.estado]}</Badge>

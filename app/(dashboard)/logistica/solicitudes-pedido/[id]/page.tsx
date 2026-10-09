@@ -10,7 +10,7 @@ import { AprobarRechazarBotones, AnularSolicitudBoton } from "../aprobar-rechaza
 import { SeguimientoPedidoDialog, type ItemSeguimientoPedido } from "./seguimiento-pedido-dialog";
 import type { ResumenOrden } from "@/components/shared/resumen-orden-dialog";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCantidad } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
@@ -286,13 +286,13 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                         <TableCell className="max-w-xs whitespace-pre-wrap">{item.descripcion || "—"}</TableCell>
                       )}
                       <TableCell className="text-right">
-                        {cantidad} {item.unidadMedida}
+                        {formatCantidad(cantidad)} {item.unidadMedida}
                       </TableCell>
                       <TableCell className="text-right">
-                        {jalado} {item.unidadMedida}
+                        {formatCantidad(jalado)} {item.unidadMedida}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {pendiente} {item.unidadMedida}
+                        {formatCantidad(pendiente)} {item.unidadMedida}
                       </TableCell>
                       <TableCell>{nombreArea(item.centroCosto)}</TableCell>
                       <TableCell>{item.campo || "—"}</TableCell>

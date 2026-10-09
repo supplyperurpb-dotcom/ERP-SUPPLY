@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatCantidad } from "@/lib/utils";
 
 export type ResumenOrdenItem = {
   codigo: string;
@@ -75,7 +76,7 @@ export function ResumenOrdenDialog({ resumen, onClose }: { resumen: ResumenOrden
                         <TableCell className="max-w-xs whitespace-pre-wrap">{item.descripcionServicio || "—"}</TableCell>
                       )}
                       <TableCell className="text-right">
-                        {item.cantidad} {item.unidadMedida}
+                        {formatCantidad(item.cantidad)} {item.unidadMedida}
                       </TableCell>
                       <TableCell className="text-right">{item.subtotal.toFixed(2)}</TableCell>
                     </TableRow>

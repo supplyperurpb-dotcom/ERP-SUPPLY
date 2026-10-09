@@ -8,13 +8,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { ProveedorRemitenteCombobox, type ProveedorOpcionRemitente } from "@/components/shared/proveedor-remitente-combobox";
-import { fechaLocalHoy, formatMoneda, prorratear } from "@/lib/utils";
+import { fechaLocalHoy, formatMoneda, formatCantidad, prorratear } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD, convertirAUsd } from "@/lib/constants/moneda";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import { crearTrasladoAlmacenAction, actualizarTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
@@ -262,7 +263,17 @@ export function TrasladoAlmacenForm({
 
           <div className="space-y-2">
             <Label htmlFor="flete">Precio del flete (opcional)</Label>
-            <Input id="flete" type="number" min={0} step="0.01" {...form.register("flete")} />
+            <Controller
+              control={form.control}
+              name="flete"
+              render={({ field: fleteField }) => (
+                <NumberInput
+                  id="flete"
+                  value={String(fleteField.value ?? "")}
+                  onChange={fleteField.onChange}
+                />
+              )}
+            />
             {form.formState.errors.flete && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.flete.message}</p>
             )}
@@ -345,12 +356,16 @@ export function TrasladoAlmacenForm({
                           )}
                         </TableCell>
                         <TableCell className="align-top">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.001"
-                            className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
-                            {...form.register(`items.${index}.cantidad`)}
+                          <Controller
+                            control={form.control}
+                            name={`items.${index}.cantidad`}
+                            render={({ field: cantidadField }) => (
+                              <NumberInput
+                                value={String(cantidadField.value ?? "")}
+                                onChange={cantidadField.onChange}
+                                className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
+                              />
+                            )}
                           />
                           {form.formState.errors.items?.[index]?.cantidad && (
                             <p className="mt-1 text-xs font-medium text-destructive">
@@ -359,14 +374,14 @@ export function TrasladoAlmacenForm({
                           )}
                           {excede && (
                             <p className="mt-1 text-xs font-medium text-destructive">
-                              La cantidad excede el stock disponible ({disponible}).
+                              La cantidad excede el stock disponible ({formatCantidad(disponible)}).
                             </p>
                           )}
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm text-muted-foreground">
                           {items[index]?.unidadMedida || "—"}
                         </TableCell>
-                        <TableCell className="align-top pt-4 text-sm">{skuId ? disponible : "—"}</TableCell>
+                        <TableCell className="align-top pt-4 text-sm">{skuId ? formatCantidad(disponible) : "—"}</TableCell>
                         <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
                           {formatMoneda(fletePorItem[index] ?? 0, moneda)}
                         </TableCell>

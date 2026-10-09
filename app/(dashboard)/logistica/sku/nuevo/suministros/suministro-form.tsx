@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SUBFAMILIAS_SUMINISTROS } from "@/lib/constants/sku";
@@ -157,7 +158,13 @@ export function SuministroForm() {
 
           <div className="space-y-2">
             <Label htmlFor="stockMinimo">Stock mínimo (opcional)</Label>
-            <Input id="stockMinimo" type="number" min={0} step="0.001" {...form.register("stockMinimo")} />
+            <Controller
+              control={form.control}
+              name="stockMinimo"
+              render={({ field }) => (
+                <NumberInput id="stockMinimo" value={String(field.value ?? "")} onChange={field.onChange} />
+              )}
+            />
           </div>
 
           <div className="flex items-center gap-2 sm:col-span-2">

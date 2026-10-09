@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UNIDADES_MEDIDA, CATEGORIAS_SKU, SUBFAMILIAS_SKU } from "@/lib/validations/sku";
@@ -25,6 +26,7 @@ import { actualizarSkuAction, type SkuActionState } from "@/lib/actions/sku-acti
 // su propia regla de generación de código.
 export function SkuFormDialog({ sku }: { sku: Sku }) {
   const [open, setOpen] = useState(false);
+  const [stockMinimo, setStockMinimo] = useState(sku.stockMinimo?.toString() ?? "");
   const action = actualizarSkuAction.bind(null, sku.id);
   const [state, formAction] = useFormState<SkuActionState, FormData>(action, undefined);
 
@@ -105,14 +107,7 @@ export function SkuFormDialog({ sku }: { sku: Sku }) {
 
           <div className="space-y-2">
             <Label htmlFor="stockMinimo">Stock mínimo (opcional)</Label>
-            <Input
-              id="stockMinimo"
-              name="stockMinimo"
-              type="number"
-              step="0.001"
-              min={0}
-              defaultValue={sku.stockMinimo?.toString()}
-            />
+            <NumberInput id="stockMinimo" name="stockMinimo" value={stockMinimo} onChange={setStockMinimo} />
           </div>
 
           <input type="hidden" name="activo" value={sku.activo ? "true" : "false"} />

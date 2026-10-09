@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResumenOrdenDialog, type ResumenOrden } from "@/components/shared/resumen-orden-dialog";
+import { formatCantidad } from "@/lib/utils";
 
 export type ItemSeguimientoPedido = {
   id: string;
@@ -106,8 +107,8 @@ export function SeguimientoPedidoDialog({
                     <TableCell className="max-w-xs whitespace-pre-wrap">{item.descripcionServicio || "—"}</TableCell>
                   )}
                   <TableCell>{item.unidadMedida}</TableCell>
-                  <TableCell className="text-right">{item.cantidad}</TableCell>
-                  <TableCell className="text-right">{item.cantidadConOc}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(item.cantidad)}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(item.cantidadConOc)}</TableCell>
                   <TableCell>
                     {item.ordenes.length === 0 ? (
                       <span className="text-muted-foreground">—</span>
@@ -127,7 +128,7 @@ export function SeguimientoPedidoDialog({
                     )}
                   </TableCell>
                   <TableCell>{item.guiasRemision.length > 0 ? item.guiasRemision.join(", ") : "—"}</TableCell>
-                  <TableCell className="text-right">{item.cantidadRecibida}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(item.cantidadRecibida)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

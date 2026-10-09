@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { FirmaCanvas } from "@/components/shared/firma-canvas";
 import { RetiradorAutorizadoCombobox } from "@/components/shared/retirador-autorizado-combobox";
-import { fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
+import { fechaLocalHoy, horaLocalAhora, formatCantidad } from "@/lib/utils";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 import {
   crearConsumoAlmacenAction,
@@ -405,12 +406,16 @@ export function ConsumoAlmacenForm({
                           )}
                         </TableCell>
                         <TableCell className="align-top">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.001"
-                            className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
-                            {...form.register(`items.${index}.cantidad`)}
+                          <Controller
+                            control={form.control}
+                            name={`items.${index}.cantidad`}
+                            render={({ field: cantidadField }) => (
+                              <NumberInput
+                                value={String(cantidadField.value ?? "")}
+                                onChange={cantidadField.onChange}
+                                className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
+                              />
+                            )}
                           />
                           {form.formState.errors.items?.[index]?.cantidad && (
                             <p className="mt-1 text-xs font-medium text-destructive">
@@ -419,14 +424,14 @@ export function ConsumoAlmacenForm({
                           )}
                           {excede && (
                             <p className="mt-1 text-xs font-medium text-destructive">
-                              La cantidad excede el stock disponible ({disponible}).
+                              La cantidad excede el stock disponible ({formatCantidad(disponible)}).
                             </p>
                           )}
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm text-muted-foreground">
                           {items[index]?.unidadMedida || "—"}
                         </TableCell>
-                        <TableCell className="align-top pt-4 text-sm">{skuId ? disponible : "—"}</TableCell>
+                        <TableCell className="align-top pt-4 text-sm">{skuId ? formatCantidad(disponible) : "—"}</TableCell>
                         {muestraLote && (
                           <>
                             <TableCell className="align-top">
@@ -459,7 +464,7 @@ export function ConsumoAlmacenForm({
                                       ) : (
                                         lotesSku.map((l) => (
                                           <SelectItem key={l.lote} value={l.lote}>
-                                            {l.lote} — {l.cantidad} {l.unidadMedida}
+                                            {l.lote} — {formatCantidad(l.cantidad)} {l.unidadMedida}
                                           </SelectItem>
                                         ))
                                       )}

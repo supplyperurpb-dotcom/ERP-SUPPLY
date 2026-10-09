@@ -7,13 +7,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, Trash2 } from "lucide-react";
-import { fechaLocalHoy } from "@/lib/utils";
+import { fechaLocalHoy, formatCantidad } from "@/lib/utils";
 import { crearSolicitudTrasladoAction } from "@/lib/actions/solicitud-traslado-actions";
 import type { SolicitudTrasladoInput } from "@/lib/validations/solicitud-traslado";
 import type { FilaStockAlmacen } from "@/lib/stock-almacen";
@@ -177,7 +178,7 @@ export function SolicitudTrasladoBuilder({
                 <TableRow key={i.skuId}>
                   <TableCell className="font-medium">{i.codigo}</TableCell>
                   <TableCell>{i.descripcion}</TableCell>
-                  <TableCell className="text-right">{i.cantidad}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(i.cantidad)}</TableCell>
                   <TableCell>{i.unidadMedida}</TableCell>
                 </TableRow>
               ))}
@@ -288,8 +289,10 @@ export function SolicitudTrasladoBuilder({
                             <TableCell className="font-medium">{fila.codigo}</TableCell>
                             <TableCell>{fila.descripcion}</TableCell>
                             <TableCell>{fila.unidadMedida}</TableCell>
-                            <TableCell className="text-right">{fila.cantidad}</TableCell>
-                            <TableCell className="text-right">{cantidadYaAgregada(fila.skuId) || "—"}</TableCell>
+                            <TableCell className="text-right">{formatCantidad(fila.cantidad)}</TableCell>
+                            <TableCell className="text-right">
+                              {cantidadYaAgregada(fila.skuId) ? formatCantidad(cantidadYaAgregada(fila.skuId)) : "—"}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -323,7 +326,7 @@ export function SolicitudTrasladoBuilder({
                   <TableRow key={i.skuId}>
                     <TableCell className="font-medium">{i.codigo}</TableCell>
                     <TableCell>{i.descripcion}</TableCell>
-                    <TableCell className="text-right">{i.cantidad}</TableCell>
+                    <TableCell className="text-right">{formatCantidad(i.cantidad)}</TableCell>
                     <TableCell>{i.unidadMedida}</TableCell>
                     <TableCell>
                       <Button type="button" variant="ghost" size="icon" onClick={() => quitarItem(i.skuId)}>
@@ -355,20 +358,11 @@ export function SolicitudTrasladoBuilder({
           {filaDialogo && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                {filaDialogo.codigo} — {filaDialogo.descripcion} (disponible: {filaDialogo.cantidad} {filaDialogo.unidadMedida})
+                {filaDialogo.codigo} — {filaDialogo.descripcion} (disponible: {formatCantidad(filaDialogo.cantidad)} {filaDialogo.unidadMedida})
               </p>
               <div className="space-y-2">
                 <Label htmlFor="cantidadDialogo">Cantidad a trasladar</Label>
-                <Input
-                  id="cantidadDialogo"
-                  type="number"
-                  min={0}
-                  max={filaDialogo.cantidad}
-                  step="0.001"
-                  value={cantidadDialogo}
-                  onChange={(e) => setCantidadDialogo(e.target.value)}
-                  autoFocus
-                />
+                <NumberInput id="cantidadDialogo" value={cantidadDialogo} onChange={setCantidadDialogo} autoFocus />
               </div>
             </div>
           )}

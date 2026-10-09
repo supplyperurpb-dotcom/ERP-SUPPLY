@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PackageX } from "lucide-react";
-import { fechaLocalHoy, horaLocalAhora, formatKg } from "@/lib/utils";
+import { fechaLocalHoy, horaLocalAhora, formatKg, formatCantidad } from "@/lib/utils";
 import { despachoSchema, type DespachoInput } from "@/lib/validations/despacho";
 import { crearDespachoIQFAction } from "@/lib/actions/despacho-iqf-actions";
 
@@ -149,7 +149,7 @@ export function DespachoIQFForm({ tarjasDisponibles }: { tarjasDisponibles: Tarj
                       </TableCell>
                       <TableCell className="font-medium">{t.numero}</TableCell>
                       <TableCell>{t.palletNumero}</TableCell>
-                      <TableCell>{t.cantidadBandejas}</TableCell>
+                      <TableCell>{formatCantidad(t.cantidadBandejas)}</TableCell>
                       <TableCell>{formatKg(t.pesoNetoKg)}</TableCell>
                     </TableRow>
                   ))}
@@ -161,7 +161,7 @@ export function DespachoIQFForm({ tarjasDisponibles }: { tarjasDisponibles: Tarj
                   Tarjas seleccionadas: <span className="font-medium">{seleccionadas.length}</span>
                 </p>
                 <p>
-                  Total de bandejas: <span className="font-medium">{totales.bandejas}</span>
+                  Total de bandejas: <span className="font-medium">{formatCantidad(totales.bandejas)}</span>
                 </p>
                 <p className="text-base">
                   Peso neto total: <span className="font-semibold text-primary">{formatKg(totales.neto)}</span>

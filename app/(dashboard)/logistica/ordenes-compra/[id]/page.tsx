@@ -10,7 +10,7 @@ import { AnularOrdenBoton, FirmarOrdenBotones } from "../aprobar-rechazar-botone
 import { SeguimientoOrdenDialog, type ItemSeguimientoOrden } from "./seguimiento-orden-dialog";
 import type { ResumenSolped } from "@/components/shared/resumen-solped-dialog";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMoneda, formatCantidad } from "@/lib/utils";
 import {
   AREAS_EMPRESA,
   CATEGORIAS_COMPRA,
@@ -356,7 +356,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                     </TableCell>
                     <TableCell>{nombreArea(item.centroCosto)}</TableCell>
                     <TableCell className="text-right">
-                      {Number(item.cantidad)} {item.sku.unidadMedida}
+                      {formatCantidad(Number(item.cantidad))} {item.sku.unidadMedida}
                     </TableCell>
                     <TableCell className="text-right">{formatMoneda(item.precioUnitario.toString(), orden.moneda)}</TableCell>
                     <TableCell>{item.gravado ? "Sí" : "No"}</TableCell>

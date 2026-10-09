@@ -17,11 +17,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatKg, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
+import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
@@ -633,7 +634,11 @@ export function IngresoFrutaForm({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Cant. bandejas</Label>
-                    <Input type="number" min={1} step="1" {...form.register(`pallets.${index}.cantidadBandejas`)} />
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.cantidadBandejas`}
+                      render={({ field }) => <NumberInput value={String(field.value ?? "")} onChange={field.onChange} />}
+                    />
                     {form.formState.errors.pallets?.[index]?.cantidadBandejas && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.cantidadBandejas?.message}
@@ -642,11 +647,10 @@ export function IngresoFrutaForm({
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Peso bruto (kg)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.001"
-                      {...form.register(`pallets.${index}.pesoBrutoTotalKg`)}
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.pesoBrutoTotalKg`}
+                      render={({ field }) => <NumberInput value={String(field.value ?? "")} onChange={field.onChange} />}
                     />
                     {form.formState.errors.pallets?.[index]?.pesoBrutoTotalKg && (
                       <p className="text-xs font-medium text-destructive">
@@ -721,7 +725,7 @@ export function IngresoFrutaForm({
 
           <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
             <p>
-              Total de bandejas: <span className="font-medium">{totales.cantidadBandejas}</span>
+              Total de bandejas: <span className="font-medium">{formatCantidad(totales.cantidadBandejas)}</span>
             </p>
             <p>
               Peso bruto total: <span className="font-medium">{formatKg(totales.pesoBruto)}</span>

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +15,7 @@ import {
   OrdenCompraPendienteCombobox,
   type OrdenCompraPendienteOpcion,
 } from "@/components/shared/orden-compra-pendiente-combobox";
-import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
+import { fechaLocalHoy, formatMoneda, formatCantidad } from "@/lib/utils";
 import { convertirAUsd, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
 import { crearIngresoAlmacenAction, subirGuiaRemisionIngresoAction } from "@/lib/actions/ingreso-almacen-actions";
 import type { IngresoAlmacenInput } from "@/lib/validations/almacen";
@@ -225,7 +226,7 @@ export function IngresoAlmacenWizard({
                 <TableRow key={f.id}>
                   <TableCell className="font-medium">{f.codigo}</TableCell>
                   <TableCell>{f.descripcion}</TableCell>
-                  <TableCell className="text-right">{f.cantidad}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(f.cantidad)}</TableCell>
                   <TableCell>{f.unidadMedida}</TableCell>
                 </TableRow>
               ))}
@@ -280,7 +281,7 @@ export function IngresoAlmacenWizard({
             </div>
             <div className="space-y-2">
               <Label htmlFor="flete">Precio del flete (opcional)</Label>
-              <Input id="flete" type="number" min={0} step="0.01" value={flete} onChange={(e) => setFlete(e.target.value)} />
+              <NumberInput id="flete" value={flete} onChange={setFlete} />
             </div>
             <div className="space-y-2">
               <Label>Usuario que hizo el ingreso</Label>
@@ -345,17 +346,10 @@ export function IngresoAlmacenWizard({
                       <TableCell className="align-top">{f.descripcion}</TableCell>
                       <TableCell className="align-top">{f.unidadMedida}</TableCell>
                       <TableCell className="text-right align-top pt-4">{formatMoneda(f.precioUnitario, moneda)}</TableCell>
-                      <TableCell className="text-right align-top pt-4">{f.cantidadOc}</TableCell>
-                      <TableCell className="text-right align-top pt-4">{f.cantidadPendiente}</TableCell>
+                      <TableCell className="text-right align-top pt-4">{formatCantidad(f.cantidadOc)}</TableCell>
+                      <TableCell className="text-right align-top pt-4">{formatCantidad(f.cantidadPendiente)}</TableCell>
                       <TableCell className="align-top">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={f.cantidadPendiente}
-                          step="0.001"
-                          value={f.cantidad}
-                          onChange={(e) => actualizarFila(f.id, { cantidad: e.target.value })}
-                        />
+                        <NumberInput value={f.cantidad} onChange={(v) => actualizarFila(f.id, { cantidad: v })} />
                       </TableCell>
                       {muestraLoteFecha && (
                         <>
@@ -485,8 +479,8 @@ export function IngresoAlmacenWizard({
                       <TableCell>{item.descripcion}</TableCell>
                       <TableCell>{item.unidadMedida}</TableCell>
                       <TableCell className="text-right">{formatMoneda(item.precioUnitario, moneda)}</TableCell>
-                      <TableCell className="text-right">{item.cantidadOc}</TableCell>
-                      <TableCell className="text-right">{item.cantidadPendiente}</TableCell>
+                      <TableCell className="text-right">{formatCantidad(item.cantidadOc)}</TableCell>
+                      <TableCell className="text-right">{formatCantidad(item.cantidadPendiente)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

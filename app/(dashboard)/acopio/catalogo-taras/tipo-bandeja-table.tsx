@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { eliminarTipoBandejaAction } from "@/lib/actions/tara-actions";
+import { formatKg } from "@/lib/utils";
 import { TipoBandejaFormDialog } from "./tipo-bandeja-form-dialog";
 
 export function TipoBandejaTable({ tiposBandeja }: { tiposBandeja: TipoBandeja[] }) {
@@ -35,7 +36,7 @@ export function TipoBandejaTable({ tiposBandeja }: { tiposBandeja: TipoBandeja[]
         {tiposBandeja.map((tipoBandeja) => (
           <TableRow key={tipoBandeja.id}>
             <TableCell className="font-medium">{tipoBandeja.nombre}</TableCell>
-            <TableCell>{tipoBandeja.pesoTaraKg.toString()}</TableCell>
+            <TableCell>{formatKg(Number(tipoBandeja.pesoTaraKg))}</TableCell>
             <TableCell>
               <Badge variant={tipoBandeja.activo ? "success" : "secondary"}>
                 {tipoBandeja.activo ? "Activo" : "Inactivo"}

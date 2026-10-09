@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -262,7 +263,13 @@ export function SolicitudPedidoForm({
                         </TableCell>
                       )}
                       <TableCell className="align-top">
-                        <Input type="number" min={0} step="0.001" {...form.register(`items.${index}.cantidad`)} />
+                        <Controller
+                          control={form.control}
+                          name={`items.${index}.cantidad`}
+                          render={({ field: cantidadField }) => (
+                            <NumberInput value={String(cantidadField.value ?? "")} onChange={cantidadField.onChange} />
+                          )}
+                        />
                         {form.formState.errors.items?.[index]?.cantidad && (
                           <p className="mt-1 text-xs font-medium text-destructive">
                             {form.formState.errors.items[index]?.cantidad?.message}

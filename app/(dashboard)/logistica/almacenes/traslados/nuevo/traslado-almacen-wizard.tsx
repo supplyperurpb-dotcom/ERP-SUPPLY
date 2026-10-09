@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +15,7 @@ import {
   SolicitudTrasladoPendienteCombobox,
   type SolicitudTrasladoPendienteOpcion,
 } from "@/components/shared/solicitud-traslado-pendiente-combobox";
-import { fechaLocalHoy } from "@/lib/utils";
+import { fechaLocalHoy, formatCantidad } from "@/lib/utils";
 import { crearTrasladoDesdeSolicitudAction } from "@/lib/actions/traslado-almacen-actions";
 import type { TrasladoDesdeSolicitudInput } from "@/lib/validations/almacen";
 import type { SolicitudTrasladoConPendientes, ItemSolicitudTrasladoPendiente, LoteStock } from "@/lib/stock-almacen";
@@ -175,7 +176,7 @@ export function TrasladoAlmacenWizard({
                 <TableRow key={f.id}>
                   <TableCell className="font-medium">{f.codigo}</TableCell>
                   <TableCell>{f.descripcion}</TableCell>
-                  <TableCell className="text-right">{f.cantidad}</TableCell>
+                  <TableCell className="text-right">{formatCantidad(f.cantidad)}</TableCell>
                   <TableCell>{f.unidadMedida}</TableCell>
                 </TableRow>
               ))}
@@ -237,7 +238,7 @@ export function TrasladoAlmacenWizard({
             </div>
             <div className="space-y-2">
               <Label htmlFor="flete">Precio del flete (opcional)</Label>
-              <Input id="flete" type="number" min={0} step="0.01" value={flete} onChange={(e) => setFlete(e.target.value)} />
+              <NumberInput id="flete" value={flete} onChange={setFlete} />
             </div>
             <div className="space-y-2 sm:col-span-2 lg:col-span-4">
               <Label htmlFor="observaciones">Observaciones (opcional)</Label>
@@ -281,17 +282,10 @@ export function TrasladoAlmacenWizard({
                         <TableCell className="font-medium align-top">{f.codigo}</TableCell>
                         <TableCell className="align-top">{f.descripcion}</TableCell>
                         <TableCell className="align-top">{f.unidadMedida}</TableCell>
-                        <TableCell className="text-right align-top pt-4">{f.cantidadSolicitada}</TableCell>
-                        <TableCell className="text-right align-top pt-4">{f.cantidadPendiente}</TableCell>
+                        <TableCell className="text-right align-top pt-4">{formatCantidad(f.cantidadSolicitada)}</TableCell>
+                        <TableCell className="text-right align-top pt-4">{formatCantidad(f.cantidadPendiente)}</TableCell>
                         <TableCell className="align-top">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={stockDisponibleEfectivo(f)}
-                            step="0.001"
-                            value={f.cantidad}
-                            onChange={(e) => actualizarFila(f.id, { cantidad: e.target.value })}
-                          />
+                          <NumberInput value={f.cantidad} onChange={(v) => actualizarFila(f.id, { cantidad: v })} />
                         </TableCell>
                         {muestraLote && (
                           <>
@@ -316,7 +310,7 @@ export function TrasladoAlmacenWizard({
                                   ) : (
                                     lotesSku.map((l) => (
                                       <SelectItem key={l.lote} value={l.lote}>
-                                        {l.lote} — {l.cantidad} {l.unidadMedida}
+                                        {l.lote} — {formatCantidad(l.cantidad)} {l.unidadMedida}
                                       </SelectItem>
                                     ))
                                   )}
@@ -396,8 +390,8 @@ export function TrasladoAlmacenWizard({
                       <TableCell className="font-medium">{item.codigo}</TableCell>
                       <TableCell>{item.descripcion}</TableCell>
                       <TableCell>{item.unidadMedida}</TableCell>
-                      <TableCell className="text-right">{item.cantidadSolicitada}</TableCell>
-                      <TableCell className="text-right">{item.cantidadPendiente}</TableCell>
+                      <TableCell className="text-right">{formatCantidad(item.cantidadSolicitada)}</TableCell>
+                      <TableCell className="text-right">{formatCantidad(item.cantidadPendiente)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
