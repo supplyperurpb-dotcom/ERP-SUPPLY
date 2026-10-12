@@ -64,14 +64,17 @@ export function ProveedorSelectCombobox({
               {proveedores.map((p) => (
                 <CommandItem
                   key={p.id}
-                  value={p.razonSocial}
+                  value={`${p.razonSocial} ${p.ruc ?? ""}`}
                   onSelect={() => {
                     onSelect(p);
                     setOpen(false);
                   }}
                 >
                   <Check className={cn("mr-2 h-4 w-4 shrink-0", p.id === value ? "opacity-100" : "opacity-0")} />
-                  <span className="truncate">{p.razonSocial}</span>
+                  <span className="truncate">
+                    {p.razonSocial}
+                    {p.ruc ? <span className="text-muted-foreground"> — RUC {p.ruc}</span> : null}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>
