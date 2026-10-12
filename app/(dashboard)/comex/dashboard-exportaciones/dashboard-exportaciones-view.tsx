@@ -84,14 +84,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <ParticipacionChart titulo="Participación por mercado (kg)" datos={participacionMercado} />
       </div>
 
-      <div className="space-y-1 pt-2">
-        <h2 className="text-lg font-semibold">Basado en el Reporte Expo</h2>
-        <p className="text-sm text-muted-foreground">
-          Los mismos indicadores que el reporte dinámico del Excel (&quot;Reporte Expo&quot;), como gráficos en vivo sobre esta
-          misma base de Facturación.
-        </p>
-      </div>
-
       <EstadoResumenCards resumen={resumenEstado} />
 
       <StackedBarChart
