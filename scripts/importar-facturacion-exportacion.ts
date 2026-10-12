@@ -24,7 +24,12 @@ function normalizar(valor: unknown): string {
 }
 
 const COLUMNAS = {
+  dispatchDate: "DISPATCH DATE",
   dispWeek: "DISP. WEEK",
+  customer: "CUSTOMER",
+  market: "MARKET",
+  destinationCountry: "DESTINATION COUNTRY",
+  format: "FORMAT",
   invoicedAmount: "INVOICED AMOUNT - 1 (CIF)",
   cifLiquidatedTariffs: "CIF Liquidated (Tariffs)",
   netWeight: "NET WEIGHT",
@@ -40,11 +45,20 @@ function aNumero(valor: unknown): number {
   return 0;
 }
 
+function aTexto(valor: unknown): string {
+  return normalizar(valor);
+}
+
+function aFecha(valor: unknown): Date | null {
+  if (valor instanceof Date && !Number.isNaN(valor.getTime())) return valor;
+  return null;
+}
+
 async function main() {
   const rutaExcel = process.argv[2] || RUTA_POR_DEFECTO;
   console.log("Leyendo:", rutaExcel);
 
-  const libro = XLSX.readFile(rutaExcel);
+  const libro = XLSX.readFile(rutaExcel, { cellDates: true });
   const nombreHoja = libro.SheetNames.find((n) => n.toLowerCase().startsWith("facturaci"));
   if (!nombreHoja) {
     throw new Error(`No se encontró una hoja "Facturación" en el archivo. Hojas disponibles: ${libro.SheetNames.join(", ")}`);
@@ -68,14 +82,20 @@ async function main() {
   const filasDeDatos = filas.slice(1);
   const registros = filasDeDatos
     .map((fila) => ({
+      dispatchDate: aFecha(fila[indicePorColumna.dispatchDate]),
       dispWeek: aNumero(fila[indicePorColumna.dispWeek]),
+      customer: aTexto(fila[indicePorColumna.customer]),
+      market: aTexto(fila[indicePorColumna.market]),
+      destinationCountry: aTexto(fila[indicePorColumna.destinationCountry]),
+      format: aTexto(fila[indicePorColumna.format]),
       invoicedAmount: aNumero(fila[indicePorColumna.invoicedAmount]),
       cifLiquidatedTariffs: aNumero(fila[indicePorColumna.cifLiquidatedTariffs]),
       netWeight: aNumero(fila[indicePorColumna.netWeight]),
       netKilosLiquidated: aNumero(fila[indicePorColumna.netKilosLiquidated]),
     }))
-    // Filas totalmente vacías (sin semana) no son datos reales — se descartan.
-    .filter((r) => r.dispWeek > 0);
+    // Filas totalmente vacías (sin semana ni fecha) no son datos reales —
+    // se descartan en vez de insertarlas con valores inventados.
+    .filter((r): r is typeof r & { dispatchDate: Date } => r.dispWeek > 0 && r.dispatchDate !== null && r.customer !== "");
 
   console.log(`Filas con datos a importar: ${registros.length} (de ${filasDeDatos.length} filas leídas)`);
 

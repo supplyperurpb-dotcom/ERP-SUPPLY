@@ -1386,9 +1386,23 @@ model PackingListItem {
 // así que no hay edición manual de estas filas desde la app.
 model FacturacionExportacion {
   id                   String   @id @default(cuid())
-  // "DISP. WEEK" — semana de despacho, usada como filtro principal del
-  // dashboard.
+  // "DISPATCH DATE" — fecha real de despacho; base de los filtros de fecha
+  // y de las evoluciones semanal/mensual (la semana y el mes se derivan de
+  // esta fecha, no de texto).
+  dispatchDate         DateTime
+  // "DISP. WEEK" — semana de despacho tal como la nombra el Excel (se
+  // guarda tal cual para no recalcularla distinto de la fuente).
   dispWeek             Int
+  // "CUSTOMER" — cliente.
+  customer             String
+  // "MARKET" — código de mercado tal como viene en el Excel (ej. DOTA,
+  // DHK, DOC); no se traduce ni se reinterpreta, se muestra tal cual.
+  market               String
+  // "DESTINATION COUNTRY" — destino (el Excel la llama "country" pero en
+  // la práctica trae puerto/ciudad, ej. HUENEME, SINGAPUR).
+  destinationCountry   String
+  // "FORMAT" — formato/presentación del producto.
+  format               String
   // "INVOICED AMOUNT - 1 (CIF)"
   invoicedAmount       Decimal  @db.Decimal(14, 2)
   // "CIF Liquidated (Tariffs)" — total liquidado valorizado.
@@ -1399,7 +1413,11 @@ model FacturacionExportacion {
   netKilosLiquidated   Decimal  @db.Decimal(14, 3)
   importadoEn          DateTime @default(now())
 
+  @@index([dispatchDate])
   @@index([dispWeek])
+  @@index([customer])
+  @@index([market])
+  @@index([destinationCountry])
   @@map("facturacion_exportacion")
 }
 
