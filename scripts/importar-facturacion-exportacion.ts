@@ -102,7 +102,10 @@ async function main() {
       dispWeek: aNumero(fila[indicePorColumna.dispWeek]),
       customer: aTexto(fila[indicePorColumna.customer]),
       market: aTexto(fila[indicePorColumna.market]),
-      destinationCountry: aTexto(fila[indicePorColumna.destinationCountry]),
+      // El Excel trae "Philadelphia" sin mayúsculas, a diferencia del resto
+      // de destinos (HUENEME, SINGAPUR, etc.) — se normaliza acá para que
+      // salga en mayúscula en todos los cuadros, sin parches por componente.
+      destinationCountry: aTexto(fila[indicePorColumna.destinationCountry]).toUpperCase(),
       format: aTexto(fila[indicePorColumna.format]),
       po: aTexto(fila[indicePorColumna.po]),
       transportMode: aTexto(fila[indicePorColumna.transportMode]),
