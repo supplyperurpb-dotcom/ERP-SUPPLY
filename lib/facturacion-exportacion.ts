@@ -305,50 +305,6 @@ export function calcularResumenPorEstado(filas: FilaFacturacion[]): ResumenEstad
     .map(([estado, t]) => ({ estado, n: t.pos.size, netWeight: t.netWeight, invoicedAmount: t.invoicedAmount }));
 }
 
-// Contenedores (PO) por destino, segmentados por estado — para ver dónde
-// está lo que ya arribó y lo que sigue en tránsito.
-export function calcularContenedoresPorDestinoYEstado(filas: FilaFacturacion[]): { puntos: PuntoApilado[]; series: string[] } {
-  const porDestino = new Map<string, Map<string, Set<string>>>();
-  const estados = new Set<string>();
-  for (const f of filas) {
-    estados.add(f.statusEmbarque);
-    const porEstado = porDestino.get(f.destinationCountry) ?? new Map<string, Set<string>>();
-    const pos = porEstado.get(f.statusEmbarque) ?? new Set<string>();
-    pos.add(f.po);
-    porEstado.set(f.statusEmbarque, pos);
-    porDestino.set(f.destinationCountry, porEstado);
-  }
-  const series = [...estados].sort();
-  const puntos = [...porDestino.entries()]
-    .map(([destino, porEstado]) => {
-      const punto: PuntoApilado = { categoria: destino };
-      for (const estado of series) punto[estado] = porEstado.get(estado)?.size ?? 0;
-      return punto;
-    })
-    .sort((a, b) => {
-      const totalA = series.reduce((acc, s) => acc + Number(a[s] ?? 0), 0);
-      const totalB = series.reduce((acc, s) => acc + Number(b[s] ?? 0), 0);
-      return totalB - totalA;
-    });
-  return { puntos, series };
-}
-
-// Contenedores aún EN TRANSITO, por semana ETA — "cuántos se estiman
-// llegar por semana" (lo ya ARRIBADO no es una estimación, es un hecho).
-export function calcularContenedoresProyectadosPorSemana(filas: FilaFacturacion[]): { puntos: PuntoApilado[]; series: string[] } {
-  const porSemana = new Map<number, Set<string>>();
-  for (const f of filas) {
-    if (f.statusEmbarque === "ARRIBADO" || f.weekEta === null) continue;
-    const pos = porSemana.get(f.weekEta) ?? new Set<string>();
-    pos.add(f.po);
-    porSemana.set(f.weekEta, pos);
-  }
-  const puntos = [...porSemana.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([semana, pos]) => ({ categoria: String(semana), Contenedores: pos.size }));
-  return { puntos, series: ["Contenedores"] };
-}
-
 // "3_ESTATUS DE EMBARQUES VALORIZADO": lo mismo que arriba pero en USD
 // facturado en vez de conteo de embarques.
 export function calcularValorizadoPorSemanaYEstado(

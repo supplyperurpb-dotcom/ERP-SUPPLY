@@ -15,8 +15,6 @@ import {
   calcularValorizadoPorSemanaYEstado,
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
-  calcularContenedoresPorDestinoYEstado,
-  calcularContenedoresProyectadosPorSemana,
   type FilaFacturacion,
   type FiltrosFacturacion,
 } from "@/lib/facturacion-exportacion";
@@ -61,11 +59,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
   const kgPorSemanaEtiqueta = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "label"), [filasFiltradas]);
 
-  // Resumen rápido de contenedores (arribados vs. en agua) + desglose por
-  // destino y proyección de llegadas por semana.
+  // Resumen rápido de contenedores (arribados vs. en agua).
   const resumenEstado = useMemo(() => calcularResumenPorEstado(filasFiltradas), [filasFiltradas]);
-  const contenedoresPorDestino = useMemo(() => calcularContenedoresPorDestinoYEstado(filasFiltradas), [filasFiltradas]);
-  const contenedoresProyectados = useMemo(() => calcularContenedoresProyectadosPorSemana(filasFiltradas), [filasFiltradas]);
 
   if (filas.length === 0) {
     return <p className="text-sm text-muted-foreground">Todavía no hay datos importados. Corre el script de importación.</p>;
@@ -97,23 +92,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         {embarquesPorMercadoSegunModo.map(({ modo, datos }) => (
           <EmbarquesPorMercadoPie key={modo} titulo={`Embarques ${modo.toLowerCase()}s por mercado (kg)`} datos={datos} />
         ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StackedBarChart
-          titulo="Contenedores por destino según estado"
-          descripcion="N° de embarques (PO) por destino: arribados vs. en agua."
-          puntos={contenedoresPorDestino.puntos}
-          series={contenedoresPorDestino.series}
-          formatearValor={(v) => String(Math.round(v))}
-        />
-        <StackedBarChart
-          titulo="Contenedores que se estiman llegar por semana"
-          descripcion="N° de embarques (PO) aún en agua, por semana ETA."
-          puntos={contenedoresProyectados.puntos}
-          series={contenedoresProyectados.series}
-          formatearValor={(v) => String(Math.round(v))}
-        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
