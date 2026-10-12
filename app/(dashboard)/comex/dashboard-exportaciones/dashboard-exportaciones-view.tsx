@@ -79,7 +79,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <KpiCards kpis={kpis} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <EvolucionChart titulo="Evolución semanal" puntos={evolucionSemanal} />
+        <EvolucionChart titulo="Evolución Semanal de Facturación" puntos={evolucionSemanal} />
         <EvolucionChart titulo="Evolución mensual" puntos={evolucionMensual} />
       </div>
 

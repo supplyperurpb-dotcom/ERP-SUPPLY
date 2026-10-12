@@ -108,7 +108,7 @@ export function calcularEvolucionSemanal(filas: FilaFacturacion[]): PuntoEvoluci
   }
   return [...mapa.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([semana, totales]) => ({ periodo: `Sem ${semana}`, orden: String(semana).padStart(3, "0"), ...totales }));
+    .map(([semana, totales]) => ({ periodo: String(semana), orden: String(semana).padStart(3, "0"), ...totales }));
 }
 
 // Evolución mensual: agrupa por año-mes de DISPATCH DATE.

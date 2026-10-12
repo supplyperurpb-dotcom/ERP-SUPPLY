@@ -23,9 +23,9 @@ export function EvolucionChart({ titulo, puntos }: { titulo: string; puntos: Pun
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={puntos} margin={{ left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="periodo" fontSize={12} />
+                <XAxis dataKey="periodo" interval={0} fontSize={12} />
                 <YAxis yAxisId="kg" tickFormatter={(v) => formatCantidad(v)} fontSize={12} />
-                <YAxis yAxisId="usd" orientation="right" tickFormatter={(v) => formatMoneda(v, "USD")} fontSize={12} />
+                <YAxis yAxisId="usd" orientation="right" tickFormatter={(v) => formatCantidad(v)} fontSize={12} />
                 <Tooltip
                   formatter={(value, name) =>
                     name === "netWeight"
