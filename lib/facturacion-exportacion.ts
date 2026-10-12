@@ -14,6 +14,15 @@ export type FilaFacturacion = {
   market: string;
   destinationCountry: string;
   format: string;
+  po: string;
+  transportMode: string;
+  weekEta: number | null;
+  weekAta: number | null;
+  statusEmbarque: string;
+  variety: string;
+  type: string;
+  label: string;
+  totalFob: number;
   invoicedAmount: number;
   cifLiquidatedTariffs: number;
   netWeight: number;
@@ -181,4 +190,138 @@ export function obtenerOpcionesFiltro(filas: FilaFacturacion[]): OpcionesFiltro 
     fechaMin: fechas[0] ?? null,
     fechaMax: fechas[fechas.length - 1] ?? null,
   };
+}
+
+// A partir de acá: funciones que replican, como gráficos, las tablas
+// dinámicas de la hoja "Reporte Expo" del Excel (que ya se arma a mano
+// sobre esta misma data) — cada una agrupa por una categoría (mercado,
+// semana, etc.) y la segmenta en 2+ series apiladas. "series" sale de los
+// valores que de verdad aparecen en los datos, nunca de una lista fija.
+
+export type PuntoApilado = { categoria: string; [serie: string]: string | number };
+
+// "1_N° EMBARQUES EJECUTADOS": embarques (PO distintas, no filas) por
+// mercado, segmentados por modo de transporte.
+export function contarEmbarquesPorMercado(filas: FilaFacturacion[]): { puntos: PuntoApilado[]; series: string[] } {
+  const porMercado = new Map<string, Map<string, Set<string>>>();
+  const modos = new Set<string>();
+  for (const f of filas) {
+    modos.add(f.transportMode);
+    const porModo = porMercado.get(f.market) ?? new Map<string, Set<string>>();
+    const pos = porModo.get(f.transportMode) ?? new Set<string>();
+    pos.add(f.po);
+    porModo.set(f.transportMode, pos);
+    porMercado.set(f.market, porModo);
+  }
+  const series = [...modos].sort();
+  const puntos = [...porMercado.entries()].map(([mercado, porModo]) => {
+    const punto: PuntoApilado = { categoria: mercado };
+    for (const modo of series) punto[modo] = porModo.get(modo)?.size ?? 0;
+    return punto;
+  });
+  return { puntos, series };
+}
+
+export type FilaPrecioPorKg = { etiqueta: string; cifPorKg: number; netWeight: number };
+
+// "2_PRECIO POR KG - CIF": $CIF/kg promedio ponderado (= CIF total / kg
+// total del grupo, no el promedio simple de cada línea), por variedad o
+// por tipo de producto.
+export function calcularPrecioPorKg(filas: FilaFacturacion[], campo: "variety" | "type"): FilaPrecioPorKg[] {
+  const mapa = new Map<string, { kg: number; cif: number }>();
+  for (const f of filas) {
+    const etiqueta = f[campo];
+    const actual = mapa.get(etiqueta) ?? { kg: 0, cif: 0 };
+    actual.kg += f.netWeight;
+    actual.cif += f.invoicedAmount;
+    mapa.set(etiqueta, actual);
+  }
+  return [...mapa.entries()]
+    .map(([etiqueta, t]) => ({ etiqueta, cifPorKg: t.kg > 0 ? t.cif / t.kg : 0, netWeight: t.kg }))
+    .sort((a, b) => b.netWeight - a.netWeight);
+}
+
+// "3_ESTATUS DE EMBARQUES POR CONTENEDOR": embarques (PO distintas) por
+// semana ETA o ATA, segmentados por estado (ARRIBADO / EN TRANSITO). Las
+// filas sin esa semana (todavía sin ETA/ATA) se excluyen, no se agrupan
+// como "sin dato" inventado.
+export function contarEmbarquesPorSemanaYEstado(
+  filas: FilaFacturacion[],
+  campoSemana: "weekEta" | "weekAta"
+): { puntos: PuntoApilado[]; series: string[] } {
+  const porSemana = new Map<number, Map<string, Set<string>>>();
+  const estados = new Set<string>();
+  for (const f of filas) {
+    const semana = f[campoSemana];
+    if (semana === null) continue;
+    estados.add(f.statusEmbarque);
+    const porEstado = porSemana.get(semana) ?? new Map<string, Set<string>>();
+    const pos = porEstado.get(f.statusEmbarque) ?? new Set<string>();
+    pos.add(f.po);
+    porEstado.set(f.statusEmbarque, pos);
+    porSemana.set(semana, porEstado);
+  }
+  const series = [...estados].sort();
+  const puntos = [...porSemana.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([semana, porEstado]) => {
+      const punto: PuntoApilado = { categoria: String(semana) };
+      for (const estado of series) punto[estado] = porEstado.get(estado)?.size ?? 0;
+      return punto;
+    });
+  return { puntos, series };
+}
+
+// "3_ESTATUS DE EMBARQUES VALORIZADO": lo mismo que arriba pero en USD
+// facturado en vez de conteo de embarques.
+export function calcularValorizadoPorSemanaYEstado(
+  filas: FilaFacturacion[],
+  campoSemana: "weekEta" | "weekAta"
+): { puntos: PuntoApilado[]; series: string[] } {
+  const porSemana = new Map<number, Map<string, number>>();
+  const estados = new Set<string>();
+  for (const f of filas) {
+    const semana = f[campoSemana];
+    if (semana === null) continue;
+    estados.add(f.statusEmbarque);
+    const porEstado = porSemana.get(semana) ?? new Map<string, number>();
+    porEstado.set(f.statusEmbarque, (porEstado.get(f.statusEmbarque) ?? 0) + f.invoicedAmount);
+    porSemana.set(semana, porEstado);
+  }
+  const series = [...estados].sort();
+  const puntos = [...porSemana.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([semana, porEstado]) => {
+      const punto: PuntoApilado = { categoria: String(semana) };
+      for (const estado of series) punto[estado] = porEstado.get(estado) ?? 0;
+      return punto;
+    });
+  return { puntos, series };
+}
+
+// "4_VOLUMEN FACTURADO" + "6_KG POR ETIQUETA": kg por semana de despacho,
+// segmentados por tipo de producto (premium/convencional) o por etiqueta
+// de empaque — misma función, cambia el campo de segmentación.
+export function calcularKgPorSemanaYCampo(
+  filas: FilaFacturacion[],
+  campo: "type" | "label"
+): { puntos: PuntoApilado[]; series: string[] } {
+  const porSemana = new Map<number, Map<string, number>>();
+  const valores = new Set<string>();
+  for (const f of filas) {
+    const valor = f[campo];
+    valores.add(valor);
+    const porValor = porSemana.get(f.dispWeek) ?? new Map<string, number>();
+    porValor.set(valor, (porValor.get(valor) ?? 0) + f.netWeight);
+    porSemana.set(f.dispWeek, porValor);
+  }
+  const series = [...valores].sort();
+  const puntos = [...porSemana.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([semana, porValor]) => {
+      const punto: PuntoApilado = { categoria: String(semana) };
+      for (const v of series) punto[v] = porValor.get(v) ?? 0;
+      return punto;
+    });
+  return { puntos, series };
 }

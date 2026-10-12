@@ -30,6 +30,15 @@ const COLUMNAS = {
   market: "MARKET",
   destinationCountry: "DESTINATION COUNTRY",
   format: "FORMAT",
+  po: "PO",
+  transportMode: "EXPORTS",
+  weekEta: "WEEK ETA",
+  weekAta: "WEE ATA",
+  statusEmbarque: "STATUS EMBARQUE",
+  variety: "VARIETY",
+  type: "TYPE",
+  label: "LABEL",
+  totalFob: "USD TOTAL FOB",
   invoicedAmount: "INVOICED AMOUNT - 1 (CIF)",
   cifLiquidatedTariffs: "CIF Liquidated (Tariffs)",
   netWeight: "NET WEIGHT",
@@ -51,6 +60,13 @@ function aTexto(valor: unknown): string {
 
 function aFecha(valor: unknown): Date | null {
   if (valor instanceof Date && !Number.isNaN(valor.getTime())) return valor;
+  return null;
+}
+
+// Para WEEK ETA / WEE ATA: el Excel usa "-" (o vacío) cuando el embarque
+// todavía no tiene esa fecha — se guarda como null, no como 0.
+function aEnteroONulo(valor: unknown): number | null {
+  if (typeof valor === "number" && Number.isFinite(valor)) return valor;
   return null;
 }
 
@@ -88,6 +104,15 @@ async function main() {
       market: aTexto(fila[indicePorColumna.market]),
       destinationCountry: aTexto(fila[indicePorColumna.destinationCountry]),
       format: aTexto(fila[indicePorColumna.format]),
+      po: aTexto(fila[indicePorColumna.po]),
+      transportMode: aTexto(fila[indicePorColumna.transportMode]),
+      weekEta: aEnteroONulo(fila[indicePorColumna.weekEta]),
+      weekAta: aEnteroONulo(fila[indicePorColumna.weekAta]),
+      statusEmbarque: aTexto(fila[indicePorColumna.statusEmbarque]),
+      variety: aTexto(fila[indicePorColumna.variety]),
+      type: aTexto(fila[indicePorColumna.type]),
+      label: aTexto(fila[indicePorColumna.label]),
+      totalFob: aNumero(fila[indicePorColumna.totalFob]),
       invoicedAmount: aNumero(fila[indicePorColumna.invoicedAmount]),
       cifLiquidatedTariffs: aNumero(fila[indicePorColumna.cifLiquidatedTariffs]),
       netWeight: aNumero(fila[indicePorColumna.netWeight]),

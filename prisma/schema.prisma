@@ -1403,6 +1403,29 @@ model FacturacionExportacion {
   destinationCountry   String
   // "FORMAT" — formato/presentación del producto.
   format               String
+  // "PO" — número de embarque/orden; una misma PO agrupa varias líneas
+  // (distintas variedades/formatos de un mismo embarque), se usa para
+  // contar embarques distintos (no filas) en los gráficos de "N° de
+  // embarques" del Reporte Expo.
+  po                   String
+  // "EXPORTS" — modo de transporte (AEREO / MARITIMO).
+  transportMode        String
+  // "WEEK ETA" — semana estimada de llegada.
+  weekEta              Int?
+  // "WEE ATA" (sic, así está en el Excel) — semana real de llegada; null
+  // si el embarque todavía no tiene ATA registrada (el Excel trae "-").
+  weekAta              Int?
+  // "STATUS EMBARQUE" — ARRIBADO / EN TRANSITO.
+  statusEmbarque       String
+  // "VARIETY"
+  variety              String
+  // "TYPE" — CONVENCIONAL / PREMIUM.
+  type                 String
+  // "LABEL" — etiqueta del empaque (JB / S&C / SB / YL en los datos
+  // vistos; se guarda tal cual venga, sin validar contra esa lista).
+  label                String
+  // "USD TOTAL FOB"
+  totalFob             Decimal  @db.Decimal(14, 2)
   // "INVOICED AMOUNT - 1 (CIF)"
   invoicedAmount       Decimal  @db.Decimal(14, 2)
   // "CIF Liquidated (Tariffs)" — total liquidado valorizado.
@@ -1418,6 +1441,8 @@ model FacturacionExportacion {
   @@index([customer])
   @@index([market])
   @@index([destinationCountry])
+  @@index([po])
+  @@index([statusEmbarque])
   @@map("facturacion_exportacion")
 }
 

@@ -5,6 +5,7 @@ import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatMoneda } from "@/lib/utils";
 import {
   filtrarFacturacion,
   calcularKpis,
@@ -13,6 +14,11 @@ import {
   calcularEvolucionMensual,
   calcularParticipacionPorDestino,
   obtenerOpcionesFiltro,
+  contarEmbarquesPorMercado,
+  calcularPrecioPorKg,
+  contarEmbarquesPorSemanaYEstado,
+  calcularValorizadoPorSemanaYEstado,
+  calcularKgPorSemanaYCampo,
   type FilaFacturacion,
   type FiltrosFacturacion,
 } from "@/lib/facturacion-exportacion";
@@ -22,6 +28,8 @@ import { DimensionBreakdownChart } from "./dimension-breakdown-chart";
 import { EvolucionChart } from "./evolucion-chart";
 import { ParticipacionDestinoChart } from "./participacion-destino-chart";
 import { ComparativoPeriodos } from "./comparativo-periodos";
+import { StackedBarChart } from "./stacked-bar-chart";
+import { PrecioPorKgChart } from "./precio-por-kg-chart";
 
 function aISO(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -41,6 +49,16 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const evolucionSemanal = useMemo(() => calcularEvolucionSemanal(filasFiltradas), [filasFiltradas]);
   const evolucionMensual = useMemo(() => calcularEvolucionMensual(filasFiltradas), [filasFiltradas]);
   const participacionDestino = useMemo(() => calcularParticipacionPorDestino(filasFiltradas), [filasFiltradas]);
+
+  // Mismos indicadores que la hoja "Reporte Expo" del Excel, ahora como
+  // gráficos en vivo sobre esta misma data (ver lib/facturacion-exportacion.ts).
+  const embarquesPorMercado = useMemo(() => contarEmbarquesPorMercado(filasFiltradas), [filasFiltradas]);
+  const precioPorVariedad = useMemo(() => calcularPrecioPorKg(filasFiltradas, "variety"), [filasFiltradas]);
+  const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
+  const embarquesPorSemanaEta = useMemo(() => contarEmbarquesPorSemanaYEstado(filasFiltradas, "weekEta"), [filasFiltradas]);
+  const valorizadoPorSemanaAta = useMemo(() => calcularValorizadoPorSemanaYEstado(filasFiltradas, "weekAta"), [filasFiltradas]);
+  const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
+  const kgPorSemanaEtiqueta = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "label"), [filasFiltradas]);
 
   // Comparativo entre periodos: mismos cliente/mercado/destino del filtro
   // de arriba, pero con su propio rango de fechas (dos, A y B). Por
@@ -94,6 +112,57 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       </div>
 
       <DimensionBreakdownChart titulo="Kg exportados por cliente" filas={porCliente} />
+
+      <div className="space-y-1 pt-2">
+        <h2 className="text-lg font-semibold">Basado en el Reporte Expo</h2>
+        <p className="text-sm text-muted-foreground">
+          Los mismos indicadores que el reporte dinámico del Excel (&quot;Reporte Expo&quot;), como gráficos en vivo sobre esta
+          misma base de Facturación.
+        </p>
+      </div>
+
+      <StackedBarChart
+        titulo="Embarques ejecutados por mercado"
+        descripcion="N° de embarques (PO) distintos, segmentados por modo de transporte."
+        puntos={embarquesPorMercado.puntos}
+        series={embarquesPorMercado.series}
+        formatearValor={(v) => String(Math.round(v))}
+      />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <PrecioPorKgChart titulo="Precio CIF/kg por variedad" filas={precioPorVariedad} />
+        <PrecioPorKgChart titulo="Precio CIF/kg por tipo de producto" filas={precioPorTipo} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <StackedBarChart
+          titulo="Embarques por semana ETA según estado"
+          descripcion="N° de embarques (PO), por semana estimada de llegada."
+          puntos={embarquesPorSemanaEta.puntos}
+          series={embarquesPorSemanaEta.series}
+          formatearValor={(v) => String(Math.round(v))}
+        />
+        <StackedBarChart
+          titulo="Valorizado por semana ATA según estado"
+          descripcion="Facturado (USD), por semana real de llegada."
+          puntos={valorizadoPorSemanaAta.puntos}
+          series={valorizadoPorSemanaAta.series}
+          formatearValor={(v) => formatMoneda(v, "USD")}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <StackedBarChart
+          titulo="Kg por semana de despacho según tipo de producto"
+          puntos={kgPorSemanaTipo.puntos}
+          series={kgPorSemanaTipo.series}
+        />
+        <StackedBarChart
+          titulo="Kg por semana de despacho según etiqueta"
+          puntos={kgPorSemanaEtiqueta.puntos}
+          series={kgPorSemanaEtiqueta.series}
+        />
+      </div>
 
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
