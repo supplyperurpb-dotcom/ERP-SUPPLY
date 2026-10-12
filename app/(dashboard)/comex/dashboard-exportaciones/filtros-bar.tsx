@@ -1,5 +1,4 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -7,9 +6,9 @@ import type { FiltrosFacturacion, OpcionesFiltro } from "@/lib/facturacion-expor
 
 const TODOS = "__todos__";
 
-// Barra de filtros: fecha (rango), cliente y destino — pura UI controlada,
-// las opciones de cada select vienen de obtenerOpcionesFiltro (lib), nunca
-// de una lista fija acá.
+// Barra de filtros: semana de despacho, mercado y destino — pura UI
+// controlada, las opciones de cada select vienen de obtenerOpcionesFiltro
+// (lib), nunca de una lista fija acá.
 export function FiltrosBar({
   filtros,
   opciones,
@@ -23,43 +22,21 @@ export function FiltrosBar({
 }) {
   return (
     <Card>
-      <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-5">
+      <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
-          <Label htmlFor="fechaDesde">Fecha desde</Label>
-          <Input
-            id="fechaDesde"
-            type="date"
-            min={opciones.fechaMin ?? undefined}
-            max={opciones.fechaMax ?? undefined}
-            value={filtros.fechaDesde ?? ""}
-            onChange={(e) => onChange({ ...filtros, fechaDesde: e.target.value || undefined })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="fechaHasta">Fecha hasta</Label>
-          <Input
-            id="fechaHasta"
-            type="date"
-            min={opciones.fechaMin ?? undefined}
-            max={opciones.fechaMax ?? undefined}
-            value={filtros.fechaHasta ?? ""}
-            onChange={(e) => onChange({ ...filtros, fechaHasta: e.target.value || undefined })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Cliente</Label>
+          <Label>Semana de despacho</Label>
           <Select
-            value={filtros.customer ?? TODOS}
-            onValueChange={(v) => onChange({ ...filtros, customer: v === TODOS ? undefined : v })}
+            value={filtros.dispWeek !== undefined ? String(filtros.dispWeek) : TODOS}
+            onValueChange={(v) => onChange({ ...filtros, dispWeek: v === TODOS ? undefined : Number(v) })}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={TODOS}>Todos</SelectItem>
-              {opciones.customers.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
+              <SelectItem value={TODOS}>Todas</SelectItem>
+              {opciones.weeks.map((semana) => (
+                <SelectItem key={semana} value={String(semana)}>
+                  {semana}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -103,7 +80,7 @@ export function FiltrosBar({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-end sm:col-span-2 lg:col-span-5">
+        <div className="flex items-end">
           <Button type="button" variant="outline" size="sm" onClick={onLimpiar}>
             Limpiar filtros
           </Button>

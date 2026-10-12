@@ -71,8 +71,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
     hasta: aISO(fechaMaxData),
   });
   const filtrosSinFecha: FiltrosFacturacion = useMemo(
-    () => ({ customer: filtros.customer, market: filtros.market, destinationCountry: filtros.destinationCountry }),
-    [filtros.customer, filtros.market, filtros.destinationCountry]
+    () => ({ market: filtros.market, destinationCountry: filtros.destinationCountry }),
+    [filtros.market, filtros.destinationCountry]
   );
   const kpisPeriodoA = useMemo(
     () => calcularKpis(filtrarFacturacion(filas, { ...filtrosSinFecha, fechaDesde: periodoA.desde, fechaHasta: periodoA.hasta })),

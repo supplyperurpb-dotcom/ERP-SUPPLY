@@ -30,11 +30,11 @@ export type FilaFacturacion = {
 };
 
 export type FiltrosFacturacion = {
-  /** "YYYY-MM-DD", inclusive. */
+  /** "YYYY-MM-DD", inclusive. Solo lo usa el comparativo entre periodos, ya no la barra principal. */
   fechaDesde?: string;
-  /** "YYYY-MM-DD", inclusive. */
+  /** "YYYY-MM-DD", inclusive. Solo lo usa el comparativo entre periodos, ya no la barra principal. */
   fechaHasta?: string;
-  customer?: string;
+  dispWeek?: number;
   market?: string;
   destinationCountry?: string;
 };
@@ -48,7 +48,7 @@ export function filtrarFacturacion(filas: FilaFacturacion[], filtros: FiltrosFac
     const fecha = fechaISO(f.dispatchDate);
     if (filtros.fechaDesde && fecha < filtros.fechaDesde) return false;
     if (filtros.fechaHasta && fecha > filtros.fechaHasta) return false;
-    if (filtros.customer && f.customer !== filtros.customer) return false;
+    if (filtros.dispWeek !== undefined && f.dispWeek !== filtros.dispWeek) return false;
     if (filtros.market && f.market !== filtros.market) return false;
     if (filtros.destinationCountry && f.destinationCountry !== filtros.destinationCountry) return false;
     return true;
@@ -172,7 +172,7 @@ export function calcularParticipacion(filas: FilaFacturacion[], campo: CampoDime
 }
 
 export type OpcionesFiltro = {
-  customers: string[];
+  weeks: number[];
   markets: string[];
   destinations: string[];
   fechaMin: string | null;
@@ -184,7 +184,7 @@ export type OpcionesFiltro = {
 export function obtenerOpcionesFiltro(filas: FilaFacturacion[]): OpcionesFiltro {
   const fechas = filas.map((f) => fechaISO(f.dispatchDate)).sort();
   return {
-    customers: [...new Set(filas.map((f) => f.customer))].sort(),
+    weeks: [...new Set(filas.map((f) => f.dispWeek))].sort((a, b) => a - b),
     markets: [...new Set(filas.map((f) => f.market))].sort(),
     destinations: [...new Set(filas.map((f) => f.destinationCountry))].sort(),
     fechaMin: fechas[0] ?? null,
