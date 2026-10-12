@@ -125,6 +125,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
         vehiculos={vehiculos.map((v) => ({
           id: v.id,
           placa: v.placa,
+          codigoEquipo: v.codigoEquipo,
           tipo: TIPOS_VEHICULO.find((t) => t.valor === v.tipo)?.nombre ?? v.tipo,
         }))}
         edicion={{ id: consumo.id, valoresIniciales }}

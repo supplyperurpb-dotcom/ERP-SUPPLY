@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { calcularStockAlmacen, calcularStockPorLote } from "@/lib/stock-almacen";
+import { siguienteNumero } from "@/lib/utils";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "./consumo-almacen-form";
 
@@ -11,7 +12,7 @@ export default async function NuevoConsumoAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const [almacenes, retiradores, vehiculos] = await Promise.all([
+  const [almacenes, retiradores, vehiculos, existentes] = await Promise.all([
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
@@ -19,7 +20,11 @@ export default async function NuevoConsumoAlmacenPage({
       orderBy: { apellidos: "asc" },
     }),
     prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    prisma.consumoAlmacen.findMany({ select: { numero: true } }),
   ]);
+  // Solo un adelanto: el número real se asigna recién al guardar (ver
+  // crearConsumoAlmacenAction) — mismo criterio que OC/Solped.
+  const numeroTentativo = siguienteNumero(existentes.map((c) => c.numero), "CA-");
   const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
   const stockPorAlmacen: Record<string, Awaited<ReturnType<typeof calcularStockAlmacen>>> = {};
   almacenes.forEach((a, i) => {
@@ -56,7 +61,7 @@ export default async function NuevoConsumoAlmacenPage({
   return (
     <div>
       <PageHeader
-        titulo="Nuevo consumo de almacén"
+        titulo={`Nuevo consumo de almacén — ${numeroTentativo}`}
         descripcion="Registra el consumo de materiales de un almacén. Solo se pueden consumir productos con stock disponible en el almacén elegido. El precio unitario ponderado se calcula automáticamente según los ingresos históricos de ese producto en ese almacén."
       />
       <ConsumoAlmacenForm
@@ -72,6 +77,7 @@ export default async function NuevoConsumoAlmacenPage({
         vehiculos={vehiculos.map((v) => ({
           id: v.id,
           placa: v.placa,
+          codigoEquipo: v.codigoEquipo,
           tipo: TIPOS_VEHICULO.find((t) => t.valor === v.tipo)?.nombre ?? v.tipo,
         }))}
         almacenIdInicial={almacenId}

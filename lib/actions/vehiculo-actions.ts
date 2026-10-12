@@ -30,11 +30,18 @@ export async function crearVehiculoAction(data: VehiculoInput): Promise<Vehiculo
   if (existente) {
     return { error: `Ya existe un vehículo con la placa ${parsed.data.placa}.` };
   }
+  if (parsed.data.codigoEquipo) {
+    const duplicadoCodigo = await prisma.vehiculo.findUnique({ where: { codigoEquipo: parsed.data.codigoEquipo } });
+    if (duplicadoCodigo) {
+      return { error: `Ya existe un vehículo con el código de equipo ${parsed.data.codigoEquipo}.` };
+    }
+  }
 
   try {
     const nuevo = await prisma.vehiculo.create({
       data: {
         placa: parsed.data.placa,
+        codigoEquipo: parsed.data.codigoEquipo || null,
         areaUsuaria: parsed.data.areaUsuaria,
         tipo: parsed.data.tipo as never,
       },
@@ -61,12 +68,19 @@ export async function actualizarVehiculoAction(id: string, data: VehiculoInput):
   if (duplicado && duplicado.id !== id) {
     return { error: `Ya existe un vehículo con la placa ${parsed.data.placa}.` };
   }
+  if (parsed.data.codigoEquipo) {
+    const duplicadoCodigo = await prisma.vehiculo.findUnique({ where: { codigoEquipo: parsed.data.codigoEquipo } });
+    if (duplicadoCodigo && duplicadoCodigo.id !== id) {
+      return { error: `Ya existe un vehículo con el código de equipo ${parsed.data.codigoEquipo}.` };
+    }
+  }
 
   try {
     await prisma.vehiculo.update({
       where: { id },
       data: {
         placa: parsed.data.placa,
+        codigoEquipo: parsed.data.codigoEquipo || null,
         areaUsuaria: parsed.data.areaUsuaria,
         tipo: parsed.data.tipo as never,
       },

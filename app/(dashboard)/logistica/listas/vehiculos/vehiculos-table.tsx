@@ -13,6 +13,7 @@ import { toggleActivoVehiculoAction } from "@/lib/actions/vehiculo-actions";
 export type FilaVehiculo = {
   id: string;
   placa: string;
+  codigoEquipo: string | null;
   areaUsuaria: string;
   tipo: string;
   activo: boolean;
@@ -25,7 +26,9 @@ export function VehiculosTable({ filas }: { filas: FilaVehiculo[] }) {
   const filasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
     if (!termino) return filas;
-    return filas.filter((f) => f.placa.toLowerCase().includes(termino));
+    return filas.filter(
+      (f) => f.placa.toLowerCase().includes(termino) || (f.codigoEquipo ?? "").toLowerCase().includes(termino)
+    );
   }, [filas, busqueda]);
 
   function handleToggle(fila: FilaVehiculo) {
@@ -44,7 +47,7 @@ export function VehiculosTable({ filas }: { filas: FilaVehiculo[] }) {
       <div className="relative max-w-sm">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Buscar por placa..."
+          placeholder="Buscar por placa o código de equipo..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           className="pl-8"
@@ -60,6 +63,7 @@ export function VehiculosTable({ filas }: { filas: FilaVehiculo[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Placa</TableHead>
+              <TableHead>Código de equipo</TableHead>
               <TableHead>Área usuaria</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Estado</TableHead>
@@ -70,6 +74,7 @@ export function VehiculosTable({ filas }: { filas: FilaVehiculo[] }) {
             {filasFiltradas.map((f) => (
               <TableRow key={f.id}>
                 <TableCell className="font-medium">{f.placa}</TableCell>
+                <TableCell>{f.codigoEquipo ?? "—"}</TableCell>
                 <TableCell>{f.areaUsuaria}</TableCell>
                 <TableCell>{f.tipo}</TableCell>
                 <TableCell>

@@ -22,6 +22,7 @@ export function VehiculoForm({
   const esEdicion = !!edicion;
 
   const [placa, setPlaca] = useState(edicion?.valoresIniciales.placa ?? "");
+  const [codigoEquipo, setCodigoEquipo] = useState(edicion?.valoresIniciales.codigoEquipo ?? "");
   const [areaUsuaria, setAreaUsuaria] = useState(edicion?.valoresIniciales.areaUsuaria ?? "");
   const [tipo, setTipo] = useState(edicion?.valoresIniciales.tipo ?? "");
   const [enviando, setEnviando] = useState(false);
@@ -42,6 +43,7 @@ export function VehiculoForm({
 
     const payload: VehiculoInput = {
       placa,
+      codigoEquipo,
       areaUsuaria: areaUsuaria as VehiculoInput["areaUsuaria"],
       tipo: tipo as VehiculoInput["tipo"],
     };
@@ -72,7 +74,7 @@ export function VehiculoForm({
         <CardHeader>
           <CardTitle className="text-base">Datos del vehículo</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="placa">Número de placa</Label>
             <Input
@@ -80,6 +82,15 @@ export function VehiculoForm({
               value={placa}
               onChange={(e) => setPlaca(e.target.value.toUpperCase())}
               placeholder="Ej. ABC-123"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="codigoEquipo">Código de equipo (opcional)</Label>
+            <Input
+              id="codigoEquipo"
+              value={codigoEquipo}
+              onChange={(e) => setCodigoEquipo(e.target.value.toUpperCase())}
+              placeholder="Ej. EQ-045"
             />
           </div>
           <div className="space-y-2">

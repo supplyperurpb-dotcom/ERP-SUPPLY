@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { calcularOcPendientesIngreso } from "@/lib/stock-almacen";
+import { siguienteNumero } from "@/lib/utils";
 import { IngresoAlmacenWizard } from "./ingreso-almacen-wizard";
 
 export default async function NuevoIngresoAlmacenPage({
@@ -12,17 +13,23 @@ export default async function NuevoIngresoAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const [usuario, almacenesGenerales, ordenesConPendientes] = await Promise.all([
+  const [usuario, almacenesGenerales, ordenesConPendientes, existentes] = await Promise.all([
     getUsuarioActual(),
     prisma.almacen.findMany({ where: { activo: true, esGeneral: true }, orderBy: { nombre: "asc" } }),
     calcularOcPendientesIngreso(),
+    prisma.ingresoAlmacen.findMany({ select: { numero: true } }),
   ]);
   if (!usuario) redirect("/login");
+
+  // Solo un adelanto: el número real se asigna recién al guardar (ver
+  // crearIngresoAlmacenAction), por si dos personas registran un ingreso al
+  // mismo tiempo — mismo criterio que el numeroTentativo de OC/Solped.
+  const numeroTentativo = siguienteNumero(existentes.map((i) => i.numero), "IA-");
 
   return (
     <div>
       <PageHeader
-        titulo="Nuevo ingreso a almacén"
+        titulo={`Nuevo ingreso a almacén — ${numeroTentativo}`}
         descripcion="Elige la orden de compra de origen y los ítems a recibir: el proveedor, el SKU y el precio se jalan de la OC."
       />
       <IngresoAlmacenWizard

@@ -414,6 +414,10 @@ enum TipoVehiculo {
 model Vehiculo {
   id          String       @id @default(cuid())
   placa       String       @unique
+  // Código interno del equipo (p. ej. para equipos menores sin placa
+  // vehicular formal, o para identificarlo junto a su placa). Opcional,
+  // pero único cuando se indica (NULL no choca con NULL en Postgres).
+  codigoEquipo String? @unique
   areaUsuaria AreaEmpresa
   tipo        TipoVehiculo
   activo      Boolean      @default(true)

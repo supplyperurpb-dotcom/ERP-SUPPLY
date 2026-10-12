@@ -12,6 +12,7 @@ export default async function EditarVehiculoPage({ params }: { params: Promise<{
 
   const valoresIniciales: VehiculoInput = {
     placa: vehiculo.placa,
+    codigoEquipo: vehiculo.codigoEquipo ?? "",
     areaUsuaria: vehiculo.areaUsuaria,
     tipo: vehiculo.tipo,
   };

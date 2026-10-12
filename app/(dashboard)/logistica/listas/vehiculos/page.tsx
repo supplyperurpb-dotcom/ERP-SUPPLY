@@ -16,6 +16,7 @@ export default async function VehiculosPage() {
   const filas: FilaVehiculo[] = vehiculos.map((v) => ({
     id: v.id,
     placa: v.placa,
+    codigoEquipo: v.codigoEquipo,
     areaUsuaria: AREAS_EMPRESA.find((a) => a.valor === v.areaUsuaria)?.nombre ?? v.areaUsuaria,
     tipo: TIPOS_VEHICULO.find((t) => t.valor === v.tipo)?.nombre ?? v.tipo,
     activo: v.activo,

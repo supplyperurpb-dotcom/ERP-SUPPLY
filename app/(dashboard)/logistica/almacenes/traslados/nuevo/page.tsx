@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { calcularSolicitudesTrasladoPendientes, calcularStockPorLote } from "@/lib/stock-almacen";
+import { siguienteNumero } from "@/lib/utils";
 import { TrasladoAlmacenWizard } from "./traslado-almacen-wizard";
 
 export default async function NuevoTrasladoAlmacenPage({
@@ -9,7 +10,13 @@ export default async function NuevoTrasladoAlmacenPage({
   searchParams: Promise<{ solicitudId?: string }>;
 }) {
   const { solicitudId } = await searchParams;
-  const solicitudesPendientes = await calcularSolicitudesTrasladoPendientes();
+  const [solicitudesPendientes, existentes] = await Promise.all([
+    calcularSolicitudesTrasladoPendientes(),
+    prisma.trasladoAlmacen.findMany({ select: { numero: true } }),
+  ]);
+  // Solo un adelanto: el número real se asigna recién al guardar (ver
+  // crearTrasladoDesdeSolicitudAction) — mismo criterio que OC/Solped.
+  const numeroTentativo = siguienteNumero(existentes.map((t) => t.numero), "TA-");
 
   // Solo los almacenes de Agroquímicos y Fertilizantes exigen lote al
   // trasladar — se precalcula el stock por lote de cada SKU pendiente en
@@ -30,7 +37,7 @@ export default async function NuevoTrasladoAlmacenPage({
   return (
     <div>
       <PageHeader
-        titulo="Nuevo traslado entre almacenes"
+        titulo={`Nuevo traslado entre almacenes — ${numeroTentativo}`}
         descripcion="Ejecuta una solicitud de traslado pendiente: elige qué ítems mover ahora (pueden ser menos de lo solicitado, el resto queda pendiente para después)."
       />
       <TrasladoAlmacenWizard

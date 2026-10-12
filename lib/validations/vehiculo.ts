@@ -16,6 +16,15 @@ export const vehiculoSchema = z.object({
     .min(1, "La placa es obligatoria")
     .max(20)
     .transform((v) => v.toUpperCase()),
+  // Código interno del equipo (opcional, pero único cuando se indica — ver
+  // crearVehiculoAction/actualizarVehiculoAction).
+  codigoEquipo: z
+    .string()
+    .trim()
+    .max(30)
+    .transform((v) => v.toUpperCase())
+    .optional()
+    .or(z.literal("")),
   areaUsuaria: z.enum(AREAS, { required_error: "Selecciona el área usuaria" }),
   tipo: z.enum(
     TIPOS_VEHICULO.map((t) => t.valor) as [string, ...string[]],

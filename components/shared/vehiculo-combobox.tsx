@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
-export type VehiculoOpcionCombobox = { id: string; placa: string; tipo: string };
+export type VehiculoOpcionCombobox = { id: string; placa: string; tipo: string; codigoEquipo?: string | null };
 
 /** Selector con filtro por placa, usado al registrar un Consumo de un almacén de Combustible. */
 export function VehiculoCombobox({
@@ -39,7 +39,7 @@ export function VehiculoCombobox({
               {vehiculos.map((v) => (
                 <CommandItem
                   key={v.id}
-                  value={v.placa}
+                  value={`${v.placa} ${v.codigoEquipo ?? ""}`}
                   onSelect={() => {
                     onSelect(v);
                     setOpen(false);
@@ -48,6 +48,7 @@ export function VehiculoCombobox({
                   <Check className={cn("mr-2 h-4 w-4 shrink-0", v.placa === value ? "opacity-100" : "opacity-0")} />
                   <span className="truncate">
                     {v.placa} — {v.tipo}
+                    {v.codigoEquipo ? ` (${v.codigoEquipo})` : ""}
                   </span>
                 </CommandItem>
               ))}
