@@ -89,6 +89,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
     icono: Snowflake,
     items: [
       { titulo: "Inicio", href: "/comex", icono: LayoutGrid },
+      { titulo: "Dashboard Exportaciones", href: "/comex/dashboard-exportaciones", icono: BarChart3 },
       { titulo: "Packing list", href: "/comex/packing-list", icono: FileSpreadsheet },
       { titulo: "Stock de cámara", href: "/comex/stock-camara", icono: Thermometer },
       { titulo: "Formatos de exportación", href: "/comex/formatos-exportacion", icono: Package },
