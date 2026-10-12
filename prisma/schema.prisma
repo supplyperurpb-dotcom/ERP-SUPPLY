@@ -399,6 +399,30 @@ model RetiradorAlmacenPermitido {
   @@map("retirador_almacen_permitidos")
 }
 
+enum TipoVehiculo {
+  CAMIONETA
+  TRACTOR
+  CISTERNA
+  EQUIPOS_MENORES
+}
+
+// Catálogo de vehículos (lista editable desde Logística > Listas >
+// Vehículos) — se usa al registrar un Consumo de un almacén de
+// COMBUSTIBLE, para indicar a qué vehículo se le despachó (ver
+// ConsumoAlmacen.vehiculoPlaca). Nunca se borra un registro ya usado: se
+// desactiva (activo=false), igual que RetiradorAutorizado.
+model Vehiculo {
+  id          String       @id @default(cuid())
+  placa       String       @unique
+  areaUsuaria AreaEmpresa
+  tipo        TipoVehiculo
+  activo      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("vehiculos")
+}
+
 enum TipoNecesidad {
   URGENTE
   ESTANDAR
@@ -822,6 +846,14 @@ model ConsumoAlmacen {
   // (no FK) para que el historial no cambie si luego se edita/desactiva
   // ese retirador.
   retiradoPorDni       String?
+  // Placa del vehículo que recibe el combustible, jalada del catálogo
+  // Vehiculo al seleccionarlo — igual que retiradoPorDni, queda guardada
+  // como texto plano (no FK). Junto con horometroKilometraje, solo se
+  // piden (y se exigen) cuando el almacén de origen es de categoría
+  // COMBUSTIBLE — ver validarVehiculoSiAplica en
+  // lib/actions/consumo-almacen-actions.ts.
+  vehiculoPlaca        String?
+  horometroKilometraje Decimal? @db.Decimal(12, 2)
   // Ruta (no URL pública) de la firma táctil capturada en un <canvas> y
   // subida como PNG, y de la foto de evidencia del despacho — ambas en el
   // bucket privado de Supabase Storage (ver lib/storage.ts), igual que

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { List, Users } from "lucide-react";
+import { List, Users, Truck } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TIPOS_LISTA } from "@/lib/constants/listas";
@@ -28,6 +28,15 @@ export default function ListasInicioPage() {
               <CardDescription>
                 Quién puede retirar materiales en un Consumo, y de qué almacenes.
               </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link href="/logistica/listas/vehiculos">
+          <Card className="h-full transition-colors hover:border-primary hover:bg-accent/40">
+            <CardHeader>
+              <Truck className="mb-2 h-6 w-6 text-primary" />
+              <CardTitle className="text-base">Vehículos</CardTitle>
+              <CardDescription>Placas registradas para despachar combustible.</CardDescription>
             </CardHeader>
           </Card>
         </Link>

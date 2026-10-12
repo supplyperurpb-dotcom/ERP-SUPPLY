@@ -161,6 +161,11 @@ export const consumoAlmacenSchema = z.object({
     .string()
     .trim()
     .regex(/^\d{8}$/, "El DNI de quien retira es obligatorio"),
+  // Solo obligatorios cuando el almacén de origen es de categoría
+  // COMBUSTIBLE (lo exige el servidor, ver validarVehiculoSiAplica en
+  // crearConsumoAlmacenAction) — en los demás almacenes quedan vacíos.
+  vehiculoPlaca: z.string().trim().max(20).optional().or(z.literal("")),
+  horometroKilometraje: z.coerce.number().min(0).optional(),
   // Rutas en Supabase Storage de la firma (PNG, capturada en un <canvas>) y
   // de la foto de evidencia del despacho — ver lib/storage.ts. Ambas
   // obligatorias: sin sustento no se puede registrar el consumo.

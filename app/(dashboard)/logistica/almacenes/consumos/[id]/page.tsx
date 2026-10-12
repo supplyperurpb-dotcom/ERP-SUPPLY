@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMoneda, formatCantidad } from "@/lib/utils";
 import { eliminarConsumoAlmacenAction } from "@/lib/actions/consumo-almacen-actions";
 
 export default async function ConsumoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -71,6 +71,18 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
           <p className="text-muted-foreground">Hora de retiro</p>
           <p className="font-medium">{consumo.horaRetiro ?? "—"}</p>
         </div>
+        {consumo.vehiculoPlaca && (
+          <div>
+            <p className="text-muted-foreground">Placa del vehículo</p>
+            <p className="font-medium">{consumo.vehiculoPlaca}</p>
+          </div>
+        )}
+        {consumo.horometroKilometraje !== null && (
+          <div>
+            <p className="text-muted-foreground">Horómetro / Kilometraje</p>
+            <p className="font-medium">{formatCantidad(Number(consumo.horometroKilometraje))}</p>
+          </div>
+        )}
         <div>
           <p className="text-muted-foreground">Evidencia de despacho</p>
           {consumo.fotoEvidenciaArchivo ? (

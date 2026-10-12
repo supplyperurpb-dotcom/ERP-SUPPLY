@@ -2,13 +2,14 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { calcularStockAlmacen, calcularStockPorLote, type FilaStockAlmacen } from "@/lib/stock-almacen";
+import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "../../nuevo/consumo-almacen-form";
 import type { ConsumoAlmacenInput } from "@/lib/validations/almacen";
 
 export default async function EditarConsumoAlmacenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [consumo, almacenes, retiradores] = await Promise.all([
+  const [consumo, almacenes, retiradores, vehiculos] = await Promise.all([
     prisma.consumoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true } } } }),
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
@@ -16,6 +17,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
       include: { almacenesPermitidos: true },
       orderBy: { apellidos: "asc" },
     }),
+    prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
   ]);
   if (!consumo) notFound();
 
@@ -24,6 +26,21 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
   almacenes.forEach((a, i) => {
     stockPorAlmacen[a.id] = stocks[i];
   });
+
+  // En un almacén de Combustible solo se puede consumir SKU de subfamilia
+  // "Combustibles" — mismo filtro que en consumos/nuevo/page.tsx.
+  const almacenesCombustible = almacenes.filter((a) => a.categoriaGeneral === "COMBUSTIBLE");
+  const skuIdsEnAlmacenesCombustible = [...new Set(almacenesCombustible.flatMap((a) => stockPorAlmacen[a.id]?.map((s) => s.skuId) ?? []))];
+  if (skuIdsEnAlmacenesCombustible.length > 0) {
+    const skusCombustible = await prisma.sku.findMany({
+      where: { id: { in: skuIdsEnAlmacenesCombustible }, subfamilia: "Combustibles" },
+      select: { id: true },
+    });
+    const skuIdsCombustible = new Set(skusCombustible.map((s) => s.id));
+    for (const a of almacenesCombustible) {
+      stockPorAlmacen[a.id] = (stockPorAlmacen[a.id] ?? []).filter((s) => skuIdsCombustible.has(s.skuId));
+    }
+  }
 
   // Igual que en traslados: se le devuelve al almacén lo que este mismo
   // consumo ya le había restado, para que "disponible" refleje el mundo sin
@@ -74,6 +91,8 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
     almacenOrigenId: consumo.almacenOrigenId,
     retiradoPor: consumo.retiradoPor ?? "",
     retiradoPorDni: consumo.retiradoPorDni ?? "",
+    vehiculoPlaca: consumo.vehiculoPlaca ?? "",
+    horometroKilometraje: consumo.horometroKilometraje ? Number(consumo.horometroKilometraje) : undefined,
     firmaArchivo: consumo.firmaArchivo ?? "",
     fotoEvidenciaArchivo: consumo.fotoEvidenciaArchivo ?? "",
     observaciones: consumo.observaciones ?? "",
@@ -102,6 +121,11 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
           nombreCompleto: `${r.nombres} ${r.apellidos}`,
           dni: r.dni,
           almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),
+        }))}
+        vehiculos={vehiculos.map((v) => ({
+          id: v.id,
+          placa: v.placa,
+          tipo: TIPOS_VEHICULO.find((t) => t.valor === v.tipo)?.nombre ?? v.tipo,
         }))}
         edicion={{ id: consumo.id, valoresIniciales }}
       />

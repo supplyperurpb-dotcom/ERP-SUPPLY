@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { calcularStockAlmacen, calcularStockPorLote } from "@/lib/stock-almacen";
+import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "./consumo-almacen-form";
 
 export default async function NuevoConsumoAlmacenPage({
@@ -10,19 +11,36 @@ export default async function NuevoConsumoAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const [almacenes, retiradores] = await Promise.all([
+  const [almacenes, retiradores, vehiculos] = await Promise.all([
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
       include: { almacenesPermitidos: true },
       orderBy: { apellidos: "asc" },
     }),
+    prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
   ]);
   const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
   const stockPorAlmacen: Record<string, Awaited<ReturnType<typeof calcularStockAlmacen>>> = {};
   almacenes.forEach((a, i) => {
     stockPorAlmacen[a.id] = stocks[i];
   });
+
+  // En un almacén de Combustible solo se puede consumir SKU de subfamilia
+  // "Combustibles" (diesel/gasohol) — se filtra acá, antes de pasarle el
+  // stock al formulario, para que ni siquiera aparezcan en el buscador.
+  const almacenesCombustible = almacenes.filter((a) => a.categoriaGeneral === "COMBUSTIBLE");
+  const skuIdsEnAlmacenesCombustible = [...new Set(almacenesCombustible.flatMap((a) => stockPorAlmacen[a.id]?.map((s) => s.skuId) ?? []))];
+  if (skuIdsEnAlmacenesCombustible.length > 0) {
+    const skusCombustible = await prisma.sku.findMany({
+      where: { id: { in: skuIdsEnAlmacenesCombustible }, subfamilia: "Combustibles" },
+      select: { id: true },
+    });
+    const skuIdsCombustible = new Set(skusCombustible.map((s) => s.id));
+    for (const a of almacenesCombustible) {
+      stockPorAlmacen[a.id] = (stockPorAlmacen[a.id] ?? []).filter((s) => skuIdsCombustible.has(s.skuId));
+    }
+  }
 
   // Solo los almacenes de Agroquímicos y Fertilizantes exigen lote — se
   // precalcula el stock por lote de cada SKU con stock ahí, para el
@@ -50,6 +68,11 @@ export default async function NuevoConsumoAlmacenPage({
           nombreCompleto: `${r.nombres} ${r.apellidos}`,
           dni: r.dni,
           almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),
+        }))}
+        vehiculos={vehiculos.map((v) => ({
+          id: v.id,
+          placa: v.placa,
+          tipo: TIPOS_VEHICULO.find((t) => t.valor === v.tipo)?.nombre ?? v.tipo,
         }))}
         almacenIdInicial={almacenId}
       />

@@ -54,6 +54,50 @@ async function validarLotesSiAplica(
   return {};
 }
 
+// En un almacén de Combustible, cada línea solo puede ser un SKU de
+// subfamilia "Combustibles" (diesel/gasohol) — nunca se confía en lo que
+// el combobox del cliente ya filtró, se vuelve a verificar acá.
+async function validarSubfamiliaCombustibleSiAplica(
+  almacen: { nombre: string; categoriaGeneral: string | null },
+  items: ConsumoAlmacenInput["items"],
+  db: Db
+): Promise<{ error?: string }> {
+  if (almacen.categoriaGeneral !== "COMBUSTIBLE") return {};
+
+  const skuIds = [...new Set(items.map((i) => i.skuId))];
+  const skus = await db.sku.findMany({ where: { id: { in: skuIds } }, select: { id: true, codigo: true, subfamilia: true } });
+  const noCombustible = skus.find((s) => s.subfamilia !== "Combustibles");
+  if (noCombustible) {
+    return { error: `${noCombustible.codigo}: en ${almacen.nombre} solo se pueden despachar productos de subfamilia Combustibles.` };
+  }
+  return {};
+}
+
+// Un almacén de Combustible exige indicar a qué vehículo se le despachó
+// (placa, jalada del catálogo Vehiculo) y el horómetro/kilometraje al
+// momento del despacho — igual que el lote en Agroquímicos, se exige acá
+// porque solo aplica a esta categoría de almacén.
+async function validarVehiculoSiAplica(
+  almacen: { nombre: string; categoriaGeneral: string | null },
+  vehiculoPlaca: string | undefined,
+  horometroKilometraje: number | undefined
+): Promise<{ error?: string }> {
+  if (almacen.categoriaGeneral !== "COMBUSTIBLE") return {};
+
+  if (!vehiculoPlaca?.trim()) {
+    return { error: "Selecciona la placa del vehículo que recibe el combustible." };
+  }
+  if (horometroKilometraje === undefined || horometroKilometraje === null) {
+    return { error: "El horómetro/kilometraje del vehículo es obligatorio en este almacén." };
+  }
+
+  const vehiculo = await prisma.vehiculo.findUnique({ where: { placa: vehiculoPlaca } });
+  if (!vehiculo || !vehiculo.activo) {
+    return { error: "Esa placa no está en la lista de vehículos. Agrégala en Listas > Vehículos." };
+  }
+  return {};
+}
+
 const TIPOS_FOTO_PERMITIDOS = ["image/jpeg", "image/png"];
 
 // El combobox del formulario ya solo ofrece retiradores con permiso en el
@@ -133,8 +177,19 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, retiradoPorDni, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
-    parsed.data;
+  const {
+    fecha,
+    horaRetiro,
+    almacenOrigenId,
+    retiradoPor,
+    retiradoPorDni,
+    vehiculoPlaca,
+    horometroKilometraje,
+    firmaArchivo,
+    fotoEvidenciaArchivo,
+    observaciones,
+    items,
+  } = parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
   if (!almacen) {
@@ -146,6 +201,12 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
 
   const permisoLotes = await validarLotesSiAplica(almacen, almacenOrigenId, items, prisma);
   if (permisoLotes.error) return permisoLotes;
+
+  const permisoCombustible = await validarSubfamiliaCombustibleSiAplica(almacen, items, prisma);
+  if (permisoCombustible.error) return permisoCombustible;
+
+  const permisoVehiculo = await validarVehiculoSiAplica(almacen, vehiculoPlaca, horometroKilometraje);
+  if (permisoVehiculo.error) return permisoVehiculo;
 
   const cantidadPorSku = new Map<string, number>();
   for (const item of items) {
@@ -187,6 +248,8 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
           almacenOrigenId,
           retiradoPor,
           retiradoPorDni,
+          vehiculoPlaca: vehiculoPlaca || null,
+          horometroKilometraje: horometroKilometraje ?? null,
           firmaArchivo,
           fotoEvidenciaArchivo,
           observaciones: observaciones || null,
@@ -249,8 +312,19 @@ export async function actualizarConsumoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, horaRetiro, almacenOrigenId, retiradoPor, retiradoPorDni, firmaArchivo, fotoEvidenciaArchivo, observaciones, items } =
-    parsed.data;
+  const {
+    fecha,
+    horaRetiro,
+    almacenOrigenId,
+    retiradoPor,
+    retiradoPorDni,
+    vehiculoPlaca,
+    horometroKilometraje,
+    firmaArchivo,
+    fotoEvidenciaArchivo,
+    observaciones,
+    items,
+  } = parsed.data;
 
   const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
   if (!almacen) {
@@ -259,6 +333,12 @@ export async function actualizarConsumoAlmacenAction(
 
   const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
   if (permiso.error) return permiso;
+
+  const permisoCombustible = await validarSubfamiliaCombustibleSiAplica(almacen, items, prisma);
+  if (permisoCombustible.error) return permisoCombustible;
+
+  const permisoVehiculo = await validarVehiculoSiAplica(almacen, vehiculoPlaca, horometroKilometraje);
+  if (permisoVehiculo.error) return permisoVehiculo;
 
   const cantidadPorSku = new Map<string, number>();
   for (const item of items) {
@@ -310,6 +390,8 @@ export async function actualizarConsumoAlmacenAction(
           almacenOrigenId,
           retiradoPor,
           retiradoPorDni,
+          vehiculoPlaca: vehiculoPlaca || null,
+          horometroKilometraje: horometroKilometraje ?? null,
           firmaArchivo,
           fotoEvidenciaArchivo,
           observaciones: observaciones || null,

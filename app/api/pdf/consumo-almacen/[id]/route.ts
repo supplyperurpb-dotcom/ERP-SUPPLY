@@ -28,6 +28,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     horaRetiro: consumo.horaRetiro,
     retiradoPor: consumo.retiradoPor ? `${consumo.retiradoPor} (DNI ${consumo.retiradoPorDni ?? "—"})` : "—",
     registradoPor: registrador ? `${registrador.nombres} ${registrador.apellidos}` : "—",
+    vehiculoPlaca: consumo.vehiculoPlaca,
+    horometroKilometraje: consumo.horometroKilometraje ? Number(consumo.horometroKilometraje) : null,
     observaciones: consumo.observaciones,
     lineas: consumo.items.map((item) => ({
       codigo: item.sku.codigo,

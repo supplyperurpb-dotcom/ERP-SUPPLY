@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { FirmaCanvas } from "@/components/shared/firma-canvas";
 import { RetiradorAutorizadoCombobox } from "@/components/shared/retirador-autorizado-combobox";
+import { VehiculoCombobox, type VehiculoOpcionCombobox } from "@/components/shared/vehiculo-combobox";
 import { fechaLocalHoy, horaLocalAhora, formatCantidad } from "@/lib/utils";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 import {
@@ -42,14 +43,18 @@ export function ConsumoAlmacenForm({
   stockPorAlmacen,
   lotesPorAlmacen,
   retiradores,
+  vehiculos,
   almacenIdInicial,
   edicion,
 }: {
   almacenes: Opcion[];
+  /** Para almacenes de categoría COMBUSTIBLE, la página ya filtró esta lista
+   * a solo SKU de subfamilia "Combustibles" (ver consumos/nuevo/page.tsx). */
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
   /** Solo trae datos para almacenes de categoría AGROQUIMICOS_FERTILIZANTES. */
   lotesPorAlmacen: Record<string, Record<string, LoteStock[]>>;
   retiradores: RetiradorOpcion[];
+  vehiculos: VehiculoOpcionCombobox[];
   almacenIdInicial?: string;
   /** Presente solo cuando el formulario edita un consumo ya existente.
    * `stockPorAlmacen` ya viene ajustado por la página (ver
@@ -70,6 +75,8 @@ export function ConsumoAlmacenForm({
       almacenOrigenId: almacenIdInicial ?? "",
       retiradoPor: "",
       retiradoPorDni: "",
+      vehiculoPlaca: "",
+      horometroKilometraje: undefined,
       firmaArchivo: "",
       fotoEvidenciaArchivo: "",
       observaciones: "",
@@ -83,6 +90,7 @@ export function ConsumoAlmacenForm({
   const firmaArchivoActual = edicion?.valoresIniciales.firmaArchivo;
   const fotoArchivoActual = edicion?.valoresIniciales.fotoEvidenciaArchivo;
   const retiradoPorDni = useWatch({ control: form.control, name: "retiradoPorDni" });
+  const vehiculoPlaca = useWatch({ control: form.control, name: "vehiculoPlaca" });
 
   // Solo se puede elegir a alguien con permiso de retirar de ESTE almacén —
   // ver Listas > Retiradores autorizados.
@@ -111,6 +119,12 @@ export function ConsumoAlmacenForm({
   // del SKU en el almacén.
   const almacenActual = almacenes.find((a) => a.id === almacenOrigenId);
   const muestraLote = almacenActual?.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
+  // Un almacén de Combustible exige indicar a qué vehículo se despachó y su
+  // horómetro/kilometraje (ver validarVehiculoSiAplica en
+  // lib/actions/consumo-almacen-actions.ts), y solo deja elegir productos
+  // de subfamilia "Combustibles" (ya filtrados por la página en
+  // stockPorAlmacen).
+  const esCombustible = almacenActual?.categoriaGeneral === "COMBUSTIBLE";
 
   function lotesDe(skuId: string): LoteStock[] {
     if (!muestraLote || !almacenOrigenId || !skuId) return [];
@@ -174,6 +188,14 @@ export function ConsumoAlmacenForm({
       toast.error("Selecciona el lote de cada producto en este almacén (exige lote, fecha de producción y vencimiento).");
       return;
     }
+    if (esCombustible && !data.vehiculoPlaca?.trim()) {
+      toast.error("Selecciona la placa del vehículo que recibe el combustible.");
+      return;
+    }
+    if (esCombustible && (data.horometroKilometraje === undefined || data.horometroKilometraje === null)) {
+      toast.error("El horómetro/kilometraje del vehículo es obligatorio en este almacén.");
+      return;
+    }
 
     let resultado;
     try {
@@ -223,6 +245,8 @@ export function ConsumoAlmacenForm({
                     replace([ITEM_VACIO]);
                     form.setValue("retiradoPor", "");
                     form.setValue("retiradoPorDni", "");
+                    form.setValue("vehiculoPlaca", "");
+                    form.setValue("horometroKilometraje", undefined);
                   }}
                 >
                   <SelectTrigger>
@@ -282,6 +306,40 @@ export function ConsumoAlmacenForm({
               <p className="text-sm font-medium text-destructive">{form.formState.errors.retiradoPorDni.message}</p>
             )}
           </div>
+
+          {esCombustible && (
+            <>
+              <div className="space-y-2">
+                <Label>Placa del vehículo</Label>
+                <VehiculoCombobox
+                  vehiculos={vehiculos}
+                  value={vehiculoPlaca || ""}
+                  onSelect={(v) => form.setValue("vehiculoPlaca", v.placa, { shouldValidate: true })}
+                />
+                {form.formState.errors.vehiculoPlaca && (
+                  <p className="text-sm font-medium text-destructive">{form.formState.errors.vehiculoPlaca.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="horometroKilometraje">Horómetro / Kilometraje</Label>
+                <Controller
+                  control={form.control}
+                  name="horometroKilometraje"
+                  render={({ field }) => (
+                    <NumberInput
+                      id="horometroKilometraje"
+                      value={field.value === undefined || field.value === null ? "" : String(field.value)}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+                {form.formState.errors.horometroKilometraje && (
+                  <p className="text-sm font-medium text-destructive">{form.formState.errors.horometroKilometraje.message}</p>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>
