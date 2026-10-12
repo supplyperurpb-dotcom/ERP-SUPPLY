@@ -255,15 +255,18 @@ export function calcularPrecioPorKg(filas: FilaFacturacion[], campo: "variety" |
     .sort((a, b) => b.netWeight - a.netWeight);
 }
 
-// "3_ESTATUS DE EMBARQUES POR CONTENEDOR", combinando semana real: ATA
-// para lo ya ARRIBADO, ETA (estimado) para lo que sigue EN TRANSITO — una
-// sola línea de tiempo por embarque (PO), con el dato más preciso
-// disponible según su estado. Las filas sin esa semana se excluyen.
-export function contarEmbarquesPorSemanaCombinada(filas: FilaFacturacion[]): { puntos: PuntoApilado[]; series: string[] } {
+// "3_ESTATUS DE EMBARQUES POR CONTENEDOR": embarques (PO distintas) por
+// semana ETA o ATA, segmentados por estado (ARRIBADO / EN TRANSITO). Las
+// filas sin esa semana (todavía sin ETA/ATA) se excluyen, no se agrupan
+// como "sin dato" inventado.
+export function contarEmbarquesPorSemanaYEstado(
+  filas: FilaFacturacion[],
+  campoSemana: "weekEta" | "weekAta"
+): { puntos: PuntoApilado[]; series: string[] } {
   const porSemana = new Map<number, Map<string, Set<string>>>();
   const estados = new Set<string>();
   for (const f of filas) {
-    const semana = f.statusEmbarque === "ARRIBADO" ? f.weekAta : f.weekEta;
+    const semana = f[campoSemana];
     if (semana === null) continue;
     estados.add(f.statusEmbarque);
     const porEstado = porSemana.get(semana) ?? new Map<string, Set<string>>();

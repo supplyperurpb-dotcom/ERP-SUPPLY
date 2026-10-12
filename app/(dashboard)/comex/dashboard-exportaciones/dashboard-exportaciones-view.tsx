@@ -11,7 +11,7 @@ import {
   obtenerOpcionesFiltro,
   calcularEmbarquesPorMercadoSegunModo,
   calcularPrecioPorKg,
-  contarEmbarquesPorSemanaCombinada,
+  contarEmbarquesPorSemanaYEstado,
   calcularValorizadoPorSemanaYEstado,
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
@@ -56,7 +56,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   );
   const precioPorVariedad = useMemo(() => calcularPrecioPorKg(filasFiltradas, "variety"), [filasFiltradas]);
   const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
-  const embarquesPorSemanaCombinada = useMemo(() => contarEmbarquesPorSemanaCombinada(filasFiltradas), [filasFiltradas]);
+  const embarquesPorSemanaEta = useMemo(() => contarEmbarquesPorSemanaYEstado(filasFiltradas, "weekEta"), [filasFiltradas]);
   const valorizadoPorSemanaAta = useMemo(() => calcularValorizadoPorSemanaYEstado(filasFiltradas, "weekAta"), [filasFiltradas]);
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
   const kgPorSemanaEtiqueta = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "label"), [filasFiltradas]);
@@ -123,10 +123,10 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StackedBarChart
-          titulo="Embarques por semana según estado"
-          descripcion="N° de embarques (PO): ATA real para lo arribado, ETA estimado para lo que sigue en agua."
-          puntos={embarquesPorSemanaCombinada.puntos}
-          series={embarquesPorSemanaCombinada.series}
+          titulo="Embarques por semana ETA según estado"
+          descripcion="N° de embarques (PO), por semana estimada de llegada."
+          puntos={embarquesPorSemanaEta.puntos}
+          series={embarquesPorSemanaEta.series}
           formatearValor={(v) => String(Math.round(v))}
         />
         <StackedBarChart
