@@ -1379,6 +1379,30 @@ model PackingListItem {
   @@map("packing_list_items")
 }
 
+// Una fila de la hoja "Facturación" del Excel de facturación de
+// exportación (ver scripts/importar-facturacion-exportacion.ts) — fuente
+// del Dashboard Exportaciones. Se resincroniza completa (truncate +
+// re-inserta) cada vez que se corre el script con un Excel actualizado,
+// así que no hay edición manual de estas filas desde la app.
+model FacturacionExportacion {
+  id                   String   @id @default(cuid())
+  // "DISP. WEEK" — semana de despacho, usada como filtro principal del
+  // dashboard.
+  dispWeek             Int
+  // "INVOICED AMOUNT - 1 (CIF)"
+  invoicedAmount       Decimal  @db.Decimal(14, 2)
+  // "CIF Liquidated (Tariffs)" — total liquidado valorizado.
+  cifLiquidatedTariffs Decimal  @db.Decimal(14, 2)
+  // "NET WEIGHT" — kg embarcados de esta línea.
+  netWeight            Decimal  @db.Decimal(14, 3)
+  // "Net Kilos Liquidated" — kg liquidados de esta línea.
+  netKilosLiquidated   Decimal  @db.Decimal(14, 3)
+  importadoEn          DateTime @default(now())
+
+  @@index([dispWeek])
+  @@map("facturacion_exportacion")
+}
+
 // =========================================================================
 // AUDITORÍA
 // =========================================================================

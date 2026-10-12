@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "importar:facturacion": "tsx scripts/importar-facturacion-exportacion.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

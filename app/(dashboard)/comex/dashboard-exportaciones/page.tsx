@@ -1,18 +1,33 @@
-import { BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
+import { prisma } from "@/lib/db/prisma";
+import { DashboardExportacionesView } from "./dashboard-exportaciones-view";
 
-export default function DashboardExportacionesPage() {
+export default async function DashboardExportacionesPage() {
+  const filas = await prisma.facturacionExportacion.findMany({
+    select: {
+      dispWeek: true,
+      invoicedAmount: true,
+      cifLiquidatedTariffs: true,
+      netWeight: true,
+      netKilosLiquidated: true,
+    },
+    orderBy: { dispWeek: "asc" },
+  });
+
   return (
     <div>
       <PageHeader
         titulo="Dashboard Exportaciones"
-        descripcion="Gráficos y tendencias de facturación de exportación."
+        descripcion="Facturación de exportación — datos de la hoja Facturación del Excel de facturación."
       />
-      <EmptyState
-        icono={BarChart3}
-        titulo="Dashboard en construcción"
-        descripcion="Todavía no tiene contenido configurado."
+      <DashboardExportacionesView
+        filas={filas.map((f) => ({
+          dispWeek: f.dispWeek,
+          invoicedAmount: Number(f.invoicedAmount),
+          cifLiquidatedTariffs: Number(f.cifLiquidatedTariffs),
+          netWeight: Number(f.netWeight),
+          netKilosLiquidated: Number(f.netKilosLiquidated),
+        }))}
       />
     </div>
   );
