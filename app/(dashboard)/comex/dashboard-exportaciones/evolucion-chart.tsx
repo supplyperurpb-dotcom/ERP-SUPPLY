@@ -3,6 +3,7 @@
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
+import { PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE } from "./colores";
 import type { PuntoEvolucion } from "@/lib/facturacion-exportacion";
 
 // Evolución (semanal o mensual, según qué le pase el padre): barras de kg
@@ -22,10 +23,18 @@ export function EvolucionChart({ titulo, puntos }: { titulo: string; puntos: Pun
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={puntos} margin={{ left: 8, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="periodo" interval={0} fontSize={12} />
-                <YAxis yAxisId="kg" tickFormatter={(v) => formatCantidad(v)} fontSize={12} />
-                <YAxis yAxisId="usd" orientation="right" tickFormatter={(v) => formatCantidad(v)} fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
+                <XAxis dataKey="periodo" interval={0} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
+                <YAxis yAxisId="kg" tickFormatter={(v) => formatCantidad(v)} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
+                <YAxis
+                  yAxisId="usd"
+                  orientation="right"
+                  tickFormatter={(v) => formatCantidad(v)}
+                  fontSize={12}
+                  stroke={COLOR_EJE}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <Tooltip
                   formatter={(value, name) =>
                     name === "netWeight"
@@ -34,8 +43,8 @@ export function EvolucionChart({ titulo, puntos }: { titulo: string; puntos: Pun
                   }
                 />
                 <Legend formatter={(value) => (value === "netWeight" ? "Kg embarcados" : "Facturado (USD)")} />
-                <Bar yAxisId="kg" dataKey="netWeight" fill="#93c5fd" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="usd" type="monotone" dataKey="invoicedAmount" stroke="#1d4ed8" strokeWidth={2} dot={false} />
+                <Bar yAxisId="kg" dataKey="netWeight" fill={PALETA_SOBRIA[2]} radius={[4, 4, 0, 0]} />
+                <Line yAxisId="usd" type="monotone" dataKey="invoicedAmount" stroke={PALETA_SOBRIA[0]} strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

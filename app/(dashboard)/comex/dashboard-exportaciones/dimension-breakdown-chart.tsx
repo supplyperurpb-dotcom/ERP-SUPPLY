@@ -3,6 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
+import { PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE } from "./colores";
 import type { FilaDimension } from "@/lib/facturacion-exportacion";
 
 // Barras horizontales de kg exportados por una dimensión (cliente, mercado,
@@ -24,9 +25,9 @@ export function DimensionBreakdownChart({ titulo, filas }: { titulo: string; fil
           <div style={{ height: alto }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={filas} layout="vertical" margin={{ left: 8, right: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" tickFormatter={(v) => formatCantidad(v)} fontSize={12} />
-                <YAxis type="category" dataKey="etiqueta" width={140} fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} horizontal={false} />
+                <XAxis type="number" tickFormatter={(v) => formatCantidad(v)} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
+                <YAxis type="category" dataKey="etiqueta" width={140} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
                 <Tooltip
                   formatter={(value, name) =>
                     name === "netWeight"
@@ -34,7 +35,7 @@ export function DimensionBreakdownChart({ titulo, filas }: { titulo: string; fil
                       : [formatMoneda(Number(value), "USD"), "Facturado"]
                   }
                 />
-                <Bar dataKey="netWeight" fill="#1d4ed8" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="netWeight" fill={PALETA_SOBRIA[0]} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

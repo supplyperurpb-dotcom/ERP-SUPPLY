@@ -3,9 +3,8 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCantidad } from "@/lib/utils";
+import { colorPara } from "./colores";
 import type { Participacion } from "@/lib/facturacion-exportacion";
-
-const COLORES = ["#1d4ed8", "#16a34a", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d"];
 
 // Torta de participación (kg y %) de cada valor de una dimensión sobre el
 // total del filtro actual — genérica, solo dibuja lo que ya viene
@@ -39,7 +38,7 @@ export function ParticipacionChart({ titulo, datos }: { titulo: string; datos: P
                   labelLine
                 >
                   {datos.map((d, i) => (
-                    <Cell key={d.etiqueta} fill={COLORES[i % COLORES.length]} />
+                    <Cell key={d.etiqueta} fill={colorPara(d.etiqueta, i)} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => `${formatCantidad(Number(value))} kg`} />

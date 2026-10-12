@@ -3,9 +3,8 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCantidad } from "@/lib/utils";
+import { colorPara, COLOR_GRILLA, COLOR_EJE } from "./colores";
 import type { PuntoApilado } from "@/lib/facturacion-exportacion";
-
-const COLORES = ["#1d4ed8", "#16a34a", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
 
 // Barras apiladas genéricas: no sabe qué está agrupando (mercado, semana,
 // estado, etc.) — solo recibe los puntos ya armados (ver las funciones
@@ -40,13 +39,13 @@ export function StackedBarChart({
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={puntos} margin={{ left: 8, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="categoria" interval={0} fontSize={12} />
-                <YAxis tickFormatter={fmt} fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
+                <XAxis dataKey="categoria" interval={0} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
+                <YAxis tickFormatter={fmt} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
                 <Tooltip formatter={(value) => fmt(Number(value))} />
                 <Legend />
                 {series.map((s, i) => (
-                  <Bar key={s} dataKey={s} stackId="a" fill={COLORES[i % COLORES.length]} />
+                  <Bar key={s} dataKey={s} stackId="a" fill={colorPara(s, i)} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
