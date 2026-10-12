@@ -34,9 +34,12 @@ export type FiltrosFacturacion = {
   fechaDesde?: string;
   /** "YYYY-MM-DD", inclusive. Solo lo usa el comparativo entre periodos, ya no la barra principal. */
   fechaHasta?: string;
-  dispWeek?: number;
-  market?: string;
-  destinationCountry?: string;
+  /** Vacío o ausente = todas. */
+  weeks?: number[];
+  /** Vacío o ausente = todos. */
+  markets?: string[];
+  /** Vacío o ausente = todos. */
+  destinationCountries?: string[];
 };
 
 function fechaISO(d: Date): string {
@@ -48,9 +51,14 @@ export function filtrarFacturacion(filas: FilaFacturacion[], filtros: FiltrosFac
     const fecha = fechaISO(f.dispatchDate);
     if (filtros.fechaDesde && fecha < filtros.fechaDesde) return false;
     if (filtros.fechaHasta && fecha > filtros.fechaHasta) return false;
-    if (filtros.dispWeek !== undefined && f.dispWeek !== filtros.dispWeek) return false;
-    if (filtros.market && f.market !== filtros.market) return false;
-    if (filtros.destinationCountry && f.destinationCountry !== filtros.destinationCountry) return false;
+    if (filtros.weeks && filtros.weeks.length > 0 && !filtros.weeks.includes(f.dispWeek)) return false;
+    if (filtros.markets && filtros.markets.length > 0 && !filtros.markets.includes(f.market)) return false;
+    if (
+      filtros.destinationCountries &&
+      filtros.destinationCountries.length > 0 &&
+      !filtros.destinationCountries.includes(f.destinationCountry)
+    )
+      return false;
     return true;
   });
 }
@@ -74,7 +82,7 @@ export function calcularKpis(filas: FilaFacturacion[]): KpisFacturacion {
   );
 }
 
-export type CampoDimension = "customer" | "market" | "destinationCountry" | "format";
+export type CampoDimension = "customer" | "market" | "destinationCountry" | "format" | "type";
 
 export type FilaDimension = {
   etiqueta: string;

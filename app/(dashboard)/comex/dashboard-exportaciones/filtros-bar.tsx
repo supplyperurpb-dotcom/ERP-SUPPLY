@@ -1,14 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { MultiSelectFiltro } from "./multi-select-filtro";
 import type { FiltrosFacturacion, OpcionesFiltro } from "@/lib/facturacion-exportacion";
 
-const TODOS = "__todos__";
-
-// Barra de filtros: semana de despacho, mercado y destino — pura UI
-// controlada, las opciones de cada select vienen de obtenerOpcionesFiltro
-// (lib), nunca de una lista fija acá.
+// Barra de filtros: semana de despacho, mercado y destino — cada uno es un
+// multi-select (casillas) para poder filtrar en bloque, ej. 3 semanas o 2
+// mercados a la vez. Las opciones de cada select vienen de
+// obtenerOpcionesFiltro (lib), nunca de una lista fija acá.
 export function FiltrosBar({
   filtros,
   opciones,
@@ -25,60 +24,30 @@ export function FiltrosBar({
       <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
           <Label>Semana de despacho</Label>
-          <Select
-            value={filtros.dispWeek !== undefined ? String(filtros.dispWeek) : TODOS}
-            onValueChange={(v) => onChange({ ...filtros, dispWeek: v === TODOS ? undefined : Number(v) })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas</SelectItem>
-              {opciones.weeks.map((semana) => (
-                <SelectItem key={semana} value={String(semana)}>
-                  {semana}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelectFiltro
+            etiqueta="semanas"
+            opciones={opciones.weeks.map(String)}
+            seleccionados={(filtros.weeks ?? []).map(String)}
+            onChange={(valores) => onChange({ ...filtros, weeks: valores.map(Number) })}
+          />
         </div>
         <div className="space-y-2">
           <Label>Mercado</Label>
-          <Select
-            value={filtros.market ?? TODOS}
-            onValueChange={(v) => onChange({ ...filtros, market: v === TODOS ? undefined : v })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos</SelectItem>
-              {opciones.markets.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelectFiltro
+            etiqueta="mercados"
+            opciones={opciones.markets}
+            seleccionados={filtros.markets ?? []}
+            onChange={(valores) => onChange({ ...filtros, markets: valores })}
+          />
         </div>
         <div className="space-y-2">
           <Label>Destino</Label>
-          <Select
-            value={filtros.destinationCountry ?? TODOS}
-            onValueChange={(v) => onChange({ ...filtros, destinationCountry: v === TODOS ? undefined : v })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos</SelectItem>
-              {opciones.destinations.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {d}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelectFiltro
+            etiqueta="destinos"
+            opciones={opciones.destinations}
+            seleccionados={filtros.destinationCountries ?? []}
+            onChange={(valores) => onChange({ ...filtros, destinationCountries: valores })}
+          />
         </div>
         <div className="flex items-end">
           <Button type="button" variant="outline" size="sm" onClick={onLimpiar}>
