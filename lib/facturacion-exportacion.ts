@@ -160,11 +160,11 @@ export type Participacion = {
 
 // Participación de cada destino sobre el total de kg embarcados del
 // conjunto filtrado (para el gráfico de torta/dona).
-export function calcularParticipacionPorDestino(filas: FilaFacturacion[]): Participacion[] {
-  const porDestino = agruparPorDimension(filas, "destinationCountry");
-  const totalKg = porDestino.reduce((acc, d) => acc + d.netWeight, 0);
+export function calcularParticipacion(filas: FilaFacturacion[], campo: CampoDimension): Participacion[] {
+  const agrupado = agruparPorDimension(filas, campo);
+  const totalKg = agrupado.reduce((acc, d) => acc + d.netWeight, 0);
   if (totalKg === 0) return [];
-  return porDestino.map((d) => ({
+  return agrupado.map((d) => ({
     etiqueta: d.etiqueta,
     netWeight: d.netWeight,
     participacionPct: (d.netWeight / totalKg) * 100,

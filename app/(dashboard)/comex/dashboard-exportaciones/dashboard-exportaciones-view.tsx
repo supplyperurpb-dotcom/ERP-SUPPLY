@@ -12,7 +12,7 @@ import {
   agruparPorDimension,
   calcularEvolucionSemanal,
   calcularEvolucionMensual,
-  calcularParticipacionPorDestino,
+  calcularParticipacion,
   obtenerOpcionesFiltro,
   contarEmbarquesPorMercado,
   calcularPrecioPorKg,
@@ -26,7 +26,7 @@ import { KpiCards } from "./kpi-cards";
 import { FiltrosBar } from "./filtros-bar";
 import { DimensionBreakdownChart } from "./dimension-breakdown-chart";
 import { EvolucionChart } from "./evolucion-chart";
-import { ParticipacionDestinoChart } from "./participacion-destino-chart";
+import { ParticipacionChart } from "./participacion-chart";
 import { ComparativoPeriodos } from "./comparativo-periodos";
 import { StackedBarChart } from "./stacked-bar-chart";
 import { PrecioPorKgChart } from "./precio-por-kg-chart";
@@ -42,12 +42,12 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const filasFiltradas = useMemo(() => filtrarFacturacion(filas, filtros), [filas, filtros]);
 
   const kpis = useMemo(() => calcularKpis(filasFiltradas), [filasFiltradas]);
-  const porMercado = useMemo(() => agruparPorDimension(filasFiltradas, "market"), [filasFiltradas]);
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
   const evolucionSemanal = useMemo(() => calcularEvolucionSemanal(filasFiltradas), [filasFiltradas]);
   const evolucionMensual = useMemo(() => calcularEvolucionMensual(filasFiltradas), [filasFiltradas]);
-  const participacionDestino = useMemo(() => calcularParticipacionPorDestino(filasFiltradas), [filasFiltradas]);
+  const participacionDestino = useMemo(() => calcularParticipacion(filasFiltradas, "destinationCountry"), [filasFiltradas]);
+  const participacionMercado = useMemo(() => calcularParticipacion(filasFiltradas, "market"), [filasFiltradas]);
 
   // Mismos indicadores que la hoja "Reporte Expo" del Excel, ahora como
   // gráficos en vivo sobre esta misma data (ver lib/facturacion-exportacion.ts).
@@ -102,12 +102,12 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />
-        <ParticipacionDestinoChart datos={participacionDestino} />
+        <DimensionBreakdownChart titulo="Kg exportados por destino" filas={porDestino} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg exportados por destino" filas={porDestino} />
-        <DimensionBreakdownChart titulo="Kg exportados por mercado" filas={porMercado} />
+        <ParticipacionChart titulo="Participación por destino (kg)" datos={participacionDestino} />
+        <ParticipacionChart titulo="Participación por mercado (kg)" datos={participacionMercado} />
       </div>
 
       <div className="space-y-1 pt-2">
