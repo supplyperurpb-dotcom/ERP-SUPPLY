@@ -12,29 +12,34 @@ export function KpiCards({ kpis }: { kpis: KpisFacturacion }) {
   const tarjetas = [
     {
       titulo: "Kg Embarcados",
-      kg: `${formatCantidad(kpis.netWeight)} kg`,
-      valor: formatMoneda(kpis.invoicedAmount, "USD"),
-      porKg: `${formatMoneda(cifPorKg, "USD")} /kg CIF`,
+      lineaPrincipal: `${formatCantidad(kpis.netWeight)} kg`,
+      lineaSecundaria: formatMoneda(kpis.invoicedAmount, "USD"),
+    },
+    {
+      titulo: "$/kg CIF",
+      lineaPrincipal: formatMoneda(cifPorKg, "USD"),
     },
     {
       titulo: "Kg Liquidados",
-      kg: `${formatCantidad(kpis.netKilosLiquidated)} kg`,
-      valor: formatMoneda(kpis.cifLiquidatedTariffs, "USD"),
-      porKg: `${formatMoneda(cifPorKgLiquidado, "USD")} /kg CIF liquidado`,
+      lineaPrincipal: `${formatCantidad(kpis.netKilosLiquidated)} kg`,
+      lineaSecundaria: formatMoneda(kpis.cifLiquidatedTariffs, "USD"),
+    },
+    {
+      titulo: "$/kg CIF liquidado",
+      lineaPrincipal: formatMoneda(cifPorKgLiquidado, "USD"),
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {tarjetas.map((t) => (
         <Card key={t.titulo}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{t.titulo}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-semibold">{t.kg}</p>
-            <p className="text-base font-medium text-foreground">{t.valor}</p>
-            <p className="text-sm text-muted-foreground">{t.porKg}</p>
+            <p className="text-2xl font-semibold">{t.lineaPrincipal}</p>
+            {t.lineaSecundaria && <p className="text-base font-medium text-foreground">{t.lineaSecundaria}</p>}
           </CardContent>
         </Card>
       ))}
