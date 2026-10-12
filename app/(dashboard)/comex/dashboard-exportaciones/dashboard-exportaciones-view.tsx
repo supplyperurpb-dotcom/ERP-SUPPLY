@@ -42,7 +42,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const filasFiltradas = useMemo(() => filtrarFacturacion(filas, filtros), [filas, filtros]);
 
   const kpis = useMemo(() => calcularKpis(filasFiltradas), [filasFiltradas]);
-  const porCliente = useMemo(() => agruparPorDimension(filasFiltradas, "customer"), [filasFiltradas]);
   const porMercado = useMemo(() => agruparPorDimension(filasFiltradas, "market"), [filasFiltradas]);
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
@@ -110,8 +109,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <DimensionBreakdownChart titulo="Kg exportados por destino" filas={porDestino} />
         <DimensionBreakdownChart titulo="Kg exportados por mercado" filas={porMercado} />
       </div>
-
-      <DimensionBreakdownChart titulo="Kg exportados por cliente" filas={porCliente} />
 
       <div className="space-y-1 pt-2">
         <h2 className="text-lg font-semibold">Basado en el Reporte Expo</h2>
