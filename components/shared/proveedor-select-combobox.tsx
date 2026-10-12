@@ -72,8 +72,8 @@ export function ProveedorSelectCombobox({
                 >
                   <Check className={cn("mr-2 h-4 w-4 shrink-0", p.id === value ? "opacity-100" : "opacity-0")} />
                   <span className="truncate">
+                    {p.ruc ? <span className="text-muted-foreground">RUC {p.ruc} — </span> : null}
                     {p.razonSocial}
-                    {p.ruc ? <span className="text-muted-foreground"> — RUC {p.ruc}</span> : null}
                   </span>
                 </CommandItem>
               ))}
