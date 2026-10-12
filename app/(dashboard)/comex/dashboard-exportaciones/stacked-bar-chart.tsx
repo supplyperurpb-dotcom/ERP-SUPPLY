@@ -42,7 +42,14 @@ export function StackedBarChart({
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
                 <XAxis dataKey="categoria" interval={0} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
                 <YAxis tickFormatter={fmt} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
-                <Tooltip formatter={(value) => fmt(Number(value))} />
+                <Tooltip
+                  formatter={(value, name, item) => {
+                    const payload = item?.payload as PuntoApilado | undefined;
+                    const total = payload ? series.reduce((acc, s) => acc + Number(payload[s] ?? 0), 0) : 0;
+                    const pct = total > 0 ? (Number(value) / total) * 100 : 0;
+                    return [`${fmt(Number(value))} (${pct.toFixed(1)}%)`, name];
+                  }}
+                />
                 <Legend />
                 {series.map((s, i) => (
                   <Bar key={s} dataKey={s} stackId="a" fill={colorPara(s, i)} />

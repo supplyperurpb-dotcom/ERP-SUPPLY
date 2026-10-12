@@ -208,26 +208,32 @@ export function obtenerOpcionesFiltro(filas: FilaFacturacion[]): OpcionesFiltro 
 
 export type PuntoApilado = { categoria: string; [serie: string]: string | number };
 
-// "1_N° EMBARQUES EJECUTADOS": embarques (PO distintas, no filas) por
-// mercado, segmentados por modo de transporte.
-export function contarEmbarquesPorMercado(filas: FilaFacturacion[]): { puntos: PuntoApilado[]; series: string[] } {
-  const porMercado = new Map<string, Map<string, Set<string>>>();
-  const modos = new Set<string>();
+// "1_N° EMBARQUES EJECUTADOS", para los pasteles por modo de transporte:
+// de los embarques (PO distintas) de un modo dado (AEREO/MARITIMO), cuánto
+// kg representa cada mercado, cuántos contenedores (PO) y cuánto
+// facturado — todo lo que necesita el tooltip del pastel.
+export type FilaPieMercado = { etiqueta: string; netWeight: number; participacionPct: number; n: number; invoicedAmount: number };
+
+export function calcularEmbarquesPorMercadoSegunModo(filas: FilaFacturacion[], modo: string): FilaPieMercado[] {
+  const porMercado = new Map<string, { pos: Set<string>; netWeight: number; invoicedAmount: number }>();
   for (const f of filas) {
-    modos.add(f.transportMode);
-    const porModo = porMercado.get(f.market) ?? new Map<string, Set<string>>();
-    const pos = porModo.get(f.transportMode) ?? new Set<string>();
-    pos.add(f.po);
-    porModo.set(f.transportMode, pos);
-    porMercado.set(f.market, porModo);
+    if (f.transportMode !== modo) continue;
+    const actual = porMercado.get(f.market) ?? { pos: new Set<string>(), netWeight: 0, invoicedAmount: 0 };
+    actual.pos.add(f.po);
+    actual.netWeight += f.netWeight;
+    actual.invoicedAmount += f.invoicedAmount;
+    porMercado.set(f.market, actual);
   }
-  const series = [...modos].sort();
-  const puntos = [...porMercado.entries()].map(([mercado, porModo]) => {
-    const punto: PuntoApilado = { categoria: mercado };
-    for (const modo of series) punto[modo] = porModo.get(modo)?.size ?? 0;
-    return punto;
-  });
-  return { puntos, series };
+  const totalKg = [...porMercado.values()].reduce((acc, t) => acc + t.netWeight, 0);
+  return [...porMercado.entries()]
+    .map(([etiqueta, t]) => ({
+      etiqueta,
+      netWeight: t.netWeight,
+      participacionPct: totalKg > 0 ? (t.netWeight / totalKg) * 100 : 0,
+      n: t.pos.size,
+      invoicedAmount: t.invoicedAmount,
+    }))
+    .sort((a, b) => b.netWeight - a.netWeight);
 }
 
 export type FilaPrecioPorKg = { etiqueta: string; cifPorKg: number; netWeight: number };

@@ -9,7 +9,7 @@ import {
   calcularEvolucionSemanal,
   calcularParticipacion,
   obtenerOpcionesFiltro,
-  contarEmbarquesPorMercado,
+  calcularEmbarquesPorMercadoSegunModo,
   calcularPrecioPorKg,
   contarEmbarquesPorSemanaCombinada,
   calcularValorizadoPorSemanaYEstado,
@@ -29,6 +29,7 @@ import { EvolucionChart } from "./evolucion-chart";
 import { ParticipacionChart } from "./participacion-chart";
 import { StackedBarChart } from "./stacked-bar-chart";
 import { PrecioPorKgChart } from "./precio-por-kg-chart";
+import { EmbarquesPorMercadoPie } from "./embarques-por-mercado-pie";
 
 export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[] }) {
   const opciones = useMemo(() => obtenerOpcionesFiltro(filas), [filas]);
@@ -46,7 +47,13 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
   // Mismos indicadores que la hoja "Reporte Expo" del Excel, ahora como
   // gráficos en vivo sobre esta misma data (ver lib/facturacion-exportacion.ts).
-  const embarquesPorMercado = useMemo(() => contarEmbarquesPorMercado(filasFiltradas), [filasFiltradas]);
+  // Un pastel de kg por mercado por cada modo de transporte real presente
+  // en el filtro actual (hoy AEREO y MARITIMO, pero nunca una lista fija).
+  const modosTransporte = useMemo(() => [...new Set(filasFiltradas.map((f) => f.transportMode))].sort(), [filasFiltradas]);
+  const embarquesPorMercadoSegunModo = useMemo(
+    () => modosTransporte.map((modo) => ({ modo, datos: calcularEmbarquesPorMercadoSegunModo(filasFiltradas, modo) })),
+    [filasFiltradas, modosTransporte]
+  );
   const precioPorVariedad = useMemo(() => calcularPrecioPorKg(filasFiltradas, "variety"), [filasFiltradas]);
   const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
   const embarquesPorSemanaCombinada = useMemo(() => contarEmbarquesPorSemanaCombinada(filasFiltradas), [filasFiltradas]);
@@ -86,13 +93,11 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <EstadoResumenCards resumen={resumenEstado} />
 
-      <StackedBarChart
-        titulo="Embarques ejecutados por mercado"
-        descripcion="N° de embarques (PO) distintos, segmentados por modo de transporte."
-        puntos={embarquesPorMercado.puntos}
-        series={embarquesPorMercado.series}
-        formatearValor={(v) => String(Math.round(v))}
-      />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {embarquesPorMercadoSegunModo.map(({ modo, datos }) => (
+          <EmbarquesPorMercadoPie key={modo} titulo={`Embarques ${modo.toLowerCase()}s por mercado (kg)`} datos={datos} />
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StackedBarChart
