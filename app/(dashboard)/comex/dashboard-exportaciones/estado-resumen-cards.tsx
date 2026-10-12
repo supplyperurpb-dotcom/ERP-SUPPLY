@@ -7,8 +7,8 @@ import type { ResumenEstadoContenedores } from "@/lib/facturacion-exportacion";
 // Excel — si apareciera un estado nuevo que no está en este mapa, se usa
 // el valor tal cual viene (nunca se inventa una etiqueta).
 const ETIQUETA_ESTADO: Record<string, string> = {
-  ARRIBADO: "Contenedores arribados",
-  "EN TRANSITO": "Contenedores en agua",
+  ARRIBADO: "FCL arribados",
+  "EN TRANSITO": "FCL en agua",
 };
 
 // Resumen visual rápido: cuántos embarques (PO) hay arribados vs. en
@@ -30,7 +30,7 @@ export function EstadoResumenCards({ resumen }: { resumen: ResumenEstadoContened
             </CardHeader>
             <CardContent className="space-y-1">
               <p className="text-2xl font-semibold" style={{ color }}>
-                {r.n} {r.n === 1 ? "contenedor" : "contenedores"}
+                {r.n} FCL
               </p>
               <p className="text-base font-medium text-foreground">{formatCantidad(r.netWeight)} kg</p>
               <p className="text-sm text-muted-foreground">{formatMoneda(r.invoicedAmount, "USD")}</p>

@@ -45,9 +45,10 @@ export function EmbarquesPorMercadoPie({ titulo, datos }: { titulo: string; dato
                   formatter={(_value, _name, item) => {
                     const d = item?.payload as FilaPieMercado | undefined;
                     if (!d) return "";
-                    const texto = `${formatCantidad(d.netWeight)} kg (${d.participacionPct.toFixed(1)}%) · ${d.n} contenedor${
-                      d.n === 1 ? "" : "es"
-                    } · ${formatMoneda(d.invoicedAmount, "USD")}`;
+                    const texto = `${formatCantidad(d.netWeight)} kg (${d.participacionPct.toFixed(1)}%) · ${d.n} FCL · ${formatMoneda(
+                      d.invoicedAmount,
+                      "USD"
+                    )}`;
                     return [texto, d.etiqueta.toUpperCase()];
                   }}
                 />

@@ -89,20 +89,9 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <EstadoResumenCards resumen={resumenEstado} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {embarquesPorMercadoSegunModo.map(({ modo, datos }) => (
-          <EmbarquesPorMercadoPie key={modo} titulo={`Embarques ${modo.toLowerCase()}s por mercado (kg)`} datos={datos} />
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <PrecioPorKgChart titulo="Precio CIF/kg por variedad" filas={precioPorVariedad} />
-        <PrecioPorKgChart titulo="Precio CIF/kg por tipo de producto" filas={precioPorTipo} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StackedBarChart
-          titulo="Embarques por semana ETA según estado"
-          descripcion="N° de embarques (PO), por semana estimada de llegada."
+          titulo="FCL por semana ETA según estado"
+          descripcion="N° de FCL (PO), por semana estimada de llegada."
           puntos={embarquesPorSemanaEta.puntos}
           series={embarquesPorSemanaEta.series}
           formatearValor={(v) => String(Math.round(v))}
@@ -114,6 +103,17 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
           series={valorizadoPorSemanaAta.series}
           formatearValor={(v) => formatMoneda(v, "USD")}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {embarquesPorMercadoSegunModo.map(({ modo, datos }) => (
+          <EmbarquesPorMercadoPie key={modo} titulo={`FCL ${modo.toLowerCase()}s por mercado (kg)`} datos={datos} />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <PrecioPorKgChart titulo="Precio CIF/kg por variedad" filas={precioPorVariedad} />
+        <PrecioPorKgChart titulo="Precio CIF/kg por tipo de producto" filas={precioPorTipo} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
