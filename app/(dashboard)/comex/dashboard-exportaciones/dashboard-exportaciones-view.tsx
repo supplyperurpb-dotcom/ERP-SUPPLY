@@ -11,7 +11,6 @@ import {
   calcularKpis,
   agruparPorDimension,
   calcularEvolucionSemanal,
-  calcularEvolucionMensual,
   calcularParticipacion,
   obtenerOpcionesFiltro,
   contarEmbarquesPorMercado,
@@ -45,7 +44,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
   const evolucionSemanal = useMemo(() => calcularEvolucionSemanal(filasFiltradas), [filasFiltradas]);
-  const evolucionMensual = useMemo(() => calcularEvolucionMensual(filasFiltradas), [filasFiltradas]);
   const participacionDestino = useMemo(() => calcularParticipacion(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const participacionMercado = useMemo(() => calcularParticipacion(filasFiltradas, "market"), [filasFiltradas]);
 
@@ -95,10 +93,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <KpiCards kpis={kpis} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <EvolucionChart titulo="Evolución Semanal de Facturación" puntos={evolucionSemanal} />
-        <EvolucionChart titulo="Evolución mensual" puntos={evolucionMensual} />
-      </div>
+      <EvolucionChart titulo="Evolución Semanal de Facturación" puntos={evolucionSemanal} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />

@@ -25,16 +25,8 @@ export function EvolucionChart({ titulo, puntos }: { titulo: string; puntos: Pun
               <ComposedChart data={puntos} margin={{ left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
                 <XAxis dataKey="periodo" interval={0} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis yAxisId="kg" tickFormatter={(v) => formatCantidad(v)} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
-                <YAxis
-                  yAxisId="usd"
-                  orientation="right"
-                  tickFormatter={(v) => formatCantidad(v)}
-                  fontSize={12}
-                  stroke={COLOR_EJE}
-                  tickLine={false}
-                  axisLine={false}
-                />
+                <YAxis yAxisId="kg" tick={false} axisLine={false} tickLine={false} width={0} />
+                <YAxis yAxisId="usd" orientation="right" tick={false} axisLine={false} tickLine={false} width={0} />
                 <Tooltip
                   formatter={(value, name) =>
                     name === "netWeight"
