@@ -315,7 +315,13 @@ export function calcularKgPorSemanaYCampo(
     porValor.set(valor, (porValor.get(valor) ?? 0) + f.netWeight);
     porSemana.set(f.dispWeek, porValor);
   }
-  const series = [...valores].sort();
+  // Para "type": orden fijo Premium abajo / Convencional arriba en la
+  // barra apilada (pedido explícito), no alfabético. Para "label" se
+  // mantiene el orden alfabético, que no se pidió cambiar.
+  const series =
+    campo === "type"
+      ? (["PREMIUM", "CONVENCIONAL"] as const).filter((t) => valores.has(t))
+      : [...valores].sort();
   const puntos = [...porSemana.entries()]
     .sort(([a], [b]) => a - b)
     .map(([semana, porValor]) => {

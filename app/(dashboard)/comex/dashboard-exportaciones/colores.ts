@@ -3,16 +3,16 @@
 //
 // 1. COLOR_SEMANTICO: colores fijos para valores que se repiten en varios
 //    gráficos (TYPE y LABEL de la hoja Facturación) — pedido explícito:
-//    Premium en azul marino, Convencional en un gris azulado de
-//    contraste, YL en amarillo discreto, y JB/SB en dos tonos de azul
-//    marino distintos (S&C no se pidió, se le asignó un tono neutro).
+//    Premium en azul marino, Convencional en amarillo (mismo tono que
+//    YL), y JB/SB en dos tonos de azul marino distintos (S&C no se pidió,
+//    se le asignó un tono neutro).
 // 2. PALETA_SOBRIA: colores de respaldo, en orden, para cualquier otra
 //    serie sin color semántico (ej. AEREO/MARITIMO, ARRIBADO/EN TRANSITO,
 //    o las porciones de los gráficos de torta).
 
 export const COLOR_SEMANTICO: Record<string, string> = {
   PREMIUM: "#1F3A5F", // azul marino
-  CONVENCIONAL: "#9AA7B8", // gris azulado, contraste sobrio con el azul marino
+  CONVENCIONAL: "#D9B64E", // amarillo discreto, mismo tono que YL
   YL: "#D9B64E", // amarillo discreto (no escandaloso)
   SB: "#1F3A5F", // azul marino
   JB: "#4A6FA5", // azul marino, tono más claro
