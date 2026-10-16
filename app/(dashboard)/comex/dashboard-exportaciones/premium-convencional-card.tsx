@@ -3,19 +3,18 @@ import { formatCantidad } from "@/lib/utils";
 import { colorPara } from "./colores";
 import type { Participacion } from "@/lib/facturacion-exportacion";
 
-// Participación de PREMIUM y CONVENCIONAL sobre el total de kg embarcado
-// (mismo campo "type" de la hoja Facturación) — datos ya calculados por
-// calcularParticipacion(filas, "type") en lib/facturacion-exportacion.ts.
-export function PremiumConvencionalCard({ datos }: { datos: Participacion[] }) {
+// Participación de PREMIUM y CONVENCIONAL sobre el total de kg de la
+// métrica que le pase el padre (facturado o liquidado; mismo campo "type"
+// de la hoja Facturación) — datos ya calculados por calcularParticipacion
+// o calcularParticipacionLiquidado en lib/facturacion-exportacion.ts.
+export function PremiumConvencionalCard({ titulo, datos }: { titulo: string; datos: Participacion[] }) {
   const premium = datos.find((d) => d.etiqueta === "PREMIUM");
   const convencional = datos.find((d) => d.etiqueta === "CONVENCIONAL");
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          Premium vs. Convencional (% de kg embarcado)
-        </CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{titulo}</CardTitle>
       </CardHeader>
       <CardContent>
         {datos.length === 0 ? (

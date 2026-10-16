@@ -8,6 +8,7 @@ import {
   agruparPorDimension,
   calcularEvolucionSemanal,
   calcularParticipacion,
+  calcularParticipacionLiquidado,
   obtenerOpcionesFiltro,
   calcularEmbarquesPorMercadoSegunModo,
   calcularPrecioPorKg,
@@ -40,6 +41,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const kpis = useMemo(() => calcularKpis(filasFiltradas), [filasFiltradas]);
   const porLiquidar = useMemo(() => calcularPorLiquidar(filasFiltradas), [filasFiltradas]);
   const participacionTipo = useMemo(() => calcularParticipacion(filasFiltradas, "type"), [filasFiltradas]);
+  const participacionTipoLiquidado = useMemo(() => calcularParticipacionLiquidado(filasFiltradas, "type"), [filasFiltradas]);
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
   const evolucionSemanal = useMemo(() => calcularEvolucionSemanal(filasFiltradas), [filasFiltradas]);
@@ -78,7 +80,13 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <PorLiquidarCard datos={porLiquidar} />
       </div>
 
-      <PremiumConvencionalCard datos={participacionTipo} />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <h2 className="text-lg font-semibold lg:w-56 lg:shrink-0">Premium vs Convencional</h2>
+        <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
+          <PremiumConvencionalCard titulo="Kg Facturados, según tipo" datos={participacionTipo} />
+          <PremiumConvencionalCard titulo="Kg Liquidados, según tipo" datos={participacionTipoLiquidado} />
+        </div>
+      </div>
 
       <EvolucionChart titulo="Evolución Semanal de Facturación" puntos={evolucionSemanal} />
 

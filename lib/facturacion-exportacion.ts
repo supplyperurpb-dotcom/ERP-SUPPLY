@@ -179,6 +179,22 @@ export function calcularParticipacion(filas: FilaFacturacion[], campo: CampoDime
   }));
 }
 
+// Misma idea que calcularParticipacion, pero sobre KG LIQUIDADOS
+// (netKilosLiquidated) en vez de kg facturado — para comparar, p. ej.,
+// Premium vs. Convencional tanto en lo facturado como en lo ya liquidado.
+export function calcularParticipacionLiquidado(filas: FilaFacturacion[], campo: CampoDimension): Participacion[] {
+  const mapa = new Map<string, number>();
+  for (const f of filas) {
+    const etiqueta = f[campo];
+    mapa.set(etiqueta, (mapa.get(etiqueta) ?? 0) + f.netKilosLiquidated);
+  }
+  const totalKg = [...mapa.values()].reduce((acc, v) => acc + v, 0);
+  if (totalKg === 0) return [];
+  return [...mapa.entries()]
+    .map(([etiqueta, kg]) => ({ etiqueta, netWeight: kg, participacionPct: (kg / totalKg) * 100 }))
+    .sort((a, b) => b.netWeight - a.netWeight);
+}
+
 export type OpcionesFiltro = {
   weeks: number[];
   markets: string[];
