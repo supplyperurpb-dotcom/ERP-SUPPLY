@@ -528,11 +528,23 @@ model OrdenCompraFirma {
   @@map("orden_compra_firmas")
 }
 
+// Decisión de aprobación de UNA línea (ítem) de una SolicitudPedido. Antes
+// la decisión era solo a nivel de documento completo; ahora cada ítem se
+// aprueba/rechaza por separado (ver decidirItemSolicitudAction) y recién
+// cuando ninguno queda PENDIENTE se puede "Finalizar aprobación" (ver
+// finalizarAprobacionSolicitudAction), que decide el estado del documento
+// completo según el resultado de sus ítems.
+enum EstadoItemSolicitud {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
 model SolicitudPedidoItem {
-  id                String  @id @default(cuid())
+  id                String              @id @default(cuid())
   solicitudPedidoId String
   skuId             String
-  cantidad          Decimal @db.Decimal(12, 3)
+  cantidad          Decimal             @db.Decimal(12, 3)
   unidadMedida      String
   // Nombre de un valor activo (o ya desactivado, si el documento es viejo)
   // de ListaValor con tipo CENTRO_COSTO — ya no es el enum AreaEmpresa.
@@ -545,6 +557,11 @@ model SolicitudPedidoItem {
   // nombre de un valor activo (o ya desactivado) de ListaValor con tipo
   // CAMPO.
   campo             String?
+  // PENDIENTE hasta que el aprobador del área decide esta línea puntual.
+  // Una línea RECHAZADA no cuenta como pendiente para generar una OC y no
+  // sale en el PDF final (ver calcularSolicitudesConPendientes/
+  // cantidadPendiente en lib/compras.ts y el route de PDF).
+  estado            EstadoItemSolicitud @default(PENDIENTE)
 
   solicitudPedido  SolicitudPedido   @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
   sku              Sku               @relation(fields: [skuId], references: [id])

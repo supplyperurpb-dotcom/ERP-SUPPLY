@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, FileDown, ShoppingCart } from "lucide-react";
+import { Search, FileDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AprobarRechazarBotones, AnularSolicitudBoton } from "./aprobar-rechazar-botones";
+import { AnularSolicitudBoton } from "./aprobar-rechazar-botones";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -37,10 +37,7 @@ export type FilaSolicitudPedido = {
   fechaNecesidad: string;
   estado: EstadoDocumento;
   numItems: number;
-  puedeAprobar: boolean;
   puedeAnular: boolean;
-  puedeGenerarOrden: boolean;
-  tienePendiente: boolean;
 };
 
 export function SolicitudesPedidoTable({ filas }: { filas: FilaSolicitudPedido[] }) {
@@ -100,7 +97,6 @@ export function SolicitudesPedidoTable({ filas }: { filas: FilaSolicitudPedido[]
                 <TableCell className="text-right">{f.numItems}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap justify-end gap-1">
-                    {f.puedeAprobar && <AprobarRechazarBotones id={f.id} numero={f.numero} />}
                     {f.puedeAnular && <AnularSolicitudBoton id={f.id} numero={f.numero} />}
                     <Button variant="outline" size="sm" asChild title="Vista previa en PDF">
                       <a href={`/api/pdf/solicitud-pedido/${f.id}`} target="_blank" rel="noopener noreferrer">
@@ -110,26 +106,6 @@ export function SolicitudesPedidoTable({ filas }: { filas: FilaSolicitudPedido[]
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/logistica/solicitudes-pedido/${f.id}`}>Ver</Link>
                     </Button>
-                    {f.puedeGenerarOrden &&
-                      f.estado === "APROBADO" &&
-                      (f.tienePendiente ? (
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/logistica/ordenes-compra/nuevo?categoria=${f.categoria}&solicitudId=${f.id}`}>
-                            <ShoppingCart className="mr-1 h-4 w-4" />
-                            Generar {f.categoria === "SERVICIO" ? "OS" : "OC"}
-                          </Link>
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled
-                          title="Ya no quedan ítems pendientes de esta solicitud para jalar a una orden"
-                        >
-                          <ShoppingCart className="mr-1 h-4 w-4" />
-                          Generar {f.categoria === "SERVICIO" ? "OS" : "OC"}
-                        </Button>
-                      ))}
                   </div>
                 </TableCell>
               </TableRow>

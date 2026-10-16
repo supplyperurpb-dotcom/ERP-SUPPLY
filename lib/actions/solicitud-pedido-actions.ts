@@ -90,62 +90,65 @@ async function verificarPermisoAprobacion(area: string): Promise<{ usuarioId: st
   return { usuarioId: usuario.id };
 }
 
-export async function aprobarSolicitudPedidoAction(id: string): Promise<{ error?: string } | undefined> {
+// Aprueba o rechaza UNA línea puntual de la solicitud (ver
+// EstadoItemSolicitud) — ya no hay un "aprobar/rechazar" a nivel de todo el
+// documento desde la lista; el aprobador entra al detalle, decide cada
+// línea con estos botones, y recién al final usa
+// finalizarAprobacionSolicitudAction.
+export async function decidirItemSolicitudAction(
+  itemId: string,
+  decision: "APROBADO" | "RECHAZADO"
+): Promise<{ error?: string } | undefined> {
   try {
-    const solicitud = await prisma.solicitudPedido.findUnique({ where: { id } });
-    if (!solicitud) return { error: "La solicitud ya no existe." };
-    if (solicitud.estado !== "PENDIENTE") {
-      return { error: "Solo se pueden aprobar solicitudes pendientes." };
+    const item = await prisma.solicitudPedidoItem.findUnique({
+      where: { id: itemId },
+      include: { solicitudPedido: true },
+    });
+    if (!item) return { error: "El ítem ya no existe." };
+    if (item.solicitudPedido.estado !== "PENDIENTE") {
+      return { error: "Solo se pueden decidir ítems de una solicitud pendiente." };
     }
 
-    const permiso = await verificarPermisoAprobacion(solicitud.area);
+    const permiso = await verificarPermisoAprobacion(item.solicitudPedido.area);
     if ("error" in permiso) return permiso;
 
-    await prisma.solicitudPedido.update({
-      where: { id },
-      data: {
-        estado: "APROBADO",
-        aprobadoPorId: permiso.usuarioId,
-        fechaAprobacion: new Date(),
-        comentarioRechazo: null,
-      },
-    });
+    await prisma.solicitudPedidoItem.update({ where: { id: itemId }, data: { estado: decision } });
 
-    revalidatePath("/logistica/solicitudes-pedido");
-    revalidatePath(`/logistica/solicitudes-pedido/${id}`);
+    revalidatePath(`/logistica/solicitudes-pedido/${item.solicitudPedidoId}`);
     return undefined;
   } catch (e) {
-    console.error("Error inesperado en aprobarSolicitudPedidoAction:", e);
-    return { error: e instanceof Error ? e.message : "Error inesperado al aprobar la solicitud." };
+    console.error("Error inesperado en decidirItemSolicitudAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al decidir el ítem." };
   }
 }
 
-export async function rechazarSolicitudPedidoAction(
-  id: string,
-  comentario?: string
-): Promise<{ error?: string } | undefined> {
-  const parsed = rechazarSolicitudPedidoSchema.safeParse({ comentario });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
-  }
-
+// Cierra la revisión de la solicitud: exige que cada línea ya tenga una
+// decisión (ninguna en PENDIENTE) y, según el resultado, deja el
+// documento completo APROBADO (si quedó al menos una línea aprobada) o
+// RECHAZADO (si se rechazaron todas).
+export async function finalizarAprobacionSolicitudAction(id: string): Promise<{ error?: string } | undefined> {
   try {
-    const solicitud = await prisma.solicitudPedido.findUnique({ where: { id } });
+    const solicitud = await prisma.solicitudPedido.findUnique({ where: { id }, include: { items: true } });
     if (!solicitud) return { error: "La solicitud ya no existe." };
     if (solicitud.estado !== "PENDIENTE") {
-      return { error: "Solo se pueden rechazar solicitudes pendientes." };
+      return { error: "Solo se puede finalizar la aprobación de una solicitud pendiente." };
+    }
+    if (solicitud.items.some((item) => item.estado === "PENDIENTE")) {
+      return { error: "Aprueba o rechaza todos los productos antes de finalizar la aprobación." };
     }
 
     const permiso = await verificarPermisoAprobacion(solicitud.area);
     if ("error" in permiso) return permiso;
 
+    const hayAlgunoAprobado = solicitud.items.some((item) => item.estado === "APROBADO");
+
     await prisma.solicitudPedido.update({
       where: { id },
       data: {
-        estado: "RECHAZADO",
+        estado: hayAlgunoAprobado ? "APROBADO" : "RECHAZADO",
         aprobadoPorId: permiso.usuarioId,
         fechaAprobacion: new Date(),
-        comentarioRechazo: parsed.data.comentario || null,
+        comentarioRechazo: hayAlgunoAprobado ? null : "Se rechazaron todos los productos de la solicitud.",
       },
     });
 
@@ -153,8 +156,8 @@ export async function rechazarSolicitudPedidoAction(
     revalidatePath(`/logistica/solicitudes-pedido/${id}`);
     return undefined;
   } catch (e) {
-    console.error("Error inesperado en rechazarSolicitudPedidoAction:", e);
-    return { error: e instanceof Error ? e.message : "Error inesperado al rechazar la solicitud." };
+    console.error("Error inesperado en finalizarAprobacionSolicitudAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al finalizar la aprobación." };
   }
 }
 

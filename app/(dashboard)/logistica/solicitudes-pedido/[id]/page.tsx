@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AprobarRechazarBotones, AnularSolicitudBoton } from "../aprobar-rechazar-botones";
+import { ItemDecisionBotones, FinalizarAprobacionBoton, AnularSolicitudBoton } from "../aprobar-rechazar-botones";
 import { SeguimientoPedidoDialog, type ItemSeguimientoPedido } from "./seguimiento-pedido-dialog";
 import type { ResumenOrden } from "@/components/shared/resumen-orden-dialog";
 import { prisma } from "@/lib/db/prisma";
@@ -30,6 +30,18 @@ const ESTADO_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secon
   APROBADO: "success",
   RECHAZADO: "destructive",
   ANULADO: "destructive",
+};
+
+const ESTADO_ITEM_LABEL: Record<string, string> = {
+  PENDIENTE: "Pendiente",
+  APROBADO: "Aprobado",
+  RECHAZADO: "Rechazado",
+};
+
+const ESTADO_ITEM_VARIANT: Record<string, "success" | "destructive" | "secondary"> = {
+  PENDIENTE: "secondary",
+  APROBADO: "success",
+  RECHAZADO: "destructive",
 };
 
 function nombreArea(valor: string) {
@@ -69,6 +81,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     !!usuario &&
     puedeAprobarSolicitud({ usuarioId: usuario.id, email: usuario.email, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
   const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
+  const todosDecididos = solicitud.items.every((item) => item.estado !== "PENDIENTE");
   // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
   // estado de la solicitud.
   const puedeAnular =
@@ -78,6 +91,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
   // Los compradores de Supply Chain generan las OC/OS para toda la empresa.
   const puedeGenerarOrden = (usuario?.roles.includes("ADMIN") ?? false) || usuario?.area === "SUPPLY_CHAIN";
   const tienePendiente = solicitud.items.some((item) => {
+    if (item.estado === "RECHAZADO") return false;
     const jalado = item.ordenCompraItems
       .filter((oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO")
       .reduce((acc, oci) => acc + Number(oci.cantidad), 0);
@@ -149,7 +163,9 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
         descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
         acciones={
           <div className="flex gap-2">
-            {puedeAprobar && <AprobarRechazarBotones id={solicitud.id} numero={solicitud.numero} />}
+            {puedeAprobar && (
+              <FinalizarAprobacionBoton id={solicitud.id} numero={solicitud.numero} todosDecididos={todosDecididos} />
+            )}
             {puedeAnular && (
               <AnularSolicitudBoton id={solicitud.id} numero={solicitud.numero} redirectTo="/logistica/solicitudes-pedido" />
             )}
@@ -268,6 +284,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                   <TableHead>Centro de costo</TableHead>
                   <TableHead>Campo</TableHead>
                   <TableHead>Órdenes de compra</TableHead>
+                  <TableHead>Decisión</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -277,7 +294,10 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                     (oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO"
                   );
                   const jalado = ocsActivas.reduce((acc, oci) => acc + Number(oci.cantidad), 0);
-                  const pendiente = Math.round((cantidad - jalado) * 1000) / 1000;
+                  // Un ítem RECHAZADO nunca queda pendiente de jalar, sin
+                  // importar cuánto le falte (mismo criterio que
+                  // cantidadPendiente en lib/compras.ts).
+                  const pendiente = item.estado === "RECHAZADO" ? 0 : Math.round((cantidad - jalado) * 1000) / 1000;
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.sku.codigo}</TableCell>
@@ -312,6 +332,12 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                             ))}
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={ESTADO_ITEM_VARIANT[item.estado]}>{ESTADO_ITEM_LABEL[item.estado]}</Badge>
+                          {puedeAprobar && <ItemDecisionBotones itemId={item.id} />}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

@@ -76,6 +76,9 @@ export async function calcularSolicitudesConPendientes(
   for (const solicitud of solicitudes) {
     const items: ItemPendiente[] = [];
     for (const item of solicitud.items) {
+      // Una línea RECHAZADA (ver EstadoItemSolicitud) nunca está disponible
+      // para jalar a una OC, sin importar cuánto quede sin jalar.
+      if (item.estado === "RECHAZADO") continue;
       const cantidad = Number(item.cantidad);
       const cantidadJalada = jaladoMap.get(item.id) ?? 0;
       const cantidadPendiente = Math.round((cantidad - cantidadJalada) * 1000) / 1000;
@@ -113,15 +116,14 @@ export async function calcularSolicitudesConPendientes(
 // Pendiente de UN item puntual, usado para validar en el momento de guardar
 // una OC (dentro de la misma transacción, para evitar condiciones de
 // carrera entre dos personas jalando el mismo item a la vez). Devuelve 0 si
-// la solicitud dueña del item no está APROBADA (no se puede jalar algo
-// pendiente de aprobación o rechazado), mismo criterio que
-// calcularSolicitudesConPendientes.
+// la solicitud dueña del item no está APROBADA o si la línea puntual fue
+// RECHAZADA, mismo criterio que calcularSolicitudesConPendientes.
 export async function cantidadPendiente(solicitudPedidoItemId: string, db: Db = prisma): Promise<number> {
   const item = await db.solicitudPedidoItem.findUnique({
     where: { id: solicitudPedidoItemId },
     include: { solicitudPedido: true },
   });
-  if (!item || item.solicitudPedido.estado !== "APROBADO") return 0;
+  if (!item || item.solicitudPedido.estado !== "APROBADO" || item.estado === "RECHAZADO") return 0;
   const jalado = await db.ordenCompraItem.aggregate({
     where: { solicitudPedidoItemId, ordenCompra: { estado: { notIn: ["RECHAZADO", "ANULADO"] } } },
     _sum: { cantidad: true },

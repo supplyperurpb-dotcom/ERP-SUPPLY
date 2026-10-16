@@ -28,14 +28,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     tipoNecesidad: TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad,
     solicitante: solicitante ? `${solicitante.nombres} ${solicitante.apellidos}` : "—",
     justificacion: solicitud.justificacion,
-    lineas: solicitud.items.map((item) => ({
-      codigo: item.sku.codigo,
-      descripcion: item.descripcion ? `${item.sku.descripcion} — ${item.descripcion}` : item.sku.descripcion,
-      cantidad: Number(item.cantidad),
-      unidadMedida: item.unidadMedida,
-      centroCosto: AREAS_EMPRESA.find((a) => a.valor === item.centroCosto)?.nombre ?? item.centroCosto,
-      campo: item.campo,
-    })),
+    // Las posiciones RECHAZADAS no salen en el PDF final: ya no forman
+    // parte de lo que efectivamente se pide (ver EstadoItemSolicitud).
+    lineas: solicitud.items
+      .filter((item) => item.estado !== "RECHAZADO")
+      .map((item) => ({
+        codigo: item.sku.codigo,
+        descripcion: item.descripcion ? `${item.sku.descripcion} — ${item.descripcion}` : item.sku.descripcion,
+        cantidad: Number(item.cantidad),
+        unidadMedida: item.unidadMedida,
+        centroCosto: AREAS_EMPRESA.find((a) => a.valor === item.centroCosto)?.nombre ?? item.centroCosto,
+        campo: item.campo,
+      })),
     aprobado: solicitud.estado === "APROBADO",
     anulado: solicitud.estado === "ANULADO",
     aprobadoPor: aprobador ? { nombre: `${aprobador.nombres} ${aprobador.apellidos}`, cargo: aprobador.cargo } : null,
