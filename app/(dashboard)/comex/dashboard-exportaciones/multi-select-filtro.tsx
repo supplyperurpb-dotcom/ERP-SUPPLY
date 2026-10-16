@@ -14,12 +14,17 @@ export function MultiSelectFiltro({
   opciones,
   seleccionados,
   onChange,
+  etiquetaOpcion,
 }: {
   etiqueta: string;
   opciones: string[];
   seleccionados: string[];
   onChange: (valores: string[]) => void;
+  /** Para mostrar un texto más amigable que el valor crudo (ej. "AEREO" -> "Aéreo"). Opcional, por defecto se muestra el valor tal cual. */
+  etiquetaOpcion?: (valor: string) => string;
 }) {
+  const mostrar = etiquetaOpcion ?? ((v: string) => v);
+
   function alternar(valor: string) {
     onChange(seleccionados.includes(valor) ? seleccionados.filter((v) => v !== valor) : [...seleccionados, valor]);
   }
@@ -28,7 +33,7 @@ export function MultiSelectFiltro({
     seleccionados.length === 0
       ? `Todas (${etiqueta})`
       : seleccionados.length === 1
-        ? seleccionados[0]
+        ? mostrar(seleccionados[0])
         : `${seleccionados.length} seleccionados`;
 
   return (
@@ -48,7 +53,7 @@ export function MultiSelectFiltro({
                 return (
                   <CommandItem key={opcion} onSelect={() => alternar(opcion)} className="cursor-pointer gap-2">
                     <Checkbox checked={marcado} onCheckedChange={() => alternar(opcion)} />
-                    <span>{opcion}</span>
+                    <span>{mostrar(opcion)}</span>
                   </CommandItem>
                 );
               })}

@@ -40,6 +40,8 @@ export type FiltrosFacturacion = {
   markets?: string[];
   /** Vacío o ausente = todos. */
   destinationCountries?: string[];
+  /** Vacío o ausente = todos. Valores reales de transportMode (AEREO/MARITIMO). */
+  transportModes?: string[];
 };
 
 function fechaISO(d: Date): string {
@@ -58,6 +60,8 @@ export function filtrarFacturacion(filas: FilaFacturacion[], filtros: FiltrosFac
       filtros.destinationCountries.length > 0 &&
       !filtros.destinationCountries.includes(f.destinationCountry)
     )
+      return false;
+    if (filtros.transportModes && filtros.transportModes.length > 0 && !filtros.transportModes.includes(f.transportMode))
       return false;
     return true;
   });
@@ -199,6 +203,7 @@ export type OpcionesFiltro = {
   weeks: number[];
   markets: string[];
   destinations: string[];
+  transportModes: string[];
   fechaMin: string | null;
   fechaMax: string | null;
 };
@@ -211,6 +216,7 @@ export function obtenerOpcionesFiltro(filas: FilaFacturacion[]): OpcionesFiltro 
     weeks: [...new Set(filas.map((f) => f.dispWeek))].sort((a, b) => a - b),
     markets: [...new Set(filas.map((f) => f.market))].sort(),
     destinations: [...new Set(filas.map((f) => f.destinationCountry))].sort(),
+    transportModes: [...new Set(filas.map((f) => f.transportMode))].sort(),
     fechaMin: fechas[0] ?? null,
     fechaMax: fechas[fechas.length - 1] ?? null,
   };

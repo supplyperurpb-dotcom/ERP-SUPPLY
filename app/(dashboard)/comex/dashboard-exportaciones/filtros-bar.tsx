@@ -4,10 +4,19 @@ import { Button } from "@/components/ui/button";
 import { MultiSelectFiltro } from "./multi-select-filtro";
 import type { FiltrosFacturacion, OpcionesFiltro } from "@/lib/facturacion-exportacion";
 
-// Barra de filtros: semana de despacho, mercado y destino — cada uno es un
-// multi-select (casillas) para poder filtrar en bloque, ej. 3 semanas o 2
-// mercados a la vez. Las opciones de cada select vienen de
-// obtenerOpcionesFiltro (lib), nunca de una lista fija acá.
+// Etiqueta amigable para los valores crudos de transportMode — si
+// aparece un modo nuevo que no está acá, se muestra tal cual (nunca se
+// inventa una traducción).
+const ETIQUETA_TRANSPORT_MODE: Record<string, string> = {
+  AEREO: "Aéreo",
+  MARITIMO: "Marítimo",
+};
+
+// Barra de filtros: semana de despacho, mercado, destino y tipo de
+// exportación (aéreo/marítimo) — cada uno es un multi-select (casillas)
+// para poder filtrar en bloque, ej. 3 semanas o 2 mercados a la vez. Las
+// opciones de cada select vienen de obtenerOpcionesFiltro (lib), nunca de
+// una lista fija acá.
 export function FiltrosBar({
   filtros,
   opciones,
@@ -21,7 +30,7 @@ export function FiltrosBar({
 }) {
   return (
     <Card>
-      <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-4">
+      <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-5">
         <div className="space-y-2">
           <Label>Semana de despacho</Label>
           <MultiSelectFiltro
@@ -47,6 +56,16 @@ export function FiltrosBar({
             opciones={opciones.destinations}
             seleccionados={filtros.destinationCountries ?? []}
             onChange={(valores) => onChange({ ...filtros, destinationCountries: valores })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Tipo de exportación</Label>
+          <MultiSelectFiltro
+            etiqueta="tipos"
+            opciones={opciones.transportModes}
+            seleccionados={filtros.transportModes ?? []}
+            onChange={(valores) => onChange({ ...filtros, transportModes: valores })}
+            etiquetaOpcion={(v) => ETIQUETA_TRANSPORT_MODE[v] ?? v}
           />
         </div>
         <div className="flex items-end">
