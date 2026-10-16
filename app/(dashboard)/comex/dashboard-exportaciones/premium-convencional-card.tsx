@@ -7,12 +7,21 @@ import type { Participacion } from "@/lib/facturacion-exportacion";
 // métrica que le pase el padre (facturado o liquidado; mismo campo "type"
 // de la hoja Facturación) — datos ya calculados por calcularParticipacion
 // o calcularParticipacionLiquidado en lib/facturacion-exportacion.ts.
-export function PremiumConvencionalCard({ titulo, datos }: { titulo: string; datos: Participacion[] }) {
+export function PremiumConvencionalCard({
+  titulo,
+  datos,
+  colorFondo,
+}: {
+  titulo: string;
+  datos: Participacion[];
+  /** Color de fondo opcional para la tarjeta (ej. para distinguir "Kg Facturados" de "Kg Liquidados"). */
+  colorFondo?: string;
+}) {
   const premium = datos.find((d) => d.etiqueta === "PREMIUM");
   const convencional = datos.find((d) => d.etiqueta === "CONVENCIONAL");
 
   return (
-    <Card>
+    <Card style={colorFondo ? { backgroundColor: `${colorFondo}1A`, borderColor: `${colorFondo}66` } : undefined}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{titulo}</CardTitle>
       </CardHeader>

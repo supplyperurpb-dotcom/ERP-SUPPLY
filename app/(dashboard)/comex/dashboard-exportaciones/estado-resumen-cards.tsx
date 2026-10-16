@@ -11,6 +11,12 @@ const ETIQUETA_ESTADO: Record<string, string> = {
   "EN TRANSITO": "Embarques En Tránsito",
 };
 
+// Fondo puntual pedido para "Arribados" (mismo tono que las tarjetas de
+// facturación) — el resto de estados sigue con colorPara más abajo.
+const COLOR_FONDO_OVERRIDE: Record<string, string> = {
+  ARRIBADO: "#8dcfec",
+};
+
 // Resumen visual rápido: cuántos embarques (PO) hay arribados vs. en
 // tránsito, con su kg y valor facturado — datos ya calculados por
 // calcularResumenPorEstado en lib/facturacion-exportacion.ts.
@@ -21,8 +27,9 @@ export function EstadoResumenCards({ resumen }: { resumen: ResumenEstadoContened
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {resumen.map((r, i) => {
         const color = colorPara(r.estado, i);
+        const colorFondo = COLOR_FONDO_OVERRIDE[r.estado] ?? color;
         return (
-          <Card key={r.estado} style={{ backgroundColor: `${color}1A`, borderColor: `${color}66` }}>
+          <Card key={r.estado} style={{ backgroundColor: `${colorFondo}1A`, borderColor: `${colorFondo}66` }}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {ETIQUETA_ESTADO[r.estado] ?? r.estado}
