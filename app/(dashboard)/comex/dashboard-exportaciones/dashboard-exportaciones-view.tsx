@@ -10,7 +10,6 @@ import {
   calcularParticipacion,
   calcularParticipacionLiquidado,
   obtenerOpcionesFiltro,
-  calcularEmbarquesPorMercadoSegunModo,
   calcularPrecioPorKg,
   contarEmbarquesPorSemanaYEstado,
   calcularValorizadoPorSemanaYEstado,
@@ -27,10 +26,8 @@ import { EstadoResumenCards } from "./estado-resumen-cards";
 import { FiltrosBar } from "./filtros-bar";
 import { DimensionBreakdownChart } from "./dimension-breakdown-chart";
 import { EvolucionPrecioChart } from "./evolucion-precio-chart";
-import { ParticipacionChart } from "./participacion-chart";
 import { StackedBarChart } from "./stacked-bar-chart";
 import { PrecioPorKgChart } from "./precio-por-kg-chart";
-import { EmbarquesPorMercadoPie } from "./embarques-por-mercado-pie";
 
 export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[] }) {
   const opciones = useMemo(() => obtenerOpcionesFiltro(filas), [filas]);
@@ -43,20 +40,12 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const participacionTipo = useMemo(() => calcularParticipacion(filasFiltradas, "type"), [filasFiltradas]);
   const participacionTipoLiquidado = useMemo(() => calcularParticipacionLiquidado(filasFiltradas, "type"), [filasFiltradas]);
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
+  const porMercado = useMemo(() => agruparPorDimension(filasFiltradas, "market"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
   const evolucionPrecioSemanal = useMemo(() => calcularEvolucionPrecioSemanal(filasFiltradas), [filasFiltradas]);
-  const participacionDestino = useMemo(() => calcularParticipacion(filasFiltradas, "destinationCountry"), [filasFiltradas]);
-  const participacionMercado = useMemo(() => calcularParticipacion(filasFiltradas, "market"), [filasFiltradas]);
 
   // Mismos indicadores que la hoja "Reporte Expo" del Excel, ahora como
   // gráficos en vivo sobre esta misma data (ver lib/facturacion-exportacion.ts).
-  // Un pastel de kg por mercado por cada modo de transporte real presente
-  // en el filtro actual (hoy AEREO y MARITIMO, pero nunca una lista fija).
-  const modosTransporte = useMemo(() => [...new Set(filasFiltradas.map((f) => f.transportMode))].sort(), [filasFiltradas]);
-  const embarquesPorMercadoSegunModo = useMemo(
-    () => modosTransporte.map((modo) => ({ modo, datos: calcularEmbarquesPorMercadoSegunModo(filasFiltradas, modo) })),
-    [filasFiltradas, modosTransporte]
-  );
   const precioPorVariedad = useMemo(() => calcularPrecioPorKg(filasFiltradas, "variety"), [filasFiltradas]);
   const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
   const embarquesPorSemanaEta = useMemo(() => contarEmbarquesPorSemanaYEstado(filasFiltradas, "weekEta"), [filasFiltradas]);
@@ -96,14 +85,11 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         puntos={evolucionPrecioSemanal}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />
-        <DimensionBreakdownChart titulo="Kg exportados por destino" filas={porDestino} />
-      </div>
+      <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ParticipacionChart titulo="Participación por destino (kg)" datos={participacionDestino} />
-        <ParticipacionChart titulo="Participación por mercado (kg)" datos={participacionMercado} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Origen" filas={porDestino} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Mercado" filas={porMercado} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -121,12 +107,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
           series={valorizadoPorSemanaAta.series}
           formatearValor={(v) => formatMoneda(v, "USD")}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {embarquesPorMercadoSegunModo.map(({ modo, datos }) => (
-          <EmbarquesPorMercadoPie key={modo} titulo={`FCL ${modo.toLowerCase()}s por mercado (kg)`} datos={datos} />
-        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

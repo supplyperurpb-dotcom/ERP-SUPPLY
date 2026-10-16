@@ -34,10 +34,13 @@ export function DimensionBreakdownChart({ titulo, filas }: { titulo: string; fil
                 <YAxis type="category" dataKey="etiqueta" width={140} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
                 <Tooltip
                   formatter={(value, name, item) => {
-                    const pct = (item?.payload as { participacionPct?: number } | undefined)?.participacionPct;
-                    const pctTexto = typeof pct === "number" ? ` (${pct.toFixed(1)}%)` : "";
+                    const payload = item?.payload as (FilaDimension & { participacionPct: number }) | undefined;
+                    const pctTexto = payload ? ` (${payload.participacionPct.toFixed(1)}%)` : "";
+                    const embarquesTexto = payload
+                      ? ` · ${payload.embarques} embarque${payload.embarques === 1 ? "" : "s"}`
+                      : "";
                     return name === "netWeight"
-                      ? [`${formatCantidad(Number(value))} kg${pctTexto}`, "Kg"]
+                      ? [`${formatCantidad(Number(value))} kg${pctTexto}${embarquesTexto}`, "Kg"]
                       : [formatMoneda(Number(value), "USD"), "Facturado"];
                   }}
                 />
