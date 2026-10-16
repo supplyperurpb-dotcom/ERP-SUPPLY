@@ -19,9 +19,7 @@ function TarjetaKpi({ t }: { t: Tarjeta }) {
         <CardTitle className="text-sm font-medium text-muted-foreground">{t.titulo}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
-        <p className="text-2xl font-semibold" style={t.acento ? { color: t.acento } : undefined}>
-          {t.lineaPrincipal}
-        </p>
+        <p className="text-2xl font-semibold text-foreground">{t.lineaPrincipal}</p>
         {t.lineaSecundaria && <p className="text-base font-medium text-foreground">{t.lineaSecundaria}</p>}
       </CardContent>
     </Card>
