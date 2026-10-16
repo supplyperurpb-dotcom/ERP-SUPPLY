@@ -95,7 +95,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <StackedBarChart
         titulo="Estatus de Embarques por Semana"
-        descripcion="Kg arribados (semana ATA real) y en tránsito, proyectados a su semana ETA estimada. El n° de embarques de cada tramo sale al pasar el cursor."
         puntos={embarquesCombinadoPorSemana.puntos}
         series={embarquesCombinadoPorSemana.series}
         etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado" : s === "EN TRANSITO" ? "En tránsito" : s)}
