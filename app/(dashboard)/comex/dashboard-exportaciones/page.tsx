@@ -30,10 +30,7 @@ export default async function DashboardExportacionesPage() {
 
   return (
     <div>
-      <PageHeader
-        titulo="Dashboard Exportaciones"
-        descripcion="Facturación de exportación — datos de la hoja Facturación del Excel de facturación."
-      />
+      <PageHeader titulo="Resumen de Exportaciones" />
       <DashboardExportacionesView
         filas={filas.map((f) => ({
           dispatchDate: f.dispatchDate,
