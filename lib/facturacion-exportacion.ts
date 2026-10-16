@@ -244,24 +244,27 @@ export function calcularPrecioPorKg(filas: FilaFacturacion[], campo: "variety" |
     .sort((a, b) => b.netWeight - a.netWeight);
 }
 
-// "3_ESTATUS DE EMBARQUES POR CONTENEDOR": embarques (PO distintas) por
-// semana ETA o ATA, segmentados por estado (ARRIBADO / EN TRANSITO). Las
-// filas sin esa semana (todavía sin ETA/ATA) se excluyen, no se agrupan
-// como "sin dato" inventado.
-export function contarEmbarquesPorSemanaYEstado(
-  filas: FilaFacturacion[],
-  campoSemana: "weekEta" | "weekAta"
-): { puntos: PuntoApilado[]; series: string[] } {
-  const porSemana = new Map<number, Map<string, Set<string>>>();
+// Un solo punto por semana, combinando la semana real: ATA para lo ya
+// ARRIBADO, ETA (estimado) para lo que sigue EN TRANSITO, mostrado como
+// proyección — construido directo sobre las filas de la tabla (no sobre
+// una tabla dinámica del Excel). Cada serie lleva su kg (para la barra) y
+// su n° de contenedores (PO distintas) acompañando en "<estado>__n", que
+// StackedBarChart agrega al tooltip si lo encuentra.
+export function calcularEmbarquesCombinadoPorSemana(filas: FilaFacturacion[]): {
+  puntos: PuntoApilado[];
+  series: string[];
+} {
+  const porSemana = new Map<number, Map<string, { kg: number; pos: Set<string> }>>();
   const estados = new Set<string>();
   for (const f of filas) {
-    const semana = f[campoSemana];
+    const semana = f.statusEmbarque === "ARRIBADO" ? f.weekAta : f.weekEta;
     if (semana === null) continue;
     estados.add(f.statusEmbarque);
-    const porEstado = porSemana.get(semana) ?? new Map<string, Set<string>>();
-    const pos = porEstado.get(f.statusEmbarque) ?? new Set<string>();
-    pos.add(f.po);
-    porEstado.set(f.statusEmbarque, pos);
+    const porEstado = porSemana.get(semana) ?? new Map<string, { kg: number; pos: Set<string> }>();
+    const actual = porEstado.get(f.statusEmbarque) ?? { kg: 0, pos: new Set<string>() };
+    actual.kg += f.netWeight;
+    actual.pos.add(f.po);
+    porEstado.set(f.statusEmbarque, actual);
     porSemana.set(semana, porEstado);
   }
   const series = [...estados].sort();
@@ -269,7 +272,11 @@ export function contarEmbarquesPorSemanaYEstado(
     .sort(([a], [b]) => a - b)
     .map(([semana, porEstado]) => {
       const punto: PuntoApilado = { categoria: String(semana) };
-      for (const estado of series) punto[estado] = porEstado.get(estado)?.size ?? 0;
+      for (const estado of series) {
+        const t = porEstado.get(estado);
+        punto[estado] = t?.kg ?? 0;
+        punto[`${estado}__n`] = t?.pos.size ?? 0;
+      }
       return punto;
     });
   return { puntos, series };
@@ -292,33 +299,6 @@ export function calcularResumenPorEstado(filas: FilaFacturacion[]): ResumenEstad
   return [...porEstado.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([estado, t]) => ({ estado, n: t.pos.size, netWeight: t.netWeight, invoicedAmount: t.invoicedAmount }));
-}
-
-// "3_ESTATUS DE EMBARQUES VALORIZADO": lo mismo que arriba pero en USD
-// facturado en vez de conteo de embarques.
-export function calcularValorizadoPorSemanaYEstado(
-  filas: FilaFacturacion[],
-  campoSemana: "weekEta" | "weekAta"
-): { puntos: PuntoApilado[]; series: string[] } {
-  const porSemana = new Map<number, Map<string, number>>();
-  const estados = new Set<string>();
-  for (const f of filas) {
-    const semana = f[campoSemana];
-    if (semana === null) continue;
-    estados.add(f.statusEmbarque);
-    const porEstado = porSemana.get(semana) ?? new Map<string, number>();
-    porEstado.set(f.statusEmbarque, (porEstado.get(f.statusEmbarque) ?? 0) + f.invoicedAmount);
-    porSemana.set(semana, porEstado);
-  }
-  const series = [...estados].sort();
-  const puntos = [...porSemana.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([semana, porEstado]) => {
-      const punto: PuntoApilado = { categoria: String(semana) };
-      for (const estado of series) punto[estado] = porEstado.get(estado) ?? 0;
-      return punto;
-    });
-  return { puntos, series };
 }
 
 // "4_VOLUMEN FACTURADO" + "6_KG POR ETIQUETA": kg por semana de despacho,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatMoneda } from "@/lib/utils";
 import {
   filtrarFacturacion,
   calcularKpis,
@@ -11,8 +10,7 @@ import {
   calcularParticipacionLiquidado,
   obtenerOpcionesFiltro,
   calcularPrecioPorKg,
-  contarEmbarquesPorSemanaYEstado,
-  calcularValorizadoPorSemanaYEstado,
+  calcularEmbarquesCombinadoPorSemana,
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
   calcularPorLiquidar,
@@ -49,8 +47,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   // gráficos en vivo sobre esta misma data (ver lib/facturacion-exportacion.ts).
   const precioPorVariedad = useMemo(() => calcularPrecioPorKg(filasFiltradas, "variety"), [filasFiltradas]);
   const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
-  const embarquesPorSemanaEta = useMemo(() => contarEmbarquesPorSemanaYEstado(filasFiltradas, "weekEta"), [filasFiltradas]);
-  const valorizadoPorSemanaAta = useMemo(() => calcularValorizadoPorSemanaYEstado(filasFiltradas, "weekAta"), [filasFiltradas]);
+  const embarquesCombinadoPorSemana = useMemo(() => calcularEmbarquesCombinadoPorSemana(filasFiltradas), [filasFiltradas]);
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
   const kgPorSemanaEtiqueta = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "label"), [filasFiltradas]);
 
@@ -96,22 +93,13 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Destino" filas={porDestino} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StackedBarChart
-          titulo="FCL por semana ETA según estado"
-          descripcion="N° de FCL (PO), por semana estimada de llegada."
-          puntos={embarquesPorSemanaEta.puntos}
-          series={embarquesPorSemanaEta.series}
-          formatearValor={(v) => String(Math.round(v))}
-        />
-        <StackedBarChart
-          titulo="Valorizado por semana ATA según estado"
-          descripcion="Facturado (USD), por semana real de llegada."
-          puntos={valorizadoPorSemanaAta.puntos}
-          series={valorizadoPorSemanaAta.series}
-          formatearValor={(v) => formatMoneda(v, "USD")}
-        />
-      </div>
+      <StackedBarChart
+        titulo="Kg Embarcados por Semana (ATA / Proyección ETA)"
+        descripcion="Kg arribados (semana ATA real) y en tránsito, proyectados a su semana ETA estimada. El n° de contenedores de cada tramo sale al pasar el cursor."
+        puntos={embarquesCombinadoPorSemana.puntos}
+        series={embarquesCombinadoPorSemana.series}
+        etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado (ATA)" : s === "EN TRANSITO" ? "Proyección (ETA)" : s)}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <PrecioPorKgChart titulo="Precio CIF/kg por variedad" filas={precioPorVariedad} />

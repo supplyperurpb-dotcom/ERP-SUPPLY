@@ -17,14 +17,18 @@ export function StackedBarChart({
   puntos,
   series,
   formatearValor,
+  etiquetaSerie,
 }: {
   titulo: string;
   descripcion?: string;
   puntos: PuntoApilado[];
   series: string[];
   formatearValor?: (v: number) => string;
+  /** Texto más amigable para una serie (ej. "ARRIBADO" -> "Arribado (ATA)"). Por defecto se muestra el nombre de la serie tal cual. */
+  etiquetaSerie?: (serie: string) => string;
 }) {
   const fmt = formatearValor ?? ((v: number) => formatCantidad(v));
+  const mostrarSerie = etiquetaSerie ?? ((s: string) => s);
 
   return (
     <Card>
@@ -47,10 +51,13 @@ export function StackedBarChart({
                     const payload = item?.payload as PuntoApilado | undefined;
                     const total = payload ? series.reduce((acc, s) => acc + Number(payload[s] ?? 0), 0) : 0;
                     const pct = total > 0 ? (Number(value) / total) * 100 : 0;
-                    return [`${fmt(Number(value))} (${pct.toFixed(1)}%)`, name];
+                    // Si vino un conteo acompañante (ej. "ARRIBADO__n" junto a "ARRIBADO"), se agrega al tooltip.
+                    const n = payload?.[`${name}__n`];
+                    const nTexto = typeof n === "number" ? ` · ${n} contenedor${n === 1 ? "" : "es"}` : "";
+                    return [`${fmt(Number(value))} (${pct.toFixed(1)}%)${nTexto}`, mostrarSerie(String(name))];
                   }}
                 />
-                <Legend />
+                <Legend formatter={mostrarSerie} />
                 {series.map((s, i) => (
                   <Bar key={s} dataKey={s} stackId="a" fill={colorPara(s, i)} />
                 ))}
