@@ -89,7 +89,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       </div>
 
       <EvolucionPrecioChart
-        titulo="Evolución Semanal"
+        titulo="Evolución Semanal de Precios"
         descripcion="PU CIF Facturado vs PU CIF Liquidado"
         puntos={evolucionPrecioSemanal}
       />
