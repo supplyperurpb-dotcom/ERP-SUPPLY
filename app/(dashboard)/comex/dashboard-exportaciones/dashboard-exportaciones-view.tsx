@@ -88,12 +88,12 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />
-        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Origen" filas={porOrigen} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Mercado" filas={porMercado} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Origen" filas={porOrigen} />
         <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Destino" filas={porDestino} />
-        <DimensionBreakdownChart titulo="Kg Exportados Por Mercado" filas={porMercado} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
