@@ -88,7 +88,11 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         </div>
       </div>
 
-      <EvolucionPrecioChart titulo="Evolución Semanal de Precio CIF" puntos={evolucionPrecioSemanal} />
+      <EvolucionPrecioChart
+        titulo="Evolución Semanal"
+        descripcion="PU CIF Facturado vs PU CIF Liquidado"
+        puntos={evolucionPrecioSemanal}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />

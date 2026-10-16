@@ -20,11 +20,20 @@ const ETIQUETA_SERIE: Record<string, string> = {
 // los kg de cada uno en el tooltip y la semana mostrada como "W<n>" al
 // pasar el cursor. Genérico: no calcula nada, solo dibuja los puntos que
 // ya le llegan de calcularEvolucionPrecioSemanal (lib/facturacion-exportacion.ts).
-export function EvolucionPrecioChart({ titulo, puntos }: { titulo: string; puntos: PuntoEvolucionPrecio[] }) {
+export function EvolucionPrecioChart({
+  titulo,
+  descripcion,
+  puntos,
+}: {
+  titulo: string;
+  descripcion?: string;
+  puntos: PuntoEvolucionPrecio[];
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">{titulo}</CardTitle>
+        {descripcion && <p className="text-sm text-muted-foreground">{descripcion}</p>}
       </CardHeader>
       <CardContent>
         {puntos.length === 0 ? (
