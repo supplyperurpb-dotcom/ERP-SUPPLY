@@ -141,6 +141,17 @@ export function fechaLocalManana(): string {
   return `${manana.getFullYear()}-${mes}-${dia}`;
 }
 
+// Hoy + N días, como valor "YYYY-MM-DD" (igual que fechaLocalHoy). Se usa
+// como valor sugerido por defecto en campos de fecha que el usuario debe
+// revisar/confirmar, no como fecha fija.
+export function fechaLocalEnDias(dias: number): string {
+  const fecha = new Date();
+  fecha.setDate(fecha.getDate() + dias);
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  return `${fecha.getFullYear()}-${mes}-${dia}`;
+}
+
 export function horaLocalAhora(): string {
   const ahora = new Date();
   const horas = String(ahora.getHours()).padStart(2, "0");

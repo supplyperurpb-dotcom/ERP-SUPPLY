@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFieldArray, useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -14,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy } from "@/lib/utils";
+import { fechaLocalHoy, fechaLocalEnDias } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { solicitudPedidoSchema, type SolicitudPedidoInput } from "@/lib/validations/compras";
 import { crearSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
@@ -57,7 +58,10 @@ export function SolicitudPedidoForm({
       categoria: categoriaInicial,
       area: areaInicial,
       fecha: fechaLocalHoy() as unknown as Date,
-      fechaNecesidad: fechaLocalHoy() as unknown as Date,
+      // Sugerida a una semana vista — el usuario debe hacer clic en el
+      // campo (confirmarla o cambiarla) antes de poder guardar, ver
+      // fechaNecesidadConfirmada más abajo.
+      fechaNecesidad: fechaLocalEnDias(7) as unknown as Date,
       tipoNecesidad: "ESTANDAR",
       justificacion: "",
       items: [itemVacio(centroCostoInicial)],
@@ -66,7 +70,19 @@ export function SolicitudPedidoForm({
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
 
+  // La fecha estimada de necesidad sale precargada a una semana vista, pero
+  // no se puede guardar hasta que el usuario haga clic en el campo y
+  // confirme esa fecha (o elija otra) — evita que quede sin revisar.
+  const [fechaNecesidadConfirmada, setFechaNecesidadConfirmada] = useState(false);
+
   async function onSubmit(data: SolicitudPedidoInput) {
+    if (!fechaNecesidadConfirmada) {
+      form.setError("fechaNecesidad", {
+        type: "manual",
+        message: "Haz clic en la fecha estimada de necesidad para confirmarla (o elige otra) antes de guardar.",
+      });
+      return;
+    }
     let resultado;
     try {
       resultado = await crearSolicitudPedidoAction(data);
@@ -155,8 +171,19 @@ export function SolicitudPedidoForm({
           </div>
 
           <div className="space-y-2">
+            <p className="text-xs font-semibold text-amber-700">Reconfirmar fecha</p>
             <Label htmlFor="fechaNecesidad">Fecha estimada de necesidad</Label>
-            <Input id="fechaNecesidad" type="date" min={fechaLocalHoy()} {...form.register("fechaNecesidad")} />
+            <Input
+              id="fechaNecesidad"
+              type="date"
+              min={fechaLocalHoy()}
+              {...form.register("fechaNecesidad", {
+                onChange: () => {
+                  setFechaNecesidadConfirmada(true);
+                  form.clearErrors("fechaNecesidad");
+                },
+              })}
+            />
             {form.formState.errors.fechaNecesidad && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.fechaNecesidad.message}</p>
             )}
