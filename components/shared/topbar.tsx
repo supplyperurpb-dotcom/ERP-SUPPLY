@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, LogOut, Menu } from "lucide-react";
+import { Home, LogOut, Menu, PanelLeftOpen } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,9 +17,14 @@ import type { UsuarioActual } from "@/lib/auth/session";
 export function Topbar({
   usuario,
   onAbrirMenu,
+  sidebarColapsado = false,
+  onMostrarSidebar,
 }: {
   usuario: UsuarioActual;
   onAbrirMenu?: () => void;
+  /** Si el menú lateral está oculto en escritorio (ver DashboardShell). */
+  sidebarColapsado?: boolean;
+  onMostrarSidebar?: () => void;
 }) {
   const iniciales = `${usuario.nombres[0] ?? ""}${usuario.apellidos[0] ?? ""}`.toUpperCase();
 
@@ -29,6 +34,17 @@ export function Topbar({
         <Button variant="ghost" size="icon" className="md:hidden" onClick={onAbrirMenu}>
           <Menu className="h-5 w-5" />
         </Button>
+        {sidebarColapsado && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:inline-flex"
+            onClick={onMostrarSidebar}
+            title="Mostrar menú"
+          >
+            <PanelLeftOpen className="h-5 w-5" />
+          </Button>
+        )}
         <Button variant="ghost" size="icon" asChild title="Ir al inicio">
           <Link href="/inicio">
             <Home className="h-5 w-5" />

@@ -4,7 +4,8 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sprout } from "lucide-react";
+import { PanelLeftClose, Sprout } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { NAV_GRUPOS, NAV_INICIO, type NavGrupo } from "@/lib/nav-config";
 import { tienePermiso, type Modulo, type RolNombre } from "@/lib/auth/constants";
@@ -17,10 +18,15 @@ export function SidebarNav({
   roles,
   abierto = false,
   onNavegar,
+  colapsado = false,
+  onColapsar,
 }: {
   roles: RolNombre[];
   abierto?: boolean;
   onNavegar?: () => void;
+  /** Solo aplica en escritorio — en mobile el menú siempre es el overlay controlado por "abierto". */
+  colapsado?: boolean;
+  onColapsar?: () => void;
 }) {
   const pathname = usePathname();
   const [logoError, setLogoError] = useState(false);
@@ -29,8 +35,9 @@ export function SidebarNav({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r bg-card transition-transform md:static md:z-auto md:flex md:translate-x-0",
-        abierto ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r bg-card transition-transform",
+        abierto ? "translate-x-0" : "-translate-x-full",
+        colapsado ? "md:hidden" : "md:static md:z-auto md:flex md:translate-x-0"
       )}
     >
       <div className="flex h-16 items-center gap-2 border-b px-4">
@@ -40,7 +47,7 @@ export function SidebarNav({
           ) : (
             <Image
               src="/logo-rpb.jpg"
-              alt="Logo de Sistema Integral de Gestión"
+              alt="Logo de ERP Supply Chain"
               fill
               sizes="40px"
               className="object-contain"
@@ -49,10 +56,21 @@ export function SidebarNav({
           )}
         </div>
         <span className="text-sm font-semibold leading-tight">
-          Sistema Integral de Gestión
+          ERP Supply Chain
           <br />
           <span className="text-xs font-normal text-muted-foreground">Ica, Perú</span>
         </span>
+        {onColapsar && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto hidden shrink-0 md:inline-flex"
+            onClick={onColapsar}
+            title="Ocultar menú"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">

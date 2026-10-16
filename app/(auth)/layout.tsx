@@ -8,13 +8,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="relative h-16 w-16">
             <Image
               src="/logo-rpb.jpg"
-              alt="Logo de Sistema Integral de Gestión"
+              alt="Logo de ERP Supply Chain"
               fill
               sizes="64px"
               className="object-contain"
             />
           </div>
-          <h1 className="text-lg font-semibold">Sistema Integral de Gestión</h1>
+          <h1 className="text-lg font-semibold">ERP Supply Chain</h1>
           <p className="text-sm text-muted-foreground">Gestión integral · Ica, Perú</p>
         </div>
         {children}
