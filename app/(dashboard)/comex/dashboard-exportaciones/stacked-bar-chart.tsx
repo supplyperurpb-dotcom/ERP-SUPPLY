@@ -18,6 +18,7 @@ export function StackedBarChart({
   series,
   formatearValor,
   etiquetaSerie,
+  ocultarPorcentaje = false,
 }: {
   titulo: string;
   descripcion?: string;
@@ -26,6 +27,8 @@ export function StackedBarChart({
   formatearValor?: (v: number) => string;
   /** Texto más amigable para una serie (ej. "ARRIBADO" -> "Arribado (ATA)"). Por defecto se muestra el nombre de la serie tal cual. */
   etiquetaSerie?: (serie: string) => string;
+  /** Quita el "(X% del total de esa barra)" del tooltip. Por defecto se muestra. */
+  ocultarPorcentaje?: boolean;
 }) {
   const fmt = formatearValor ?? ((v: number) => formatCantidad(v));
   const mostrarSerie = etiquetaSerie ?? ((s: string) => s);
@@ -49,12 +52,16 @@ export function StackedBarChart({
                 <Tooltip
                   formatter={(value, name, item) => {
                     const payload = item?.payload as PuntoApilado | undefined;
-                    const total = payload ? series.reduce((acc, s) => acc + Number(payload[s] ?? 0), 0) : 0;
-                    const pct = total > 0 ? (Number(value) / total) * 100 : 0;
+                    let pctTexto = "";
+                    if (!ocultarPorcentaje) {
+                      const total = payload ? series.reduce((acc, s) => acc + Number(payload[s] ?? 0), 0) : 0;
+                      const pct = total > 0 ? (Number(value) / total) * 100 : 0;
+                      pctTexto = ` (${pct.toFixed(1)}%)`;
+                    }
                     // Si vino un conteo acompañante (ej. "ARRIBADO__n" junto a "ARRIBADO"), se agrega al tooltip.
                     const n = payload?.[`${name}__n`];
-                    const nTexto = typeof n === "number" ? ` · ${n} contenedor${n === 1 ? "" : "es"}` : "";
-                    return [`${fmt(Number(value))} (${pct.toFixed(1)}%)${nTexto}`, mostrarSerie(String(name))];
+                    const nTexto = typeof n === "number" ? ` · ${n} embarque${n === 1 ? "" : "s"}` : "";
+                    return [`${fmt(Number(value))}${pctTexto}${nTexto}`, mostrarSerie(String(name))];
                   }}
                 />
                 <Legend formatter={mostrarSerie} />
