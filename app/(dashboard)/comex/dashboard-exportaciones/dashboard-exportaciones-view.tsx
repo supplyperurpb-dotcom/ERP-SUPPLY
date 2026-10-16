@@ -87,7 +87,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />
+        <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} mostrarEmbarques={false} />
         <DimensionBreakdownChart titulo="Kg Exportados Por Mercado" filas={porMercado} />
       </div>
 

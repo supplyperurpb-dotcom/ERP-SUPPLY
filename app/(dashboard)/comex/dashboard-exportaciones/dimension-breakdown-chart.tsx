@@ -12,7 +12,16 @@ import type { FilaDimension } from "@/lib/facturacion-exportacion";
 // lib/facturacion-exportacion.ts) y el título a mostrar. El % de
 // representación de cada barra se calcula acá mismo, sobre el total de
 // las filas que le llegan (ya filtradas).
-export function DimensionBreakdownChart({ titulo, filas }: { titulo: string; filas: FilaDimension[] }) {
+export function DimensionBreakdownChart({
+  titulo,
+  filas,
+  mostrarEmbarques = true,
+}: {
+  titulo: string;
+  filas: FilaDimension[];
+  /** "Kg exportados por formato" no muestra embarques en el tooltip (una misma PO reparte varios formatos, así que ese conteo no es útil ahí). */
+  mostrarEmbarques?: boolean;
+}) {
   const alto = Math.max(120, filas.length * 36 + 20);
   const totalKg = filas.reduce((acc, f) => acc + f.netWeight, 0);
   const datos = filas.map((f) => ({ ...f, participacionPct: totalKg > 0 ? (f.netWeight / totalKg) * 100 : 0 }));
@@ -36,9 +45,10 @@ export function DimensionBreakdownChart({ titulo, filas }: { titulo: string; fil
                   formatter={(value, name, item) => {
                     const payload = item?.payload as (FilaDimension & { participacionPct: number }) | undefined;
                     const pctTexto = payload ? ` (${payload.participacionPct.toFixed(1)}%)` : "";
-                    const embarquesTexto = payload
-                      ? ` · ${payload.embarques} embarque${payload.embarques === 1 ? "" : "s"}`
-                      : "";
+                    const embarquesTexto =
+                      payload && mostrarEmbarques
+                        ? ` · ${payload.embarques} embarque${payload.embarques === 1 ? "" : "s"}`
+                        : "";
                     return name === "netWeight"
                       ? [`${formatCantidad(Number(value))} kg${pctTexto}${embarquesTexto}`, "Kg"]
                       : [formatMoneda(Number(value), "USD"), "Facturado"];
