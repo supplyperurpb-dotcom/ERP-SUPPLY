@@ -6,7 +6,7 @@ import {
   filtrarFacturacion,
   calcularKpis,
   agruparPorDimension,
-  calcularEvolucionSemanal,
+  calcularEvolucionPrecioSemanal,
   calcularParticipacion,
   calcularParticipacionLiquidado,
   obtenerOpcionesFiltro,
@@ -26,7 +26,7 @@ import { PremiumConvencionalCard } from "./premium-convencional-card";
 import { EstadoResumenCards } from "./estado-resumen-cards";
 import { FiltrosBar } from "./filtros-bar";
 import { DimensionBreakdownChart } from "./dimension-breakdown-chart";
-import { EvolucionChart } from "./evolucion-chart";
+import { EvolucionPrecioChart } from "./evolucion-precio-chart";
 import { ParticipacionChart } from "./participacion-chart";
 import { StackedBarChart } from "./stacked-bar-chart";
 import { PrecioPorKgChart } from "./precio-por-kg-chart";
@@ -44,7 +44,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const participacionTipoLiquidado = useMemo(() => calcularParticipacionLiquidado(filasFiltradas, "type"), [filasFiltradas]);
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
-  const evolucionSemanal = useMemo(() => calcularEvolucionSemanal(filasFiltradas), [filasFiltradas]);
+  const evolucionPrecioSemanal = useMemo(() => calcularEvolucionPrecioSemanal(filasFiltradas), [filasFiltradas]);
   const participacionDestino = useMemo(() => calcularParticipacion(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const participacionMercado = useMemo(() => calcularParticipacion(filasFiltradas, "market"), [filasFiltradas]);
 
@@ -88,7 +88,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         </div>
       </div>
 
-      <EvolucionChart titulo="Evolución Semanal de Facturación" puntos={evolucionSemanal} />
+      <EvolucionPrecioChart titulo="Evolución Semanal de Precio CIF" puntos={evolucionPrecioSemanal} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />

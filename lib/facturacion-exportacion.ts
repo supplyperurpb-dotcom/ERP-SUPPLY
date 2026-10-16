@@ -109,59 +109,47 @@ export function agruparPorDimension(filas: FilaFacturacion[], campo: CampoDimens
   return [...mapa.values()].sort((a, b) => b.netWeight - a.netWeight);
 }
 
-export type PuntoEvolucion = {
-  periodo: string;
-  /** Para ordenar cronológicamente — "periodo" es solo la etiqueta a mostrar. */
-  orden: string;
-  netWeight: number;
-  invoicedAmount: number;
+export type PuntoEvolucionPrecio = {
+  semana: number;
+  /** null = sin kg facturado esa semana (no se inventa un precio en 0). */
+  puFacturado: number | null;
+  kgFacturado: number;
+  /** null = sin kg liquidado esa semana. */
+  puLiquidado: number | null;
+  kgLiquidado: number;
 };
 
-// Evolución semanal: agrupa por DISP. WEEK (la misma semana que usa el
-// filtro principal del dashboard).
-export function calcularEvolucionSemanal(filas: FilaFacturacion[]): PuntoEvolucion[] {
-  const mapa = new Map<number, { netWeight: number; invoicedAmount: number }>();
+// Evolución semanal del precio unitario CIF: PU facturado (invoicedAmount
+// / netWeight) y PU liquidado (cifLiquidatedTariffs / netKilosLiquidated)
+// de cada semana de despacho (misma semana que usa el filtro principal),
+// con sus kg para mostrar en el tooltip.
+export function calcularEvolucionPrecioSemanal(filas: FilaFacturacion[]): PuntoEvolucionPrecio[] {
+  const mapa = new Map<
+    number,
+    { invoicedAmount: number; netWeight: number; cifLiquidatedTariffs: number; netKilosLiquidated: number }
+  >();
   for (const f of filas) {
-    const actual = mapa.get(f.dispWeek) ?? { netWeight: 0, invoicedAmount: 0 };
-    actual.netWeight += f.netWeight;
+    const actual = mapa.get(f.dispWeek) ?? {
+      invoicedAmount: 0,
+      netWeight: 0,
+      cifLiquidatedTariffs: 0,
+      netKilosLiquidated: 0,
+    };
     actual.invoicedAmount += f.invoicedAmount;
+    actual.netWeight += f.netWeight;
+    actual.cifLiquidatedTariffs += f.cifLiquidatedTariffs;
+    actual.netKilosLiquidated += f.netKilosLiquidated;
     mapa.set(f.dispWeek, actual);
   }
   return [...mapa.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([semana, totales]) => ({ periodo: String(semana), orden: String(semana).padStart(3, "0"), ...totales }));
-}
-
-// Evolución mensual: agrupa por año-mes de DISPATCH DATE.
-export function calcularEvolucionMensual(filas: FilaFacturacion[]): PuntoEvolucion[] {
-  const NOMBRES_MES = [
-    "Ene",
-    "Feb",
-    "Mar",
-    "Abr",
-    "May",
-    "Jun",
-    "Jul",
-    "Ago",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dic",
-  ];
-  const mapa = new Map<string, { netWeight: number; invoicedAmount: number }>();
-  for (const f of filas) {
-    const clave = fechaISO(f.dispatchDate).slice(0, 7); // "YYYY-MM"
-    const actual = mapa.get(clave) ?? { netWeight: 0, invoicedAmount: 0 };
-    actual.netWeight += f.netWeight;
-    actual.invoicedAmount += f.invoicedAmount;
-    mapa.set(clave, actual);
-  }
-  return [...mapa.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([clave, totales]) => {
-      const [anio, mes] = clave.split("-");
-      return { periodo: `${NOMBRES_MES[Number(mes) - 1]} ${anio}`, orden: clave, ...totales };
-    });
+    .map(([semana, t]) => ({
+      semana,
+      puFacturado: t.netWeight > 0 ? t.invoicedAmount / t.netWeight : null,
+      kgFacturado: t.netWeight,
+      puLiquidado: t.netKilosLiquidated > 0 ? t.cifLiquidatedTariffs / t.netKilosLiquidated : null,
+      kgLiquidado: t.netKilosLiquidated,
+    }));
 }
 
 export type Participacion = {
