@@ -1415,6 +1415,9 @@ model FacturacionExportacion {
   // "MARKET" — código de mercado tal como viene en el Excel (ej. DOTA,
   // DHK, DOC); no se traduce ni se reinterpreta, se muestra tal cual.
   market               String
+  // "ORIGIN AIRPORT/ PORT" — puerto/aeropuerto de origen en Perú (ej.
+  // CALLAO, PISCO, CHANCAY, LIM AIRPORT).
+  originPort           String
   // "DESTINATION COUNTRY" — destino (el Excel la llama "country" pero en
   // la práctica trae puerto/ciudad, ej. HUENEME, SINGAPUR).
   destinationCountry   String
@@ -1457,6 +1460,7 @@ model FacturacionExportacion {
   @@index([dispWeek])
   @@index([customer])
   @@index([market])
+  @@index([originPort])
   @@index([destinationCountry])
   @@index([po])
   @@index([statusEmbarque])

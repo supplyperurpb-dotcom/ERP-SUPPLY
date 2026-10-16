@@ -28,6 +28,7 @@ const COLUMNAS = {
   dispWeek: "DISP. WEEK",
   customer: "CUSTOMER",
   market: "MARKET",
+  originPort: "ORIGIN AIRPORT/ PORT",
   destinationCountry: "DESTINATION COUNTRY",
   format: "FORMAT",
   po: "PO",
@@ -102,6 +103,7 @@ async function main() {
       dispWeek: aNumero(fila[indicePorColumna.dispWeek]),
       customer: aTexto(fila[indicePorColumna.customer]),
       market: aTexto(fila[indicePorColumna.market]),
+      originPort: aTexto(fila[indicePorColumna.originPort]),
       // El Excel trae "Philadelphia" sin mayúsculas, a diferencia del resto
       // de destinos (HUENEME, SINGAPUR, etc.) — se normaliza acá para que
       // salga en mayúscula en todos los cuadros, sin parches por componente.

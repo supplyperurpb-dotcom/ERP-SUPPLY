@@ -41,6 +41,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const participacionTipoLiquidado = useMemo(() => calcularParticipacionLiquidado(filasFiltradas, "type"), [filasFiltradas]);
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porMercado = useMemo(() => agruparPorDimension(filasFiltradas, "market"), [filasFiltradas]);
+  const porOrigen = useMemo(() => agruparPorDimension(filasFiltradas, "originPort"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
   const evolucionPrecioSemanal = useMemo(() => calcularEvolucionPrecioSemanal(filasFiltradas), [filasFiltradas]);
 
@@ -85,10 +86,13 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         puntos={evolucionPrecioSemanal}
       />
 
-      <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Origen" filas={porOrigen} />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Origen" filas={porDestino} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Destino" filas={porDestino} />
         <DimensionBreakdownChart titulo="Kg Exportados Por Mercado" filas={porMercado} />
       </div>
 

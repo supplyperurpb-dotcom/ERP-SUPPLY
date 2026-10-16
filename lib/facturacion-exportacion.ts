@@ -12,6 +12,7 @@ export type FilaFacturacion = {
   dispWeek: number;
   customer: string;
   market: string;
+  originPort: string;
   destinationCountry: string;
   format: string;
   po: string;
@@ -86,7 +87,7 @@ export function calcularKpis(filas: FilaFacturacion[]): KpisFacturacion {
   );
 }
 
-export type CampoDimension = "customer" | "market" | "destinationCountry" | "format" | "type";
+export type CampoDimension = "customer" | "market" | "originPort" | "destinationCountry" | "format" | "type";
 
 export type FilaDimension = {
   etiqueta: string;
