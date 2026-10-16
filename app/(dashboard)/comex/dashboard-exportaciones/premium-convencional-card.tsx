@@ -22,12 +22,12 @@ export function PremiumConvencionalCard({ titulo, datos }: { titulo: string; dat
         ) : (
           <div className="grid grid-cols-2 gap-4">
             {[
-              { etiqueta: "PREMIUM", dato: premium },
-              { etiqueta: "CONVENCIONAL", dato: convencional },
-            ].map(({ etiqueta, dato }) => (
+              { etiqueta: "PREMIUM", etiquetaMostrar: "Premium", dato: premium },
+              { etiqueta: "CONVENCIONAL", etiquetaMostrar: "Convencional", dato: convencional },
+            ].map(({ etiqueta, etiquetaMostrar, dato }) => (
               <div key={etiqueta}>
                 <p className="text-sm font-medium" style={{ color: colorPara(etiqueta, 0) }}>
-                  {etiqueta}
+                  {etiquetaMostrar}
                 </p>
                 <p className="text-2xl font-semibold" style={{ color: colorPara(etiqueta, 0) }}>
                   {dato ? `${dato.participacionPct.toFixed(1)}%` : "—"}
