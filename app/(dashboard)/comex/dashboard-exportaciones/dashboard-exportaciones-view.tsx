@@ -100,6 +100,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         series={embarquesCombinadoPorSemana.series}
         etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado" : s === "EN TRANSITO" ? "En tránsito" : s)}
         ocultarPorcentaje
+        formatearCategoria={(c) => `W${c}`}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
