@@ -94,7 +94,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       </div>
 
       <StackedBarChart
-        titulo="Kg Embarcados por Semana (ATA / Proyección ETA)"
+        titulo="Estatus de Embarques por Semana"
         descripcion="Kg arribados (semana ATA real) y en tránsito, proyectados a su semana ETA estimada. El n° de embarques de cada tramo sale al pasar el cursor."
         puntos={embarquesCombinadoPorSemana.puntos}
         series={embarquesCombinadoPorSemana.series}
