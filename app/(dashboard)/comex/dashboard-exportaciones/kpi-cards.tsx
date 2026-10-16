@@ -4,10 +4,10 @@ import { PALETA_SOBRIA } from "./colores";
 import type { KpisFacturacion } from "@/lib/facturacion-exportacion";
 
 // Azul claro de la misma paleta sobria del dashboard (PALETA_SOBRIA[1],
-// "azul acero"), para resaltar el par Kg Facturados / $/Kg CIF Facturado.
+// "azul acero"), para resaltar el par Kg Facturados / PU CIF Facturado.
 const AZUL_CLARO = PALETA_SOBRIA[1];
 // Plomo claro (PALETA_SOBRIA[2], "gris azulado"), para el par Kg
-// Liquidados / $/Kg CIF Liquidado.
+// Liquidados / PU CIF Liquidado.
 const PLOMO_CLARO = PALETA_SOBRIA[2];
 
 type Tarjeta = { titulo: string; lineaPrincipal: string; lineaSecundaria?: string; acento?: string };
@@ -46,7 +46,7 @@ export function KpiCards({ kpis }: { kpis: KpisFacturacion }) {
       acento: AZUL_CLARO,
     },
     {
-      titulo: "$/Kg CIF Facturado",
+      titulo: "PU CIF Facturado",
       lineaPrincipal: formatMoneda(cifPorKgFacturado, "USD"),
       acento: AZUL_CLARO,
     },
@@ -60,7 +60,7 @@ export function KpiCards({ kpis }: { kpis: KpisFacturacion }) {
       acento: PLOMO_CLARO,
     },
     {
-      titulo: "$/Kg CIF Liquidado",
+      titulo: "PU CIF Liquidado",
       lineaPrincipal: formatMoneda(cifPorKgLiquidado, "USD"),
       acento: PLOMO_CLARO,
     },
