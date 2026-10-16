@@ -88,6 +88,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         </div>
       </div>
 
+      <EstadoResumenCards resumen={resumenEstado} />
+
       <EvolucionPrecioChart
         titulo="Evolución Semanal de Precios"
         descripcion="PU CIF Facturado vs PU CIF Liquidado"
@@ -103,8 +105,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <ParticipacionChart titulo="Participación por destino (kg)" datos={participacionDestino} />
         <ParticipacionChart titulo="Participación por mercado (kg)" datos={participacionMercado} />
       </div>
-
-      <EstadoResumenCards resumen={resumenEstado} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StackedBarChart
