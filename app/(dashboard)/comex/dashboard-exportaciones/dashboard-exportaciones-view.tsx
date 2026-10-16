@@ -15,10 +15,12 @@ import {
   calcularValorizadoPorSemanaYEstado,
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
+  calcularPorLiquidar,
   type FilaFacturacion,
   type FiltrosFacturacion,
 } from "@/lib/facturacion-exportacion";
 import { KpiCards } from "./kpi-cards";
+import { PorLiquidarCard } from "./por-liquidar-card";
 import { PremiumConvencionalCard } from "./premium-convencional-card";
 import { EstadoResumenCards } from "./estado-resumen-cards";
 import { FiltrosBar } from "./filtros-bar";
@@ -36,6 +38,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const filasFiltradas = useMemo(() => filtrarFacturacion(filas, filtros), [filas, filtros]);
 
   const kpis = useMemo(() => calcularKpis(filasFiltradas), [filasFiltradas]);
+  const porLiquidar = useMemo(() => calcularPorLiquidar(filasFiltradas), [filasFiltradas]);
   const participacionTipo = useMemo(() => calcularParticipacion(filasFiltradas, "type"), [filasFiltradas]);
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
@@ -70,7 +73,10 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
     <div className="space-y-6">
       <FiltrosBar filtros={filtros} opciones={opciones} onChange={setFiltros} onLimpiar={() => setFiltros({})} />
 
-      <KpiCards kpis={kpis} />
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+        <KpiCards kpis={kpis} />
+        <PorLiquidarCard datos={porLiquidar} />
+      </div>
 
       <PremiumConvencionalCard datos={participacionTipo} />
 

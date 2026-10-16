@@ -364,3 +364,31 @@ export function calcularKgPorSemanaYCampo(
     });
   return { puntos, series };
 }
+
+export type PorLiquidarMercado = { mercado: string; kg: number; valor: number };
+export type PorLiquidarResumen = { kg: number; valor: number; porMercado: PorLiquidarMercado[] };
+
+// Kg ya facturados que todavía no se liquidan (netWeight - netKilosLiquidated)
+// y el valor facturado correspondiente a esa diferencia (invoicedAmount -
+// cifLiquidatedTariffs), total y por mercado. Solo se listan los mercados
+// con kg pendiente de liquidar (> 0) — nunca una lista fija de mercados.
+export function calcularPorLiquidar(filas: FilaFacturacion[]): PorLiquidarResumen {
+  let kg = 0;
+  let valor = 0;
+  const porMercado = new Map<string, { kg: number; valor: number }>();
+  for (const f of filas) {
+    const kgPendiente = f.netWeight - f.netKilosLiquidated;
+    const valorPendiente = f.invoicedAmount - f.cifLiquidatedTariffs;
+    kg += kgPendiente;
+    valor += valorPendiente;
+    const actual = porMercado.get(f.market) ?? { kg: 0, valor: 0 };
+    actual.kg += kgPendiente;
+    actual.valor += valorPendiente;
+    porMercado.set(f.market, actual);
+  }
+  const lista = [...porMercado.entries()]
+    .map(([mercado, t]) => ({ mercado, kg: t.kg, valor: t.valor }))
+    .filter((m) => m.kg > 0.01)
+    .sort((a, b) => b.kg - a.kg);
+  return { kg, valor, porMercado: lista };
+}
