@@ -84,7 +84,7 @@ async function verificarPermisoAprobacion(area: string): Promise<{ usuarioId: st
   const aprobadores = await obtenerAprobadoresArea();
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
 
-  if (!puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area, aprobadoresPorArea })) {
+  if (!puedeAprobarSolicitud({ usuarioId: usuario.id, email: usuario.email, roles: usuario.roles, area, aprobadoresPorArea })) {
     return { error: "No tienes permiso para aprobar o rechazar solicitudes de esta área." };
   }
   return { usuarioId: usuario.id };

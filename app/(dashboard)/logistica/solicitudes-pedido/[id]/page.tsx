@@ -67,7 +67,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
   const aprobadoresPorArea = new Map(aprobadores.map((a) => [a.area, a.usuarioId]));
   const tienePermisoArea =
     !!usuario &&
-    puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
+    puedeAprobarSolicitud({ usuarioId: usuario.id, email: usuario.email, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
   const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
   // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
   // estado de la solicitud.

@@ -172,22 +172,34 @@ export async function obtenerAprobadoresArea(db: Db = prisma): Promise<Aprobador
     .filter((a): a is AprobadorAreaInfo => a !== null);
 }
 
-// Un ADMIN o un APROBADOR_GENERAL (Gerente de Supply, District Controller,
-// Gerente General) puede aprobar/rechazar cualquier solicitud, de
-// cualquier área; cualquier otro usuario solo puede hacerlo si es el
-// aprobador configurado para esa área puntual.
+// Carlos Gozzer (Gerente de Supply Chain) tiene el rol APROBADOR_GENERAL
+// por las Órdenes de Compra/Servicio (ver rolesFirmaRequeridos y
+// AprobadorEspecial más abajo, que no cambian por esto), pero para
+// Solicitudes de pedido su alcance debe quedar acotado solo a su propia
+// área (SUPPLY_CHAIN) — pedido explícito del cliente, no una limitación
+// general del rol.
+const EMAIL_APROBADOR_GENERAL_ACOTADO_A_SU_AREA = "carlos.gozzer@rpb.interno";
+
+// Un ADMIN puede aprobar/rechazar cualquier solicitud, de cualquier área.
+// Un APROBADOR_GENERAL (Gerente de Supply, District Controller, Gerente
+// General) también, salvo el caso de arriba; cualquier otro usuario solo
+// puede hacerlo si es el aprobador configurado para esa área puntual (lo
+// que ya cubre a Carlos Gozzer para SUPPLY_CHAIN).
 export function puedeAprobarSolicitud({
   usuarioId,
+  email,
   roles,
   area,
   aprobadoresPorArea,
 }: {
   usuarioId: string;
+  email: string;
   roles: RolNombre[];
   area: string;
   aprobadoresPorArea: Map<string, string>;
 }): boolean {
-  if (roles.includes(ROLES.ADMIN) || roles.includes(ROLES.APROBADOR_GENERAL)) return true;
+  if (roles.includes(ROLES.ADMIN)) return true;
+  if (roles.includes(ROLES.APROBADOR_GENERAL) && email !== EMAIL_APROBADOR_GENERAL_ACOTADO_A_SU_AREA) return true;
   return aprobadoresPorArea.get(area) === usuarioId;
 }
 

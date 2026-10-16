@@ -53,7 +53,7 @@ export default async function SolicitudesPedidoPage() {
   const filas: FilaSolicitudPedido[] = solicitudes.map((solicitud) => {
     const tienePermisoArea =
       !!usuario &&
-      puedeAprobarSolicitud({ usuarioId: usuario.id, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
+      puedeAprobarSolicitud({ usuarioId: usuario.id, email: usuario.email, roles: usuario.roles, area: solicitud.area, aprobadoresPorArea });
     const puedeAprobar = solicitud.estado === "PENDIENTE" && tienePermisoArea;
     const puedeAnular =
       puedeAnularGlobal && solicitud.estado !== "RECHAZADO" && solicitud.estado !== "ANULADO";
