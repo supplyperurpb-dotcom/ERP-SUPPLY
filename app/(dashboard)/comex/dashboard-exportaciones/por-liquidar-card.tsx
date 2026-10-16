@@ -15,7 +15,7 @@ export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
       </CardHeader>
       <CardContent className="flex flex-1 flex-col space-y-3">
         <div className="space-y-1">
-          <p className="text-2xl font-semibold">{formatCantidad(datos.kg)} kg</p>
+          <p className="text-2xl font-semibold">{formatCantidad(datos.kg)} Kg</p>
           <p className="text-base font-medium text-foreground">– {formatMoneda(datos.valor, "USD")}</p>
         </div>
         {datos.porMercado.length > 0 && (
@@ -24,7 +24,7 @@ export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
               <div key={m.mercado} className="flex items-baseline gap-2 text-sm">
                 <span className="font-medium text-muted-foreground">{m.mercado}:</span>
                 <span className="text-foreground">
-                  {formatCantidad(m.kg)} kg – {formatMoneda(m.valor, "USD")}
+                  {formatCantidad(m.kg)} Kg – {formatMoneda(m.valor, "USD")}
                 </span>
               </div>
             ))}

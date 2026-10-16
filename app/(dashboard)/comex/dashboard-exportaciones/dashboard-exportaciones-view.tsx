@@ -103,8 +103,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <PrecioPorKgChart titulo="Precio CIF/kg por variedad" filas={precioPorVariedad} />
-        <PrecioPorKgChart titulo="Precio CIF/kg por tipo de producto" filas={precioPorTipo} />
+        <PrecioPorKgChart titulo="Precio CIF/Kg por variedad" filas={precioPorVariedad} />
+        <PrecioPorKgChart titulo="Precio CIF/Kg por tipo de producto" filas={precioPorTipo} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

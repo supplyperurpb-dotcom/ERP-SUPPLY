@@ -41,7 +41,7 @@ export function PremiumConvencionalCard({
                 <p className="text-2xl font-semibold" style={{ color: colorPara(etiqueta, 0) }}>
                   {dato ? `${dato.participacionPct.toFixed(1)}%` : "—"}
                 </p>
-                {dato && <p className="text-sm text-muted-foreground">{formatCantidad(dato.netWeight)} kg</p>}
+                {dato && <p className="text-sm text-muted-foreground">{formatCantidad(dato.netWeight)} Kg</p>}
               </div>
             ))}
           </div>

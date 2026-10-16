@@ -52,7 +52,7 @@ export function EvolucionPrecioChart({
                     if (value === null || value === undefined) return ["Sin datos esa semana", etiqueta];
                     const payload = item?.payload as PuntoEvolucionPrecio | undefined;
                     const kg = name === "puFacturado" ? payload?.kgFacturado : payload?.kgLiquidado;
-                    return [`${formatMoneda(Number(value), "USD")} (${formatCantidad(kg ?? 0)} kg)`, etiqueta];
+                    return [`${formatMoneda(Number(value), "USD")} (${formatCantidad(kg ?? 0)} Kg)`, etiqueta];
                   }}
                 />
                 <Legend formatter={(value) => ETIQUETA_SERIE[value] ?? value} />

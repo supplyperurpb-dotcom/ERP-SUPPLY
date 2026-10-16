@@ -39,7 +39,7 @@ export function KpiCards({ kpis }: { kpis: KpisFacturacion }) {
   const columnaFacturado: Tarjeta[] = [
     {
       titulo: "Kg Facturados",
-      lineaPrincipal: `${formatCantidad(kpis.netWeight)} kg`,
+      lineaPrincipal: `${formatCantidad(kpis.netWeight)} Kg`,
       lineaSecundaria: formatMoneda(kpis.invoicedAmount, "USD"),
       acento: AZUL_CLARO,
     },
@@ -53,7 +53,7 @@ export function KpiCards({ kpis }: { kpis: KpisFacturacion }) {
   const columnaLiquidado: Tarjeta[] = [
     {
       titulo: "Kg Liquidados",
-      lineaPrincipal: `${formatCantidad(kpis.netKilosLiquidated)} kg`,
+      lineaPrincipal: `${formatCantidad(kpis.netKilosLiquidated)} Kg`,
       lineaSecundaria: formatMoneda(kpis.cifLiquidatedTariffs, "USD"),
       acento: PLOMO_CLARO,
     },

@@ -28,7 +28,7 @@ export function PrecioPorKgChart({ titulo, filas }: { titulo: string; filas: Fil
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} horizontal={false} />
                 <XAxis type="number" tickFormatter={(v) => formatMoneda(v, "USD")} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
                 <YAxis type="category" dataKey="etiqueta" width={110} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
-                <Tooltip formatter={(value) => [formatMoneda(Number(value), "USD"), "CIF/kg"]} />
+                <Tooltip formatter={(value) => [formatMoneda(Number(value), "USD"), "CIF/Kg"]} />
                 <Bar dataKey="cifPorKg" radius={[0, 4, 4, 0]}>
                   {filas.map((f, i) => (
                     <Cell key={f.etiqueta} fill={colorPara(f.etiqueta, i)} />

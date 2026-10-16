@@ -39,7 +39,7 @@ export function EstadoResumenCards({ resumen }: { resumen: ResumenEstadoContened
               <p className="text-2xl font-semibold" style={{ color }}>
                 {r.n} Embarques
               </p>
-              <p className="text-base font-medium text-foreground">{formatCantidad(r.netWeight)} kg</p>
+              <p className="text-base font-medium text-foreground">{formatCantidad(r.netWeight)} Kg</p>
               <p className="text-sm text-muted-foreground">{formatMoneda(r.invoicedAmount, "USD")}</p>
             </CardContent>
           </Card>

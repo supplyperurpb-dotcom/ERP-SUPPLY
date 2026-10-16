@@ -50,7 +50,7 @@ export function DimensionBreakdownChart({
                         ? ` · ${payload.embarques} embarque${payload.embarques === 1 ? "" : "s"}`
                         : "";
                     return name === "netWeight"
-                      ? [`${formatCantidad(Number(value))} kg${pctTexto}${embarquesTexto}`, "Kg"]
+                      ? [`${formatCantidad(Number(value))} Kg${pctTexto}${embarquesTexto}`, "Kg"]
                       : [formatMoneda(Number(value), "USD"), "Facturado"];
                   }}
                 />
