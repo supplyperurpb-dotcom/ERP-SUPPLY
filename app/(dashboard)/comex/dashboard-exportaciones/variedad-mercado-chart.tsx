@@ -10,8 +10,9 @@ import type { FilaVariedadMercado } from "@/lib/facturacion-exportacion";
 type Punto = { variedad: string; totalKg: number; [clave: string]: string | number };
 
 // Tooltip a medida: el valor que dibuja la barra es el % (para que todas
-// las barras lleguen a 100 y se puedan comparar), pero acá se muestra el
-// kg real — viaja junto a cada punto como "<mercado>__kg"/"__pu"/"__n".
+// las barras lleguen a 100 y se puedan comparar) — el kg real no se
+// muestra acá, solo el %. El PU CIF y el n° de embarques viajan junto a
+// cada punto como "<mercado>__pu"/"__n".
 function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload || payload.length === 0) return null;
   const fila = payload[0]?.payload as Punto | undefined;
@@ -20,18 +21,15 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
 
   return (
     <div className="rounded-md border bg-popover p-2 text-sm text-popover-foreground shadow-md">
-      <p className="mb-1 font-medium">
-        {label} — {formatCantidad(fila.totalKg)} Kg
-      </p>
+      <p className="mb-1 font-medium">{label}</p>
       {entradas.map((p) => {
         const mercado = String(p.dataKey);
-        const kg = fila[`${mercado}__kg`];
         const pu = fila[`${mercado}__pu`];
         const n = fila[`${mercado}__n`];
         return (
           <p key={mercado} style={{ color: p.color }}>
-            {mercado}: {typeof kg === "number" ? `${formatCantidad(kg)} Kg` : ""} ({Number(p.value).toFixed(1)}%)
-            {typeof pu === "number" ? ` · PU CIF Facturado: ${formatMoneda(pu, "USD")}` : ""}
+            {mercado}: {Number(p.value).toFixed(0)}%
+            {typeof pu === "number" ? ` · PU CIF Fact.: ${formatMoneda(pu, "USD")}` : ""}
             {typeof n === "number" ? ` · ${n} embarque${n === 1 ? "" : "s"}` : ""}
           </p>
         );
@@ -61,7 +59,6 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
     const punto: Punto = { variedad: f.variedad, totalKg: f.totalKg };
     for (const s of f.porMercado) {
       punto[s.mercado] = s.pct;
-      punto[`${s.mercado}__kg`] = s.kg;
       punto[`${s.mercado}__pu`] = s.puCifFacturado;
       punto[`${s.mercado}__n`] = s.embarques;
     }
