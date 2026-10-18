@@ -9,9 +9,9 @@ import type { FilaVariedadMercado } from "@/lib/facturacion-exportacion";
 
 type Punto = { variedad: string; totalKg: number; [clave: string]: string | number };
 
-// Tooltip a medida: solo lista los mercados que de verdad tienen kg en
-// esa variedad, con su %, PU CIF facturado y n° de embarques — toda esa
-// info viaja junto a cada punto como "<mercado>__pct"/"__pu"/"__n".
+// Tooltip a medida: el valor que dibuja la barra es el % (para que todas
+// las barras lleguen a 100 y se puedan comparar), pero acá se muestra el
+// kg real — viaja junto a cada punto como "<mercado>__kg"/"__pu"/"__n".
 function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload || payload.length === 0) return null;
   const fila = payload[0]?.payload as Punto | undefined;
@@ -25,13 +25,12 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
       </p>
       {entradas.map((p) => {
         const mercado = String(p.dataKey);
-        const pct = fila[`${mercado}__pct`];
+        const kg = fila[`${mercado}__kg`];
         const pu = fila[`${mercado}__pu`];
         const n = fila[`${mercado}__n`];
         return (
           <p key={mercado} style={{ color: p.color }}>
-            {mercado}: {formatCantidad(Number(p.value))} Kg
-            {typeof pct === "number" ? ` (${pct.toFixed(1)}%)` : ""}
+            {mercado}: {typeof kg === "number" ? `${formatCantidad(kg)} Kg` : ""} ({Number(p.value).toFixed(1)}%)
             {typeof pu === "number" ? ` · PU CIF Facturado: ${formatMoneda(pu, "USD")}` : ""}
             {typeof n === "number" ? ` · ${n} embarque${n === 1 ? "" : "s"}` : ""}
           </p>
@@ -41,18 +40,19 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
   );
 }
 
-// Kg exportados por variedad, apilado por mercado (% dentro de cada
-// barra), con el total de kg encima de la barra y, al pasar el cursor,
-// el PU CIF facturado de cada mercado en esa variedad — datos ya
-// calculados por calcularExportacionesPorVariedadYMercado
-// (lib/facturacion-exportacion.ts).
+// Kg exportados por variedad, apilado por mercado — barras 100% apiladas:
+// todas llegan a la misma altura, cada segmento mide según el % que ese
+// mercado representa dentro de la variedad (no el kg absoluto). El total
+// real de kg va encima de la barra y, al pasar el cursor, el kg real y el
+// PU CIF facturado de cada mercado — datos ya calculados por
+// calcularExportacionesPorVariedadYMercado (lib/facturacion-exportacion.ts).
 export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos: FilaVariedadMercado[] }) {
   const series = [...new Set(datos.flatMap((f) => f.porMercado.map((s) => s.mercado)))].sort();
   const puntos: Punto[] = datos.map((f) => {
     const punto: Punto = { variedad: f.variedad, totalKg: f.totalKg };
     for (const s of f.porMercado) {
-      punto[s.mercado] = s.kg;
-      punto[`${s.mercado}__pct`] = s.pct;
+      punto[s.mercado] = s.pct;
+      punto[`${s.mercado}__kg`] = s.kg;
       punto[`${s.mercado}__pu`] = s.puCifFacturado;
       punto[`${s.mercado}__n`] = s.embarques;
     }
@@ -70,16 +70,16 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
         ) : (
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={puntos} margin={{ top: 24, left: 8, right: 8 }}>
+              <BarChart data={puntos} margin={{ top: 30, left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
                 <XAxis dataKey="variedad" fontSize={12} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis tick={false} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
                 <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
                 <Legend />
                 {series.map((mercado, i) => (
                   <Bar key={mercado} dataKey={mercado} stackId="a" fill={colorPara(mercado, i)}>
                     <LabelList
-                      dataKey={`${mercado}__pct`}
+                      dataKey={mercado}
                       position="center"
                       formatter={(v) => (typeof v === "number" && v > 0 ? `${v.toFixed(0)}%` : "")}
                       fill="#fff"
