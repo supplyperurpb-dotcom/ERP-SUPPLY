@@ -59,15 +59,18 @@ function EtiquetaPorcentaje(props: {
   width?: string | number;
   height?: string | number;
   value?: string | number | boolean | null;
+  etiqueta: string;
 }) {
-  const { x, y, width, height, value } = props;
+  const { x, y, width, height, value, etiqueta } = props;
   if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
   const pct = Number(value);
   if (!Number.isFinite(pct) || pct <= 0) return null;
   const alturaBarra = Number(height);
   const cx = Number(x) + Number(width) / 2;
   const cy = Number(y) + alturaBarra - 6;
-  const color = alturaBarra < PCT_MIN_ALTURA_PX ? "#000" : "#fff";
+  // Pedido explícito: solo SB va en blanco (y únicamente si la barra es
+  // lo bastante alta); JB y S&C siempre en negro.
+  const color = etiqueta === "SB" && alturaBarra >= PCT_MIN_ALTURA_PX ? "#fff" : "#000";
   return (
     <text x={cx} y={cy} textAnchor="middle" fontSize={12} fill={color}>
       {pct.toFixed(0)}%
@@ -141,7 +144,10 @@ export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string
                 {series.map((etiqueta, i) => (
                   <Bar key={etiqueta} dataKey={etiqueta} fill={colorPara(etiqueta, i)}>
                     <LabelList content={(props) => <EtiquetaSuperior {...props} datos={puntos} etiqueta={etiqueta} />} />
-                    <LabelList dataKey={`${etiqueta}__pct`} content={(props) => <EtiquetaPorcentaje {...props} />} />
+                    <LabelList
+                      dataKey={`${etiqueta}__pct`}
+                      content={(props) => <EtiquetaPorcentaje {...props} etiqueta={etiqueta} />}
+                    />
                   </Bar>
                 ))}
               </BarChart>
