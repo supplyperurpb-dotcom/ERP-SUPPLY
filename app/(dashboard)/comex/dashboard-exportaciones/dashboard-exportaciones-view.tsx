@@ -10,6 +10,7 @@ import {
   calcularParticipacionLiquidado,
   obtenerOpcionesFiltro,
   calcularPrecioPorKg,
+  calcularExportacionesPorVariedadYMercado,
   calcularEmbarquesCombinadoPorSemana,
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
@@ -26,6 +27,7 @@ import { DimensionBreakdownChart } from "./dimension-breakdown-chart";
 import { EvolucionPrecioChart } from "./evolucion-precio-chart";
 import { StackedBarChart } from "./stacked-bar-chart";
 import { PrecioPorKgChart } from "./precio-por-kg-chart";
+import { VariedadMercadoChart } from "./variedad-mercado-chart";
 
 export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[] }) {
   const opciones = useMemo(() => obtenerOpcionesFiltro(filas), [filas]);
@@ -46,6 +48,10 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   // Mismos indicadores que la hoja "Reporte Expo" del Excel, ahora como
   // gráficos en vivo sobre esta misma data (ver lib/facturacion-exportacion.ts).
   const precioPorVariedad = useMemo(() => calcularPrecioPorKg(filasFiltradas, "variety"), [filasFiltradas]);
+  const exportacionesPorVariedadYMercado = useMemo(
+    () => calcularExportacionesPorVariedadYMercado(filasFiltradas),
+    [filasFiltradas]
+  );
   const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
   const embarquesCombinadoPorSemana = useMemo(() => calcularEmbarquesCombinadoPorSemana(filasFiltradas), [filasFiltradas]);
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
@@ -92,6 +98,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Origen" filas={porOrigen} />
         <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Destino" filas={porDestino} />
       </div>
+
+      <VariedadMercadoChart titulo="Kg Exportados por Variedad, según Mercado" datos={exportacionesPorVariedadYMercado} />
 
       <StackedBarChart
         titulo="Estatus de Embarques por Semana"

@@ -361,3 +361,46 @@ export function calcularPorLiquidar(filas: FilaFacturacion[]): PorLiquidarResume
     .sort((a, b) => b.kg - a.kg);
   return { kg, valor, porMercado: lista };
 }
+
+export type FilaVariedadMercadoSerie = {
+  mercado: string;
+  kg: number;
+  /** % que representa este mercado sobre el total de kg de la variedad. */
+  pct: number;
+  /** invoicedAmount / netWeight de esta combinación variedad+mercado. */
+  puCifFacturado: number;
+  /** N° de embarques (PO) distintos. */
+  embarques: number;
+};
+export type FilaVariedadMercado = { variedad: string; totalKg: number; porMercado: FilaVariedadMercadoSerie[] };
+
+// Kg exportados por variedad, segmentado por mercado — % que representa
+// cada mercado dentro del total de esa variedad, y el PU CIF facturado
+// (invoicedAmount/netWeight) de cada combinación variedad+mercado.
+export function calcularExportacionesPorVariedadYMercado(filas: FilaFacturacion[]): FilaVariedadMercado[] {
+  const porVariedad = new Map<string, Map<string, { kg: number; valor: number; pos: Set<string> }>>();
+  for (const f of filas) {
+    const porMercado = porVariedad.get(f.variety) ?? new Map<string, { kg: number; valor: number; pos: Set<string> }>();
+    const actual = porMercado.get(f.market) ?? { kg: 0, valor: 0, pos: new Set<string>() };
+    actual.kg += f.netWeight;
+    actual.valor += f.invoicedAmount;
+    actual.pos.add(f.po);
+    porMercado.set(f.market, actual);
+    porVariedad.set(f.variety, porMercado);
+  }
+  return [...porVariedad.entries()]
+    .map(([variedad, porMercado]) => {
+      const totalKg = [...porMercado.values()].reduce((acc, t) => acc + t.kg, 0);
+      const series = [...porMercado.entries()]
+        .map(([mercado, t]) => ({
+          mercado,
+          kg: t.kg,
+          pct: totalKg > 0 ? (t.kg / totalKg) * 100 : 0,
+          puCifFacturado: t.kg > 0 ? t.valor / t.kg : 0,
+          embarques: t.pos.size,
+        }))
+        .sort((a, b) => a.mercado.localeCompare(b.mercado));
+      return { variedad, totalKg, porMercado: series };
+    })
+    .sort((a, b) => b.totalKg - a.totalKg);
+}
