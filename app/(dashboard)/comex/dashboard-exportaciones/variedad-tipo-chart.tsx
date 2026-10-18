@@ -14,6 +14,12 @@ const ETIQUETA_TIPO: Record<string, string> = { PREMIUM: "Premium", CONVENCIONAL
 
 type Punto = { variedad: string; totalKg: number; [clave: string]: string | number };
 
+// Alto mínimo (px) que se deja libre entre el techo de la barra y el
+// texto de kg/PU, para que nunca se superponga con el % que va adentro
+// de la barra (en barras muy cortas, su techo real queda a solo un par
+// de píxeles de la base).
+const CLEARANCE_MIN_PX = 38;
+
 // Texto de 2 líneas encima de cada barra: kg en toneladas arriba, PU CIF
 // facturado debajo — se dibuja a mano (no LabelList simple) porque son 2
 // valores distintos, no uno.
@@ -21,24 +27,30 @@ function EtiquetaSuperior(props: {
   x?: string | number;
   y?: string | number;
   width?: string | number;
+  height?: string | number;
   index?: number;
   datos: Punto[];
   tipo: string;
 }) {
-  const { x, y, width, index, datos, tipo } = props;
-  if (x === undefined || y === undefined || width === undefined || index === undefined) return null;
+  const { x, y, width, height, index, datos, tipo } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined || index === undefined) {
+    return null;
+  }
   const fila = datos[index];
   const kg = fila?.[tipo];
   const pu = fila?.[`${tipo}__pu`];
   if (typeof kg !== "number" || kg <= 0) return null;
   const cx = Number(x) + Number(width) / 2;
   const topY = Number(y);
+  const baseline = topY + Number(height);
+  // Nunca más abajo de "baseline - mínimo", aunque la barra sea casi plana.
+  const anchorY = Math.min(topY, baseline - CLEARANCE_MIN_PX);
   return (
     <g>
-      <text x={cx} y={topY - 20} textAnchor="middle" fontSize={11} fontWeight={600} fill={COLOR_EJE}>
-        {formatCantidad(kg / 1000)} TN
+      <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={11} fontWeight={600} fill={COLOR_EJE}>
+        {formatCantidad(kg)} Kg
       </text>
-      <text x={cx} y={topY - 6} textAnchor="middle" fontSize={11} fill={COLOR_EJE}>
+      <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={11} fill={COLOR_EJE}>
         {typeof pu === "number" ? formatMoneda(pu, "USD") : ""}
       </text>
     </g>
@@ -75,8 +87,8 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
 // Kg exportados por variedad, con una barra de Premium y otra de
 // Convencional al lado (no apiladas) — el % de cada una sobre el total
 // de kg de esa variedad va dentro de la barra, y encima de cada barra
-// salen sus kg (en toneladas) y su PU CIF facturado. Datos ya calculados
-// por calcularExportacionesPorVariedadYTipo (lib/facturacion-exportacion.ts).
+// salen sus kg y su PU CIF facturado. Datos ya calculados por
+// calcularExportacionesPorVariedadYTipo (lib/facturacion-exportacion.ts).
 export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: FilaVariedadTipo[] }) {
   const puntos: Punto[] = datos.map((f) => {
     const punto: Punto = { variedad: f.variedad, totalKg: f.totalKg };
@@ -112,7 +124,7 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
                       dataKey={`${tipo}__pct`}
                       position="insideBottom"
                       formatter={(v) => (typeof v === "number" && v > 0 ? `${v.toFixed(0)}%` : "")}
-                      fill="#fff"
+                      fill={tipo === "CONVENCIONAL" ? "#000" : "#fff"}
                       fontSize={12}
                     />
                   </Bar>
