@@ -12,6 +12,7 @@ import {
   calcularPrecioPorKg,
   calcularExportacionesPorVariedadYMercado,
   calcularExportacionesPorVariedadYTipo,
+  calcularExportacionesPorVariedadYEtiquetaPremium,
   calcularEmbarquesCombinadoPorSemana,
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
@@ -30,6 +31,7 @@ import { StackedBarChart } from "./stacked-bar-chart";
 import { PrecioPorKgChart } from "./precio-por-kg-chart";
 import { VariedadMercadoChart } from "./variedad-mercado-chart";
 import { VariedadTipoChart } from "./variedad-tipo-chart";
+import { VariedadEtiquetaPremiumChart } from "./variedad-etiqueta-premium-chart";
 
 export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[] }) {
   const opciones = useMemo(() => obtenerOpcionesFiltro(filas), [filas]);
@@ -55,6 +57,10 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
     [filasFiltradas]
   );
   const exportacionesPorVariedadYTipo = useMemo(() => calcularExportacionesPorVariedadYTipo(filasFiltradas), [filasFiltradas]);
+  const exportacionesPorVariedadYEtiquetaPremium = useMemo(
+    () => calcularExportacionesPorVariedadYEtiquetaPremium(filasFiltradas),
+    [filasFiltradas]
+  );
   const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
   const embarquesCombinadoPorSemana = useMemo(() => calcularEmbarquesCombinadoPorSemana(filasFiltradas), [filasFiltradas]);
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
@@ -105,6 +111,11 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <VariedadMercadoChart titulo="Kg Exportados por Variedad, según Mercado" datos={exportacionesPorVariedadYMercado} />
 
       <VariedadTipoChart titulo="Kg Exportados por Variedad, según Tipo" datos={exportacionesPorVariedadYTipo} />
+
+      <VariedadEtiquetaPremiumChart
+        titulo="Mezcla de Etiquetas Premium por Variedad"
+        datos={exportacionesPorVariedadYEtiquetaPremium}
+      />
 
       <StackedBarChart
         titulo="Estatus de Embarques por Semana"

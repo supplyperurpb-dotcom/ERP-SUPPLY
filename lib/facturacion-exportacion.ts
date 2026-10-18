@@ -441,3 +441,43 @@ export function calcularExportacionesPorVariedadYTipo(filas: FilaFacturacion[]):
     })
     .sort((a, b) => b.totalKg - a.totalKg);
 }
+
+export type FilaVariedadEtiquetaSerie = {
+  etiqueta: string;
+  kg: number;
+  /** % que representa esta etiqueta sobre el total de kg PREMIUM de la variedad. */
+  pct: number;
+  /** invoicedAmount / netWeight de esta combinación variedad+etiqueta. */
+  puCifFacturado: number;
+};
+export type FilaVariedadEtiqueta = { variedad: string; totalKg: number; porEtiqueta: FilaVariedadEtiquetaSerie[] };
+
+// Mezcla de etiquetas (JB/SB/S&C) solo dentro de lo PREMIUM, por
+// variedad — % que representa cada etiqueta sobre el total PREMIUM de
+// esa variedad (no sobre el total general), y el PU CIF facturado de
+// cada combinación. YL no aparece acá porque en los datos solo se usa
+// para CONVENCIONAL.
+export function calcularExportacionesPorVariedadYEtiquetaPremium(filas: FilaFacturacion[]): FilaVariedadEtiqueta[] {
+  const soloPremium = filas.filter((f) => f.type === "PREMIUM");
+  const porVariedad = new Map<string, Map<string, { kg: number; valor: number }>>();
+  for (const f of soloPremium) {
+    const porEtiqueta = porVariedad.get(f.variety) ?? new Map<string, { kg: number; valor: number }>();
+    const actual = porEtiqueta.get(f.label) ?? { kg: 0, valor: 0 };
+    actual.kg += f.netWeight;
+    actual.valor += f.invoicedAmount;
+    porEtiqueta.set(f.label, actual);
+    porVariedad.set(f.variety, porEtiqueta);
+  }
+  return [...porVariedad.entries()]
+    .map(([variedad, porEtiqueta]) => {
+      const totalKg = [...porEtiqueta.values()].reduce((acc, t) => acc + t.kg, 0);
+      const series = [...porEtiqueta.entries()].map(([etiqueta, t]) => ({
+        etiqueta,
+        kg: t.kg,
+        pct: totalKg > 0 ? (t.kg / totalKg) * 100 : 0,
+        puCifFacturado: t.kg > 0 ? t.valor / t.kg : 0,
+      }));
+      return { variedad, totalKg, porEtiqueta: series };
+    })
+    .sort((a, b) => b.totalKg - a.totalKg);
+}
