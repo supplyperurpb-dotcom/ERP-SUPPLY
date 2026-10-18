@@ -47,7 +47,16 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
 // PU CIF facturado de cada mercado — datos ya calculados por
 // calcularExportacionesPorVariedadYMercado (lib/facturacion-exportacion.ts).
 export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos: FilaVariedadMercado[] }) {
-  const series = [...new Set(datos.flatMap((f) => f.porMercado.map((s) => s.mercado)))].sort();
+  // De mayor a menor kg total (sumado entre todas las variedades) — así el
+  // mercado más grande (típicamente DOTA) queda abajo en la barra y con el
+  // color más oscuro de la paleta (colorPara asigna por posición acá).
+  const totalPorMercado = new Map<string, number>();
+  for (const f of datos) {
+    for (const s of f.porMercado) {
+      totalPorMercado.set(s.mercado, (totalPorMercado.get(s.mercado) ?? 0) + s.kg);
+    }
+  }
+  const series = [...totalPorMercado.entries()].sort((a, b) => b[1] - a[1]).map(([mercado]) => mercado);
   const puntos: Punto[] = datos.map((f) => {
     const punto: Punto = { variedad: f.variedad, totalKg: f.totalKg };
     for (const s of f.porMercado) {
