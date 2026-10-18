@@ -11,8 +11,8 @@ type Punto = { variedad: string; totalKg: number; [clave: string]: string | numb
 
 // Tooltip a medida: el valor que dibuja la barra es el % (para que todas
 // las barras lleguen a 100 y se puedan comparar) — el kg real no se
-// muestra acá, solo el %. El PU CIF y el n° de embarques viajan junto a
-// cada punto como "<mercado>__pu"/"__n".
+// muestra acá, solo el %. El PU CIF viaja junto a cada punto como
+// "<mercado>__pu".
 function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload || payload.length === 0) return null;
   const fila = payload[0]?.payload as Punto | undefined;
@@ -25,12 +25,10 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
       {entradas.map((p) => {
         const mercado = String(p.dataKey);
         const pu = fila[`${mercado}__pu`];
-        const n = fila[`${mercado}__n`];
         return (
           <p key={mercado} style={{ color: p.color }}>
             {mercado}: {Number(p.value).toFixed(0)}%
             {typeof pu === "number" ? ` · PU CIF Fact.: ${formatMoneda(pu, "USD")}` : ""}
-            {typeof n === "number" ? ` · ${n} embarque${n === 1 ? "" : "s"}` : ""}
           </p>
         );
       })}
@@ -60,7 +58,6 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
     for (const s of f.porMercado) {
       punto[s.mercado] = s.pct;
       punto[`${s.mercado}__pu`] = s.puCifFacturado;
-      punto[`${s.mercado}__n`] = s.embarques;
     }
     return punto;
   });
