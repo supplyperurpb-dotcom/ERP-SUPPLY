@@ -57,6 +57,35 @@ function EtiquetaSuperior(props: {
   );
 }
 
+// Si la barra mide menos que esto, el texto del % ya no "cabe" dentro de
+// su propio color (queda flotando sobre el fondo blanco del gráfico) —
+// en ese caso se fuerza negro sin importar el tipo, para que siga
+// siendo legible (blanco sobre blanco sería invisible).
+const PCT_MIN_ALTURA_PX = 18;
+
+function EtiquetaPorcentaje(props: {
+  x?: string | number;
+  y?: string | number;
+  width?: string | number;
+  height?: string | number;
+  value?: string | number | boolean | null;
+  tipo: string;
+}) {
+  const { x, y, width, height, value, tipo } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
+  const pct = Number(value);
+  if (!Number.isFinite(pct) || pct <= 0) return null;
+  const alturaBarra = Number(height);
+  const cx = Number(x) + Number(width) / 2;
+  const cy = Number(y) + alturaBarra - 6;
+  const color = tipo === "CONVENCIONAL" || alturaBarra < PCT_MIN_ALTURA_PX ? "#000" : "#fff";
+  return (
+    <text x={cx} y={cy} textAnchor="middle" fontSize={12} fill={color}>
+      {pct.toFixed(0)}%
+    </text>
+  );
+}
+
 // Tooltip a medida: kg real, % y PU CIF de cada tipo (viajan junto al
 // punto como "<tipo>__pct"/"__pu").
 function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
@@ -120,13 +149,7 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
                 {TIPOS.map((tipo, i) => (
                   <Bar key={tipo} dataKey={tipo} fill={colorPara(tipo, i)}>
                     <LabelList content={(props) => <EtiquetaSuperior {...props} datos={puntos} tipo={tipo} />} />
-                    <LabelList
-                      dataKey={`${tipo}__pct`}
-                      position="insideBottom"
-                      formatter={(v) => (typeof v === "number" && v > 0 ? `${v.toFixed(0)}%` : "")}
-                      fill={tipo === "CONVENCIONAL" ? "#000" : "#fff"}
-                      fontSize={12}
-                    />
+                    <LabelList dataKey={`${tipo}__pct`} content={(props) => <EtiquetaPorcentaje {...props} tipo={tipo} />} />
                   </Bar>
                 ))}
               </BarChart>
