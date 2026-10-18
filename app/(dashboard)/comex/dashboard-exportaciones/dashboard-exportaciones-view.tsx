@@ -11,6 +11,7 @@ import {
   obtenerOpcionesFiltro,
   calcularPrecioPorKg,
   calcularExportacionesPorVariedadYMercado,
+  calcularExportacionesPorVariedadYTipo,
   calcularEmbarquesCombinadoPorSemana,
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
@@ -28,6 +29,7 @@ import { EvolucionPrecioChart } from "./evolucion-precio-chart";
 import { StackedBarChart } from "./stacked-bar-chart";
 import { PrecioPorKgChart } from "./precio-por-kg-chart";
 import { VariedadMercadoChart } from "./variedad-mercado-chart";
+import { VariedadTipoChart } from "./variedad-tipo-chart";
 
 export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[] }) {
   const opciones = useMemo(() => obtenerOpcionesFiltro(filas), [filas]);
@@ -52,6 +54,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
     () => calcularExportacionesPorVariedadYMercado(filasFiltradas),
     [filasFiltradas]
   );
+  const exportacionesPorVariedadYTipo = useMemo(() => calcularExportacionesPorVariedadYTipo(filasFiltradas), [filasFiltradas]);
   const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
   const embarquesCombinadoPorSemana = useMemo(() => calcularEmbarquesCombinadoPorSemana(filasFiltradas), [filasFiltradas]);
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
@@ -100,6 +103,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       </div>
 
       <VariedadMercadoChart titulo="Kg Exportados por Variedad, según Mercado" datos={exportacionesPorVariedadYMercado} />
+
+      <VariedadTipoChart titulo="Kg Exportados por Variedad, según Tipo" datos={exportacionesPorVariedadYTipo} />
 
       <StackedBarChart
         titulo="Estatus de Embarques por Semana"

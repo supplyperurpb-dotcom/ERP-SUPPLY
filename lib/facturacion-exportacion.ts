@@ -404,3 +404,40 @@ export function calcularExportacionesPorVariedadYMercado(filas: FilaFacturacion[
     })
     .sort((a, b) => b.totalKg - a.totalKg);
 }
+
+export type FilaVariedadTipoSerie = {
+  tipo: string;
+  kg: number;
+  /** % que representa este tipo sobre el total de kg de la variedad. */
+  pct: number;
+  /** invoicedAmount / netWeight de esta combinación variedad+tipo. */
+  puCifFacturado: number;
+};
+export type FilaVariedadTipo = { variedad: string; totalKg: number; porTipo: FilaVariedadTipoSerie[] };
+
+// Kg exportados por variedad, segmentado por tipo (PREMIUM/CONVENCIONAL) —
+// % que representa cada tipo dentro del total de esa variedad, y el PU
+// CIF facturado (invoicedAmount/netWeight) de cada combinación.
+export function calcularExportacionesPorVariedadYTipo(filas: FilaFacturacion[]): FilaVariedadTipo[] {
+  const porVariedad = new Map<string, Map<string, { kg: number; valor: number }>>();
+  for (const f of filas) {
+    const porTipo = porVariedad.get(f.variety) ?? new Map<string, { kg: number; valor: number }>();
+    const actual = porTipo.get(f.type) ?? { kg: 0, valor: 0 };
+    actual.kg += f.netWeight;
+    actual.valor += f.invoicedAmount;
+    porTipo.set(f.type, actual);
+    porVariedad.set(f.variety, porTipo);
+  }
+  return [...porVariedad.entries()]
+    .map(([variedad, porTipo]) => {
+      const totalKg = [...porTipo.values()].reduce((acc, t) => acc + t.kg, 0);
+      const series = [...porTipo.entries()].map(([tipo, t]) => ({
+        tipo,
+        kg: t.kg,
+        pct: totalKg > 0 ? (t.kg / totalKg) * 100 : 0,
+        puCifFacturado: t.kg > 0 ? t.valor / t.kg : 0,
+      }));
+      return { variedad, totalKg, porTipo: series };
+    })
+    .sort((a, b) => b.totalKg - a.totalKg);
+}
