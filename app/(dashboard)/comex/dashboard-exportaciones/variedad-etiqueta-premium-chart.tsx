@@ -114,12 +114,17 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
 export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string; datos: FilaVariedadEtiqueta[] }) {
   const etiquetasPresentes = new Set(datos.flatMap((f) => f.porEtiqueta.map((s) => s.etiqueta)));
   const series = ORDEN_ETIQUETA.filter((e) => etiquetasPresentes.has(e));
+  // Importante: cada serie necesita su clave en TODAS las categorías (en
+  // 0 si esa variedad no tiene esa etiqueta), aunque esté vacía — si se
+  // omite, recharts corre/compacta esa serie en las categorías donde sí
+  // aparece, descolocando barra y etiqueta hacia la variedad equivocada.
   const puntos: Punto[] = datos.map((f) => {
     const punto: Punto = { variedad: f.variedad, totalKg: f.totalKg };
-    for (const s of f.porEtiqueta) {
-      punto[s.etiqueta] = s.kg;
-      punto[`${s.etiqueta}__pct`] = s.pct;
-      punto[`${s.etiqueta}__pu`] = s.puCifFacturado;
+    for (const serie of series) {
+      const dato = f.porEtiqueta.find((s) => s.etiqueta === serie);
+      punto[serie] = dato?.kg ?? 0;
+      punto[`${serie}__pct`] = dato?.pct ?? 0;
+      punto[`${serie}__pu`] = dato?.puCifFacturado ?? 0;
     }
     return punto;
   });
