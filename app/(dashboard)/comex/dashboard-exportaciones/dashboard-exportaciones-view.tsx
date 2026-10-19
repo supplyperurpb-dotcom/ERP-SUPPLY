@@ -9,7 +9,6 @@ import {
   calcularParticipacion,
   calcularParticipacionLiquidado,
   obtenerOpcionesFiltro,
-  calcularPrecioPorKg,
   calcularExportacionesPorVariedadYMercado,
   calcularExportacionesPorVariedadYTipo,
   calcularExportacionesPorVariedadYEtiquetaPremium,
@@ -28,7 +27,6 @@ import { FiltrosBar } from "./filtros-bar";
 import { DimensionBreakdownChart } from "./dimension-breakdown-chart";
 import { EvolucionPrecioChart } from "./evolucion-precio-chart";
 import { StackedBarChart } from "./stacked-bar-chart";
-import { PrecioPorKgChart } from "./precio-por-kg-chart";
 import { VariedadMercadoChart } from "./variedad-mercado-chart";
 import { VariedadTipoChart } from "./variedad-tipo-chart";
 import { VariedadEtiquetaPremiumChart } from "./variedad-etiqueta-premium-chart";
@@ -49,9 +47,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
   const evolucionPrecioSemanal = useMemo(() => calcularEvolucionPrecioSemanal(filasFiltradas), [filasFiltradas]);
 
-  // Mismos indicadores que la hoja "Reporte Expo" del Excel, ahora como
-  // gráficos en vivo sobre esta misma data (ver lib/facturacion-exportacion.ts).
-  const precioPorVariedad = useMemo(() => calcularPrecioPorKg(filasFiltradas, "variety"), [filasFiltradas]);
   const exportacionesPorVariedadYMercado = useMemo(
     () => calcularExportacionesPorVariedadYMercado(filasFiltradas),
     [filasFiltradas]
@@ -61,7 +56,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
     () => calcularExportacionesPorVariedadYEtiquetaPremium(filasFiltradas),
     [filasFiltradas]
   );
-  const precioPorTipo = useMemo(() => calcularPrecioPorKg(filasFiltradas, "type"), [filasFiltradas]);
   const embarquesCombinadoPorSemana = useMemo(() => calcularEmbarquesCombinadoPorSemana(filasFiltradas), [filasFiltradas]);
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
   const kgPorSemanaEtiqueta = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "label"), [filasFiltradas]);
@@ -125,11 +119,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         ocultarPorcentaje
         formatearCategoria={(c) => `W${c}`}
       />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <PrecioPorKgChart titulo="Precio CIF/Kg por variedad" filas={precioPorVariedad} />
-        <PrecioPorKgChart titulo="Precio CIF/Kg por tipo de producto" filas={precioPorTipo} />
-      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StackedBarChart

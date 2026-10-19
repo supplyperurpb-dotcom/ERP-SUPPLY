@@ -225,25 +225,6 @@ export function obtenerOpcionesFiltro(filas: FilaFacturacion[]): OpcionesFiltro 
 
 export type PuntoApilado = { categoria: string; [serie: string]: string | number };
 
-export type FilaPrecioPorKg = { etiqueta: string; cifPorKg: number; netWeight: number };
-
-// "2_PRECIO POR KG - CIF": $CIF/kg promedio ponderado (= CIF total / kg
-// total del grupo, no el promedio simple de cada línea), por variedad o
-// por tipo de producto.
-export function calcularPrecioPorKg(filas: FilaFacturacion[], campo: "variety" | "type"): FilaPrecioPorKg[] {
-  const mapa = new Map<string, { kg: number; cif: number }>();
-  for (const f of filas) {
-    const etiqueta = f[campo];
-    const actual = mapa.get(etiqueta) ?? { kg: 0, cif: 0 };
-    actual.kg += f.netWeight;
-    actual.cif += f.invoicedAmount;
-    mapa.set(etiqueta, actual);
-  }
-  return [...mapa.entries()]
-    .map(([etiqueta, t]) => ({ etiqueta, cifPorKg: t.kg > 0 ? t.cif / t.kg : 0, netWeight: t.kg }))
-    .sort((a, b) => b.netWeight - a.netWeight);
-}
-
 // Un solo punto por semana, combinando la semana real: ATA para lo ya
 // ARRIBADO, ETA (estimado) para lo que sigue EN TRANSITO, mostrado como
 // proyección — construido directo sobre las filas de la tabla (no sobre
