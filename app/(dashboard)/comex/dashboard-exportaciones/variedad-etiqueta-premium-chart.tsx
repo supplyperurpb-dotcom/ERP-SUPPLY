@@ -25,17 +25,15 @@ function EtiquetaSuperior(props: {
   y?: string | number;
   width?: string | number;
   height?: string | number;
-  index?: number;
-  datos: Punto[];
+  payload?: Punto;
   etiqueta: string;
 }) {
-  const { x, y, width, height, index, datos, etiqueta } = props;
-  if (x === undefined || y === undefined || width === undefined || height === undefined || index === undefined) {
+  const { x, y, width, height, payload, etiqueta } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined || !payload) {
     return null;
   }
-  const fila = datos[index];
-  const kg = fila?.[etiqueta];
-  const pu = fila?.[`${etiqueta}__pu`];
+  const kg = payload[etiqueta];
+  const pu = payload[`${etiqueta}__pu`];
   if (typeof kg !== "number" || kg <= 0) return null;
   const cx = Number(x) + Number(width) / 2;
   const topY = Number(y);
@@ -148,7 +146,7 @@ export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string
                 <Legend />
                 {series.map((etiqueta, i) => (
                   <Bar key={etiqueta} dataKey={etiqueta} fill={colorPara(etiqueta, i)}>
-                    <LabelList content={(props) => <EtiquetaSuperior {...props} datos={puntos} etiqueta={etiqueta} />} />
+                    <LabelList content={(props) => <EtiquetaSuperior {...props} etiqueta={etiqueta} />} />
                     <LabelList
                       dataKey={`${etiqueta}__pct`}
                       content={(props) => <EtiquetaPorcentaje {...props} etiqueta={etiqueta} />}

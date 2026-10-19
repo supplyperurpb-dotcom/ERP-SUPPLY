@@ -28,17 +28,15 @@ function EtiquetaSuperior(props: {
   y?: string | number;
   width?: string | number;
   height?: string | number;
-  index?: number;
-  datos: Punto[];
+  payload?: Punto;
   tipo: string;
 }) {
-  const { x, y, width, height, index, datos, tipo } = props;
-  if (x === undefined || y === undefined || width === undefined || height === undefined || index === undefined) {
+  const { x, y, width, height, payload, tipo } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined || !payload) {
     return null;
   }
-  const fila = datos[index];
-  const kg = fila?.[tipo];
-  const pu = fila?.[`${tipo}__pu`];
+  const kg = payload[tipo];
+  const pu = payload[`${tipo}__pu`];
   if (typeof kg !== "number" || kg <= 0) return null;
   const cx = Number(x) + Number(width) / 2;
   const topY = Number(y);
@@ -148,7 +146,7 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
                 <Legend formatter={(value) => ETIQUETA_TIPO[value] ?? value} />
                 {TIPOS.map((tipo, i) => (
                   <Bar key={tipo} dataKey={tipo} fill={colorPara(tipo, i)}>
-                    <LabelList content={(props) => <EtiquetaSuperior {...props} datos={puntos} tipo={tipo} />} />
+                    <LabelList content={(props) => <EtiquetaSuperior {...props} tipo={tipo} />} />
                     <LabelList dataKey={`${tipo}__pct`} content={(props) => <EtiquetaPorcentaje {...props} tipo={tipo} />} />
                   </Bar>
                 ))}
