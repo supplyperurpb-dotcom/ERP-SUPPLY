@@ -143,7 +143,7 @@ export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string
               <BarChart data={puntos} margin={{ top: 40, left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
                 <XAxis dataKey="variedad" fontSize={12} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis tick={false} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
                 <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
                 <Legend />
                 {series.map((etiqueta, i) => (
