@@ -20,6 +20,8 @@ export type FilaFacturacion = {
   weekEta: number | null;
   weekAta: number | null;
   statusEmbarque: string;
+  /** Estatus de liquidación (columna "STATUS" del Excel, no confundir con statusEmbarque) — LIQUIDADO / PENDIENTE / vacío. */
+  settlementStatus: string;
   variety: string;
   type: string;
   label: string;
@@ -47,6 +49,18 @@ export type FiltrosFacturacion = {
 
 function fechaISO(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+// Pedido explícito: ningún cálculo de liquidación debe contar una fila que
+// no esté LIQUIDADO en el Excel (columna "STATUS"), aunque traiga valores
+// en Net Kilos Liquidated / CIF Liquidated (Tariffs) — se tratan como si
+// esa fila todavía no tuviera nada liquidado. Lo facturado (netWeight,
+// invoicedAmount) no se filtra por esto, solo lo liquidado.
+function kgLiquidadoValido(f: FilaFacturacion): number {
+  return f.settlementStatus === "LIQUIDADO" ? f.netKilosLiquidated : 0;
+}
+function valorLiquidadoValido(f: FilaFacturacion): number {
+  return f.settlementStatus === "LIQUIDADO" ? f.cifLiquidatedTariffs : 0;
 }
 
 export function filtrarFacturacion(filas: FilaFacturacion[], filtros: FiltrosFacturacion): FilaFacturacion[] {
@@ -79,9 +93,9 @@ export function calcularKpis(filas: FilaFacturacion[]): KpisFacturacion {
   return filas.reduce(
     (acc, f) => ({
       invoicedAmount: acc.invoicedAmount + f.invoicedAmount,
-      cifLiquidatedTariffs: acc.cifLiquidatedTariffs + f.cifLiquidatedTariffs,
+      cifLiquidatedTariffs: acc.cifLiquidatedTariffs + valorLiquidadoValido(f),
       netWeight: acc.netWeight + f.netWeight,
-      netKilosLiquidated: acc.netKilosLiquidated + f.netKilosLiquidated,
+      netKilosLiquidated: acc.netKilosLiquidated + kgLiquidadoValido(f),
     }),
     { invoicedAmount: 0, cifLiquidatedTariffs: 0, netWeight: 0, netKilosLiquidated: 0 }
   );
@@ -144,8 +158,8 @@ export function calcularEvolucionPrecioSemanal(filas: FilaFacturacion[]): PuntoE
     };
     actual.invoicedAmount += f.invoicedAmount;
     actual.netWeight += f.netWeight;
-    actual.cifLiquidatedTariffs += f.cifLiquidatedTariffs;
-    actual.netKilosLiquidated += f.netKilosLiquidated;
+    actual.cifLiquidatedTariffs += valorLiquidadoValido(f);
+    actual.netKilosLiquidated += kgLiquidadoValido(f);
     mapa.set(f.dispWeek, actual);
   }
   return [...mapa.entries()]
@@ -185,7 +199,7 @@ export function calcularParticipacionLiquidado(filas: FilaFacturacion[], campo: 
   const mapa = new Map<string, number>();
   for (const f of filas) {
     const etiqueta = f[campo];
-    mapa.set(etiqueta, (mapa.get(etiqueta) ?? 0) + f.netKilosLiquidated);
+    mapa.set(etiqueta, (mapa.get(etiqueta) ?? 0) + kgLiquidadoValido(f));
   }
   const totalKg = [...mapa.values()].reduce((acc, v) => acc + v, 0);
   if (totalKg === 0) return [];
@@ -327,8 +341,8 @@ export function calcularPorLiquidar(filas: FilaFacturacion[]): PorLiquidarResume
   let valor = 0;
   const porMercado = new Map<string, { kg: number; valor: number }>();
   for (const f of filas) {
-    const kgPendiente = f.netWeight - f.netKilosLiquidated;
-    const valorPendiente = f.invoicedAmount - f.cifLiquidatedTariffs;
+    const kgPendiente = f.netWeight - kgLiquidadoValido(f);
+    const valorPendiente = f.invoicedAmount - valorLiquidadoValido(f);
     kg += kgPendiente;
     valor += valorPendiente;
     const actual = porMercado.get(f.market) ?? { kg: 0, valor: 0 };

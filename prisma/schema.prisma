@@ -1454,6 +1454,12 @@ model FacturacionExportacion {
   netWeight            Decimal  @db.Decimal(14, 3)
   // "Net Kilos Liquidated" — kg liquidados de esta línea.
   netKilosLiquidated   Decimal  @db.Decimal(14, 3)
+  // "STATUS" (columna de liquidación, no confundir con "STATUS EMBARQUE")
+  // — LIQUIDADO / PENDIENTE / vacío. Solo las filas LIQUIDADO cuentan para
+  // cualquier cálculo de liquidación (netKilosLiquidated, cifLiquidatedTariffs);
+  // el resto se trata como si aún no tuvieran nada liquidado, sin importar
+  // lo que traiga esa columna del Excel.
+  settlementStatus     String
   importadoEn          DateTime @default(now())
 
   @@index([dispatchDate])
