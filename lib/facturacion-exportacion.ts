@@ -173,6 +173,54 @@ export function calcularEvolucionPrecioSemanal(filas: FilaFacturacion[]): PuntoE
     }));
 }
 
+export type FilaImpactoLiquidacion = {
+  semana: number;
+  puFacturado: number;
+  puLiquidado: number;
+  kgLiquidado: number;
+  /** puLiquidado - puFacturado. Negativo = se liquidó más barato de lo facturado (pérdida). */
+  diferenciaPorKg: number;
+  /** diferenciaPorKg * kgLiquidado. Negativo = pérdida, positivo = ganancia. */
+  impactoUsd: number;
+};
+
+export type ResumenImpactoLiquidacion = {
+  porSemana: FilaImpactoLiquidacion[];
+  /** Suma de todos los impactos negativos, en positivo. */
+  totalPerdida: number;
+  /** Suma de todos los impactos positivos. */
+  totalGanancia: number;
+  /** totalGanancia - totalPerdida. */
+  neto: number;
+};
+
+// Cuánto cambió el precio real liquidado respecto al precio facturado de
+// esa misma semana, valorizado sobre los kg ya liquidados — reusa
+// calcularEvolucionPrecioSemanal (mismo PU facturado/liquidado que ya
+// muestra ese gráfico) y solo lo convierte a un impacto en USD por
+// semana. Semanas sin liquidación todavía no entran en el resumen.
+export function calcularImpactoLiquidacion(filas: FilaFacturacion[]): ResumenImpactoLiquidacion {
+  const porSemana: FilaImpactoLiquidacion[] = [];
+  let totalPerdida = 0;
+  let totalGanancia = 0;
+  for (const p of calcularEvolucionPrecioSemanal(filas)) {
+    if (p.puFacturado === null || p.puLiquidado === null || p.kgLiquidado <= 0) continue;
+    const diferenciaPorKg = p.puLiquidado - p.puFacturado;
+    const impactoUsd = diferenciaPorKg * p.kgLiquidado;
+    if (impactoUsd < 0) totalPerdida += -impactoUsd;
+    else totalGanancia += impactoUsd;
+    porSemana.push({
+      semana: p.semana,
+      puFacturado: p.puFacturado,
+      puLiquidado: p.puLiquidado,
+      kgLiquidado: p.kgLiquidado,
+      diferenciaPorKg,
+      impactoUsd,
+    });
+  }
+  return { porSemana, totalPerdida, totalGanancia, neto: totalGanancia - totalPerdida };
+}
+
 export type Participacion = {
   etiqueta: string;
   netWeight: number;

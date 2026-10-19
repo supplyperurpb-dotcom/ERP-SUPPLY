@@ -16,6 +16,7 @@ import {
   calcularKgPorSemanaYCampo,
   calcularResumenPorEstado,
   calcularPorLiquidar,
+  calcularImpactoLiquidacion,
   type FilaFacturacion,
   type FiltrosFacturacion,
 } from "@/lib/facturacion-exportacion";
@@ -26,6 +27,7 @@ import { EstadoResumenCards } from "./estado-resumen-cards";
 import { FiltrosBar } from "./filtros-bar";
 import { DimensionBreakdownChart } from "./dimension-breakdown-chart";
 import { EvolucionPrecioChart } from "./evolucion-precio-chart";
+import { ImpactoLiquidacionCard } from "./impacto-liquidacion-card";
 import { StackedBarChart } from "./stacked-bar-chart";
 import { VariedadMercadoChart } from "./variedad-mercado-chart";
 import { VariedadTipoChart } from "./variedad-tipo-chart";
@@ -46,6 +48,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const porOrigen = useMemo(() => agruparPorDimension(filasFiltradas, "originPort"), [filasFiltradas]);
   const porFormato = useMemo(() => agruparPorDimension(filasFiltradas, "format"), [filasFiltradas]);
   const evolucionPrecioSemanal = useMemo(() => calcularEvolucionPrecioSemanal(filasFiltradas), [filasFiltradas]);
+  const impactoLiquidacion = useMemo(() => calcularImpactoLiquidacion(filasFiltradas), [filasFiltradas]);
 
   const exportacionesPorVariedadYMercado = useMemo(
     () => calcularExportacionesPorVariedadYMercado(filasFiltradas),
@@ -91,6 +94,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         descripcion="PU CIF Facturado vs PU CIF Liquidado"
         puntos={evolucionPrecioSemanal}
       />
+
+      <ImpactoLiquidacionCard resumen={impactoLiquidacion} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DimensionBreakdownChart titulo="Kg Exportados Por Formato" filas={porFormato} mostrarEmbarques={false} />
