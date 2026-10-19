@@ -84,17 +84,25 @@ function EtiquetaPorcentaje(props: {
   y?: string | number;
   width?: string | number;
   height?: string | number;
+  // El content de LabelList no recibe "payload" (recharts lo descarta al
+  // filtrar props a solo atributos SVG), así que el flag "es Arana
+  // Premium" viaja empaquetado dentro de "value" (ver valueAccessor más
+  // abajo), que sí llega intacto.
   value?: string | number | boolean | null;
   tipo: string;
 }) {
   const { x, y, width, height, value, tipo } = props;
   if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
-  const pct = Number(value);
+  const [pctTexto, flagAranaPremium] = String(value ?? "").split("|");
+  const pct = Number(pctTexto);
   if (!Number.isFinite(pct) || pct <= 0) return null;
   const alturaBarra = Number(height);
   const cx = Number(x) + Number(width) / 2;
   const cy = Number(y) + alturaBarra - 6;
-  const color = tipo === "CONVENCIONAL" || alturaBarra < PCT_MIN_ALTURA_PX ? "#000" : "#fff";
+  // Pedido explícito: el % de Premium en Arana siempre en blanco (aunque
+  // la barra sea corta); Convencional de Arana sigue la regla general.
+  const color =
+    flagAranaPremium === "1" ? "#fff" : tipo === "CONVENCIONAL" || alturaBarra < PCT_MIN_ALTURA_PX ? "#000" : "#fff";
   return (
     <text x={cx} y={cy} textAnchor="middle" fontSize={12} fill={color}>
       {pct.toFixed(0)}%
@@ -166,7 +174,14 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
                   <Bar key={tipo} dataKey={tipo} fill={colorPara(tipo, i)}>
                     <LabelList dataKey={tipo} content={(props) => <EtiquetaKg {...props} />} />
                     <LabelList dataKey={`${tipo}__pu`} content={(props) => <EtiquetaPU {...props} />} />
-                    <LabelList dataKey={`${tipo}__pct`} content={(props) => <EtiquetaPorcentaje {...props} tipo={tipo} />} />
+                    <LabelList
+                      valueAccessor={(entry: { payload?: Punto }) => {
+                        const pct = entry.payload?.[`${tipo}__pct`];
+                        const esAranaPremium = tipo === "PREMIUM" && entry.payload?.variedad === "ARANA";
+                        return `${typeof pct === "number" ? pct : 0}|${esAranaPremium ? "1" : "0"}`;
+                      }}
+                      content={(props) => <EtiquetaPorcentaje {...props} tipo={tipo} />}
+                    />
                   </Bar>
                 ))}
               </BarChart>
