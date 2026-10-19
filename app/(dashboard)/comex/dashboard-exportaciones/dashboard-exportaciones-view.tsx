@@ -87,32 +87,32 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <EstadoResumenCards resumen={resumenEstado} />
 
       <EvolucionPrecioChart
-        titulo="Evolución Semanal de Precios"
+        titulo="Evolución Semanal De Precios"
         descripcion="PU CIF Facturado vs PU CIF Liquidado"
         puntos={evolucionPrecioSemanal}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} mostrarEmbarques={false} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Formato" filas={porFormato} mostrarEmbarques={false} />
         <DimensionBreakdownChart titulo="Kg Exportados Por Mercado" filas={porMercado} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Origen" filas={porOrigen} />
-        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto de Destino" filas={porDestino} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto De Origen" filas={porOrigen} />
+        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto De Destino" filas={porDestino} />
       </div>
 
-      <VariedadMercadoChart titulo="Kg Exportados por Variedad, según Mercado" datos={exportacionesPorVariedadYMercado} />
+      <VariedadMercadoChart titulo="Kg Exportados Por Variedad, Según Mercado" datos={exportacionesPorVariedadYMercado} />
 
-      <VariedadTipoChart titulo="Kg Exportados por Variedad, según Tipo" datos={exportacionesPorVariedadYTipo} />
+      <VariedadTipoChart titulo="Kg Exportados Por Variedad, Según Tipo" datos={exportacionesPorVariedadYTipo} />
 
       <VariedadEtiquetaPremiumChart
-        titulo="Mezcla de Etiquetas Premium por Variedad"
+        titulo="Mezcla De Etiquetas Premium Por Variedad"
         datos={exportacionesPorVariedadYEtiquetaPremium}
       />
 
       <StackedBarChart
-        titulo="Estatus de Embarques por Semana"
+        titulo="Estatus De Embarques Por Semana"
         puntos={embarquesCombinadoPorSemana.puntos}
         series={embarquesCombinadoPorSemana.series}
         etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado" : s === "EN TRANSITO" ? "En tránsito" : s)}
@@ -122,12 +122,12 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StackedBarChart
-          titulo="Kg por semana de despacho según tipo de producto"
+          titulo="Kg Por Semana De Despacho Según Tipo De Producto"
           puntos={kgPorSemanaTipo.puntos}
           series={kgPorSemanaTipo.series}
         />
         <StackedBarChart
-          titulo="Kg por semana de despacho según etiqueta"
+          titulo="Kg Por Semana De Despacho Según Etiqueta"
           puntos={kgPorSemanaEtiqueta.puntos}
           series={kgPorSemanaEtiqueta.series}
         />

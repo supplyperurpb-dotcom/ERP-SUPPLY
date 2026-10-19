@@ -325,13 +325,20 @@ export function calcularKgPorSemanaYCampo(
     porValor.set(valor, (porValor.get(valor) ?? 0) + f.netWeight);
     porSemana.set(f.dispWeek, porValor);
   }
-  // Para "type": orden fijo Premium abajo / Convencional arriba en la
-  // barra apilada (pedido explícito), no alfabético. Para "label" se
-  // mantiene el orden alfabético, que no se pidió cambiar.
+  // Orden fijo (no alfabético) en ambos casos, pedido explícito: para
+  // "type", Premium abajo / Convencional arriba; para "label", SB abajo,
+  // luego JB, luego S&C, luego YL arriba.
+  const ORDEN_LABEL = ["SB", "JB", "S&C", "YL"] as const;
   const series =
     campo === "type"
       ? (["PREMIUM", "CONVENCIONAL"] as const).filter((t) => valores.has(t))
-      : [...valores].sort();
+      : [
+          ...ORDEN_LABEL.filter((l) => valores.has(l)),
+          // Cualquier etiqueta nueva que no esté en el orden fijo (no debería
+          // pasar con los datos vistos) se agrega al final, en vez de
+          // perderse silenciosamente.
+          ...[...valores].filter((v) => !(ORDEN_LABEL as readonly string[]).includes(v)).sort(),
+        ];
   const puntos = [...porSemana.entries()]
     .sort(([a], [b]) => a - b)
     .map(([semana, porValor]) => {
