@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCantidad } from "@/lib/utils";
+import { formatCantidad, formatMoneda } from "@/lib/utils";
 import { colorPara } from "./colores";
 import type { Participacion } from "@/lib/facturacion-exportacion";
 
@@ -41,7 +41,14 @@ export function PremiumConvencionalCard({
                 <p className="text-2xl font-semibold" style={{ color: colorPara(etiqueta, 0) }}>
                   {dato ? `${dato.participacionPct.toFixed(1)}%` : "—"}
                 </p>
-                {dato && <p className="text-sm text-muted-foreground">{formatCantidad(dato.netWeight)} Kg</p>}
+                {dato && (
+                  <>
+                    <p className="text-sm text-muted-foreground">{formatCantidad(dato.netWeight)} Kg</p>
+                    {typeof dato.puCif === "number" && (
+                      <p className="text-sm text-muted-foreground">PU CIF: {formatMoneda(dato.puCif, "USD")}</p>
+                    )}
+                  </>
+                )}
               </div>
             ))}
           </div>

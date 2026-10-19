@@ -177,6 +177,8 @@ export type Participacion = {
   etiqueta: string;
   netWeight: number;
   participacionPct: number;
+  /** invoicedAmount/netWeight (o liquidado equivalente) de esta etiqueta. null = sin kg, no se inventa un precio. */
+  puCif: number | null;
 };
 
 // Participación de cada destino sobre el total de kg embarcados del
@@ -189,22 +191,33 @@ export function calcularParticipacion(filas: FilaFacturacion[], campo: CampoDime
     etiqueta: d.etiqueta,
     netWeight: d.netWeight,
     participacionPct: (d.netWeight / totalKg) * 100,
+    puCif: d.netWeight > 0 ? d.invoicedAmount / d.netWeight : null,
   }));
 }
 
 // Misma idea que calcularParticipacion, pero sobre KG LIQUIDADOS
 // (netKilosLiquidated) en vez de kg facturado — para comparar, p. ej.,
 // Premium vs. Convencional tanto en lo facturado como en lo ya liquidado.
+// Igual que el resto de cálculos de liquidación: solo cuentan las filas
+// con estatus LIQUIDADO (kgLiquidadoValido/valorLiquidadoValido).
 export function calcularParticipacionLiquidado(filas: FilaFacturacion[], campo: CampoDimension): Participacion[] {
-  const mapa = new Map<string, number>();
+  const mapa = new Map<string, { kg: number; valor: number }>();
   for (const f of filas) {
     const etiqueta = f[campo];
-    mapa.set(etiqueta, (mapa.get(etiqueta) ?? 0) + kgLiquidadoValido(f));
+    const actual = mapa.get(etiqueta) ?? { kg: 0, valor: 0 };
+    actual.kg += kgLiquidadoValido(f);
+    actual.valor += valorLiquidadoValido(f);
+    mapa.set(etiqueta, actual);
   }
-  const totalKg = [...mapa.values()].reduce((acc, v) => acc + v, 0);
+  const totalKg = [...mapa.values()].reduce((acc, t) => acc + t.kg, 0);
   if (totalKg === 0) return [];
   return [...mapa.entries()]
-    .map(([etiqueta, kg]) => ({ etiqueta, netWeight: kg, participacionPct: (kg / totalKg) * 100 }))
+    .map(([etiqueta, t]) => ({
+      etiqueta,
+      netWeight: t.kg,
+      participacionPct: (t.kg / totalKg) * 100,
+      puCif: t.kg > 0 ? t.valor / t.kg : null,
+    }))
     .sort((a, b) => b.netWeight - a.netWeight);
 }
 
