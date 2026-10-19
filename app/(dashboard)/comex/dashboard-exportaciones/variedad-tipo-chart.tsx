@@ -20,38 +20,56 @@ type Punto = { variedad: string; totalKg: number; [clave: string]: string | numb
 // de píxeles de la base).
 const CLEARANCE_MIN_PX = 38;
 
-// Texto de 2 líneas encima de cada barra: kg en toneladas arriba, PU CIF
-// facturado debajo — se dibuja a mano (no LabelList simple) porque son 2
-// valores distintos, no uno.
-function EtiquetaSuperior(props: {
+// Las 2 líneas de texto (Kg y PU) encima de cada barra van cada una en
+// su propio LabelList, con su propio dataKey — así cada línea toma su
+// valor por el mecanismo nativo de recharts (el payload de SU propia
+// entrada). Un solo LabelList con "content" leyendo por índice en un
+// array externo, o leyendo "payload" a mano, no es confiable: recharts
+// filtra las barras de altura 0 antes de asignar el índice, y no
+// reenvía "payload" a un content custom (solo x/y/width/height/value).
+function anchorYDesdeBarra(y: number, height: number) {
+  const baseline = y + height;
+  // Nunca más abajo de "baseline - mínimo", aunque la barra sea casi plana.
+  return Math.min(y, baseline - CLEARANCE_MIN_PX);
+}
+
+function EtiquetaKg(props: {
   x?: string | number;
   y?: string | number;
   width?: string | number;
   height?: string | number;
-  payload?: Punto;
-  tipo: string;
+  value?: string | number | boolean | null;
 }) {
-  const { x, y, width, height, payload, tipo } = props;
-  if (x === undefined || y === undefined || width === undefined || height === undefined || !payload) {
-    return null;
-  }
-  const kg = payload[tipo];
-  const pu = payload[`${tipo}__pu`];
-  if (typeof kg !== "number" || kg <= 0) return null;
+  const { x, y, width, height, value } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
+  const kg = Number(value);
+  if (!Number.isFinite(kg) || kg <= 0) return null;
   const cx = Number(x) + Number(width) / 2;
-  const topY = Number(y);
-  const baseline = topY + Number(height);
-  // Nunca más abajo de "baseline - mínimo", aunque la barra sea casi plana.
-  const anchorY = Math.min(topY, baseline - CLEARANCE_MIN_PX);
+  const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
-    <g>
-      <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={11} fontWeight={600} fill={COLOR_EJE}>
-        {formatCantidad(kg)} Kg
-      </text>
-      <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={11} fill={COLOR_EJE}>
-        {typeof pu === "number" ? formatMoneda(pu, "USD") : ""}
-      </text>
-    </g>
+    <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={11} fontWeight={600} fill={COLOR_EJE}>
+      {formatCantidad(kg)} Kg
+    </text>
+  );
+}
+
+function EtiquetaPU(props: {
+  x?: string | number;
+  y?: string | number;
+  width?: string | number;
+  height?: string | number;
+  value?: string | number | boolean | null;
+}) {
+  const { x, y, width, height, value } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
+  const pu = Number(value);
+  if (!Number.isFinite(pu) || pu <= 0) return null;
+  const cx = Number(x) + Number(width) / 2;
+  const anchorY = anchorYDesdeBarra(Number(y), Number(height));
+  return (
+    <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={11} fill={COLOR_EJE}>
+      {formatMoneda(pu, "USD")}
+    </text>
   );
 }
 
@@ -146,7 +164,8 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
                 <Legend formatter={(value) => ETIQUETA_TIPO[value] ?? value} />
                 {TIPOS.map((tipo, i) => (
                   <Bar key={tipo} dataKey={tipo} fill={colorPara(tipo, i)}>
-                    <LabelList content={(props) => <EtiquetaSuperior {...props} tipo={tipo} />} />
+                    <LabelList dataKey={tipo} content={(props) => <EtiquetaKg {...props} />} />
+                    <LabelList dataKey={`${tipo}__pu`} content={(props) => <EtiquetaPU {...props} />} />
                     <LabelList dataKey={`${tipo}__pct`} content={(props) => <EtiquetaPorcentaje {...props} tipo={tipo} />} />
                   </Bar>
                 ))}

@@ -20,34 +20,54 @@ type Punto = { variedad: string; totalKg: number; [clave: string]: string | numb
 const PCT_MIN_ALTURA_PX = 18;
 const CLEARANCE_MIN_PX = 38;
 
-function EtiquetaSuperior(props: {
+// anchorY: punto de referencia justo encima de la barra (con un mínimo
+// de holgura para barras muy altas/cortas), compartido por las 2 líneas
+// de texto (Kg y PU). Cada línea es su propio LabelList con su propio
+// dataKey — así cada una toma su valor vía el mecanismo nativo de
+// recharts (payload de SU PROPIA entrada), nunca por índice ni por un
+// "payload" reenviado a mano, que no llega al content de un LabelList.
+function anchorYDesdeBarra(y: number, height: number) {
+  const baseline = y + height;
+  return Math.min(y, baseline - CLEARANCE_MIN_PX);
+}
+
+function EtiquetaKg(props: {
   x?: string | number;
   y?: string | number;
   width?: string | number;
   height?: string | number;
-  payload?: Punto;
-  etiqueta: string;
+  value?: string | number | boolean | null;
 }) {
-  const { x, y, width, height, payload, etiqueta } = props;
-  if (x === undefined || y === undefined || width === undefined || height === undefined || !payload) {
-    return null;
-  }
-  const kg = payload[etiqueta];
-  const pu = payload[`${etiqueta}__pu`];
-  if (typeof kg !== "number" || kg <= 0) return null;
+  const { x, y, width, height, value } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
+  const kg = Number(value);
+  if (!Number.isFinite(kg) || kg <= 0) return null;
   const cx = Number(x) + Number(width) / 2;
-  const topY = Number(y);
-  const baseline = topY + Number(height);
-  const anchorY = Math.min(topY, baseline - CLEARANCE_MIN_PX);
+  const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
-    <g>
-      <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={11} fontWeight={600} fill={COLOR_EJE}>
-        {formatCantidad(kg)} Kg
-      </text>
-      <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={11} fill={COLOR_EJE}>
-        {typeof pu === "number" ? formatMoneda(pu, "USD") : ""}
-      </text>
-    </g>
+    <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={11} fontWeight={600} fill={COLOR_EJE}>
+      {formatCantidad(kg)} Kg
+    </text>
+  );
+}
+
+function EtiquetaPU(props: {
+  x?: string | number;
+  y?: string | number;
+  width?: string | number;
+  height?: string | number;
+  value?: string | number | boolean | null;
+}) {
+  const { x, y, width, height, value } = props;
+  if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
+  const pu = Number(value);
+  if (!Number.isFinite(pu) || pu <= 0) return null;
+  const cx = Number(x) + Number(width) / 2;
+  const anchorY = anchorYDesdeBarra(Number(y), Number(height));
+  return (
+    <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={11} fill={COLOR_EJE}>
+      {formatMoneda(pu, "USD")}
+    </text>
   );
 }
 
@@ -146,7 +166,8 @@ export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string
                 <Legend />
                 {series.map((etiqueta, i) => (
                   <Bar key={etiqueta} dataKey={etiqueta} fill={colorPara(etiqueta, i)}>
-                    <LabelList content={(props) => <EtiquetaSuperior {...props} etiqueta={etiqueta} />} />
+                    <LabelList dataKey={etiqueta} content={(props) => <EtiquetaKg {...props} />} />
+                    <LabelList dataKey={`${etiqueta}__pu`} content={(props) => <EtiquetaPU {...props} />} />
                     <LabelList
                       dataKey={`${etiqueta}__pct`}
                       content={(props) => <EtiquetaPorcentaje {...props} etiqueta={etiqueta} />}
