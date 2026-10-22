@@ -2,7 +2,6 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { dibujarMarcaDeAgua } from "./marca-agua";
-import { dibujarFirmaAprobacion } from "./firma-aprobacion";
 import { IGV_TASA } from "@/lib/constants/compras";
 
 const GRIS = rgb(0.35, 0.35, 0.35);
@@ -58,7 +57,7 @@ export async function generarOrdenCompraPdf({
   montoTotal,
   aprobado,
   anulado,
-  aprobadoPor,
+  aprobadoPorCodigo,
   usuarioSolped,
   usuarioCreacion,
   solpedAprobadoPor,
@@ -89,8 +88,9 @@ export async function generarOrdenCompraPdf({
   // Si quedó ANULADA, se marca con esa marca de agua en lugar de BORRADOR
   // (son excluyentes: una orden anulada no está aprobada).
   anulado?: boolean;
-  // Nombre (y cargo) de quien aprobó; se muestra al pie solo si aprobado=true.
-  aprobadoPor?: { nombre: string; cargo: string | null } | null;
+  // Código de quien aprobó (ver codigoAprobador en lib/utils.ts); se
+  // muestra en la trazabilidad del pie solo si aprobado=true.
+  aprobadoPorCodigo?: string | null;
   usuarioSolped: string | null;
   usuarioCreacion: string | null;
   // Nombre de quien aprobó la(s) solicitud(es) de pedido de origen.
@@ -355,10 +355,12 @@ export async function generarOrdenCompraPdf({
   filaPie("SOLICITADO POR:", usuarioSolped || "—");
   filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
   filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
+  if (aprobado && aprobadoPorCodigo) {
+    filaPie(`${categoriaEsCompra ? "OC" : "OS"} APROBADA POR:`, aprobadoPorCodigo);
+  }
 
   if (anulado) dibujarMarcaDeAgua(pdfDoc, bold, "ANULADA");
   else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
-  if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
 
   return pdfDoc.save();
 }

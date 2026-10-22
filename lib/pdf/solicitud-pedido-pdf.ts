@@ -2,7 +2,6 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { dibujarMarcaDeAgua } from "./marca-agua";
-import { dibujarFirmaAprobacion } from "./firma-aprobacion";
 
 // Parte un texto en líneas que caben en `anchoMax` (p. ej. la descripción
 // de un servicio, que puede ser larga), hasta un máximo de líneas.
@@ -62,7 +61,7 @@ export async function generarSolicitudPedidoPdf({
   lineas,
   aprobado,
   anulado,
-  aprobadoPor,
+  aprobadoPorCodigo,
 }: {
   nombreDocumento: string;
   numero: string;
@@ -80,8 +79,9 @@ export async function generarSolicitudPedidoPdf({
   // Si quedó ANULADA, se marca con esa marca de agua en lugar de BORRADOR
   // (son excluyentes: una solicitud anulada no está aprobada).
   anulado?: boolean;
-  // Nombre (y cargo) de quien aprobó; se muestra al pie solo si aprobado=true.
-  aprobadoPor?: { nombre: string; cargo: string | null } | null;
+  // Código de quien aprobó (ver codigoAprobador en lib/utils.ts); se
+  // muestra al pie solo si aprobado=true.
+  aprobadoPorCodigo?: string | null;
 }): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -207,9 +207,15 @@ export async function generarSolicitudPedidoPdf({
     y -= 4;
   }
 
+  if (aprobado && aprobadoPorCodigo) {
+    if (y < MARGEN_INFERIOR) nuevaPagina();
+    page.drawText("SOLPED APROBADA POR:", { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
+    page.drawText(aprobadoPorCodigo, { x: MARGEN_X + 90, y, size: 7, font: regular, color: NEGRO });
+    y -= 11;
+  }
+
   if (anulado) dibujarMarcaDeAgua(pdfDoc, bold, "ANULADA");
   else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
-  if (aprobado && aprobadoPor) dibujarFirmaAprobacion(page, aprobadoPor, regular, bold);
 
   return pdfDoc.save();
 }

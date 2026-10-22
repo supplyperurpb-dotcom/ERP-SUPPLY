@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generarOrdenCompraPdf } from "@/lib/pdf/orden-compra-pdf";
 import { NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { codigoAprobador } from "@/lib/utils";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -82,10 +83,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     montoTotal: Number(orden.montoTotal),
     aprobado: orden.estado === "APROBADO",
     anulado: orden.estado === "ANULADO",
-    aprobadoPor: orden.aprobadoPorId
+    aprobadoPorCodigo: orden.aprobadoPorId
       ? (() => {
           const u = usuarioPorId.get(orden.aprobadoPorId!);
-          return u ? { nombre: `${u.nombres} ${u.apellidos}`, cargo: u.cargo } : null;
+          return u ? codigoAprobador(u.nombres, u.apellidos) : null;
         })()
       : null,
     usuarioSolped: nombresSolicitantes.length > 0 ? nombresSolicitantes.join(", ") : null,

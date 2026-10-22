@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { generarSolicitudPedidoPdf } from "@/lib/pdf/solicitud-pedido-pdf";
+import { codigoAprobador } from "@/lib/utils";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -42,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       })),
     aprobado: solicitud.estado === "APROBADO",
     anulado: solicitud.estado === "ANULADO",
-    aprobadoPor: aprobador ? { nombre: `${aprobador.nombres} ${aprobador.apellidos}`, cargo: aprobador.cargo } : null,
+    aprobadoPorCodigo: aprobador ? codigoAprobador(aprobador.nombres, aprobador.apellidos) : null,
   });
 
   return new NextResponse(new Uint8Array(bytes), {

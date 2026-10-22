@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Código corto de quien aprobó un documento (SOLPED u OC/OS), para la
+// trazabilidad del PDF en vez de nombre completo + cargo: inicial del
+// nombre + apellido(s) pegado, en mayúsculas. Ej. "Carlos" "Gozzer" ->
+// "CGOZZER"; "Jorge" "Quijano" -> "JQUIJANO".
+export function codigoAprobador(nombres: string, apellidos: string): string {
+  const inicial = nombres.trim().charAt(0);
+  const apellido = apellidos.replace(/\s+/g, "");
+  return `${inicial}${apellido}`.toUpperCase();
+}
+
 // Calcula el siguiente número de una serie tipo "IF-0001" a partir del
 // MÁXIMO correlativo ya usado (no de `count()` de filas). Usar `count()+1`
 // para numerar es frágil: si alguna fila se borra (o el conteo no coincide
