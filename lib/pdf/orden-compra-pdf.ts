@@ -305,59 +305,75 @@ export async function generarOrdenCompraPdf({
   y -= 16;
 
   // ---------------------------------------------------------------------
-  // Condiciones de facturación y recepción (solo para compras físicas),
-  // alineadas a la izquierda.
-  // ---------------------------------------------------------------------
-  if (categoriaEsCompra) {
-    y -= 12;
-    if (y < MARGEN_INFERIOR + 140) nuevaPagina();
-
-    const parrafo = (texto: string, negrita = false) => {
-      for (const linea of envolverTextoPx(texto, negrita ? bold : regular, 8, ANCHO_TABLA)) {
-        page.drawText(linea, { x: MARGEN_X, y, size: 8, font: negrita ? bold : regular, color: NEGRO });
-        y -= 11;
-      }
-    };
-    const bullet = (texto: string) => {
-      page.drawText("•", { x: MARGEN_X + 6, y, size: 8, font: regular, color: NEGRO });
-      for (const linea of envolverTextoPx(texto, regular, 8, ANCHO_TABLA - 24)) {
-        page.drawText(linea, { x: MARGEN_X + 18, y, size: 8, font: regular, color: NEGRO });
-        y -= 11;
-      }
+  // Condiciones de facturación y recepción (solo compras físicas) + pie
+  // de usuarios/referencias internas — SIEMPRE pegados al pie de la
+  // página en la que terminen cayendo, sin importar cuánto contenido
+  // haya arriba. bloqueFinal() se llama 2 veces: una para medir cuánta
+  // altura necesita todo el bloque (yInicio=null, no dibuja nada) y otra
+  // ya sabiendo desde dónde arrancar para que la última línea quede a
+  // PIE_MARGEN del borde inferior.
+  function bloqueFinal(yInicio: number | null): number {
+    let yLocal = yInicio ?? 0;
+    const dibujar = yInicio !== null;
+    const linea = (texto: string, x: number, font: PDFFont, color: ReturnType<typeof rgb>) => {
+      if (dibujar) page.drawText(texto, { x, y: yLocal, size: 8, font, color });
+      yLocal -= 11;
     };
 
-    parrafo("Las facturas solo deben ser enviadas al siguiente correo facturas.peru@berry.net adjuntando:");
-    y -= 3;
-    bullet("Factura electrónica en PDF y archivo XML");
-    bullet("Orden de Compra");
-    bullet("Guía de Remisión firmada y sellada por almacén de RPB");
-    y -= 3;
-    parrafo("Para facturar deben referenciar el número de orden de compra u orden de servicio emitido por RPB.");
-    y -= 3;
-    parrafo("No se recepcionarán productos sin Orden de Compra, FT, HS y Certificado de metales pesados.");
-    y -= 3;
-    parrafo(
-      "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
-      true
-    );
-    y -= 10;
+    if (categoriaEsCompra) {
+      const parrafo = (texto: string, negrita = false) => {
+        for (const l of envolverTextoPx(texto, negrita ? bold : regular, 8, ANCHO_TABLA)) {
+          linea(l, MARGEN_X, negrita ? bold : regular, NEGRO);
+        }
+      };
+      const bullet = (texto: string) => {
+        const lineasTexto = envolverTextoPx(texto, regular, 8, ANCHO_TABLA - 24);
+        lineasTexto.forEach((l, i) => {
+          if (i === 0 && dibujar) page.drawText("•", { x: MARGEN_X + 6, y: yLocal, size: 8, font: regular, color: NEGRO });
+          linea(l, MARGEN_X + 18, regular, NEGRO);
+        });
+      };
+
+      parrafo("Las facturas solo deben ser enviadas al siguiente correo facturas.peru@berry.net adjuntando:");
+      yLocal -= 3;
+      bullet("Factura electrónica en PDF y archivo XML");
+      bullet("Orden de Compra");
+      bullet("Guía de Remisión firmada y sellada por almacén de RPB");
+      yLocal -= 3;
+      parrafo("Para facturar deben referenciar el número de orden de compra u orden de servicio emitido por RPB.");
+      yLocal -= 3;
+      parrafo("No se recepcionarán productos sin Orden de Compra, FT, HS y Certificado de metales pesados.");
+      yLocal -= 3;
+      parrafo(
+        "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
+        true
+      );
+      yLocal -= 10;
+    }
+
+    const filaPie = (label: string, value: string) => {
+      if (dibujar) {
+        page.drawText(label, { x: MARGEN_X, y: yLocal, size: 7, font: bold, color: GRIS });
+        page.drawText(value, { x: MARGEN_X + 125, y: yLocal, size: 7, font: regular, color: NEGRO });
+      }
+      yLocal -= 11;
+    };
+    filaPie("SOLICITADO POR:", usuarioSolped || "—");
+    filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
+    filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
+    if (aprobado && aprobadoPorCodigo) {
+      filaPie(`${categoriaEsCompra ? "OC" : "OS"} APROBADA POR:`, aprobadoPorCodigo);
+    }
+
+    return (yInicio ?? 0) - yLocal;
   }
 
-  // ---------------------------------------------------------------------
-  // Pie: usuarios y referencias internas.
-  // ---------------------------------------------------------------------
-  if (y < MARGEN_INFERIOR - 40) nuevaPagina();
-  const filaPie = (label: string, value: string) => {
-    page.drawText(label, { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
-    page.drawText(value, { x: MARGEN_X + 125, y, size: 7, font: regular, color: NEGRO });
-    y -= 11;
-  };
-  filaPie("SOLICITADO POR:", usuarioSolped || "—");
-  filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
-  filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
-  if (aprobado && aprobadoPorCodigo) {
-    filaPie(`${categoriaEsCompra ? "OC" : "OS"} APROBADA POR:`, aprobadoPorCodigo);
-  }
+  const PIE_MARGEN = 30;
+  const alturaBloqueFinal = bloqueFinal(null);
+  const yAnclado = PIE_MARGEN + alturaBloqueFinal;
+  if (y < yAnclado) nuevaPagina();
+  y = yAnclado;
+  bloqueFinal(y);
 
   if (anulado) dibujarMarcaDeAgua(pdfDoc, bold, "ANULADA");
   else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
