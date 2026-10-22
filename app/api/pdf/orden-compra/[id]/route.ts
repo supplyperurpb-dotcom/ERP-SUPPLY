@@ -36,14 +36,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const usuarios = idsUsuarios.size > 0 ? await prisma.usuario.findMany({ where: { id: { in: [...idsUsuarios] } } }) : [];
   const usuarioPorId = new Map(usuarios.map((u) => [u.id, u]));
-  const nombreUsuario = (id: string | null | undefined) => {
+  // Toda la trazabilidad del pie (quién solicitó/aprobó/generó) usa el
+  // mismo formato corto que aprobadoPorCodigo: inicial + apellido.
+  const codigoUsuario = (id: string | null | undefined) => {
     const u = id ? usuarioPorId.get(id) : null;
-    return u ? `${u.nombres} ${u.apellidos}` : null;
+    return u ? codigoAprobador(u.nombres, u.apellidos) : null;
   };
 
-  const nombresSolicitantes = [...new Set([...idsSolicitantes].map((id) => nombreUsuario(id)).filter((n): n is string => !!n))];
-  const nombresAprobadoresSolped = [
-    ...new Set([...idsAprobadoresSolped].map((id) => nombreUsuario(id)).filter((n): n is string => !!n)),
+  const codigosSolicitantes = [...new Set([...idsSolicitantes].map((id) => codigoUsuario(id)).filter((n): n is string => !!n))];
+  const codigosAprobadoresSolped = [
+    ...new Set([...idsAprobadoresSolped].map((id) => codigoUsuario(id)).filter((n): n is string => !!n)),
   ];
 
   const direccionProveedor = [
@@ -83,15 +85,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     montoTotal: Number(orden.montoTotal),
     aprobado: orden.estado === "APROBADO",
     anulado: orden.estado === "ANULADO",
-    aprobadoPorCodigo: orden.aprobadoPorId
-      ? (() => {
-          const u = usuarioPorId.get(orden.aprobadoPorId!);
-          return u ? codigoAprobador(u.nombres, u.apellidos) : null;
-        })()
-      : null,
-    usuarioSolped: nombresSolicitantes.length > 0 ? nombresSolicitantes.join(", ") : null,
-    usuarioCreacion: nombreUsuario(orden.creadoPorId),
-    solpedAprobadoPor: nombresAprobadoresSolped.length > 0 ? nombresAprobadoresSolped.join(", ") : null,
+    aprobadoPorCodigo: codigoUsuario(orden.aprobadoPorId),
+    usuarioSolped: codigosSolicitantes.length > 0 ? codigosSolicitantes.join(", ") : null,
+    usuarioCreacion: codigoUsuario(orden.creadoPorId),
+    solpedAprobadoPor: codigosAprobadoresSolped.length > 0 ? codigosAprobadoresSolped.join(", ") : null,
   });
 
   return new NextResponse(new Uint8Array(bytes), {
