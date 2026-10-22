@@ -300,10 +300,8 @@ export async function generarOrdenCompraPdf({
     y -= destacar ? 15 : 13;
   };
   filaTotal("SUB TOTAL", subtotal);
-  filaTotal("DESCUENTOS", 0);
-  filaTotal("VALOR VENTA", subtotal);
   filaTotal(`IMPUESTOS I.G.V. (${Math.round(IGV_TASA * 100)}%)`, igv);
-  filaTotal("PRECIO TOTAL", montoTotal, true);
+  filaTotal("TOTAL", montoTotal, true);
   y -= 16;
 
   // ---------------------------------------------------------------------
