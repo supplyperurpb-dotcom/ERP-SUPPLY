@@ -2,10 +2,10 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Ban } from "lucide-react";
+import { Check, X, Ban, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { firmarOrdenCompraAction, anularOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
+import { firmarOrdenCompraAction, anularOrdenCompraAction, anularFirmaOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 
 // Firma el rol de aprobación pendiente del usuario actual en esta OC/OS
 // (ver firmarOrdenCompraAction: cada orden puede necesitar varias firmas
@@ -52,6 +52,37 @@ export function FirmarOrdenBotones({ id, numero, rolLabel }: { id: string; numer
         Rechazar
       </Button>
     </div>
+  );
+}
+
+// Deshace la propia firma ya aprobada (o cualquiera, si es ADMIN) — pedido
+// explícito: "desliberación" firma por firma, para poder volver a editar
+// la orden. Solo aparece en el detalle junto a una firma en APROBADO que
+// le pertenece a quien la ve (ver anularFirmaOrdenCompraAction).
+export function AnularFirmaBoton({ id, firmaId, numero, rolLabel }: { id: string; firmaId: string; numero: string; rolLabel: string }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  function handleAnularFirma() {
+    const comentario = prompt(`Motivo para anular tu aprobación (${rolLabel}) de ${numero} (opcional):`);
+    if (comentario === null) return;
+    if (!confirm(`¿Anular tu aprobación (${rolLabel}) de ${numero}?`)) return;
+    startTransition(async () => {
+      const resultado = await anularFirmaOrdenCompraAction(id, firmaId, comentario);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`Aprobación anulada en ${numero}`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Button variant="ghost" size="sm" disabled={pending} onClick={handleAnularFirma} className="text-destructive hover:text-destructive">
+      <Undo2 className="mr-1 h-4 w-4" />
+      Anular Aprobación
+    </Button>
   );
 }
 

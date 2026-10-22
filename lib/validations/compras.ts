@@ -83,6 +83,33 @@ export const ordenCompraSchema = z.object({
 
 export type OrdenCompraInput = z.infer<typeof ordenCompraSchema>;
 
+// Edición de una OC/OS ya creada (solo en BORRADOR, ver
+// editarOrdenCompraAction): las líneas son las YA EXISTENTES (se
+// identifican por id, no se agregan ni quitan), y no incluye
+// solicitudPedidoItemId/skuId/centroCosto porque esos no cambian al
+// editar (centroCosto además está bloqueado en la UI, ver
+// orden-compra-form.tsx).
+const itemOrdenCompraEditSchema = z.object({
+  id: z.string().min(1),
+  cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
+  precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
+  gravado: z.coerce.boolean().default(true),
+  descripcion: z.string().max(500).optional().or(z.literal("")),
+});
+
+export const editarOrdenCompraSchema = z.object({
+  proveedorId: z.string().min(1, "Selecciona un proveedor"),
+  fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+  fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
+  condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+  lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
+  observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
+  moneda: z.enum(["PEN", "USD"]).default("PEN"),
+  items: z.array(itemOrdenCompraEditSchema).min(1, "La orden debe tener al menos un ítem"),
+});
+
+export type EditarOrdenCompraInput = z.infer<typeof editarOrdenCompraSchema>;
+
 export const aprobadoresAreaSchema = z.object({
   asignaciones: z.array(
     z.object({

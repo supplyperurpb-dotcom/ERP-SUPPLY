@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FileDown, Check, X as XIcon, Clock } from "lucide-react";
+import { FileDown, Check, X as XIcon, Clock, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AnularOrdenBoton, FirmarOrdenBotones } from "../aprobar-rechazar-botones";
+import { AnularOrdenBoton, FirmarOrdenBotones, AnularFirmaBoton } from "../aprobar-rechazar-botones";
 import { SeguimientoOrdenDialog, type ItemSeguimientoOrden } from "./seguimiento-orden-dialog";
 import type { ResumenSolped } from "@/components/shared/resumen-solped-dialog";
 import { prisma } from "@/lib/db/prisma";
@@ -92,6 +92,14 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
   const usuarioFirmantePorId = new Map(usuariosFirmantes.map((u) => [u.id, u]));
 
+  // Editar: quien la creó, o Supply Chain/ADMIN (mismo criterio que al
+  // crear) — y solo si está en BORRADOR (nadie la firmó aún, o todos
+  // anularon su firma — ver AnularFirmaBoton más abajo).
+  const puedeEditar =
+    !!usuario &&
+    orden.estado === "BORRADOR" &&
+    (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || orden.creadoPorId === usuario.id);
+
   // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
   // estado de la orden.
   const puedeAnular =
@@ -169,6 +177,14 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}`}
         acciones={
           <div className="flex gap-2">
+            {puedeEditar && (
+              <Button variant="outline" asChild>
+                <Link href={`/logistica/ordenes-compra/${orden.id}/editar`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </Link>
+              </Button>
+            )}
             {firmaQuePuedeUsar && (
               <FirmarOrdenBotones
                 id={orden.id}
@@ -306,7 +322,12 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                       {firma.comentario && <p className="text-xs text-muted-foreground">&quot;{firma.comentario}&quot;</p>}
                     </div>
                   </div>
-                  <Badge variant={ESTADO_FIRMA_VARIANT[firma.estado]}>{ESTADO_FIRMA_LABEL[firma.estado]}</Badge>
+                  <div className="flex items-center gap-2">
+                    {firma.estado === "APROBADO" && (firma.usuarioId === usuario?.id || esAdmin) && (
+                      <AnularFirmaBoton id={orden.id} firmaId={firma.id} numero={orden.numero} rolLabel={nombreRolEspecial(firma.rol)} />
+                    )}
+                    <Badge variant={ESTADO_FIRMA_VARIANT[firma.estado]}>{ESTADO_FIRMA_LABEL[firma.estado]}</Badge>
+                  </div>
                 </div>
               );
             })}
