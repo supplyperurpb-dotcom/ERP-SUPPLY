@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FileDown, ShoppingCart } from "lucide-react";
+import { FileDown, ShoppingCart, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,10 @@ import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente VB",
+  // Igual que en solicitudes-pedido-table.tsx: PENDIENTE se muestra como
+  // "Borrador" tanto recién creada como al volver a editar una ya
+  // aprobada (ver editarSolicitudPedidoAction).
+  PENDIENTE: "Borrador",
   APROBADO: "Aprobada",
   RECHAZADO: "Rechazada",
   ANULADO: "Anulada",
@@ -90,6 +93,19 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     solicitud.estado !== "ANULADO";
   // Los compradores de Supply Chain generan las OC/OS para toda la empresa.
   const puedeGenerarOrden = (usuario?.roles.includes("ADMIN") ?? false) || usuario?.area === "SUPPLY_CHAIN";
+  // Editar: quien la creó, o Supply Chain/ADMIN (mismo criterio que
+  // "areaEditable" al crear) — y solo si todavía no la jaló ninguna OC/OS
+  // activa (si la única que la jaló está anulada/rechazada, se puede
+  // volver a editar). Ver editarSolicitudPedidoAction.
+  const fueJalada = solicitud.items.some((item) =>
+    item.ordenCompraItems.some((oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO")
+  );
+  const puedeEditar =
+    !!usuario &&
+    solicitud.estado !== "RECHAZADO" &&
+    solicitud.estado !== "ANULADO" &&
+    !fueJalada &&
+    (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || solicitud.creadoPorId === usuario.id);
   const tienePendiente = solicitud.items.some((item) => {
     if (item.estado === "RECHAZADO") return false;
     const jalado = item.ordenCompraItems
@@ -163,6 +179,14 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
         descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
         acciones={
           <div className="flex gap-2">
+            {puedeEditar && (
+              <Button variant="outline" asChild>
+                <Link href={`/logistica/solicitudes-pedido/${solicitud.id}/editar`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </Link>
+              </Button>
+            )}
             {puedeAprobar && (
               <FinalizarAprobacionBoton id={solicitud.id} numero={solicitud.numero} todosDecididos={todosDecididos} />
             )}

@@ -7,7 +7,7 @@ import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente VB",
+  PENDIENTE: "Borrador",
   APROBADO: "Aprobada",
   RECHAZADO: "Rechazada",
   ANULADO: "Anulada",

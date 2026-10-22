@@ -77,6 +77,120 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
   }
 }
 
+// Puede editar: quien la creó, o Supply Chain/ADMIN (mismo criterio que
+// "areaEditable" al crear, porque gestionan pedidos de cualquier área en
+// nombre de otros). No depende de ningún rol de aprobador/anulador.
+function puedeEditarSolicitud(usuario: { id: string; area: string | null; roles: string[] }, solicitud: { creadoPorId: string | null }) {
+  return usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || solicitud.creadoPorId === usuario.id;
+}
+
+// Edita una solicitud existente — solo si todavía no fue "jalada" por
+// ninguna OC/OS activa (si la única que la jaló está ANULADA/RECHAZADA, se
+// puede volver a editar). Si ya estaba APROBADA, el edit la regresa a
+// PENDIENTE (mostrado como "Borrador" en la UI) y reinicia la decisión de
+// cada línea a PENDIENTE: cualquier cambio invalida la aprobación previa y
+// exige que se vuelva a revisar completa.
+export async function editarSolicitudPedidoAction(
+  id: string,
+  data: SolicitudPedidoInput
+): Promise<SolicitudPedidoActionState> {
+  const parsed = solicitudPedidoSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para editar una solicitud." };
+
+    const solicitud = await prisma.solicitudPedido.findUnique({
+      where: { id },
+      include: { items: { include: { ordenCompraItems: { include: { ordenCompra: true } } } } },
+    });
+    if (!solicitud) return { error: "La solicitud ya no existe." };
+
+    if (!puedeEditarSolicitud(usuario, solicitud)) {
+      return { error: "No tienes permiso para editar esta solicitud." };
+    }
+    if (solicitud.estado === "RECHAZADO" || solicitud.estado === "ANULADO") {
+      return { error: "Esta solicitud ya no está activa." };
+    }
+    const fueJalada = solicitud.items.some((item) =>
+      item.ordenCompraItems.some((oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO")
+    );
+    if (fueJalada) {
+      return {
+        error: "Ya se generó una orden de compra/servicio con productos de esta solicitud. Anúlala primero para poder editar.",
+      };
+    }
+
+    // Una línea con CUALQUIER historial de OC (incluida una ya anulada) no
+    // se puede borrar: la fila OrdenCompraItem sigue apuntando a ella y la
+    // base de datos no deja romper esa referencia. Si el usuario la quitó
+    // del formulario, se avisa en vez de fallar a medio guardar.
+    const idsEnviados = new Set(parsed.data.items.map((item) => item.id).filter((itemId): itemId is string => !!itemId));
+    const itemsConHistorial = solicitud.items.filter((item) => item.ordenCompraItems.length > 0);
+    const itemsQueNoSePuedenQuitar = itemsConHistorial.filter((item) => !idsEnviados.has(item.id));
+    if (itemsQueNoSePuedenQuitar.length > 0) {
+      return {
+        error: `No se puede quitar la línea de ${itemsQueNoSePuedenQuitar.length} producto(s) con historial de una orden de compra/servicio (aunque esté anulada). Déjala en el formulario.`,
+      };
+    }
+
+    const { categoria, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
+    const areaPuedeElegir = !usuario.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
+    const area = areaPuedeElegir ? parsed.data.area : (usuario.area as typeof parsed.data.area);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.solicitudPedido.update({
+        where: { id },
+        data: {
+          categoria,
+          area,
+          estado: "PENDIENTE",
+          fecha,
+          fechaNecesidad,
+          tipoNecesidad,
+          justificacion: justificacion || null,
+          aprobadoPorId: null,
+          fechaAprobacion: null,
+          comentarioRechazo: null,
+        },
+      });
+
+      const idsExistentes = new Set(solicitud.items.map((item) => item.id));
+      for (const item of items) {
+        const datosItem = {
+          skuId: item.skuId,
+          cantidad: item.cantidad,
+          unidadMedida: item.unidadMedida,
+          centroCosto: item.centroCosto,
+          descripcion: item.descripcion || null,
+          campo: item.campo || null,
+          estado: "PENDIENTE" as const,
+        };
+        if (item.id && idsExistentes.has(item.id)) {
+          await tx.solicitudPedidoItem.update({ where: { id: item.id }, data: datosItem });
+        } else {
+          await tx.solicitudPedidoItem.create({ data: { solicitudPedidoId: id, ...datosItem } });
+        }
+      }
+
+      const idsAEliminar = solicitud.items.map((item) => item.id).filter((itemId) => !idsEnviados.has(itemId));
+      if (idsAEliminar.length > 0) {
+        await tx.solicitudPedidoItem.deleteMany({ where: { id: { in: idsAEliminar } } });
+      }
+    });
+
+    revalidatePath("/logistica/solicitudes-pedido");
+    revalidatePath(`/logistica/solicitudes-pedido/${id}`);
+    return { id };
+  } catch (e) {
+    console.error("Error inesperado en editarSolicitudPedidoAction:", e);
+    return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al guardar la solicitud." };
+  }
+}
+
 async function verificarPermisoAprobacion(area: string): Promise<{ usuarioId: string } | { error: string }> {
   const usuario = await getUsuarioActual();
   if (!usuario) return { error: "Debes iniciar sesión para aprobar o rechazar solicitudes." };

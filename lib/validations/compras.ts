@@ -5,6 +5,10 @@ const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SE
 const CATEGORIAS = ["COMPRA", "SERVICIO"] as const;
 
 const itemSolicitudPedidoSchema = z.object({
+  // Solo lo usa editarSolicitudPedidoAction, para saber si la línea ya
+  // existía (update) o es nueva (create) — en crearSolicitudPedidoAction
+  // simplemente no llega.
+  id: z.string().optional(),
   skuId: z.string().min(1, "Selecciona un producto"),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),

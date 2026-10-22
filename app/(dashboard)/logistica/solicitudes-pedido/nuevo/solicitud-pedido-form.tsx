@@ -18,9 +18,19 @@ import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, fechaLocalEnDias } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { solicitudPedidoSchema, type SolicitudPedidoInput } from "@/lib/validations/compras";
-import { crearSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
+import { crearSolicitudPedidoAction, editarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 
 type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida: string };
+
+type ItemInicial = {
+  id?: string;
+  skuId: string;
+  cantidad: number;
+  unidadMedida: string;
+  centroCosto: string;
+  descripcion: string;
+  campo: string;
+};
 
 function itemVacio(centroCostoInicial: string) {
   return {
@@ -40,6 +50,15 @@ export function SolicitudPedidoForm({
   areaEditable = true,
   centrosCosto,
   campos,
+  // Modo edición: solicitudId + valoresIniciales precargan el formulario y
+  // el submit llama a editarSolicitudPedidoAction en vez de crear una
+  // nueva. itemsNoEliminables son líneas con historial de OC/OS (aunque
+  // esté anulada) — el botón de quitar se deshabilita para esas, porque el
+  // server las rechazaría igual (ver editarSolicitudPedidoAction).
+  solicitudId,
+  valoresIniciales,
+  itemsNoEliminables,
+  advertenciaReinicioAprobacion,
 }: {
   skus: SkuOpcion[];
   categoriaInicial?: CategoriaCompraCodigo;
@@ -47,33 +66,57 @@ export function SolicitudPedidoForm({
   areaEditable?: boolean;
   centrosCosto: string[];
   campos: string[];
+  solicitudId?: string;
+  valoresIniciales?: {
+    fecha: string;
+    fechaNecesidad: string;
+    tipoNecesidad: SolicitudPedidoInput["tipoNecesidad"];
+    justificacion: string;
+    items: ItemInicial[];
+  };
+  itemsNoEliminables?: Set<string>;
+  /** Esta solicitud ya estaba aprobada: guardar la vuelve a "Borrador" y exige una nueva aprobación completa. */
+  advertenciaReinicioAprobacion?: boolean;
 }) {
   const router = useRouter();
+  const modoEdicion = !!solicitudId && !!valoresIniciales;
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
   const centroCostoInicial = centrosCosto[0] ?? "";
 
   const form = useForm<SolicitudPedidoInput>({
     resolver: zodResolver(solicitudPedidoSchema),
-    defaultValues: {
-      categoria: categoriaInicial,
-      area: areaInicial,
-      fecha: fechaLocalHoy() as unknown as Date,
-      // Sugerida a una semana vista — el usuario debe hacer clic en el
-      // campo (confirmarla o cambiarla) antes de poder guardar, ver
-      // fechaNecesidadConfirmada más abajo.
-      fechaNecesidad: fechaLocalEnDias(7) as unknown as Date,
-      tipoNecesidad: "ESTANDAR",
-      justificacion: "",
-      items: [itemVacio(centroCostoInicial)],
-    },
+    defaultValues: valoresIniciales
+      ? {
+          categoria: categoriaInicial,
+          area: areaInicial,
+          fecha: valoresIniciales.fecha as unknown as Date,
+          fechaNecesidad: valoresIniciales.fechaNecesidad as unknown as Date,
+          tipoNecesidad: valoresIniciales.tipoNecesidad,
+          justificacion: valoresIniciales.justificacion,
+          items: valoresIniciales.items,
+        }
+      : {
+          categoria: categoriaInicial,
+          area: areaInicial,
+          fecha: fechaLocalHoy() as unknown as Date,
+          // Sugerida a una semana vista — el usuario debe hacer clic en el
+          // campo (confirmarla o cambiarla) antes de poder guardar, ver
+          // fechaNecesidadConfirmada más abajo.
+          fechaNecesidad: fechaLocalEnDias(7) as unknown as Date,
+          tipoNecesidad: "ESTANDAR",
+          justificacion: "",
+          items: [itemVacio(centroCostoInicial)],
+        },
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
 
   // La fecha estimada de necesidad sale precargada a una semana vista, pero
   // no se puede guardar hasta que el usuario haga clic en el campo y
-  // confirme esa fecha (o elija otra) — evita que quede sin revisar.
-  const [fechaNecesidadConfirmada, setFechaNecesidadConfirmada] = useState(false);
+  // confirme esa fecha (o elija otra) — evita que quede sin revisar. Al
+  // editar, el valor ya es el real (no una sugerencia), así que no hace
+  // falta forzar el reclic.
+  const [fechaNecesidadConfirmada, setFechaNecesidadConfirmada] = useState(modoEdicion);
 
   async function onSubmit(data: SolicitudPedidoInput) {
     if (!fechaNecesidadConfirmada) {
@@ -85,7 +128,8 @@ export function SolicitudPedidoForm({
     }
     let resultado;
     try {
-      resultado = await crearSolicitudPedidoAction(data);
+      resultado =
+        modoEdicion && solicitudId ? await editarSolicitudPedidoAction(solicitudId, data) : await crearSolicitudPedidoAction(data);
     } catch (err) {
       console.error("Error al guardar la solicitud de pedido:", err);
       const detalle = err instanceof Error ? err.message : String(err);
@@ -96,9 +140,9 @@ export function SolicitudPedidoForm({
       toast.error(resultado.error);
       return;
     }
-    toast.success("Solicitud registrada");
+    toast.success(modoEdicion ? "Solicitud actualizada" : "Solicitud registrada");
     if (resultado?.id) {
-      window.open(`/api/pdf/solicitud-pedido/${resultado.id}`, "_blank");
+      if (!modoEdicion) window.open(`/api/pdf/solicitud-pedido/${resultado.id}`, "_blank");
       router.push(`/logistica/solicitudes-pedido/${resultado.id}`);
     } else {
       router.push("/logistica/solicitudes-pedido");
@@ -107,6 +151,12 @@ export function SolicitudPedidoForm({
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {advertenciaReinicioAprobacion && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          Esta solicitud ya estaba aprobada. Al guardar los cambios, vuelve a quedar en estado{" "}
+          <span className="font-medium">Borrador</span> y debe pasar de nuevo por toda la aprobación.
+        </p>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos de la solicitud</CardTitle>
@@ -249,9 +299,12 @@ export function SolicitudPedidoForm({
               <TableBody>
                 {fields.map((field, index) => {
                   const skuIdActual = form.watch(`items.${index}.skuId`);
+                  const itemIdActual = form.watch(`items.${index}.id`);
+                  const noEliminable = !!itemIdActual && !!itemsNoEliminables?.has(itemIdActual);
                   return (
                     <TableRow key={field.id}>
                       <TableCell className="align-top">
+                        <input type="hidden" {...form.register(`items.${index}.id`)} />
                         <Input disabled value={skuPorId.get(skuIdActual ?? "")?.codigo ?? ""} />
                       </TableCell>
                       <TableCell className="align-top">
@@ -352,7 +405,8 @@ export function SolicitudPedidoForm({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          disabled={fields.length === 1}
+                          disabled={fields.length === 1 || noEliminable}
+                          title={noEliminable ? "Ya tiene una orden de compra/servicio generada (aunque esté anulada); no se puede quitar." : undefined}
                           onClick={() => remove(index)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -372,7 +426,7 @@ export function SolicitudPedidoForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : "Registrar solicitud"}
+          {form.formState.isSubmitting ? "Guardando..." : modoEdicion ? "Guardar cambios" : "Registrar solicitud"}
         </Button>
       </div>
     </form>

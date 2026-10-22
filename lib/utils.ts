@@ -152,6 +152,16 @@ export function fechaLocalEnDias(dias: number): string {
   return `${fecha.getFullYear()}-${mes}-${dia}`;
 }
 
+// Convierte una fecha YA GUARDADA (ej. SolicitudPedido.fecha) a "YYYY-MM-DD"
+// para precargar un <input type="date"> al editar. A diferencia de
+// fechaLocalHoy/fechaLocalEnDias (que arman "ahora" en hora local), acá SÍ
+// corresponde usar UTC: estos campos se guardan vía z.coerce.date() de un
+// input de fecha, interpretado como medianoche UTC (mismo criterio que
+// formatDate(), que también usa timeZone "UTC" para mostrarlos).
+export function fechaInputValue(fecha: Date): string {
+  return fecha.toISOString().slice(0, 10);
+}
+
 export function horaLocalAhora(): string {
   const ahora = new Date();
   const horas = String(ahora.getHours()).padStart(2, "0");

@@ -12,7 +12,10 @@ import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente VB",
+  // SOLPED reutiliza PENDIENTE tanto para la recién creada (esperando
+  // aprobación) como para una ya aprobada que se vuelve a editar (ver
+  // editarSolicitudPedidoAction) — en ambos casos se muestra "Borrador".
+  PENDIENTE: "Borrador",
   APROBADO: "Aprobada",
   RECHAZADO: "Rechazada",
   ANULADO: "Anulada",
