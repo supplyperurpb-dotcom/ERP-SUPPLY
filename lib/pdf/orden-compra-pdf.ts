@@ -96,6 +96,26 @@ export async function generarOrdenCompraPdf({
   // Nombre de quien aprobó la(s) solicitud(es) de pedido de origen.
   solpedAprobadoPor: string | null;
 }): Promise<Uint8Array> {
+  // Pedido explícito: todo el texto del PDF sale en mayúscula, aunque el
+  // dato guardado no lo esté (cubre también registros viejos, de antes de
+  // que el resto del sistema empezara a guardar todo en mayúscula).
+  condicionPago = condicionPago?.toUpperCase() ?? null;
+  lugarEntrega = lugarEntrega?.toUpperCase() ?? null;
+  observaciones = observaciones?.toUpperCase() ?? null;
+  proveedor = proveedor.toUpperCase();
+  direccionProveedor = direccionProveedor.toUpperCase();
+  emailProveedor = emailProveedor.toUpperCase();
+  telefonoProveedor = telefonoProveedor.toUpperCase();
+  usuarioSolped = usuarioSolped?.toUpperCase() ?? null;
+  usuarioCreacion = usuarioCreacion?.toUpperCase() ?? null;
+  solpedAprobadoPor = solpedAprobadoPor?.toUpperCase() ?? null;
+  lineas = lineas.map((l) => ({
+    ...l,
+    codigo: l.codigo.toUpperCase(),
+    descripcion: l.descripcion.toUpperCase(),
+    unidadMedida: l.unidadMedida.toUpperCase(),
+  }));
+
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);

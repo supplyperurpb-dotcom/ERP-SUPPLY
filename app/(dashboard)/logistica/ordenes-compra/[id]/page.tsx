@@ -171,7 +171,9 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   }
 
   return (
-    <div className="space-y-6">
+    // Pedido explícito: toda la página sale en mayúscula (solo visual, vía
+    // CSS -- no cambia el dato real ni lo que se envía al servidor).
+    <div className="space-y-6 uppercase">
       <PageHeader
         titulo={`${NOMBRE_ORDEN[orden.categoria as CategoriaCompraCodigo]} ${orden.numero}`}
         descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}`}

@@ -83,6 +83,23 @@ export async function generarSolicitudPedidoPdf({
   // muestra al pie solo si aprobado=true.
   aprobadoPorCodigo?: string | null;
 }): Promise<Uint8Array> {
+  // Pedido explícito: todo el texto del PDF sale en mayúscula, aunque el
+  // dato guardado no lo esté (cubre también registros viejos, de antes de
+  // que el resto del sistema empezara a guardar todo en mayúscula).
+  area = area.toUpperCase();
+  tipoNecesidad = tipoNecesidad.toUpperCase();
+  solicitante = solicitante.toUpperCase();
+  justificacion = justificacion?.toUpperCase() ?? null;
+  lineas = lineas.map((l) => ({
+    ...l,
+    codigo: l.codigo.toUpperCase(),
+    descripcion: l.descripcion.toUpperCase(),
+    unidadMedida: l.unidadMedida.toUpperCase(),
+    centroCosto: l.centroCosto.toUpperCase(),
+    campo: l.campo?.toUpperCase() ?? null,
+  }));
+  aprobadoPorCodigo = aprobadoPorCodigo?.toUpperCase() ?? null;
+
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);

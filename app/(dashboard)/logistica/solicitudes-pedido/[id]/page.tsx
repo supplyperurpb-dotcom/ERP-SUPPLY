@@ -173,7 +173,9 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
   }
 
   return (
-    <div className="space-y-6">
+    // Pedido explícito: toda la página sale en mayúscula (solo visual, vía
+    // CSS -- no cambia el dato real ni lo que se envía al servidor).
+    <div className="space-y-6 uppercase">
       <PageHeader
         titulo={`${NOMBRE_SOLICITUD[solicitud.categoria as CategoriaCompraCodigo]} ${solicitud.numero}`}
         descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
