@@ -1,9 +1,19 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { forzarMayusculaEnCambio, esTipoDeTextoLibre } from "./forzar-mayuscula";
 
-const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, type, onWheel, onKeyDown, ...props }, ref) => {
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  // Pedido explícito: todo lo que se escribe en el sistema se guarda en
+  // mayúscula. Se aplica solo a tipos de texto libre (ver
+  // esTipoDeTextoLibre) — nunca a password/email/número/fecha/etc. Un
+  // campo puntual puede pedir que no se le aplique con preserveCase.
+  preserveCase?: boolean;
+};
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, onWheel, onKeyDown, onChange, preserveCase, ...props }, ref) => {
     const esNumero = type === "number";
+    const mayuscula = !preserveCase && esTipoDeTextoLibre(type);
     return (
       <input
         type={type}
@@ -31,6 +41,10 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
               }
             : onKeyDown
         }
+        onChange={(e) => {
+          if (mayuscula) forzarMayusculaEnCambio(e);
+          onChange?.(e);
+        }}
         ref={ref}
         {...props}
       />
