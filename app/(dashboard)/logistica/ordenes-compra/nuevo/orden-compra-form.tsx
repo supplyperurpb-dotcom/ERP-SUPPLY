@@ -428,20 +428,8 @@ export function OrdenCompraForm({
                             onChange={(e) => actualizarFila(item.id, { gravado: e.target.checked })}
                           />
                         </TableCell>
-                        <TableCell className="align-top">
-                          <Select value={fila.centroCosto} onValueChange={(v) => actualizarFila(item.id, { centroCosto: v })}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {centrosCosto.map((c) => (
-                                <SelectItem key={c} value={c}>
-                                  {c}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
+                        {/* Viene fijo de la solicitud de pedido (item.centroCosto) — no editable acá, para que la OC/OS no se desvíe de a qué centro de costo se aprobó el gasto. */}
+                        <TableCell className="align-top">{fila.centroCosto}</TableCell>
                         <TableCell className="text-right align-top pt-4 font-medium">
                           {formatMoneda(subtotalesPorFila.get(item.id) ?? 0, moneda)}
                         </TableCell>
