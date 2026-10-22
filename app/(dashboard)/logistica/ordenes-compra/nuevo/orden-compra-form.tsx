@@ -40,7 +40,6 @@ type ItemPlano = {
   solicitudId: string;
   solicitudNumero: string;
   solicitudArea: string;
-  solicitudJustificacion: string | null;
 };
 
 function filaVacia(item: ItemPlano): FilaSeleccion {
@@ -75,6 +74,7 @@ export function OrdenCompraForm({
   const [fechaEntrega, setFechaEntrega] = useState(fechaLocalManana());
   const [condicionPago, setCondicionPago] = useState<string>(CONDICIONES_PAGO[2]);
   const [lugarEntrega, setLugarEntrega] = useState("");
+  const [comentario, setComentario] = useState("");
   const [moneda, setMoneda] = useState<"PEN" | "USD">("PEN");
   const [enviando, setEnviando] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -98,7 +98,6 @@ export function OrdenCompraForm({
           solicitudId: solicitud.id,
           solicitudNumero: solicitud.numero,
           solicitudArea: solicitud.area,
-          solicitudJustificacion: solicitud.justificacion,
         });
       }
     }
@@ -142,23 +141,6 @@ export function OrdenCompraForm({
 
   const itemsEnOrden = itemsPlanos.filter((item) => filas[item.id]);
 
-  // En vez de observaciones libres, la OC lleva las justificaciones de las
-  // solicitudes de las que se jaló algún ítem — una debajo de otra si son
-  // varias — para que quede trazado el motivo de la compra sin duplicar lo
-  // que ya se escribió en la Solped.
-  const justificaciones = useMemo(() => {
-    const vistos = new Set<string>();
-    const textos: string[] = [];
-    for (const item of itemsEnOrden) {
-      if (vistos.has(item.solicitudId)) continue;
-      vistos.add(item.solicitudId);
-      if (item.solicitudJustificacion?.trim()) {
-        textos.push(`${item.solicitudNumero}: ${item.solicitudJustificacion.trim()}`);
-      }
-    }
-    return textos.join("\n");
-  }, [itemsEnOrden]);
-
   const subtotalesPorFila = new Map<string, number>();
   for (const item of itemsEnOrden) {
     const fila = filas[item.id];
@@ -198,6 +180,10 @@ export function OrdenCompraForm({
       toast.error("Selecciona el lugar de entrega");
       return;
     }
+    if (!comentario.trim()) {
+      toast.error("El comentario es obligatorio");
+      return;
+    }
     if (itemsEnOrden.length === 0) {
       toast.error("Agrega al menos un producto con el botón 'Agregar producto'");
       return;
@@ -223,7 +209,7 @@ export function OrdenCompraForm({
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
         condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
-        observaciones: justificaciones,
+        observaciones: comentario,
         moneda,
         items: itemsEnOrden.map((item) => {
           const fila = filas[item.id];
@@ -345,13 +331,13 @@ export function OrdenCompraForm({
             </Select>
           </div>
           <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="observaciones">Justificación (de las solicitudes jaladas)</Label>
+            <Label htmlFor="observaciones">Comentario</Label>
             <Textarea
               id="observaciones"
               rows={3}
-              readOnly
-              className="cursor-not-allowed bg-muted"
-              value={justificaciones || "Agrega productos para ver aquí la justificación de sus solicitudes de origen."}
+              placeholder="Motivo de esta orden"
+              value={comentario}
+              onChange={(e) => setComentario(e.target.value)}
             />
           </div>
         </CardContent>

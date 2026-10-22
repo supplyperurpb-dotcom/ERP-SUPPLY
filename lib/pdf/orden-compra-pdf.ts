@@ -261,11 +261,11 @@ export async function generarOrdenCompraPdf({
   y -= 8;
 
   // ---------------------------------------------------------------------
-  // Observaciones.
+  // Comentario.
   // ---------------------------------------------------------------------
   if (observaciones) {
     if (y < MARGEN_INFERIOR + 40) nuevaPagina();
-    page.drawText("Observaciones", { x: MARGEN_X, y, size: 8, font: bold, color: NEGRO });
+    page.drawText("Comentario", { x: MARGEN_X, y, size: 8, font: bold, color: NEGRO });
     y -= 12;
     for (const linea of partirTexto(observaciones, 105)) {
       page.drawText(linea, { x: MARGEN_X, y, size: 8, font: regular, color: NEGRO });

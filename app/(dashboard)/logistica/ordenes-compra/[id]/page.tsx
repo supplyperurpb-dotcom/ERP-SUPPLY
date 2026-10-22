@@ -247,7 +247,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
           )}
           {orden.observaciones && (
             <div className="sm:col-span-2 lg:col-span-4">
-              <p className="text-muted-foreground">Observaciones</p>
+              <p className="text-muted-foreground">Comentario</p>
               <p className="font-medium">{orden.observaciones}</p>
             </div>
           )}

@@ -73,7 +73,10 @@ export const ordenCompraSchema = z.object({
   fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
   condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
   lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
-  observaciones: z.string().max(500).optional().or(z.literal("")),
+  // "Comentario" en la UI — reemplaza lo que antes era la justificación
+  // (auto-pulled de la Solped) mostrada de solo lectura; ahora es un
+  // comentario propio de la OC/OS, escrito a mano y obligatorio.
+  observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
   moneda: z.enum(["PEN", "USD"]).default("PEN"),
   items: z.array(itemOrdenCompraSchema).min(1, "Selecciona al menos un ítem pendiente"),
 });
