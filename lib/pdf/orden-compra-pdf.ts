@@ -305,32 +305,48 @@ export async function generarOrdenCompraPdf({
   y -= 16;
 
   // ---------------------------------------------------------------------
-  // Condiciones de facturación y recepción (solo compras físicas) + pie
-  // de usuarios/referencias internas — SIEMPRE pegados al pie de la
-  // página en la que terminen cayendo, sin importar cuánto contenido
-  // haya arriba. bloqueFinal() se llama 2 veces: una para medir cuánta
-  // altura necesita todo el bloque (yInicio=null, no dibuja nada) y otra
-  // ya sabiendo desde dónde arrancar para que la última línea quede a
-  // PIE_MARGEN del borde inferior.
-  function bloqueFinal(yInicio: number | null): number {
-    let yLocal = yInicio ?? 0;
-    const dibujar = yInicio !== null;
-    const linea = (texto: string, x: number, font: PDFFont, color: ReturnType<typeof rgb>) => {
-      if (dibujar) page.drawText(texto, { x, y: yLocal, size: 8, font, color });
-      yLocal -= 11;
-    };
+  // Pie: usuarios y referencias internas — pegado a continuación del
+  // total (no al pie de la página; ver condiciones de facturación más
+  // abajo, que sí van ancladas al pie).
+  // ---------------------------------------------------------------------
+  if (y < MARGEN_INFERIOR - 40) nuevaPagina();
+  const filaPie = (label: string, value: string) => {
+    page.drawText(label, { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
+    page.drawText(value, { x: MARGEN_X + 125, y, size: 7, font: regular, color: NEGRO });
+    y -= 11;
+  };
+  filaPie("SOLICITADO POR:", usuarioSolped || "—");
+  filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
+  filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
+  if (aprobado && aprobadoPorCodigo) {
+    filaPie(`${categoriaEsCompra ? "OC" : "OS"} APROBADA POR:`, aprobadoPorCodigo);
+  }
 
-    if (categoriaEsCompra) {
+  // ---------------------------------------------------------------------
+  // Condiciones de facturación y recepción (solo compras físicas) —
+  // pedido explícito: SIEMPRE pegadas al pie de la página en la que
+  // terminen cayendo, sin importar cuánto contenido haya arriba. Se mide
+  // su altura exacta primero (dibujar=false) y luego se dibuja ya
+  // sabiendo desde dónde arrancar para que la última línea quede a
+  // PIE_MARGEN del borde inferior.
+  if (categoriaEsCompra) {
+    const bloqueCondiciones = (yInicio: number | null): number => {
+      let yLocal = yInicio ?? 0;
+      const dibujar = yInicio !== null;
+      const linea = (texto: string, x: number, font: PDFFont) => {
+        if (dibujar) page.drawText(texto, { x, y: yLocal, size: 8, font, color: NEGRO });
+        yLocal -= 11;
+      };
       const parrafo = (texto: string, negrita = false) => {
         for (const l of envolverTextoPx(texto, negrita ? bold : regular, 8, ANCHO_TABLA)) {
-          linea(l, MARGEN_X, negrita ? bold : regular, NEGRO);
+          linea(l, MARGEN_X, negrita ? bold : regular);
         }
       };
       const bullet = (texto: string) => {
         const lineasTexto = envolverTextoPx(texto, regular, 8, ANCHO_TABLA - 24);
         lineasTexto.forEach((l, i) => {
           if (i === 0 && dibujar) page.drawText("•", { x: MARGEN_X + 6, y: yLocal, size: 8, font: regular, color: NEGRO });
-          linea(l, MARGEN_X + 18, regular, NEGRO);
+          linea(l, MARGEN_X + 18, regular);
         });
       };
 
@@ -348,32 +364,16 @@ export async function generarOrdenCompraPdf({
         "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
         true
       );
-      yLocal -= 10;
-    }
-
-    const filaPie = (label: string, value: string) => {
-      if (dibujar) {
-        page.drawText(label, { x: MARGEN_X, y: yLocal, size: 7, font: bold, color: GRIS });
-        page.drawText(value, { x: MARGEN_X + 125, y: yLocal, size: 7, font: regular, color: NEGRO });
-      }
-      yLocal -= 11;
+      return (yInicio ?? 0) - yLocal;
     };
-    filaPie("SOLICITADO POR:", usuarioSolped || "—");
-    filaPie("SOLICITUD APROBADA POR:", solpedAprobadoPor || "—");
-    filaPie(`${categoriaEsCompra ? "OC" : "OS"} GENERADA POR:`, usuarioCreacion || "—");
-    if (aprobado && aprobadoPorCodigo) {
-      filaPie(`${categoriaEsCompra ? "OC" : "OS"} APROBADA POR:`, aprobadoPorCodigo);
-    }
 
-    return (yInicio ?? 0) - yLocal;
+    const PIE_MARGEN = 30;
+    const alturaCondiciones = bloqueCondiciones(null);
+    const yAnclado = PIE_MARGEN + alturaCondiciones;
+    if (y < yAnclado) nuevaPagina();
+    y = yAnclado;
+    bloqueCondiciones(y);
   }
-
-  const PIE_MARGEN = 30;
-  const alturaBloqueFinal = bloqueFinal(null);
-  const yAnclado = PIE_MARGEN + alturaBloqueFinal;
-  if (y < yAnclado) nuevaPagina();
-  y = yAnclado;
-  bloqueFinal(y);
 
   if (anulado) dibujarMarcaDeAgua(pdfDoc, bold, "ANULADA");
   else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
