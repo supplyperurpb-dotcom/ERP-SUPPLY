@@ -72,6 +72,16 @@ export type RolAprobadorEspecialCodigo = (typeof ROLES_APROBADOR_ESPECIAL)[numbe
 // editable — al generar una Orden de Compra para ese proveedor. La OC
 // guarda su propio valor, así que cambiar la del proveedor después no
 // altera las OC ya emitidas.
+// Lugar de entrega de la OC/OS: lista cerrada, ya no texto libre.
+export const LUGARES_ENTREGA = [
+  "Recojo en Tienda",
+  "Recojo en Agencia",
+  "En fundo; Achirana Blue -",
+  "En fundo; San Antonio Blue -",
+] as const;
+
+export type LugarEntregaCodigo = (typeof LUGARES_ENTREGA)[number];
+
 export const CONDICIONES_PAGO = [
   "CREDITO 7 DIAS",
   "CREDITO 15 DIAS",

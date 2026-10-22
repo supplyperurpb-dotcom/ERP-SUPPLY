@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, fechaLocalManana, formatMoneda } from "@/lib/utils";
-import { CONDICIONES_PAGO, IGV_TASA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { CONDICIONES_PAGO, IGV_TASA, LUGARES_ENTREGA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
@@ -194,6 +194,10 @@ export function OrdenCompraForm({
       toast.error("La fecha de entrega es obligatoria");
       return;
     }
+    if (!lugarEntrega) {
+      toast.error("Selecciona el lugar de entrega");
+      return;
+    }
     if (itemsEnOrden.length === 0) {
       toast.error("Agrega al menos un producto con el botón 'Agregar producto'");
       return;
@@ -218,7 +222,7 @@ export function OrdenCompraForm({
         fecha: new Date(fecha) as unknown as Date,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
         condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
-        lugarEntrega,
+        lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
         observaciones: justificaciones,
         moneda,
         items: itemsEnOrden.map((item) => {
@@ -326,13 +330,19 @@ export function OrdenCompraForm({
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lugarEntrega">Lugar de entrega (opcional)</Label>
-            <Input
-              id="lugarEntrega"
-              placeholder="Ej. En fundo RPB"
-              value={lugarEntrega}
-              onChange={(e) => setLugarEntrega(e.target.value)}
-            />
+            <Label htmlFor="lugarEntrega">Lugar de entrega</Label>
+            <Select value={lugarEntrega} onValueChange={setLugarEntrega}>
+              <SelectTrigger id="lugarEntrega">
+                <SelectValue placeholder="Selecciona..." />
+              </SelectTrigger>
+              <SelectContent>
+                {LUGARES_ENTREGA.map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2 sm:col-span-3">
             <Label htmlFor="observaciones">Justificación (de las solicitudes jaladas)</Label>
