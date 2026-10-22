@@ -74,13 +74,13 @@ export default async function SolicitudesPedidoPage() {
             <Button variant="outline" asChild>
               <Link href="/logistica/solicitudes-pedido/nuevo?categoria=SERVICIO">
                 <Plus className="mr-2 h-4 w-4" />
-                Nueva de servicio
+                Nuevo Servicio
               </Link>
             </Button>
             <Button asChild>
               <Link href="/logistica/solicitudes-pedido/nuevo?categoria=COMPRA">
                 <Plus className="mr-2 h-4 w-4" />
-                Nueva de compra
+                Nueva Compra
               </Link>
             </Button>
           </div>

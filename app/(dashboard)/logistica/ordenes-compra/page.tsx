@@ -63,13 +63,13 @@ export default async function OrdenesCompraPage() {
             <Button variant="outline" asChild>
               <Link href="/logistica/ordenes-compra/nuevo?categoria=SERVICIO">
                 <Plus className="mr-2 h-4 w-4" />
-                Nueva de servicio
+                Nuevo Servicio
               </Link>
             </Button>
             <Button asChild>
               <Link href="/logistica/ordenes-compra/nuevo?categoria=COMPRA">
                 <Plus className="mr-2 h-4 w-4" />
-                Nueva de compra
+                Nueva Compra
               </Link>
             </Button>
           </div>
