@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { FileDown, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,7 @@ const ESTADO_VARIANT: Record<EstadoSolicitudDespacho, "success" | "secondary"> =
 export type FilaSolicitudDespacho = {
   id: string;
   numero: string;
-  almacen: string;
-  almacenId: string;
+  area: string;
   fecha: string;
   numItems: number;
   estado: EstadoSolicitudDespacho;
@@ -65,7 +64,7 @@ export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespac
           <TableHeader>
             <TableRow>
               <TableHead>Número</TableHead>
-              <TableHead>Almacén</TableHead>
+              <TableHead>Área</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Estatus</TableHead>
               <TableHead className="text-right">N.º de ítems</TableHead>
@@ -76,7 +75,7 @@ export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespac
             {filasFiltradas.map((f) => (
               <TableRow key={f.id}>
                 <TableCell className="font-medium">{f.numero}</TableCell>
-                <TableCell>{f.almacen}</TableCell>
+                <TableCell>{f.area}</TableCell>
                 <TableCell>{f.fecha}</TableCell>
                 <TableCell>
                   <Badge variant={ESTADO_VARIANT[f.estado]}>{ESTADO_LABEL[f.estado]}</Badge>
@@ -84,14 +83,17 @@ export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespac
                 <TableCell className="text-right">{f.numItems}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap justify-end gap-1">
+                    <Button variant="outline" size="sm" asChild title="Descargar PDF">
+                      <a href={`/api/pdf/solicitud-despacho/${f.id}`} target="_blank" rel="noopener noreferrer">
+                        <FileDown className="h-4 w-4" />
+                      </a>
+                    </Button>
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/logistica/solicitudes-despacho/${f.id}`}>Ver</Link>
                     </Button>
                     {f.estado !== "ATENDIDA" && (
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/logistica/almacenes/consumos/nuevo?almacenId=${f.almacenId}&solicitudDespachoId=${f.id}`}>
-                          Atender
-                        </Link>
+                        <Link href={`/logistica/almacenes/consumos/nuevo?solicitudDespachoId=${f.id}`}>Atender</Link>
                       </Button>
                     )}
                     {f.puedeEliminar && (

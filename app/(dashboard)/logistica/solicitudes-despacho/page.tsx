@@ -5,12 +5,12 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate } from "@/lib/utils";
+import { AREAS_EMPRESA } from "@/lib/constants/compras";
 import { SolicitudesDespachoTable, type FilaSolicitudDespacho, type EstadoSolicitudDespacho } from "./solicitudes-despacho-table";
 
 export default async function SolicitudesDespachoPage() {
   const solicitudes = await prisma.solicitudDespacho.findMany({
     include: {
-      almacen: true,
       _count: { select: { items: true } },
       items: { select: { cantidad: true, consumoAlmacenItems: { select: { cantidad: true } } } },
     },
@@ -28,8 +28,7 @@ export default async function SolicitudesDespachoPage() {
     return {
       id: solicitud.id,
       numero: solicitud.numero,
-      almacen: solicitud.almacen.nombre,
-      almacenId: solicitud.almacenId,
+      area: AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
       fecha: formatDate(solicitud.fecha),
       numItems: solicitud._count.items,
       estado,

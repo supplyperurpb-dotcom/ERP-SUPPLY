@@ -296,7 +296,6 @@ model Almacen {
   trasladosOrigen       TrasladoAlmacen[]           @relation("TrasladosOrigen")
   trasladosDestino      TrasladoAlmacen[]           @relation("TrasladosDestino")
   consumosAlmacen       ConsumoAlmacen[]            @relation("ConsumosAlmacen")
-  solicitudesDespacho   SolicitudDespacho[]         @relation("SolicitudesDespacho")
   retiradoresPermitidos RetiradorAlmacenPermitido[] @relation("RetiradorAlmacenesPermitidos")
 
   @@map("almacenes")
@@ -885,9 +884,12 @@ model ConsumoAlmacenItem {
 // solicitudDespachoItemId en ConsumoAlmacenItem) — el consumo sigue
 // exigiendo firma/foto/retirador igual que cualquier otro.
 model SolicitudDespacho {
-  id            String   @id @default(cuid())
-  numero        String   @unique // SD-0001
-  almacenId     String
+  id            String      @id @default(cuid())
+  numero        String      @unique // SD-0001
+  // El solicitante no elige de qué almacén: eso lo decide Almacén al
+  // atenderla (ver solicitudDespachoItemId en ConsumoAlmacenItem). Solo
+  // importa el área que pide, igual que en SolicitudPedido.
+  area          AreaEmpresa
   fecha         DateTime
   observaciones String?
   // Quien pide, no necesariamente quien lo registra en el sistema — igual
@@ -895,10 +897,9 @@ model SolicitudDespacho {
   // (se resuelve con un find aparte donde se necesite el nombre).
   solicitanteId String?
   creadoPorId   String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
 
-  almacen Almacen                 @relation("SolicitudesDespacho", fields: [almacenId], references: [id])
-  items   SolicitudDespachoItem[]
+  items SolicitudDespachoItem[]
 
   @@map("solicitudes_despacho")
 }
@@ -909,6 +910,10 @@ model SolicitudDespachoItem {
   skuId               String
   cantidad            Decimal @db.Decimal(12, 3)
   unidadMedida        String
+  // Igual que en SolicitudPedidoItem: nombre de un ListaValor activo (tipo
+  // CENTRO_COSTO / CAMPO), no un FK ni un enum — catálogos editables aparte.
+  centroCosto         String
+  campo               String?
 
   solicitudDespacho   SolicitudDespacho    @relation(fields: [solicitudDespachoId], references: [id], onDelete: Cascade)
   sku                 Sku                  @relation(fields: [skuId], references: [id])

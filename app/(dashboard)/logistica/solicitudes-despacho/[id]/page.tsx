@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatCantidad } from "@/lib/utils";
+import { AREAS_EMPRESA } from "@/lib/constants/compras";
 import { eliminarSolicitudDespachoAction } from "@/lib/actions/solicitud-despacho-actions";
 import type { EstadoSolicitudDespacho } from "../solicitudes-despacho-table";
 
@@ -29,7 +31,6 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
   const solicitud = await prisma.solicitudDespacho.findUnique({
     where: { id },
     include: {
-      almacen: true,
       items: { include: { sku: true, consumoAlmacenItems: { include: { consumoAlmacen: true } } } },
     },
   });
@@ -46,19 +47,24 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
   );
   const estado: EstadoSolicitudDespacho = totalAtendido <= 0 ? "PENDIENTE" : totalAtendido >= totalSolicitado ? "ATENDIDA" : "PARCIAL";
   const puedeEliminar = totalAtendido <= 0;
+  const areaNombre = AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area;
 
   return (
     <div className="space-y-6">
       <PageHeader
         titulo={`Solicitud de despacho ${solicitud.numero}`}
-        descripcion={`${solicitud.almacen.nombre} · ${formatDate(solicitud.fecha)}`}
+        descripcion={`${areaNombre} · ${formatDate(solicitud.fecha)}`}
         acciones={
           <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <a href={`/api/pdf/solicitud-despacho/${solicitud.id}`} target="_blank" rel="noopener noreferrer">
+                <FileDown className="mr-2 h-4 w-4" />
+                Descargar PDF
+              </a>
+            </Button>
             {estado !== "ATENDIDA" && (
               <Button variant="outline" asChild>
-                <Link href={`/logistica/almacenes/consumos/nuevo?almacenId=${solicitud.almacenId}&solicitudDespachoId=${solicitud.id}`}>
-                  Atender en Almacén
-                </Link>
+                <Link href={`/logistica/almacenes/consumos/nuevo?solicitudDespachoId=${solicitud.id}`}>Atender en Almacén</Link>
               </Button>
             )}
             {puedeEliminar && (
@@ -84,8 +90,8 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
             <Badge variant={ESTADO_VARIANT[estado]}>{ESTADO_LABEL[estado]}</Badge>
           </div>
           <div>
-            <p className="text-muted-foreground">Almacén</p>
-            <p className="font-medium">{solicitud.almacen.nombre}</p>
+            <p className="text-muted-foreground">Área</p>
+            <p className="font-medium">{areaNombre}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Fecha</p>
@@ -122,6 +128,8 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
                   <TableHead className="text-right">Solicitado</TableHead>
                   <TableHead className="text-right">Atendido</TableHead>
                   <TableHead className="text-right">Pendiente</TableHead>
+                  <TableHead>Centro de costo</TableHead>
+                  <TableHead>Campo</TableHead>
                   <TableHead>Consumos</TableHead>
                 </TableRow>
               </TableHeader>
@@ -144,6 +152,8 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
                       <TableCell className="text-right font-medium">
                         {formatCantidad(pendiente)} {item.unidadMedida}
                       </TableCell>
+                      <TableCell>{item.centroCosto}</TableCell>
+                      <TableCell>{item.campo ?? "—"}</TableCell>
                       <TableCell>
                         {consumos.length === 0 ? (
                           <span className="text-muted-foreground">—</span>

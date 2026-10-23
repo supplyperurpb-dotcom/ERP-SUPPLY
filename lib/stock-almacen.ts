@@ -128,6 +128,28 @@ export async function calcularStockAlmacen(almacenId: string, db: Db = prisma): 
     .sort((a, b) => a.codigo.localeCompare(b.codigo));
 }
 
+// Stock sumado de TODOS los almacenes activos, por SKU — para la Solicitud
+// de Despacho, donde quien pide no elige almacén (eso lo decide Almacén al
+// atenderla): solo necesita ver si el producto tiene stock en algún lado.
+export async function calcularStockTotal(db: Db = prisma): Promise<FilaStockAlmacen[]> {
+  const almacenes = await db.almacen.findMany({ where: { activo: true }, select: { id: true } });
+  const listas = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id, db)));
+
+  const porSku = new Map<string, FilaStockAlmacen>();
+  for (const lista of listas) {
+    for (const fila of lista) {
+      const existente = porSku.get(fila.skuId);
+      if (existente) {
+        existente.cantidad = Math.round((existente.cantidad + fila.cantidad) * 1000) / 1000;
+      } else {
+        porSku.set(fila.skuId, { ...fila });
+      }
+    }
+  }
+
+  return [...porSku.values()].sort((a, b) => a.codigo.localeCompare(b.codigo));
+}
+
 // Stock disponible + costo unitario ponderado de un conjunto de sku en un
 // almacén, en una sola consulta — usado por traslados y consumos para
 // validar cantidades y costear las líneas sin recalcular por cada una.
@@ -333,6 +355,8 @@ export type ItemSolicitudDespachoPendiente = {
   codigo: string;
   descripcion: string;
   unidadMedida: string;
+  centroCosto: string;
+  campo: string | null;
   cantidadSolicitada: number;
   cantidadPendiente: number;
 };
@@ -341,17 +365,18 @@ export type SolicitudDespachoConPendientes = {
   id: string;
   numero: string;
   fecha: Date;
-  almacenId: string;
-  almacenNombre: string;
+  area: string;
   items: ItemSolicitudDespachoPendiente[];
 };
 
 // Todas las Solicitudes de Despacho con al menos un ítem pendiente de
 // atender, para el buscador de "Nuevo Consumo". Una solicitud ya atendida
-// por completo (en uno o varios consumos) deja de aparecer.
+// por completo (en uno o varios consumos) deja de aparecer. El almacén de
+// atención NO viene de la solicitud (el solicitante no elige almacén):
+// lo decide quien la atiende, al registrar el Consumo.
 export async function calcularSolicitudesDespachoPendientes(db: Db = prisma): Promise<SolicitudDespachoConPendientes[]> {
   const solicitudes = await db.solicitudDespacho.findMany({
-    include: { almacen: true, items: { include: { sku: true } } },
+    include: { items: { include: { sku: true } } },
     orderBy: { fecha: "asc" },
   });
 
@@ -379,6 +404,8 @@ export async function calcularSolicitudesDespachoPendientes(db: Db = prisma): Pr
         codigo: item.sku.codigo,
         descripcion: item.sku.descripcion,
         unidadMedida: item.unidadMedida,
+        centroCosto: item.centroCosto,
+        campo: item.campo,
         cantidadSolicitada,
         cantidadPendiente,
       });
@@ -388,8 +415,7 @@ export async function calcularSolicitudesDespachoPendientes(db: Db = prisma): Pr
       id: solicitud.id,
       numero: solicitud.numero,
       fecha: solicitud.fecha,
-      almacenId: solicitud.almacenId,
-      almacenNombre: solicitud.almacen.nombre,
+      area: solicitud.area,
       items,
     });
   }

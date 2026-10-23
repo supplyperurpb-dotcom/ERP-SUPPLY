@@ -44,13 +44,24 @@ const ITEM_VACIO = {
 type SolicitudDespachoInicial = {
   id: string;
   numero: string;
-  almacenId: string;
   items: { id: string; skuId: string; codigo: string; descripcion: string; unidadMedida: string; cantidadPendiente: number }[];
 };
 
 function soloFecha(d: Date | string | undefined): string {
   if (!d) return "";
   return (typeof d === "string" ? d : d.toISOString()).slice(0, 10);
+}
+
+function itemsDesdeSolicitud(solicitud: SolicitudDespachoInicial) {
+  return solicitud.items.map((item) => ({
+    skuId: item.skuId,
+    cantidad: item.cantidadPendiente,
+    unidadMedida: item.unidadMedida,
+    lote: "",
+    fechaProduccion: undefined,
+    fechaVencimiento: undefined,
+    solicitudDespachoItemId: item.id,
+  }));
 }
 
 export function ConsumoAlmacenForm({
@@ -93,7 +104,7 @@ export function ConsumoAlmacenForm({
     defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
       horaRetiro: horaLocalAhora(),
-      almacenOrigenId: solicitudDespachoInicial?.almacenId ?? almacenIdInicial ?? "",
+      almacenOrigenId: almacenIdInicial ?? "",
       retiradoPor: "",
       retiradoPorDni: "",
       vehiculoPlaca: "",
@@ -101,17 +112,7 @@ export function ConsumoAlmacenForm({
       firmaArchivo: "",
       fotoEvidenciaArchivo: "",
       observaciones: "",
-      items: solicitudDespachoInicial
-        ? solicitudDespachoInicial.items.map((item) => ({
-            skuId: item.skuId,
-            cantidad: item.cantidadPendiente,
-            unidadMedida: item.unidadMedida,
-            lote: "",
-            fechaProduccion: undefined,
-            fechaVencimiento: undefined,
-            solicitudDespachoItemId: item.id,
-          }))
-        : [ITEM_VACIO],
+      items: solicitudDespachoInicial ? itemsDesdeSolicitud(solicitudDespachoInicial) : [ITEM_VACIO],
     },
   });
 
@@ -259,8 +260,9 @@ export function ConsumoAlmacenForm({
           <CardTitle className="text-base">Datos del consumo</CardTitle>
           {solicitudDespachoInicial && (
             <p className="text-sm text-muted-foreground">
-              Atendiendo la solicitud de despacho <strong>{solicitudDespachoInicial.numero}</strong>. Las cantidades
-              ya vienen cargadas; ajústalas si no vas a entregar todo lo pedido.
+              Atendiendo la solicitud de despacho <strong>{solicitudDespachoInicial.numero}</strong>. Elige de qué
+              almacén sale cada producto; las cantidades ya vienen cargadas, ajústalas si no vas a entregar todo lo
+              pedido.
             </p>
           )}
         </CardHeader>
@@ -273,14 +275,14 @@ export function ConsumoAlmacenForm({
               render={({ field }) => (
                 <Select
                   value={field.value}
-                  disabled={!!solicitudDespachoInicial}
                   onValueChange={(valor) => {
                     field.onChange(valor);
                     // Los productos de las líneas ya cargadas pueden no
-                    // tener stock en el nuevo almacén: se limpian. Lo mismo
-                    // el usuario elegido: puede no tener permiso de retirar
-                    // del nuevo almacén.
-                    replace([ITEM_VACIO]);
+                    // tener stock en el nuevo almacén: se limpian (o se
+                    // vuelven a cargar desde la solicitud de despacho, si
+                    // esta venía de una). Lo mismo el usuario elegido: puede
+                    // no tener permiso de retirar del nuevo almacén.
+                    replace(solicitudDespachoInicial ? itemsDesdeSolicitud(solicitudDespachoInicial) : [ITEM_VACIO]);
                     form.setValue("retiradoPor", "");
                     form.setValue("retiradoPorDni", "");
                     form.setValue("vehiculoPlaca", "");

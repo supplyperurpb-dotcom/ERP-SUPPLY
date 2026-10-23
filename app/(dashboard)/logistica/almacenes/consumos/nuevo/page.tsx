@@ -96,7 +96,6 @@ export default async function NuevoConsumoAlmacenPage({
             ? {
                 id: solicitudDespacho.id,
                 numero: solicitudDespacho.numero,
-                almacenId: solicitudDespacho.almacenId,
                 items: solicitudDespacho.items,
               }
             : undefined

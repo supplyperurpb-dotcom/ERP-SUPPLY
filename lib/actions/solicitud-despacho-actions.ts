@@ -4,40 +4,44 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { costosParaValidacion } from "@/lib/stock-almacen";
+import { calcularStockTotal } from "@/lib/stock-almacen";
 import { solicitudDespachoSchema, type SolicitudDespachoInput } from "@/lib/validations/solicitud-despacho";
 
 export type SolicitudDespachoActionState = { error?: string; id?: string; numero?: string } | undefined;
 
 // No necesita aprobación: queda lista para atenderse apenas se crea, igual
-// que la antigua Solicitud de Traslado. Solo un sanity-check de stock al
-// momento de pedir (no reserva nada) — si para cuando Almacén la atienda
-// (vía Consumo, ver crearConsumoAlmacenAction) ya no alcanza, se revalida
-// ahí otra vez.
+// que la antigua Solicitud de Traslado. Quien pide no elige almacén (eso lo
+// decide Almacén al atenderla con un Consumo normal — ver
+// consumo-almacen-actions.ts); el stock disponible que ve el formulario es
+// la suma de todos los almacenes (calcularStockTotal), y aquí solo se hace
+// un sanity-check contra ese total (no reserva nada).
 export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput): Promise<SolicitudDespachoActionState> {
   const parsed = solicitudDespachoSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { almacenId, fecha, observaciones, items } = parsed.data;
+  const { fecha, observaciones, items } = parsed.data;
 
   try {
-    const [usuario, almacen] = await Promise.all([getUsuarioActual(), prisma.almacen.findUnique({ where: { id: almacenId } })]);
-    if (!almacen) {
-      return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
-    }
+    const usuario = await getUsuarioActual();
+    // Igual que en SolicitudPedido: el área solo es editable para Supply
+    // Chain y ADMIN; para cualquier otro usuario se fuerza la suya propia
+    // aquí, sin confiar en el valor que llegó del cliente.
+    const areaPuedeElegir = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
+    const area = areaPuedeElegir ? parsed.data.area : (usuario!.area as typeof parsed.data.area);
 
     const cantidadPorSku = new Map<string, number>();
     for (const item of items) {
       cantidadPorSku.set(item.skuId, (cantidadPorSku.get(item.skuId) ?? 0) + item.cantidad);
     }
-    const costos = await costosParaValidacion(almacenId);
+    const stockTotal = await calcularStockTotal();
+    const disponiblePorSku = new Map(stockTotal.map((s) => [s.skuId, s.cantidad]));
     for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
-      const disponible = costos.get(skuId)?.cantidad ?? 0;
+      const disponible = disponiblePorSku.get(skuId) ?? 0;
       if (cantidadSolicitada > disponible) {
         const sku = await prisma.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
         return {
-          error: `No hay suficiente stock de ${sku?.codigo ?? skuId} en ${almacen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`,
+          error: `No hay suficiente stock de ${sku?.codigo ?? skuId} en ningún almacén (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`,
         };
       }
     }
@@ -49,7 +53,7 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
       const solicitud = await tx.solicitudDespacho.create({
         data: {
           numero,
-          almacenId,
+          area,
           fecha,
           observaciones: observaciones || null,
           solicitanteId: usuario?.id,
@@ -64,6 +68,8 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
             skuId: item.skuId,
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
+            centroCosto: item.centroCosto,
+            campo: item.campo || null,
           },
         });
       }
@@ -72,7 +78,6 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
     });
 
     revalidatePath("/logistica/solicitudes-despacho");
-    revalidatePath("/logistica/almacenes");
     return { id: nuevaSolicitud.id, numero: nuevaSolicitud.numero };
   } catch (e) {
     console.error("Error inesperado en crearSolicitudDespachoAction:", e);
@@ -101,7 +106,6 @@ export async function eliminarSolicitudDespachoAction(id: string): Promise<{ err
     });
 
     revalidatePath("/logistica/solicitudes-despacho");
-    revalidatePath("/logistica/almacenes");
     return undefined;
   } catch (e) {
     console.error("Error inesperado en eliminarSolicitudDespachoAction:", e);
