@@ -44,7 +44,6 @@ export const skuSuministroSchema = z.object({
   codigoParte: z.string().max(60).optional().or(z.literal("")),
   color: z.string().max(40).optional().or(z.literal("")),
   presentacion: z.string().max(60).optional().or(z.literal("")),
-  noValorado: z.coerce.boolean().default(false),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10),
   stockMinimo: z.coerce.number().min(0).optional().nullable(),
 });
@@ -63,7 +62,6 @@ export const skuAgroquimicoSchema = z.object({
   producto: z.string().min(1, "El producto es obligatorio").max(100),
   activo: z.string().max(300).optional().or(z.literal("")),
   clasificacion: z.string().max(60).optional().or(z.literal("")),
-  noValorado: z.coerce.boolean().default(false),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10),
   stockMinimo: z.coerce.number().min(0).optional().nullable(),
 });

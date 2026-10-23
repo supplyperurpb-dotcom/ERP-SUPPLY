@@ -27,7 +27,6 @@ export function AgroquimicoForm() {
       producto: "",
       activo: "",
       clasificacion: CLASIFICACIONES_AGROQUIMICO[0],
-      noValorado: false,
       unidadMedida: "LTR",
     },
   });
@@ -35,13 +34,10 @@ export function AgroquimicoForm() {
   const campos = form.watch();
   const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === campos.tipo);
   const prefijo = useMemo(
-    () => `${campos.noValorado ? "NV" : ""}${tipoInfo?.prefijo ?? ""}${prefijoSubfamilia(campos.subfamilia ?? "")}`,
-    [campos.noValorado, campos.subfamilia, tipoInfo]
+    () => `${tipoInfo?.prefijo ?? ""}${prefijoSubfamilia(campos.subfamilia ?? "")}`,
+    [campos.subfamilia, tipoInfo]
   );
-  const descripcionPreview = useMemo(
-    () => `${campos.producto?.trim() ?? ""}${campos.noValorado && campos.producto?.trim() ? " NV" : ""}`,
-    [campos.producto, campos.noValorado]
-  );
+  const descripcionPreview = useMemo(() => campos.producto?.trim() ?? "", [campos.producto]);
 
   async function onSubmit(data: SkuAgroquimicoInput) {
     let resultado;
@@ -68,7 +64,8 @@ export function AgroquimicoForm() {
           <CardTitle className="text-base">Agroquímicos, Fertilizantes y Ósmosis</CardTitle>
           <p className="text-sm text-muted-foreground">
             El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (4 dígitos) de ese tipo y
-            subfamilia.
+            subfamilia. Para crear la versión no valorada (NV), usa el botón &quot;Crear Código No Valorado&quot; en
+            la lista de SKU.
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -183,25 +180,6 @@ export function AgroquimicoForm() {
                 <NumberInput id="stockMinimo" value={String(field.value ?? "")} onChange={field.onChange} />
               )}
             />
-          </div>
-
-          <div className="flex items-center gap-2 sm:col-span-2">
-            <Controller
-              control={form.control}
-              name="noValorado"
-              render={({ field }) => (
-                <input
-                  type="checkbox"
-                  id="noValorado"
-                  className="h-4 w-4"
-                  checked={field.value}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                />
-              )}
-            />
-            <Label htmlFor="noValorado" className="cursor-pointer">
-              No valorado (antepone &quot;NV&quot; al código y lo agrega al final del nombre)
-            </Label>
           </div>
 
           <div className="space-y-2 sm:col-span-2 rounded-md border bg-muted/40 p-3">

@@ -19,16 +19,16 @@ export type SkuActionState = { error?: string; success?: boolean } | undefined;
 export type SkuCreacionState = { error?: string; id?: string; codigo?: string } | undefined;
 
 // ---------------------------------------------------------------------
-// Suministros: (NV si no valorado) + SU + correlativo de 6 dígitos. Una
-// sola serie por variante (SU / NVSU), no depende de la subfamilia. "NV"
-// lleva su propia serie, independiente de la versión valorada.
+// Suministros: SU + correlativo de 6 dígitos, no depende de la subfamilia.
+// La versión "no valorada" (NV) ya no se crea aquí — ver
+// crearSkusNoValoradosAction, que la genera a partir de un SKU existente.
 // ---------------------------------------------------------------------
 export async function crearSkuSuministroAction(data: SkuSuministroInput): Promise<SkuCreacionState> {
   const parsed = skuSuministroSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { subfamilia, producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion, noValorado, unidadMedida, stockMinimo } =
+  const { subfamilia, producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion, unidadMedida, stockMinimo } =
     parsed.data;
 
   const descripcion = [producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion]
@@ -36,7 +36,7 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
     .filter((v): v is string => !!v)
     .join(" ");
 
-  const prefijo = `${noValorado ? "NV" : ""}SU`;
+  const prefijo = "SU";
 
   try {
     const usuario = await getUsuarioActual();
@@ -67,27 +67,28 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
 }
 
 // ---------------------------------------------------------------------
-// Agroquímicos, Fertilizantes y Ósmosis: (NV si no valorado) + AG/FE/OS
-// según el tipo + 2 letras de la subfamilia + correlativo de 4 dígitos
-// (p. ej. AGFO0001, FEBE0002, NVAGFU0001). Una serie independiente por
-// combinación tipo+subfamilia — ver prefijoSubfamilia en lib/constants/sku.ts.
+// Agroquímicos, Fertilizantes y Ósmosis: AG/FE/OS según el tipo + 2 letras
+// de la subfamilia + correlativo de 4 dígitos (p. ej. AGFO0001, FEBE0002).
+// Una serie independiente por combinación tipo+subfamilia — ver
+// prefijoSubfamilia en lib/constants/sku.ts. La versión "no valorada" (NV)
+// ya no se crea aquí — ver crearSkusNoValoradosAction, que la genera a
+// partir de un SKU existente.
 // ---------------------------------------------------------------------
 export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Promise<SkuCreacionState> {
   const parsed = skuAgroquimicoSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { tipo, subfamilia, producto, activo, clasificacion, noValorado, unidadMedida, stockMinimo } = parsed.data;
+  const { tipo, subfamilia, producto, activo, clasificacion, unidadMedida, stockMinimo } = parsed.data;
 
   const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === (tipo as TipoAgroquimicoCodigo));
   if (!tipoInfo) return { error: "Tipo inválido." };
 
   // El nombre del producto sale solo de "Producto"; activo/clasificación son
-  // solo para clasificar, no forman parte del nombre. Si es no valorado, se
-  // antepone "NV" al código y se agrega "NV" al final del nombre.
-  const descripcion = `${producto.trim()}${noValorado ? " NV" : ""}`;
+  // solo para clasificar, no forman parte del nombre.
+  const descripcion = producto.trim();
 
-  const prefijo = `${noValorado ? "NV" : ""}${tipoInfo.prefijo}${prefijoSubfamilia(subfamilia)}`;
+  const prefijo = `${tipoInfo.prefijo}${prefijoSubfamilia(subfamilia)}`;
 
   try {
     const usuario = await getUsuarioActual();
