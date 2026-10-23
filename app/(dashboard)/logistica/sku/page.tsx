@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, Plus } from "lucide-react";
+import { FileSpreadsheet, Package, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,12 @@ export default async function SkuPage() {
           descripcion="Catálogo de códigos de producto e insumo. Elige la categoría para generar el código automáticamente."
           acciones={
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild title="Descargar Excel con todos los códigos SKU">
+                <a href="/api/excel/sku">
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Descargar Excel
+                </a>
+              </Button>
               <Button variant="outline" asChild>
                 <Link href="/logistica/sku/nuevo/suministros">
                   <Plus className="mr-2 h-4 w-4" />
