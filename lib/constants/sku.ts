@@ -1,6 +1,5 @@
-// Subfamilias de "Suministros" (clasificación; no entra en el código —
-// ver lib/actions/sku-actions.ts, el código de Suministros es solo
-// SU + correlativo).
+// Subfamilias de "Suministros". Cada una tiene una abreviatura de 2 letras
+// que sí entra en el código — ver PREFIJO_SUBFAMILIA_SUMINISTRO más abajo.
 export const SUBFAMILIAS_SUMINISTROS = [
   "Abarrotes",
   "Activo",
@@ -33,6 +32,52 @@ export const SUBFAMILIAS_SUMINISTROS = [
 ] as const;
 
 export type SubfamiliaSuministroCodigo = (typeof SUBFAMILIAS_SUMINISTROS)[number];
+
+// Abreviatura de 2 letras de cada subfamilia de Suministros: define el
+// código junto con "SU" (p. ej. SURI0001 = Suministro + Riego). Catálogo
+// heredado del Excel "Creación de Códigos Suministros" (pestaña
+// NOMENCLATURA) que compartió el usuario. Si se usa una subfamilia nueva
+// que no está en esta lista, prefijoSubfamiliaSuministro() cae a las 2
+// primeras letras en mayúscula.
+export const PREFIJO_SUBFAMILIA_SUMINISTRO: Record<string, string> = {
+  Abarrotes: "AB",
+  Activo: "AC",
+  Apicultura: "AP",
+  Combustibles: "CO",
+  Electricidad: "EL",
+  Embalaje: "EM",
+  EPP: "EP",
+  Farmacia: "FA",
+  Ferreteria: "FE",
+  Formateria: "FO",
+  "Gases Comprimidos": "GC",
+  Gasfiteria: "GA",
+  Herramientas: "HE",
+  "Instrumentos de Laboratorio": "IN",
+  "Letreros y Banners": "LE",
+  Limpieza: "LI",
+  Lubricantes: "LU",
+  "Materiales de Campo": "MA",
+  "Materiales de construccion": "MC",
+  Merchandising: "ME",
+  "Muebles y enseres": "MU",
+  Plaguicidas: "PL",
+  Repuestos: "RE",
+  Riego: "RI",
+  TI: "TI",
+  "Utiles de oficina": "UT",
+  Varios: "VA",
+  Refrigeración: "RF",
+};
+
+export function prefijoSubfamiliaSuministro(subfamilia: string): string {
+  const normalizada = subfamilia.trim();
+  const conocida = Object.entries(PREFIJO_SUBFAMILIA_SUMINISTRO).find(
+    ([nombre]) => nombre.toLowerCase() === normalizada.toLowerCase()
+  );
+  if (conocida) return conocida[1];
+  return normalizada.replace(/[^\p{L}]/gu, "").slice(0, 2).toUpperCase().padEnd(2, "X");
+}
 
 // Tipo de Agroquímico/Fertilizante/Ósmosis: define el prefijo de 2 letras
 // del código (AG/FE/OS + correlativo de 6 dígitos — no depende de la

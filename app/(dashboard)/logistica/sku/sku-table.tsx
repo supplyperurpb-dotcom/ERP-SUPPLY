@@ -36,8 +36,8 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="relative max-w-sm">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="relative max-w-sm shrink-0">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Buscar por código o nombre..."
@@ -52,8 +52,8 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
           No se encontró ningún SKU que coincida con &quot;{busqueda}&quot;.
         </p>
       ) : (
-        <Table>
-          <TableHeader>
+        <Table containerClassName="min-h-0 flex-1 rounded-md border">
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Descripción</TableHead>

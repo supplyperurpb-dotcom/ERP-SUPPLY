@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { TIPOS_AGROQUIMICO, prefijoSubfamilia, type TipoAgroquimicoCodigo } from "@/lib/constants/sku";
+import { TIPOS_AGROQUIMICO, prefijoSubfamilia, prefijoSubfamiliaSuministro, type TipoAgroquimicoCodigo } from "@/lib/constants/sku";
 import {
   skuSchema,
   skuSuministroSchema,
@@ -19,9 +19,11 @@ export type SkuActionState = { error?: string; success?: boolean } | undefined;
 export type SkuCreacionState = { error?: string; id?: string; codigo?: string } | undefined;
 
 // ---------------------------------------------------------------------
-// Suministros: SU + correlativo de 6 dígitos, no depende de la subfamilia.
-// La versión "no valorada" (NV) ya no se crea aquí — ver
-// crearSkusNoValoradosAction, que la genera a partir de un SKU existente.
+// Suministros: SU + 2 letras de la subfamilia + correlativo de 4 dígitos
+// (p. ej. SURI0001 = Riego, SUMC0001 = Materiales de construcción). Una
+// serie independiente por subfamilia — ver prefijoSubfamiliaSuministro en
+// lib/constants/sku.ts. La versión "no valorada" (NV) ya no se crea aquí —
+// ver crearSkusNoValoradosAction, que la genera a partir de un SKU existente.
 // ---------------------------------------------------------------------
 export async function crearSkuSuministroAction(data: SkuSuministroInput): Promise<SkuCreacionState> {
   const parsed = skuSuministroSchema.safeParse(data);
@@ -36,14 +38,14 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
     .filter((v): v is string => !!v)
     .join(" ");
 
-  const prefijo = "SU";
+  const prefijo = `SU${prefijoSubfamiliaSuministro(subfamilia)}`;
 
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoSku = await prisma.$transaction(async (tx) => {
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
-      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 6);
+      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
 
       return tx.sku.create({
         data: {

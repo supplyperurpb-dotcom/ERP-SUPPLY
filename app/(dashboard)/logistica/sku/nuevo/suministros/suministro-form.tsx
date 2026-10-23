@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SUBFAMILIAS_SUMINISTROS } from "@/lib/constants/sku";
+import { SUBFAMILIAS_SUMINISTROS, prefijoSubfamiliaSuministro } from "@/lib/constants/sku";
 import { UNIDADES_MEDIDA } from "@/lib/validations/sku";
 import { skuSuministroSchema, type SkuSuministroInput } from "@/lib/validations/sku";
 import { crearSkuSuministroAction } from "@/lib/actions/sku-actions";
@@ -36,6 +36,7 @@ export function SuministroForm() {
   });
 
   const campos = form.watch();
+  const prefijo = useMemo(() => `SU${prefijoSubfamiliaSuministro(campos.subfamilia ?? "")}`, [campos.subfamilia]);
   const descripcionPreview = useMemo(
     () =>
       [campos.producto, campos.material, campos.marca, campos.medida, campos.destinoDescripcion, campos.codigoParte, campos.color, campos.presentacion]
@@ -69,8 +70,9 @@ export function SuministroForm() {
         <CardHeader>
           <CardTitle className="text-base">Suministros</CardTitle>
           <p className="text-sm text-muted-foreground">
-            El código se arma solo: <strong>SU</strong> + el siguiente correlativo (6 dígitos). Para crear la
-            versión no valorada (NV), usa el botón &quot;Crear Código No Valorado&quot; en la lista de SKU.
+            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (4 dígitos) de esa
+            subfamilia. Para crear la versión no valorada (NV), usa el botón &quot;Crear Código No Valorado&quot; en
+            la lista de SKU.
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
