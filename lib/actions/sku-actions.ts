@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { TIPOS_AGROQUIMICO, type TipoAgroquimicoCodigo } from "@/lib/constants/sku";
+import { TIPOS_AGROQUIMICO, prefijoSubfamilia, type TipoAgroquimicoCodigo } from "@/lib/constants/sku";
 import {
   skuSchema,
   skuSuministroSchema,
@@ -68,9 +68,9 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
 
 // ---------------------------------------------------------------------
 // Agroquímicos, Fertilizantes y Ósmosis: (NV si no valorado) + AG/FE/OS
-// según el tipo + correlativo de 6 dígitos. Una sola serie por tipo (no
-// depende de la subfamilia); "NV" lleva su propia serie, independiente de
-// la versión valorada del mismo tipo.
+// según el tipo + 2 letras de la subfamilia + correlativo de 4 dígitos
+// (p. ej. AGFO0001, FEBE0002, NVAGFU0001). Una serie independiente por
+// combinación tipo+subfamilia — ver prefijoSubfamilia en lib/constants/sku.ts.
 // ---------------------------------------------------------------------
 export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Promise<SkuCreacionState> {
   const parsed = skuAgroquimicoSchema.safeParse(data);
@@ -87,14 +87,14 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
   // antepone "NV" al código y se agrega "NV" al final del nombre.
   const descripcion = `${producto.trim()}${noValorado ? " NV" : ""}`;
 
-  const prefijo = `${noValorado ? "NV" : ""}${tipoInfo.prefijo}`;
+  const prefijo = `${noValorado ? "NV" : ""}${tipoInfo.prefijo}${prefijoSubfamilia(subfamilia)}`;
 
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoSku = await prisma.$transaction(async (tx) => {
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
-      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 6);
+      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
 
       return tx.sku.create({
         data: {

@@ -45,10 +45,49 @@ export const TIPOS_AGROQUIMICO = [
 
 export type TipoAgroquimicoCodigo = (typeof TIPOS_AGROQUIMICO)[number]["valor"];
 
-// Lista abierta: por ahora solo existe "Bioestimulante" en el catálogo que
-// compartió el usuario; se irán agregando más subfamilias con el tiempo
-// (clasificación; no entra en el código).
-export const SUBFAMILIAS_AGROQUIMICO = ["Bioestimulante"] as const;
+// Lista abierta (se irán agregando más subfamilias con el tiempo). Cada una
+// tiene una abreviatura de 2 letras que sí entra en el código — ver
+// PREFIJO_SUBFAMILIA_AGROQUIMICO más abajo.
+export const SUBFAMILIAS_AGROQUIMICO = [
+  "Coadyuvante",
+  "Fitorregulador",
+  "Foliar",
+  "Fungicida",
+  "Herbicida",
+  "Insecticida",
+  "Base",
+  "Bioestimulante",
+  "Limpieza",
+  "Suministro",
+] as const;
+
+// Abreviatura de 2 letras de cada subfamilia: define el código junto con el
+// tipo (AG/FE/OS) — ver crearSkuAgroquimicoAction. Catálogo heredado del
+// cuadro de SKU que compartió el usuario (p. ej. AGFO = Agroquímico +
+// Foliar, FEBE = Fertilizante + Bioestimulante). Si se usa una subfamilia
+// nueva que no está en esta lista, prefijoSubfamilia() cae a las 2 primeras
+// letras en mayúscula.
+export const PREFIJO_SUBFAMILIA_AGROQUIMICO: Record<string, string> = {
+  Coadyuvante: "CO",
+  Fitorregulador: "FI",
+  Foliar: "FO",
+  Fungicida: "FU",
+  Herbicida: "HE",
+  Insecticida: "IN",
+  Base: "BA",
+  Bioestimulante: "BE",
+  Limpieza: "LI",
+  Suministro: "SU",
+};
+
+export function prefijoSubfamilia(subfamilia: string): string {
+  const normalizada = subfamilia.trim();
+  const conocida = Object.entries(PREFIJO_SUBFAMILIA_AGROQUIMICO).find(
+    ([nombre]) => nombre.toLowerCase() === normalizada.toLowerCase()
+  );
+  if (conocida) return conocida[1];
+  return normalizada.replace(/[^\p{L}]/gu, "").slice(0, 2).toUpperCase().padEnd(2, "X");
+}
 
 // Clasificación: orgánico o convencional.
 export const CLASIFICACIONES_AGROQUIMICO = ["Orgánico", "Convencional"] as const;

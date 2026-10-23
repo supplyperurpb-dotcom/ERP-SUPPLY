@@ -12,7 +12,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CLASIFICACIONES_AGROQUIMICO, SUBFAMILIAS_AGROQUIMICO, TIPOS_AGROQUIMICO, UNIDADES_MEDIDA_AGROQUIMICO } from "@/lib/constants/sku";
+import { CLASIFICACIONES_AGROQUIMICO, SUBFAMILIAS_AGROQUIMICO, TIPOS_AGROQUIMICO, UNIDADES_MEDIDA_AGROQUIMICO, prefijoSubfamilia } from "@/lib/constants/sku";
 import { skuAgroquimicoSchema, type SkuAgroquimicoInput } from "@/lib/validations/sku";
 import { crearSkuAgroquimicoAction } from "@/lib/actions/sku-actions";
 
@@ -35,8 +35,8 @@ export function AgroquimicoForm() {
   const campos = form.watch();
   const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === campos.tipo);
   const prefijo = useMemo(
-    () => `${campos.noValorado ? "NV" : ""}${tipoInfo?.prefijo ?? ""}`,
-    [campos.noValorado, tipoInfo]
+    () => `${campos.noValorado ? "NV" : ""}${tipoInfo?.prefijo ?? ""}${prefijoSubfamilia(campos.subfamilia ?? "")}`,
+    [campos.noValorado, campos.subfamilia, tipoInfo]
   );
   const descripcionPreview = useMemo(
     () => `${campos.producto?.trim() ?? ""}${campos.noValorado && campos.producto?.trim() ? " NV" : ""}`,
@@ -67,7 +67,8 @@ export function AgroquimicoForm() {
         <CardHeader>
           <CardTitle className="text-base">Agroquímicos, Fertilizantes y Ósmosis</CardTitle>
           <p className="text-sm text-muted-foreground">
-            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (6 dígitos) de ese tipo.
+            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (4 dígitos) de ese tipo y
+            subfamilia.
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -113,7 +114,7 @@ export function AgroquimicoForm() {
                 </Select>
               )}
             />
-            <p className="text-xs text-muted-foreground">Por ahora solo &quot;Bioestimulante&quot;; se irán agregando más.</p>
+            <p className="text-xs text-muted-foreground">Define las 2 letras del código (p. ej. Foliar → FO).</p>
           </div>
 
           <div className="space-y-2 sm:col-span-2">
