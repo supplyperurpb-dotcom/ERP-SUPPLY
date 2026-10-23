@@ -31,7 +31,7 @@ export const UNIDADES_MEDIDA = [
   { codigo: "M3", nombre: "Metro cúbico" },
   { codigo: "RLL", nombre: "Rollo" },
   { codigo: "CNT", nombre: "Ciento" },
-  { codigo: "BBL", nombre: "Barril" },
+  { codigo: "BBL", nombre: "Big Bale" },
   { codigo: "TN", nombre: "Tonelada" },
 ] as const;
 
