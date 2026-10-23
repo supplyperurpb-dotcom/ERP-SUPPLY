@@ -70,7 +70,9 @@ export function OrdenCompraForm({
   const router = useRouter();
   const [proveedorId, setProveedorId] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<ProveedorOpcionSelect | null>(null);
-  const [fecha, setFecha] = useState(fechaLocalHoy());
+  // Fecha de emisión: siempre la de hoy, bloqueada -- no se puede
+  // retrofechar ni adelantar una OC/OS.
+  const fecha = fechaLocalHoy();
   const [fechaEntrega, setFechaEntrega] = useState(fechaLocalManana());
   const [condicionPago, setCondicionPago] = useState<string>(CONDICIONES_PAGO[2]);
   const [lugarEntrega, setLugarEntrega] = useState("");
@@ -269,7 +271,7 @@ export function OrdenCompraForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de emisión</Label>
-            <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="fechaEntrega">Fecha de entrega</Label>

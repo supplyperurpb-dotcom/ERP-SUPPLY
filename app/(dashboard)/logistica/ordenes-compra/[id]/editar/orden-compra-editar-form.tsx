@@ -60,7 +60,9 @@ export function OrdenCompraEditarForm({
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
   const [proveedorId, setProveedorId] = useState(valoresIniciales.proveedorId);
-  const [fecha, setFecha] = useState(valoresIniciales.fecha);
+  // Fecha de emisión: se mantiene fija en la original, bloqueada -- no se
+  // puede retrofechar ni adelantar una OC/OS, ni siquiera al editarla.
+  const fecha = valoresIniciales.fecha;
   const [fechaEntrega, setFechaEntrega] = useState(valoresIniciales.fechaEntrega);
   const [condicionPago, setCondicionPago] = useState(valoresIniciales.condicionPago);
   const [lugarEntrega, setLugarEntrega] = useState(valoresIniciales.lugarEntrega);
@@ -162,7 +164,7 @@ export function OrdenCompraEditarForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de emisión</Label>
-            <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="fechaEntrega">Fecha de entrega</Label>
