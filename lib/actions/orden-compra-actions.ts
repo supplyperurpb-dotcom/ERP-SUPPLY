@@ -418,3 +418,67 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
     return { error: e instanceof Error ? e.message : "Error inesperado al anular la orden." };
   }
 }
+
+// Cierra UNA línea de la orden que no va a recibirse más (no llegará, o ya
+// no se quiere) — pedido explícito: deja de contar como pendiente en
+// cantidadPendienteIngresoOC/calcularOcPendientesIngreso (ver
+// lib/stock-almacen.ts), sin tocar el resto de la orden ni sus demás
+// líneas. Mismo criterio de permiso que editar la orden (creador o Supply
+// Chain/ADMIN) — no requiere el rol ANULADOR, porque no anula nada, solo
+// dice "esto ya no va a llegar".
+export async function cerrarPosicionOrdenCompraItemAction(
+  itemId: string,
+  motivo?: string
+): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para cerrar una posición." };
+
+    const item = await prisma.ordenCompraItem.findUnique({ where: { id: itemId }, include: { ordenCompra: true } });
+    if (!item) return { error: "Ese ítem ya no existe." };
+    if (!puedeEditarOrden(usuario, item.ordenCompra)) {
+      return { error: "No tienes permiso para cerrar posiciones de esta orden." };
+    }
+    if (item.cerrado) return { error: "Esta posición ya estaba cerrada." };
+
+    await prisma.ordenCompraItem.update({
+      where: { id: itemId },
+      data: { cerrado: true, motivoCierre: motivo || null, cerradoPorId: usuario.id, fechaCierre: new Date() },
+    });
+
+    revalidatePath(`/logistica/ordenes-compra/${item.ordenCompraId}`);
+    revalidatePath("/logistica/almacenes/ingresos/nuevo");
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en cerrarPosicionOrdenCompraItemAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al cerrar la posición." };
+  }
+}
+
+// Reversa de cerrarPosicionOrdenCompraItemAction: la línea vuelve a contar
+// como pendiente por lo que todavía le falte recibir.
+export async function reabrirPosicionOrdenCompraItemAction(itemId: string): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para reabrir una posición." };
+
+    const item = await prisma.ordenCompraItem.findUnique({ where: { id: itemId }, include: { ordenCompra: true } });
+    if (!item) return { error: "Ese ítem ya no existe." };
+    if (!puedeEditarOrden(usuario, item.ordenCompra)) {
+      return { error: "No tienes permiso para reabrir posiciones de esta orden." };
+    }
+    if (!item.cerrado) return { error: "Esta posición no estaba cerrada." };
+
+    await prisma.ordenCompraItem.update({
+      where: { id: itemId },
+      data: { cerrado: false, motivoCierre: null, cerradoPorId: null, fechaCierre: null },
+    });
+
+    revalidatePath(`/logistica/ordenes-compra/${item.ordenCompraId}`);
+    revalidatePath("/logistica/almacenes/ingresos/nuevo");
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en reabrirPosicionOrdenCompraItemAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al reabrir la posición." };
+  }
+}

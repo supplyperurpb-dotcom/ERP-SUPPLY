@@ -80,6 +80,9 @@ async function validarOrigen(tx: Tx, data: IngresoAlmacenInput) {
     if (!itemOc) {
       throw new Error("Uno de los productos no pertenece a la orden de compra seleccionada.");
     }
+    if (itemOc.cerrado) {
+      throw new Error(`${itemOc.sku.codigo}: esta línea fue cerrada manualmente y ya no admite ingresos.`);
+    }
     const pendiente = await cantidadPendienteIngresoOC(item.ordenCompraItemId, tx);
     // Al editar, la línea que se está editando ya "libera" su propia
     // cantidad anterior porque actualizarIngresoAlmacenAction borra los

@@ -636,6 +636,16 @@ model OrdenCompraItem {
   // SolicitudPedidoItem.descripcion y se puede seguir editando aquí para
   // afinar el detalle y alcance del servicio.
   descripcion           String?
+  // "Cerrar posición": pedido explícito -- una línea que no va a recibirse
+  // más (no llegará, o ya no se quiere) se marca cerrada en vez de dejarla
+  // pendiente para siempre. Mientras esté cerrada, cantidadPendienteIngresoOC
+  // la trata como 0 y calcularOcPendientesIngreso la excluye del buscador de
+  // "Nuevo ingreso" (ver lib/stock-almacen.ts) -- reversible (ver
+  // reabrirPosicionOrdenCompraItemAction).
+  cerrado               Boolean   @default(false)
+  motivoCierre          String?
+  cerradoPorId          String?
+  fechaCierre           DateTime?
 
   ordenCompra         OrdenCompra          @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
   solicitudPedidoItem SolicitudPedidoItem? @relation(fields: [solicitudPedidoItemId], references: [id])

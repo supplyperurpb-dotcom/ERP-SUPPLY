@@ -6,7 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AnularOrdenBoton, FirmarOrdenBotones, AnularFirmaBoton } from "../aprobar-rechazar-botones";
+import {
+  AnularOrdenBoton,
+  FirmarOrdenBotones,
+  AnularFirmaBoton,
+  CerrarPosicionBoton,
+  ReabrirPosicionBoton,
+} from "../aprobar-rechazar-botones";
 import { SeguimientoOrdenDialog, type ItemSeguimientoOrden } from "./seguimiento-orden-dialog";
 import type { ResumenSolped } from "@/components/shared/resumen-solped-dialog";
 import { prisma } from "@/lib/db/prisma";
@@ -99,6 +105,13 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
     !!usuario &&
     orden.estado === "BORRADOR" &&
     (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || orden.creadoPorId === usuario.id);
+
+  // Cerrar/reabrir una posición: mismo criterio de permiso que editar,
+  // pero sin la restricción de estado -- a diferencia de editar la orden
+  // completa, esto aplica justo cuando ya está APROBADA y en recepción
+  // (ver cerrarPosicionOrdenCompraItemAction).
+  const puedeCerrarPosiciones =
+    !!usuario && (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || orden.creadoPorId === usuario.id);
 
   // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
   // estado de la orden.
@@ -355,10 +368,14 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                   <TableHead className="text-right">P. Unit.</TableHead>
                   <TableHead>Gravado</TableHead>
                   <TableHead className="text-right">Subtotal</TableHead>
+                  {!esServicio && <TableHead>Posición</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orden.items.map((item) => (
+                {orden.items.map((item) => {
+                  const cantidadRecibida = item.ingresosAlmacenItem.reduce((acc, ing) => acc + Number(ing.cantidad), 0);
+                  const quedaPendiente = !item.cerrado && cantidadRecibida < Number(item.cantidad);
+                  return (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.sku.codigo}</TableCell>
                     <TableCell>{item.sku.descripcion}</TableCell>
@@ -386,8 +403,29 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                     <TableCell className="text-right font-medium">
                       {formatMoneda(item.subtotal.toString(), orden.moneda)}
                     </TableCell>
+                    {!esServicio && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {item.cerrado ? (
+                            <Badge variant="destructive">Cerrado</Badge>
+                          ) : cantidadRecibida > 0 ? (
+                            <Badge variant="secondary">Parcial</Badge>
+                          ) : null}
+                          {puedeCerrarPosiciones &&
+                            (item.cerrado ? (
+                              <ReabrirPosicionBoton itemId={item.id} codigo={item.sku.codigo} />
+                            ) : (
+                              quedaPendiente && <CerrarPosicionBoton itemId={item.id} codigo={item.sku.codigo} />
+                            ))}
+                        </div>
+                        {item.cerrado && item.motivoCierre && (
+                          <p className="mt-1 text-xs text-muted-foreground">&quot;{item.motivoCierre}&quot;</p>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

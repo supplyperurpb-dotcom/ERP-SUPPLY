@@ -155,7 +155,9 @@ export async function precioUnitarioPonderado(almacenId: string, skuId: string, 
 // la transacción al crear, igual que cantidadPendiente en lib/compras.ts).
 export async function cantidadPendienteIngresoOC(ordenCompraItemId: string, db: Db = prisma): Promise<number> {
   const item = await db.ordenCompraItem.findUnique({ where: { id: ordenCompraItemId } });
-  if (!item) return 0;
+  // Una línea cerrada a mano (ver cerrarPosicionOrdenCompraItemAction) nunca
+  // queda pendiente, sin importar cuánto le falte por recibir.
+  if (!item || item.cerrado) return 0;
   const recibido = await db.ingresoAlmacenItem.aggregate({
     where: { ordenCompraItemId },
     _sum: { cantidad: true },
@@ -209,6 +211,7 @@ export async function calcularOcPendientesIngreso(db: Db = prisma): Promise<Orde
   for (const orden of ordenes) {
     const items: ItemOcPendienteIngreso[] = [];
     for (const item of orden.items) {
+      if (item.cerrado) continue;
       const cantidadOc = Number(item.cantidad);
       const recibido = recibidoMap.get(item.id) ?? 0;
       const cantidadPendiente = Math.round((cantidadOc - recibido) * 1000) / 1000;

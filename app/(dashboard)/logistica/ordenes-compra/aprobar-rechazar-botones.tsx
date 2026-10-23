@@ -2,10 +2,16 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Ban, Undo2 } from "lucide-react";
+import { Check, X, Ban, Undo2, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { firmarOrdenCompraAction, anularOrdenCompraAction, anularFirmaOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
+import {
+  firmarOrdenCompraAction,
+  anularOrdenCompraAction,
+  anularFirmaOrdenCompraAction,
+  cerrarPosicionOrdenCompraItemAction,
+  reabrirPosicionOrdenCompraItemAction,
+} from "@/lib/actions/orden-compra-actions";
 
 // Firma el rol de aprobación pendiente del usuario actual en esta OC/OS
 // (ver firmarOrdenCompraAction: cada orden puede necesitar varias firmas
@@ -126,6 +132,69 @@ export function AnularOrdenBoton({
     <Button variant="outline" size="sm" disabled={pending} onClick={handleAnular} className="text-destructive hover:text-destructive">
       <Ban className="mr-1 h-4 w-4" />
       Anular
+    </Button>
+  );
+}
+
+// Cierra una línea puntual de la orden que ya no va a recibirse (no
+// llegará, o ya no se quiere) — deja de contar como pendiente en el
+// buscador de "Nuevo ingreso" a almacén, sin tocar el resto de la orden
+// (ver cerrarPosicionOrdenCompraItemAction).
+export function CerrarPosicionBoton({ itemId, codigo }: { itemId: string; codigo: string }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  function handleCerrar() {
+    const motivo = prompt(`Motivo del cierre de ${codigo} (opcional):`);
+    if (motivo === null) return;
+    if (!confirm(`¿Cerrar la posición de ${codigo}? Dejará de aparecer como pendiente de recibir.`)) return;
+    startTransition(async () => {
+      const resultado = await cerrarPosicionOrdenCompraItemAction(itemId, motivo);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`Posición de ${codigo} cerrada`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      onClick={handleCerrar}
+      className="text-destructive hover:text-destructive"
+    >
+      <Lock className="mr-1 h-4 w-4" />
+      Cerrar posición
+    </Button>
+  );
+}
+
+// Reversa de CerrarPosicionBoton.
+export function ReabrirPosicionBoton({ itemId, codigo }: { itemId: string; codigo: string }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  function handleReabrir() {
+    if (!confirm(`¿Reabrir la posición de ${codigo}? Volverá a contar como pendiente de recibir.`)) return;
+    startTransition(async () => {
+      const resultado = await reabrirPosicionOrdenCompraItemAction(itemId);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`Posición de ${codigo} reabierta`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Button variant="ghost" size="sm" disabled={pending} onClick={handleReabrir}>
+      <LockOpen className="mr-1 h-4 w-4" />
+      Reabrir
     </Button>
   );
 }
