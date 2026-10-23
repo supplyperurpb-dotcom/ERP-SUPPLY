@@ -10,10 +10,7 @@ import { SolicitudDespachoForm } from "./solicitud-despacho-form";
 export default async function NuevaSolicitudDespachoPage() {
   const usuario = await getUsuarioActual();
   const areaInicial: AreaEmpresaCodigo = (usuario?.area as AreaEmpresaCodigo | null) ?? "PRODUCCION";
-  // Mismo criterio que Solicitud de Pedido: Supply Chain y ADMIN pueden
-  // pedir en nombre de cualquier área; el resto queda fijo en la suya
-  // propia (crearSolicitudDespachoAction lo vuelve a forzar en el servidor).
-  const areaEditable = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
+  const usuarioNombre = usuario ? `${usuario.nombres} ${usuario.apellidos}` : "—";
 
   const [stockTotal, existentes, centrosCosto, campos] = await Promise.all([
     calcularStockTotal(),
@@ -32,7 +29,7 @@ export default async function NuevaSolicitudDespachoPage() {
       <SolicitudDespachoForm
         skus={stockTotal.map((s) => ({ id: s.skuId, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida, disponible: s.cantidad }))}
         areaInicial={areaInicial}
-        areaEditable={areaEditable}
+        usuarioNombre={usuarioNombre}
         centrosCosto={centrosCosto}
         campos={campos}
       />

@@ -24,11 +24,10 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
 
   try {
     const usuario = await getUsuarioActual();
-    // Igual que en SolicitudPedido: el área solo es editable para Supply
-    // Chain y ADMIN; para cualquier otro usuario se fuerza la suya propia
-    // aquí, sin confiar en el valor que llegó del cliente.
-    const areaPuedeElegir = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
-    const area = areaPuedeElegir ? parsed.data.area : (usuario!.area as typeof parsed.data.area);
+    // A diferencia de SolicitudPedido, acá el área siempre sale bloqueada
+    // en el formulario (es la del usuario que pide, sin excepción): se
+    // fuerza aquí también, sin confiar en el valor que llegó del cliente.
+    const area = (usuario?.area as typeof parsed.data.area | null) ?? parsed.data.area;
 
     const cantidadPorSku = new Map<string, number>();
     for (const item of items) {

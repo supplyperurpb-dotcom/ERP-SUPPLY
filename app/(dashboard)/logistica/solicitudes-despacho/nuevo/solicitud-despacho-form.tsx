@@ -28,13 +28,13 @@ function itemVacio(centroCostoInicial: string) {
 export function SolicitudDespachoForm({
   skus,
   areaInicial = "PRODUCCION",
-  areaEditable = true,
+  usuarioNombre,
   centrosCosto,
   campos,
 }: {
   skus: SkuOpcion[];
   areaInicial?: AreaEmpresaCodigo;
-  areaEditable?: boolean;
+  usuarioNombre: string;
   centrosCosto: string[];
   campos: string[];
 }) {
@@ -92,14 +92,19 @@ export function SolicitudDespachoForm({
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
+            <Label>Usuario</Label>
+            <Input disabled value={usuarioNombre} />
+          </div>
+
+          <div className="space-y-2">
             <Label>Área</Label>
             <Controller
               control={form.control}
               name="area"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={!areaEditable}>
-                  <SelectTrigger className={!areaEditable ? "cursor-not-allowed bg-muted opacity-70" : undefined}>
-                    <SelectValue />
+                <Select value={field.value} disabled>
+                  <SelectTrigger className="cursor-not-allowed bg-muted opacity-70">
+                    <SelectValue>{AREAS_EMPRESA.find((a) => a.valor === field.value)?.nombre}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {AREAS_EMPRESA.map((a) => (
@@ -111,7 +116,7 @@ export function SolicitudDespachoForm({
                 </Select>
               )}
             />
-            {!areaEditable && <p className="text-xs text-muted-foreground">Fijada según tu área asignada.</p>}
+            <p className="text-xs text-muted-foreground">Fijada según tu área asignada.</p>
           </div>
 
           <div className="space-y-2">
@@ -122,7 +127,7 @@ export function SolicitudDespachoForm({
             )}
           </div>
 
-          <div className="space-y-2 sm:col-span-2">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-4">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>
             <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
           </div>
@@ -135,6 +140,10 @@ export function SolicitudDespachoForm({
             <CardTitle className="text-base">Productos</CardTitle>
             <p className="text-sm text-muted-foreground">Solo aparecen productos con stock disponible en algún almacén.</p>
           </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => append(itemVacio(centroCostoInicial))}>
+            <Plus className="mr-2 h-4 w-4" />
+            Agregar producto
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="overflow-x-auto">
@@ -277,10 +286,6 @@ export function SolicitudDespachoForm({
               </TableBody>
             </Table>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => append(itemVacio(centroCostoInicial))}>
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar producto
-          </Button>
         </CardContent>
       </Card>
 
