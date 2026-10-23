@@ -40,6 +40,7 @@ type ItemPlano = {
   solicitudId: string;
   solicitudNumero: string;
   solicitudArea: string;
+  solicitudJustificacion: string | null;
 };
 
 function filaVacia(item: ItemPlano): FilaSeleccion {
@@ -100,6 +101,7 @@ export function OrdenCompraForm({
           solicitudId: solicitud.id,
           solicitudNumero: solicitud.numero,
           solicitudArea: solicitud.area,
+          solicitudJustificacion: solicitud.justificacion,
         });
       }
     }
@@ -142,6 +144,21 @@ export function OrdenCompraForm({
   }
 
   const itemsEnOrden = itemsPlanos.filter((item) => filas[item.id]);
+
+  // Solo de referencia (de dónde viene el pedido) -- nunca sale en el PDF,
+  // ahí solo va el Comentario propio de la orden (ver más abajo).
+  const justificaciones = useMemo(() => {
+    const vistos = new Set<string>();
+    const textos: string[] = [];
+    for (const item of itemsEnOrden) {
+      if (vistos.has(item.solicitudId)) continue;
+      vistos.add(item.solicitudId);
+      if (item.solicitudJustificacion?.trim()) {
+        textos.push(`${item.solicitudNumero}: ${item.solicitudJustificacion.trim()}`);
+      }
+    }
+    return textos.join("\n");
+  }, [itemsEnOrden]);
 
   const subtotalesPorFila = new Map<string, number>();
   for (const item of itemsEnOrden) {
@@ -331,6 +348,16 @@ export function OrdenCompraForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2 sm:col-span-3">
+            <Label htmlFor="justificacion">Justificación (de las solicitudes jaladas)</Label>
+            <Textarea
+              id="justificacion"
+              rows={2}
+              readOnly
+              className="cursor-not-allowed bg-muted"
+              value={justificaciones || "Agrega productos para ver aquí la justificación de sus solicitudes de origen."}
+            />
           </div>
           <div className="space-y-2 sm:col-span-3">
             <Label htmlFor="observaciones">Comentario</Label>
