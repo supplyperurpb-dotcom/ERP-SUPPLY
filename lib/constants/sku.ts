@@ -140,8 +140,8 @@ export const CLASIFICACIONES_AGROQUIMICO = ["Orgánico", "Convencional"] as cons
 // Unidades de medida permitidas para Agroquímicos, Fertilizantes y Ósmosis
 // (subconjunto del catálogo SUNAT compartido en lib/validations/sku.ts).
 export const UNIDADES_MEDIDA_AGROQUIMICO = [
-  { codigo: "LTR", nombre: "Litro" },
-  { codigo: "KGM", nombre: "Kilogramo" },
+  { codigo: "LT", nombre: "Litro" },
+  { codigo: "KG", nombre: "Kilogramo" },
   { codigo: "UND", nombre: "Unidad" },
 ] as const;
 

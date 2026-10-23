@@ -13,43 +13,26 @@ export const skuSchema = z.object({
 
 export type SkuInput = z.infer<typeof skuSchema>;
 
-// Unidades de medida: el catálogo SUNAT simplificado original (UND, KGM, BX,
-// LTR, M, RLL, ZZ) más todas las que aparecían en los códigos de los Excel
-// de Suministros y de Agroquímicos/Fertilizantes/Ósmosis que compartió el
-// usuario (p. ej. KG, LT, PAR, GLN... — variantes históricas del mismo
-// origen de datos, no normalizadas, para que los SKU ya creados con esas
-// unidades se puedan seguir editando).
+// Unidades de medida uniformizadas (una sola sigla por unidad real — ver
+// el script de uniformización que fusionó KGM->KG, LTR->LT, BX/CJA/CAJ->CJ,
+// GL->GLN, PAQ->PQT, MT->M, ROL->RLL, BALDE->UND, SET/JGO->KIT, TON->TN).
 export const UNIDADES_MEDIDA = [
   { codigo: "UND", nombre: "Unidad" },
-  { codigo: "KGM", nombre: "Kilogramo" },
   { codigo: "KG", nombre: "Kilogramo" },
-  { codigo: "LTR", nombre: "Litro" },
   { codigo: "LT", nombre: "Litro" },
-  { codigo: "BX", nombre: "Caja" },
   { codigo: "CJ", nombre: "Caja" },
-  { codigo: "CJA", nombre: "Caja" },
-  { codigo: "CAJ", nombre: "Caja" },
   { codigo: "PAR", nombre: "Par" },
   { codigo: "KIT", nombre: "Kit" },
   { codigo: "GLN", nombre: "Galón" },
-  { codigo: "GL", nombre: "Galón" },
   { codigo: "PQT", nombre: "Paquete" },
-  { codigo: "PAQ", nombre: "Paquete" },
   { codigo: "MLL", nombre: "Millar" },
   { codigo: "M", nombre: "Metro" },
-  { codigo: "MT", nombre: "Metro" },
   { codigo: "M2", nombre: "Metro cuadrado" },
   { codigo: "M3", nombre: "Metro cúbico" },
   { codigo: "RLL", nombre: "Rollo" },
-  { codigo: "ROL", nombre: "Rollo" },
-  { codigo: "JGO", nombre: "Juego" },
   { codigo: "CNT", nombre: "Ciento" },
-  { codigo: "BALDE", nombre: "Balde" },
   { codigo: "BBL", nombre: "Barril" },
-  { codigo: "SET", nombre: "Set" },
   { codigo: "TN", nombre: "Tonelada" },
-  { codigo: "TON", nombre: "Tonelada" },
-  { codigo: "ZZ", nombre: "Otra unidad" },
 ] as const;
 
 // Categorías y subfamilias usadas hasta ahora en el catálogo de SKU (lista

@@ -27,7 +27,7 @@ export function AgroquimicoForm() {
       producto: "",
       activo: "",
       clasificacion: CLASIFICACIONES_AGROQUIMICO[0],
-      unidadMedida: "LTR",
+      unidadMedida: "LT",
     },
   });
 
