@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { calcularStockTotal } from "@/lib/stock-almacen";
+import { calcularStockDisponibleDespacho } from "@/lib/stock-almacen";
 import { solicitudDespachoSchema, type SolicitudDespachoInput } from "@/lib/validations/solicitud-despacho";
 
 export type SolicitudDespachoActionState = { error?: string; id?: string; numero?: string } | undefined;
@@ -13,8 +13,10 @@ export type SolicitudDespachoActionState = { error?: string; id?: string; numero
 // que la antigua Solicitud de Traslado. Quien pide no elige almacén (eso lo
 // decide Almacén al atenderla con un Consumo normal — ver
 // consumo-almacen-actions.ts); el stock disponible que ve el formulario es
-// la suma de todos los almacenes (calcularStockTotal), y aquí solo se hace
-// un sanity-check contra ese total (no reserva nada).
+// el físico de todos los almacenes MENOS lo que ya está pendiente de
+// atender en otras solicitudes abiertas (calcularStockDisponibleDespacho),
+// para que dos solicitudes no puedan pedir, cada una por su cuenta, más de
+// lo que en realidad hay.
 export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput): Promise<SolicitudDespachoActionState> {
   const parsed = solicitudDespachoSchema.safeParse(data);
   if (!parsed.success) {
@@ -33,8 +35,8 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
     for (const item of items) {
       cantidadPorSku.set(item.skuId, (cantidadPorSku.get(item.skuId) ?? 0) + item.cantidad);
     }
-    const stockTotal = await calcularStockTotal();
-    const disponiblePorSku = new Map(stockTotal.map((s) => [s.skuId, s.cantidad]));
+    const stockDisponible = await calcularStockDisponibleDespacho();
+    const disponiblePorSku = new Map(stockDisponible.map((s) => [s.skuId, s.cantidad]));
     for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
       const disponible = disponiblePorSku.get(skuId) ?? 0;
       if (cantidadSolicitada > disponible) {

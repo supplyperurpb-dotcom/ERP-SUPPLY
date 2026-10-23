@@ -421,3 +421,27 @@ export async function calcularSolicitudesDespachoPendientes(db: Db = prisma): Pr
   }
   return resultado;
 }
+
+// Disponible EFECTIVO para pedir en una Solicitud de Despacho NUEVA: el
+// stock físico (calcularStockTotal) menos lo que ya está pendiente de
+// atender en OTRAS solicitudes todavía abiertas. Nada se descuenta del
+// stock real hasta que de verdad se atiende con un Consumo — esto solo
+// evita que dos solicitudes distintas puedan pedir, cada una por su
+// cuenta, más de lo que en realidad hay.
+export async function calcularStockDisponibleDespacho(db: Db = prisma): Promise<FilaStockAlmacen[]> {
+  const [stockTotal, pendientes] = await Promise.all([calcularStockTotal(db), calcularSolicitudesDespachoPendientes(db)]);
+
+  const pendientePorSku = new Map<string, number>();
+  for (const solicitud of pendientes) {
+    for (const item of solicitud.items) {
+      pendientePorSku.set(item.skuId, (pendientePorSku.get(item.skuId) ?? 0) + item.cantidadPendiente);
+    }
+  }
+
+  return stockTotal
+    .map((fila) => ({
+      ...fila,
+      cantidad: Math.round((fila.cantidad - (pendientePorSku.get(fila.skuId) ?? 0)) * 1000) / 1000,
+    }))
+    .filter((fila) => fila.cantidad > 0);
+}

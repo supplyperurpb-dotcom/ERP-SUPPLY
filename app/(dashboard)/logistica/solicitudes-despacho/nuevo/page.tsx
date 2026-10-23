@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerValoresActivos } from "@/lib/listas";
-import { calcularStockTotal } from "@/lib/stock-almacen";
+import { calcularStockDisponibleDespacho } from "@/lib/stock-almacen";
 import { siguienteNumero } from "@/lib/utils";
 import { prisma } from "@/lib/db/prisma";
 import type { AreaEmpresaCodigo } from "@/lib/constants/compras";
@@ -13,7 +13,7 @@ export default async function NuevaSolicitudDespachoPage() {
   const usuarioNombre = usuario ? `${usuario.nombres} ${usuario.apellidos}` : "—";
 
   const [stockTotal, existentes, centrosCosto, campos] = await Promise.all([
-    calcularStockTotal(),
+    calcularStockDisponibleDespacho(),
     prisma.solicitudDespacho.findMany({ select: { numero: true } }),
     obtenerValoresActivos("CENTRO_COSTO"),
     obtenerValoresActivos("CAMPO"),
