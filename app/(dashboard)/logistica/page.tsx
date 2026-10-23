@@ -4,7 +4,6 @@ import {
   List,
   Package,
   PackageSearch,
-  Repeat,
   ShoppingCart,
   Users,
   Warehouse,
@@ -48,12 +47,6 @@ const TILES = [
     descripcion: "Catálogo de almacenes generales y sub-almacenes.",
     href: "/logistica/almacenes",
     icono: Warehouse,
-  },
-  {
-    titulo: "Solicitudes de traslado",
-    descripcion: "Solicitudes internas para mover stock entre almacenes, punto de partida de los traslados.",
-    href: "/logistica/solicitudes-traslado",
-    icono: Repeat,
   },
   {
     titulo: "Listas",

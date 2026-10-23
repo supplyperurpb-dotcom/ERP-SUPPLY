@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { TipoAlmacen } from "@prisma/client";
 import { AlmacenFormDialog } from "./almacen-form-dialog";
 import { NuevoMovimientoDialog } from "./nuevo-movimiento-dialog";
-import { calcularSolicitudesTrasladoPendientes } from "@/lib/stock-almacen";
 
 const TIPO_LABEL: Record<TipoAlmacen, string> = {
   INSUMOS: "Insumos",
@@ -27,10 +26,7 @@ const CATEGORIA_GENERAL_LABEL: Record<string, string> = {
 };
 
 export default async function AlmacenesPage() {
-  const [almacenes, solicitudesTraslado] = await Promise.all([
-    prisma.almacen.findMany({ orderBy: [{ esGeneral: "desc" }, { codigo: "asc" }] }),
-    calcularSolicitudesTrasladoPendientes(),
-  ]);
+  const almacenes = await prisma.almacen.findMany({ orderBy: [{ esGeneral: "desc" }, { codigo: "asc" }] });
 
   const almacenesActivos = almacenes.filter((a) => a.activo);
   const almacenesGenerales = almacenesActivos
@@ -47,12 +43,6 @@ export default async function AlmacenesPage() {
           <NuevoMovimientoDialog
             almacenesGenerales={almacenesGenerales}
             almacenesTodos={almacenesActivos.map((a) => ({ id: a.id, nombre: a.nombre }))}
-            solicitudesTraslado={solicitudesTraslado.map((s) => ({
-              id: s.id,
-              numero: s.numero,
-              almacenOrigenNombre: s.almacenOrigenNombre,
-              almacenDestinoNombre: s.almacenDestinoNombre,
-            }))}
           />
         }
       />

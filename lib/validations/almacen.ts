@@ -87,6 +87,13 @@ const itemTrasladoSchema = z.object({
   skuId: z.string().min(1, "Selecciona un producto"),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
+  // Obligatorios solo si el almacén de origen es de categoría
+  // AGROQUIMICOS_FERTILIZANTES (lo exige el servidor, ver
+  // crearTrasladoAlmacenAction) — de qué lote sale, y ese mismo lote viaja
+  // con el ítem hasta el almacén de destino. Igual que en ingreso/consumo.
+  lote: z.string().max(60).optional().or(z.literal("")),
+  fechaProduccion: z.coerce.date().optional(),
+  fechaVencimiento: z.coerce.date().optional(),
 });
 
 export const trasladoAlmacenSchema = z
@@ -105,36 +112,6 @@ export const trasladoAlmacenSchema = z
   });
 
 export type TrasladoAlmacenInput = z.infer<typeof trasladoAlmacenSchema>;
-
-// Ejecución de una Solicitud de Traslado ya existente (ver
-// lib/validations/solicitud-traslado.ts): el almacén origen y destino ya
-// quedaron fijos en la solicitud, así que aquí no se piden — se vuelven a
-// leer del lado del servidor (nunca se confía en lo que mande el cliente),
-// igual que ingresoAlmacenSchema no pide proveedor porque sale de la OC.
-const itemTrasladoDesdeSolicitudSchema = z.object({
-  solicitudTrasladoItemId: z.string().min(1, "Falta el origen de esta línea"),
-  skuId: z.string().min(1),
-  cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
-  unidadMedida: z.string().min(1),
-  // Obligatorios solo si el almacén de origen es de categoría
-  // AGROQUIMICOS_FERTILIZANTES (lo exige el servidor, ver
-  // crearTrasladoDesdeSolicitudAction) — de qué lote sale, y ese mismo
-  // lote viaja con el ítem hasta el almacén de destino.
-  lote: z.string().max(60).optional().or(z.literal("")),
-  fechaProduccion: z.coerce.date().optional(),
-  fechaVencimiento: z.coerce.date().optional(),
-});
-
-export const trasladoDesdeSolicitudSchema = z.object({
-  solicitudTrasladoId: z.string().min(1, "Selecciona una solicitud de traslado"),
-  fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-  moneda: z.enum(["PEN", "USD"]).default("PEN"),
-  observaciones: z.string().max(500).optional().or(z.literal("")),
-  items: z.array(itemTrasladoDesdeSolicitudSchema).min(1, "Selecciona al menos un ítem pendiente"),
-  ...datosTransporte,
-});
-
-export type TrasladoDesdeSolicitudInput = z.infer<typeof trasladoDesdeSolicitudSchema>;
 
 const itemConsumoSchema = z.object({
   skuId: z.string().min(1, "Selecciona un producto"),

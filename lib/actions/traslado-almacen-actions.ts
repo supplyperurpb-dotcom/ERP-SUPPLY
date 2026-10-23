@@ -5,18 +5,55 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
 import { convertirAUsd } from "@/lib/constants/moneda";
-import { costosParaValidacion, stockDisponible, cantidadPendienteTrasladoItem, calcularStockPorLote } from "@/lib/stock-almacen";
-import {
-  trasladoAlmacenSchema,
-  trasladoDesdeSolicitudSchema,
-  type TrasladoAlmacenInput,
-  type TrasladoDesdeSolicitudInput,
-} from "@/lib/validations/almacen";
+import { costosParaValidacion, stockDisponible, calcularStockPorLote } from "@/lib/stock-almacen";
+import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import type { Prisma } from "@prisma/client";
 
 export type TrasladoAlmacenActionState = { error?: string; id?: string } | undefined;
 
 type Tx = Prisma.TransactionClient;
+type Db = typeof prisma | Tx;
+
+// Igual que en Ingreso y Consumo: solo si el almacén de ORIGEN es de
+// categoría Agroquímicos y Fertilizantes se exige elegir de qué lote sale
+// cada línea, y que ese lote puntual tenga stock suficiente (no solo el
+// total del SKU en el almacén).
+async function validarLotesSiAplica(
+  almacenOrigen: { id: string; nombre: string; categoriaGeneral: string | null },
+  items: TrasladoAlmacenInput["items"],
+  db: Db
+): Promise<{ error?: string }> {
+  if (almacenOrigen.categoriaGeneral !== "AGROQUIMICOS_FERTILIZANTES") return {};
+
+  for (const item of items) {
+    if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {
+      const sku = await db.sku.findUnique({ where: { id: item.skuId }, select: { codigo: true } });
+      return {
+        error: `${sku?.codigo ?? item.skuId}: lote, fecha de producción y fecha de vencimiento son obligatorios al trasladar desde este almacén.`,
+      };
+    }
+  }
+
+  const cantidadPorSkuLote = new Map<string, number>();
+  for (const item of items) {
+    const clave = `${item.skuId}::${item.lote}`;
+    cantidadPorSkuLote.set(clave, (cantidadPorSkuLote.get(clave) ?? 0) + item.cantidad);
+  }
+  for (const item of items) {
+    const clave = `${item.skuId}::${item.lote}`;
+    const cantidadSolicitada = cantidadPorSkuLote.get(clave)!;
+    const lotes = await calcularStockPorLote(almacenOrigen.id, item.skuId, db);
+    const disponible = lotes.find((l) => l.lote === item.lote)?.cantidad ?? 0;
+    if (cantidadSolicitada > disponible) {
+      const sku = await db.sku.findUnique({ where: { id: item.skuId }, select: { codigo: true } });
+      return {
+        error: `No hay suficiente stock del lote ${item.lote} de ${sku?.codigo ?? item.skuId} en ${almacenOrigen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`,
+      };
+    }
+  }
+
+  return {};
+}
 
 export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Promise<TrasladoAlmacenActionState> {
   const parsed = trasladoAlmacenSchema.safeParse(data);
@@ -43,6 +80,9 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   if (!almacenOrigen || !almacenDestino) {
     return { error: "Uno de los almacenes seleccionados ya no existe. Actualiza la página e intenta de nuevo." };
   }
+
+  const permisoLotes = await validarLotesSiAplica(almacenOrigen, items, prisma);
+  if (permisoLotes.error) return permisoLotes;
 
   // Validar stock disponible en el almacén de origen para cada línea antes
   // de mover nada (si dos líneas repiten el mismo SKU, se valida la suma), y
@@ -117,6 +157,9 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
             valorTotal: valoresTotales[i],
             fleteAsignado: fletePorItem[i],
             fleteAsignadoUsd: fletePorItemUsd[i],
+            lote: item.lote || null,
+            fechaProduccion: item.fechaProduccion ?? null,
+            fechaVencimiento: item.fechaVencimiento ?? null,
           },
         });
 
@@ -214,6 +257,9 @@ export async function actualizarTrasladoAlmacenAction(
       await tx.movimientoStock.deleteMany({ where: { documentoOrigenId: id, documentoOrigenTipo: "TRASLADO_ALMACEN" } });
       await tx.trasladoAlmacenItem.deleteMany({ where: { trasladoAlmacenId: id } });
 
+      const permisoLotes = await validarLotesSiAplica(almacenOrigen, items, tx);
+      if (permisoLotes.error) throw new Error(permisoLotes.error);
+
       const costosOrigen = await costosParaValidacion(almacenOrigenId, tx);
       const costoUnitarioPorSku = new Map<string, number>();
       for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
@@ -264,6 +310,9 @@ export async function actualizarTrasladoAlmacenAction(
             valorTotal: valoresTotales[i],
             fleteAsignado: fletePorItem[i],
             fleteAsignadoUsd: fletePorItemUsd[i],
+            lote: item.lote || null,
+            fechaProduccion: item.fechaProduccion ?? null,
+            fechaVencimiento: item.fechaVencimiento ?? null,
           },
         });
 
@@ -296,167 +345,6 @@ export async function actualizarTrasladoAlmacenAction(
   } catch (e) {
     console.error("Error inesperado en actualizarTrasladoAlmacenAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al actualizar el traslado." };
-  }
-}
-
-// Ejecuta (total o parcialmente) una Solicitud de Traslado ya existente: a
-// diferencia de crearTrasladoAlmacenAction (libre, sin solicitud), aquí el
-// almacén origen y destino NO llegan del cliente — se leen de la solicitud
-// misma, igual que crearIngresoAlmacenAction nunca confía en el proveedor
-// que mande el cliente y lo vuelve a leer de la OC.
-async function validarSolicitud(tx: Tx, data: TrasladoDesdeSolicitudInput) {
-  const solicitud = await tx.solicitudTraslado.findUnique({
-    where: { id: data.solicitudTrasladoId },
-    include: { almacenOrigen: true, almacenDestino: true },
-  });
-  if (!solicitud) {
-    throw new Error("La solicitud de traslado seleccionada ya no existe. Actualiza la página e intenta de nuevo.");
-  }
-
-  const itemsSolicitud = await tx.solicitudTrasladoItem.findMany({
-    where: { solicitudTrasladoId: solicitud.id },
-    include: { sku: true },
-  });
-  const itemPorId = new Map(itemsSolicitud.map((i) => [i.id, i]));
-
-  const exigeLote = solicitud.almacenOrigen.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
-
-  for (const item of data.items) {
-    const itemSolicitud = itemPorId.get(item.solicitudTrasladoItemId);
-    if (!itemSolicitud) {
-      throw new Error("Uno de los productos no pertenece a la solicitud de traslado seleccionada.");
-    }
-    const pendiente = await cantidadPendienteTrasladoItem(item.solicitudTrasladoItemId, tx);
-    if (item.cantidad > pendiente) {
-      throw new Error(
-        `La cantidad de ${itemSolicitud.sku.codigo} supera lo pendiente de la solicitud (disponible: ${pendiente}, ingresado ahora: ${item.cantidad}). Actualiza la página e intenta de nuevo.`
-      );
-    }
-    if (exigeLote) {
-      if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {
-        throw new Error(
-          `${itemSolicitud.sku.codigo}: lote, fecha de producción y fecha de vencimiento son obligatorios al trasladar desde un almacén de Agroquímicos y Fertilizantes.`
-        );
-      }
-      const lotes = await calcularStockPorLote(solicitud.almacenOrigenId, itemSolicitud.skuId, tx);
-      const disponibleLote = lotes.find((l) => l.lote === item.lote)?.cantidad ?? 0;
-      if (item.cantidad > disponibleLote) {
-        throw new Error(
-          `No hay suficiente stock del lote ${item.lote} de ${itemSolicitud.sku.codigo} en ${solicitud.almacenOrigen.nombre} (disponible: ${disponibleLote}, solicitado: ${item.cantidad}).`
-        );
-      }
-    }
-  }
-
-  return { solicitud, itemPorId };
-}
-
-export async function crearTrasladoDesdeSolicitudAction(
-  data: TrasladoDesdeSolicitudInput
-): Promise<TrasladoAlmacenActionState> {
-  const parsed = trasladoDesdeSolicitudSchema.safeParse(data);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
-  }
-  const { fecha, moneda, guiaRemision, remitenteRuc, remitente, flete, observaciones, items } = parsed.data;
-
-  try {
-    const usuario = await getUsuarioActual();
-
-    const nuevoTraslado = await prisma.$transaction(async (tx) => {
-      const { solicitud, itemPorId } = await validarSolicitud(tx, parsed.data);
-      const almacenOrigenId = solicitud.almacenOrigenId;
-      const almacenDestinoId = solicitud.almacenDestinoId;
-
-      const costosOrigen = await costosParaValidacion(almacenOrigenId, tx);
-      const costoUnitarioPorSku = new Map<string, number>();
-      for (const item of items) {
-        const itemSolicitud = itemPorId.get(item.solicitudTrasladoItemId)!;
-        const costo = costosOrigen.get(itemSolicitud.skuId);
-        if (costo?.precioUnitarioPonderado === null || costo?.precioUnitarioPonderado === undefined) {
-          throw new Error(
-            `No se pudo determinar el costo unitario ponderado de ${itemSolicitud.sku.codigo} en ${solicitud.almacenOrigen.nombre}.`
-          );
-        }
-        costoUnitarioPorSku.set(item.solicitudTrasladoItemId, costo.precioUnitarioPonderado);
-      }
-
-      const valoresTotales = items.map((item) => item.cantidad * costoUnitarioPorSku.get(item.solicitudTrasladoItemId)!);
-      const fletePorItem = prorratear(flete, valoresTotales);
-      const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
-
-      const existentes = await tx.trasladoAlmacen.findMany({ select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((t) => t.numero), "TA-");
-
-      const traslado = await tx.trasladoAlmacen.create({
-        data: {
-          numero,
-          fecha,
-          almacenOrigenId,
-          almacenDestinoId,
-          solicitudTrasladoId: solicitud.id,
-          moneda,
-          guiaRemision: guiaRemision || null,
-          remitenteRuc: remitenteRuc || null,
-          remitente: remitente || null,
-          flete: flete || null,
-          observaciones: observaciones || null,
-          creadoPorId: usuario?.id,
-        },
-      });
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const itemSolicitud = itemPorId.get(item.solicitudTrasladoItemId)!;
-        const costoUnitario = costoUnitarioPorSku.get(item.solicitudTrasladoItemId)!;
-
-        await tx.trasladoAlmacenItem.create({
-          data: {
-            trasladoAlmacenId: traslado.id,
-            solicitudTrasladoItemId: item.solicitudTrasladoItemId,
-            skuId: itemSolicitud.skuId,
-            cantidad: item.cantidad,
-            unidadMedida: itemSolicitud.unidadMedida,
-            costoUnitario,
-            valorTotal: valoresTotales[i],
-            fleteAsignado: fletePorItem[i],
-            fleteAsignadoUsd: fletePorItemUsd[i],
-            lote: item.lote || null,
-            fechaProduccion: item.fechaProduccion ?? null,
-            fechaVencimiento: item.fechaVencimiento ?? null,
-          },
-        });
-
-        await tx.movimientoStock.create({
-          data: {
-            skuId: itemSolicitud.skuId,
-            almacenOrigenId,
-            almacenDestinoId,
-            tipo: "TRANSFERENCIA",
-            cantidad: item.cantidad,
-            unidadMedida: itemSolicitud.unidadMedida,
-            documentoOrigenTipo: "TRASLADO_ALMACEN",
-            documentoOrigenId: traslado.id,
-            fecha,
-            observaciones: observaciones || null,
-            creadoPorId: usuario?.id,
-          },
-        });
-      }
-
-      return traslado;
-    });
-
-    revalidatePath("/logistica/almacenes");
-    revalidatePath(`/logistica/almacenes/${nuevoTraslado.almacenOrigenId}`);
-    revalidatePath(`/logistica/almacenes/${nuevoTraslado.almacenDestinoId}`);
-    revalidatePath("/logistica/almacenes/traslados");
-    revalidatePath("/logistica/solicitudes-traslado");
-    revalidatePath(`/logistica/solicitudes-traslado/${nuevoTraslado.solicitudTrasladoId}`);
-    return { id: nuevoTraslado.id };
-  } catch (e) {
-    console.error("Error inesperado en crearTrasladoDesdeSolicitudAction:", e);
-    return { error: e instanceof Error ? e.message : "Error inesperado al guardar el traslado." };
   }
 }
 

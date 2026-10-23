@@ -1,49 +1,58 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
-import { calcularSolicitudesTrasladoPendientes, calcularStockPorLote } from "@/lib/stock-almacen";
+import { calcularStockAlmacen, calcularStockPorLote } from "@/lib/stock-almacen";
 import { siguienteNumero } from "@/lib/utils";
-import { TrasladoAlmacenWizard } from "./traslado-almacen-wizard";
+import { TrasladoAlmacenForm } from "./traslado-almacen-form";
 
 export default async function NuevoTrasladoAlmacenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ solicitudId?: string }>;
+  searchParams: Promise<{ almacenId?: string }>;
 }) {
-  const { solicitudId } = await searchParams;
-  const [solicitudesPendientes, existentes] = await Promise.all([
-    calcularSolicitudesTrasladoPendientes(),
+  const { almacenId } = await searchParams;
+
+  const [almacenes, proveedores, existentes] = await Promise.all([
+    prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
+    prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     prisma.trasladoAlmacen.findMany({ select: { numero: true } }),
   ]);
   // Solo un adelanto: el número real se asigna recién al guardar (ver
-  // crearTrasladoDesdeSolicitudAction) — mismo criterio que OC/Solped.
+  // crearTrasladoAlmacenAction) — mismo criterio que OC/Solped.
   const numeroTentativo = siguienteNumero(existentes.map((t) => t.numero), "TA-");
 
-  // Solo los almacenes de Agroquímicos y Fertilizantes exigen lote al
-  // trasladar — se precalcula el stock por lote de cada SKU pendiente en
-  // las solicitudes que salen de un almacén de esa categoría.
-  const almacenesOrigen = await prisma.almacen.findMany({
-    where: { id: { in: [...new Set(solicitudesPendientes.map((s) => s.almacenOrigenId))] } },
+  const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
+  const stockPorAlmacen: Record<string, Awaited<ReturnType<typeof calcularStockAlmacen>>> = {};
+  almacenes.forEach((a, i) => {
+    stockPorAlmacen[a.id] = stocks[i];
   });
-  const categoriaPorAlmacen = new Map(almacenesOrigen.map((a) => [a.id, a.categoriaGeneral]));
 
-  const lotesPorSolicitud: Record<string, Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>>> = {};
-  for (const solicitud of solicitudesPendientes) {
-    if (categoriaPorAlmacen.get(solicitud.almacenOrigenId) !== "AGROQUIMICOS_FERTILIZANTES") continue;
-    const skuIds = [...new Set(solicitud.items.map((i) => i.skuId))];
-    const lotesPorSku = await Promise.all(skuIds.map((skuId) => calcularStockPorLote(solicitud.almacenOrigenId, skuId)));
-    lotesPorSolicitud[solicitud.id] = Object.fromEntries(skuIds.map((skuId, i) => [skuId, lotesPorSku[i]]));
+  // Solo los almacenes de Agroquímicos y Fertilizantes exigen lote al
+  // trasladar — se precalcula el stock por lote de cada SKU con stock ahí,
+  // para el selector de lote del formulario (mismo criterio que Consumo).
+  const lotesPorAlmacen: Record<string, Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>>> = {};
+  for (const a of almacenes) {
+    if (a.categoriaGeneral !== "AGROQUIMICOS_FERTILIZANTES") continue;
+    const skuIds = stockPorAlmacen[a.id]?.map((s) => s.skuId) ?? [];
+    const lotesPorSku = await Promise.all(skuIds.map((skuId) => calcularStockPorLote(a.id, skuId)));
+    lotesPorAlmacen[a.id] = Object.fromEntries(skuIds.map((skuId, i) => [skuId, lotesPorSku[i]]));
   }
 
   return (
     <div>
       <PageHeader
         titulo={`Nuevo traslado entre almacenes — ${numeroTentativo}`}
-        descripcion="Ejecuta una solicitud de traslado pendiente: elige qué ítems mover ahora (pueden ser menos de lo solicitado, el resto queda pendiente para después)."
+        descripcion="Mueve stock propio de un almacén a otro. Solo se pueden trasladar productos con stock disponible en el almacén de origen elegido; se valoriza con su precio unitario ponderado del día del traslado."
       />
-      <TrasladoAlmacenWizard
-        solicitudes={solicitudesPendientes}
-        lotesPorSolicitud={lotesPorSolicitud}
-        solicitudIdInicial={solicitudId}
+      <TrasladoAlmacenForm
+        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        proveedores={proveedores.map((p) => ({
+          id: p.id,
+          razonSocial: p.razonSocial,
+          ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
+        }))}
+        stockPorAlmacen={stockPorAlmacen}
+        lotesPorAlmacen={lotesPorAlmacen}
+        almacenOrigenIdInicial={almacenId}
       />
     </div>
   );

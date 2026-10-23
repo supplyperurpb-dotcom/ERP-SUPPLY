@@ -10,8 +10,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     include: {
       almacenOrigen: true,
       almacenDestino: true,
-      solicitudTraslado: true,
-      items: { include: { sku: true, solicitudTrasladoItem: true } },
+      items: { include: { sku: true } },
     },
   });
 
@@ -21,7 +20,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const bytes = await generarActaTrasladoPdf({
     numero: traslado.numero,
-    solicitudNumero: traslado.solicitudTraslado?.numero ?? null,
     almacenOrigen: traslado.almacenOrigen.nombre,
     almacenDestino: traslado.almacenDestino.nombre,
     fecha: traslado.fecha,
@@ -32,7 +30,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       codigo: item.sku.codigo,
       descripcion: item.sku.descripcion,
       lote: item.lote,
-      cantidadSolicitada: item.solicitudTrasladoItem ? Number(item.solicitudTrasladoItem.cantidad) : null,
       cantidadTrasladada: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
     })),

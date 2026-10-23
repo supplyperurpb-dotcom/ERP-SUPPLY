@@ -12,11 +12,9 @@ type TipoMovimiento = "INGRESO" | "TRASLADO" | "CONSUMO";
 export function NuevoMovimientoDialog({
   almacenesGenerales,
   almacenesTodos,
-  solicitudesTraslado,
 }: {
   almacenesGenerales: { id: string; nombre: string }[];
   almacenesTodos: { id: string; nombre: string }[];
-  solicitudesTraslado: { id: string; numero: string; almacenOrigenNombre: string; almacenDestinoNombre: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -134,22 +132,18 @@ export function NuevoMovimientoDialog({
         {tipo === "TRASLADO" && (
           <>
             <DialogHeader>
-              <DialogTitle>Traslado — elige la solicitud pendiente</DialogTitle>
+              <DialogTitle>Traslado — elige el almacén de origen</DialogTitle>
             </DialogHeader>
             <div className="space-y-2">
-              {solicitudesTraslado.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No hay solicitudes de traslado pendientes de ejecutar. Créala primero desde Solicitudes de traslado.
-                </p>
-              )}
-              {solicitudesTraslado.map((s) => (
+              {almacenesTodos.length === 0 && <p className="text-sm text-muted-foreground">No hay almacenes activos.</p>}
+              {almacenesTodos.map((a) => (
                 <Button
-                  key={s.id}
+                  key={a.id}
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => irA(`/logistica/almacenes/traslados/nuevo?solicitudId=${s.id}`)}
+                  onClick={() => irA(`/logistica/almacenes/traslados/nuevo?almacenId=${a.id}`)}
                 >
-                  {s.numero} — {s.almacenOrigenNombre} → {s.almacenDestinoNombre}
+                  {a.nombre}
                 </Button>
               ))}
             </div>

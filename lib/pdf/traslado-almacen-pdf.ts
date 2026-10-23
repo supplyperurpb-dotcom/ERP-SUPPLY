@@ -2,8 +2,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 
-// Parte un texto en líneas que caben en `anchoMax`, hasta un máximo de
-// líneas (igual que en solicitud-traslado-pdf.ts).
+// Parte un texto en líneas que caben en `anchoMax`, hasta un máximo de líneas.
 function envolverTexto(texto: string, font: PDFFont, size: number, anchoMax: number, maxLineas = 4): string[] {
   const palabras = texto.split(/\s+/).filter(Boolean);
   const lineas: string[] = [];
@@ -43,19 +42,14 @@ export type LineaActaTrasladoPdf = {
   codigo: string;
   descripcion: string;
   lote: string | null;
-  cantidadSolicitada: number | null;
   cantidadTrasladada: number;
   unidadMedida: string;
 };
 
-// Acta de traslado: el comprobante de lo que un TrasladoAlmacen EJECUTÓ de
-// verdad, a diferencia de la Solicitud de Traslado (lo que se pidió). Muestra
-// ambas columnas lado a lado — solicitado vs. trasladado — porque lo
-// ejecutado puede ser menor que lo pedido (parcial, o por un ajuste de
-// inventario detectado al momento de confirmar).
+// Acta de traslado: el comprobante de un TrasladoAlmacen -- operación
+// directa entre almacenes, sin solicitud previa (ver lib/actions/traslado-almacen-actions.ts).
 export async function generarActaTrasladoPdf({
   numero,
-  solicitudNumero,
   almacenOrigen,
   almacenDestino,
   fecha,
@@ -65,7 +59,6 @@ export async function generarActaTrasladoPdf({
   lineas,
 }: {
   numero: string;
-  solicitudNumero: string | null;
   almacenOrigen: string;
   almacenDestino: string;
   fecha: Date;
@@ -91,18 +84,16 @@ export async function generarActaTrasladoPdf({
   const columnas = hayLotes
     ? [
         { titulo: "Código", x: MARGEN_X, ancho: 55 },
-        { titulo: "Producto", x: MARGEN_X + 55, ancho: 175 },
-        { titulo: "Lote", x: MARGEN_X + 230, ancho: 80 },
-        { titulo: "Solicitado", x: MARGEN_X + 310, ancho: 70 },
-        { titulo: "Trasladado", x: MARGEN_X + 380, ancho: 70 },
-        { titulo: "U.M.", x: MARGEN_X + 450, ancho: 45 },
+        { titulo: "Producto", x: MARGEN_X + 55, ancho: 195 },
+        { titulo: "Lote", x: MARGEN_X + 250, ancho: 90 },
+        { titulo: "Trasladado", x: MARGEN_X + 340, ancho: 90 },
+        { titulo: "U.M.", x: MARGEN_X + 430, ancho: 65 },
       ]
     : [
         { titulo: "Código", x: MARGEN_X, ancho: 60 },
-        { titulo: "Producto", x: MARGEN_X + 60, ancho: 260 },
-        { titulo: "Solicitado", x: MARGEN_X + 320, ancho: 85 },
-        { titulo: "Trasladado", x: MARGEN_X + 405, ancho: 85 },
-        { titulo: "U.M.", x: MARGEN_X + 490, ancho: 45 },
+        { titulo: "Producto", x: MARGEN_X + 60, ancho: 330 },
+        { titulo: "Trasladado", x: MARGEN_X + 390, ancho: 90 },
+        { titulo: "U.M.", x: MARGEN_X + 480, ancho: 55 },
       ];
 
   function dibujarEncabezadoTabla() {
@@ -174,8 +165,8 @@ export async function generarActaTrasladoPdf({
     y -= 14;
   };
   filaDato("Almacén origen:", almacenOrigen, "Almacén destino:", almacenDestino);
-  filaDato("Fecha:", fecha.toLocaleDateString("es-PE"), "Solicitud de origen:", solicitudNumero ?? "—");
-  filaDato("Guía de remisión:", guiaRemision ?? "—", "Remitente:", remitente ?? "—");
+  filaDato("Fecha:", fecha.toLocaleDateString("es-PE"), "Remitente:", remitente ?? "—");
+  filaDato("Guía de remisión:", guiaRemision ?? "—");
   if (observaciones) {
     page.drawText("Observaciones:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
     page.drawText(truncar(observaciones, 85), { x: colDatoX, y, size: 9, font: regular, color: NEGRO });
@@ -185,11 +176,10 @@ export async function generarActaTrasladoPdf({
 
   dibujarEncabezadoTabla();
 
-  const colDescripcion = hayLotes ? columnas[1] : columnas[1];
+  const colDescripcion = columnas[1];
   const colLote = hayLotes ? columnas[2] : null;
-  const colSolicitado = hayLotes ? columnas[3] : columnas[2];
-  const colTrasladado = hayLotes ? columnas[4] : columnas[3];
-  const colUm = hayLotes ? columnas[5] : columnas[4];
+  const colTrasladado = hayLotes ? columnas[3] : columnas[2];
+  const colUm = hayLotes ? columnas[4] : columnas[3];
 
   for (const linea of lineas) {
     const lineasDescripcion = envolverTexto(linea.descripcion, regular, 8, colDescripcion.ancho - 6);
@@ -203,13 +193,6 @@ export async function generarActaTrasladoPdf({
     if (colLote) {
       page.drawText(linea.lote ?? "—", { x: colLote.x + 3, y, size: 8, font: regular, color: NEGRO });
     }
-    page.drawText(linea.cantidadSolicitada !== null ? String(linea.cantidadSolicitada) : "—", {
-      x: colSolicitado.x + 3,
-      y,
-      size: 8,
-      font: regular,
-      color: NEGRO,
-    });
     page.drawText(String(linea.cantidadTrasladada), { x: colTrasladado.x + 3, y, size: 8, font: bold, color: NEGRO });
     page.drawText(linea.unidadMedida, { x: colUm.x + 3, y, size: 8, font: regular, color: NEGRO });
     y -= alturaFila;

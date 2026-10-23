@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
-import { calcularStockAlmacen, type FilaStockAlmacen } from "@/lib/stock-almacen";
+import { calcularStockAlmacen, calcularStockPorLote, type FilaStockAlmacen } from "@/lib/stock-almacen";
 import { TrasladoAlmacenForm } from "../../nuevo/traslado-almacen-form";
 import type { TrasladoAlmacenInput } from "@/lib/validations/almacen";
 
@@ -44,6 +44,38 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
   }
   stockPorAlmacen[traslado.almacenOrigenId] = filasOrigen;
 
+  // Igual que en el alta: solo los almacenes de Agroquímicos y
+  // Fertilizantes exigen lote, y el lote que este mismo traslado ya usó
+  // debe seguir ofreciéndose como opción (se le suma de vuelta su propia
+  // cantidad, mismo criterio que arriba con el stock total).
+  const lotesPorAlmacen: Record<string, Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>>> = {};
+  for (const a of almacenes) {
+    if (a.categoriaGeneral !== "AGROQUIMICOS_FERTILIZANTES") continue;
+    const skuIds = stockPorAlmacen[a.id]?.map((s) => s.skuId) ?? [];
+    const lotesPorSku = await Promise.all(skuIds.map((skuId) => calcularStockPorLote(a.id, skuId)));
+    const porSku = Object.fromEntries(skuIds.map((skuId, i) => [skuId, lotesPorSku[i]]));
+    if (a.id === traslado.almacenOrigenId) {
+      for (const item of traslado.items) {
+        if (!item.lote) continue;
+        const lotes = porSku[item.skuId] ?? [];
+        const idx = lotes.findIndex((l) => l.lote === item.lote);
+        if (idx >= 0) {
+          lotes[idx] = { ...lotes[idx], cantidad: lotes[idx].cantidad + Number(item.cantidad) };
+        } else {
+          lotes.push({
+            lote: item.lote,
+            fechaProduccion: item.fechaProduccion,
+            fechaVencimiento: item.fechaVencimiento,
+            cantidad: Number(item.cantidad),
+            unidadMedida: item.unidadMedida,
+          });
+        }
+        porSku[item.skuId] = lotes;
+      }
+    }
+    lotesPorAlmacen[a.id] = porSku;
+  }
+
   const valoresIniciales: TrasladoAlmacenInput = {
     fecha: traslado.fecha.toISOString().slice(0, 10) as unknown as Date,
     almacenOrigenId: traslado.almacenOrigenId,
@@ -58,6 +90,9 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
       skuId: item.skuId,
       cantidad: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
+      lote: item.lote ?? "",
+      fechaProduccion: item.fechaProduccion ? (item.fechaProduccion.toISOString().slice(0, 10) as unknown as Date) : undefined,
+      fechaVencimiento: item.fechaVencimiento ? (item.fechaVencimiento.toISOString().slice(0, 10) as unknown as Date) : undefined,
     })),
   };
 
@@ -68,13 +103,14 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
         descripcion="Modifica los datos de este traslado. El stock de ambos almacenes se recalcula al guardar."
       />
       <TrasladoAlmacenForm
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre }))}
+        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         proveedores={proveedores.map((p) => ({
           id: p.id,
           razonSocial: p.razonSocial,
           ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
         }))}
         stockPorAlmacen={stockPorAlmacen}
+        lotesPorAlmacen={lotesPorAlmacen}
         edicion={{ id: traslado.id, valoresIniciales }}
       />
     </div>
