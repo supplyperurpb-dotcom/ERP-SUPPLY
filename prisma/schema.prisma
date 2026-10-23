@@ -243,13 +243,14 @@ model Sku {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  movimientosStock     MovimientoStock[]
-  solicitudPedidoItem  SolicitudPedidoItem[]
-  ordenCompraItem      OrdenCompraItem[]
-  stockCamara          StockCamara[]
-  ingresoAlmacenItems  IngresoAlmacenItem[]
-  trasladoAlmacenItems TrasladoAlmacenItem[]
-  consumoAlmacenItems  ConsumoAlmacenItem[]
+  movimientosStock       MovimientoStock[]
+  solicitudPedidoItem    SolicitudPedidoItem[]
+  ordenCompraItem        OrdenCompraItem[]
+  stockCamara            StockCamara[]
+  ingresoAlmacenItems    IngresoAlmacenItem[]
+  trasladoAlmacenItems   TrasladoAlmacenItem[]
+  consumoAlmacenItems    ConsumoAlmacenItem[]
+  solicitudDespachoItems SolicitudDespachoItem[]
 
   @@map("skus")
 }
@@ -295,6 +296,7 @@ model Almacen {
   trasladosOrigen       TrasladoAlmacen[]           @relation("TrasladosOrigen")
   trasladosDestino      TrasladoAlmacen[]           @relation("TrasladosDestino")
   consumosAlmacen       ConsumoAlmacen[]            @relation("ConsumosAlmacen")
+  solicitudesDespacho   SolicitudDespacho[]         @relation("SolicitudesDespacho")
   retiradoresPermitidos RetiradorAlmacenPermitido[] @relation("RetiradorAlmacenesPermitidos")
 
   @@map("almacenes")
@@ -409,17 +411,17 @@ enum TipoVehiculo {
 // ConsumoAlmacen.vehiculoPlaca). Nunca se borra un registro ya usado: se
 // desactiva (activo=false), igual que RetiradorAutorizado.
 model Vehiculo {
-  id          String       @id @default(cuid())
-  placa       String       @unique
+  id           String       @id @default(cuid())
+  placa        String       @unique
   // Código interno del equipo (p. ej. para equipos menores sin placa
   // vehicular formal, o para identificarlo junto a su placa). Opcional,
   // pero único cuando se indica (NULL no choca con NULL en Postgres).
-  codigoEquipo String? @unique
-  areaUsuaria AreaEmpresa
-  tipo        TipoVehiculo
-  activo      Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  codigoEquipo String?      @unique
+  areaUsuaria  AreaEmpresa
+  tipo         TipoVehiculo
+  activo       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@map("vehiculos")
 }
@@ -610,7 +612,7 @@ model OrdenCompra {
 }
 
 model OrdenCompraItem {
-  id                    String  @id @default(cuid())
+  id                    String    @id @default(cuid())
   ordenCompraId         String
   // De qué línea de qué solicitud de pedido se "jaló" esta línea (ver
   // calcularPendientesSolicitudes en lib/compras.ts: la cantidad pendiente
@@ -619,12 +621,12 @@ model OrdenCompraItem {
   // apuntan a él).
   solicitudPedidoItemId String?
   skuId                 String
-  cantidad              Decimal @db.Decimal(12, 3)
-  precioUnitario        Decimal @db.Decimal(12, 2)
-  subtotal              Decimal @db.Decimal(12, 2)
+  cantidad              Decimal   @db.Decimal(12, 3)
+  precioUnitario        Decimal   @db.Decimal(12, 2)
+  subtotal              Decimal   @db.Decimal(12, 2)
   // Si el producto está gravado con IGV. Se precarga desde la solicitud
   // pero se puede editar en la OC.
-  gravado               Boolean @default(true)
+  gravado               Boolean   @default(true)
   // Nombre de un valor activo (o ya desactivado) de ListaValor con tipo
   // CENTRO_COSTO — ya no es el enum AreaEmpresa. Normalmente se precarga
   // desde SolicitudPedidoItem.centroCosto.
@@ -863,11 +865,56 @@ model ConsumoAlmacenItem {
   lote                    String?
   fechaProduccion         DateTime?
   fechaVencimiento        DateTime?
+  // Si este consumo atendió (total o parcialmente) una línea de Solicitud
+  // de Despacho, de cuál — ver calcularSolicitudesDespachoPendientes en
+  // lib/stock-almacen.ts, que resta lo ya atendido de lo solicitado.
+  solicitudDespachoItemId String?
 
-  consumoAlmacen ConsumoAlmacen @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
-  sku            Sku            @relation(fields: [skuId], references: [id])
+  consumoAlmacen        ConsumoAlmacen         @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
+  sku                   Sku                    @relation(fields: [skuId], references: [id])
+  solicitudDespachoItem SolicitudDespachoItem? @relation(fields: [solicitudDespachoItemId], references: [id])
 
   @@map("consumo_almacen_items")
+}
+
+// Solicitud de Despacho: cualquier usuario con acceso a Logística pide que
+// Almacén le despache cierta cantidad de producto de un almacén puntual.
+// No tiene estado de aprobación propia (como la antigua Solicitud de
+// Traslado): queda lista para atenderse apenas se crea. Se "atiende"
+// registrando un Consumo de almacén normal que referencia sus líneas (ver
+// solicitudDespachoItemId en ConsumoAlmacenItem) — el consumo sigue
+// exigiendo firma/foto/retirador igual que cualquier otro.
+model SolicitudDespacho {
+  id            String   @id @default(cuid())
+  numero        String   @unique // SD-0001
+  almacenId     String
+  fecha         DateTime
+  observaciones String?
+  // Quien pide, no necesariamente quien lo registra en el sistema — igual
+  // que solicitanteId en SolicitudPedido, sin relación Prisma a Usuario
+  // (se resuelve con un find aparte donde se necesite el nombre).
+  solicitanteId String?
+  creadoPorId   String?
+  createdAt     DateTime @default(now())
+
+  almacen Almacen                 @relation("SolicitudesDespacho", fields: [almacenId], references: [id])
+  items   SolicitudDespachoItem[]
+
+  @@map("solicitudes_despacho")
+}
+
+model SolicitudDespachoItem {
+  id                  String  @id @default(cuid())
+  solicitudDespachoId String
+  skuId               String
+  cantidad            Decimal @db.Decimal(12, 3)
+  unidadMedida        String
+
+  solicitudDespacho   SolicitudDespacho    @relation(fields: [solicitudDespachoId], references: [id], onDelete: Cascade)
+  sku                 Sku                  @relation(fields: [skuId], references: [id])
+  consumoAlmacenItems ConsumoAlmacenItem[]
+
+  @@map("solicitud_despacho_items")
 }
 
 // =========================================================================

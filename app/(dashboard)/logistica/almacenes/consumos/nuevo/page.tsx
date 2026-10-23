@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
-import { calcularStockAlmacen, calcularStockPorLote } from "@/lib/stock-almacen";
+import { calcularStockAlmacen, calcularStockPorLote, calcularSolicitudesDespachoPendientes } from "@/lib/stock-almacen";
 import { siguienteNumero } from "@/lib/utils";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "./consumo-almacen-form";
@@ -8,9 +8,9 @@ import { ConsumoAlmacenForm } from "./consumo-almacen-form";
 export default async function NuevoConsumoAlmacenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ almacenId?: string }>;
+  searchParams: Promise<{ almacenId?: string; solicitudDespachoId?: string }>;
 }) {
-  const { almacenId } = await searchParams;
+  const { almacenId, solicitudDespachoId } = await searchParams;
 
   const [almacenes, retiradores, vehiculos, existentes] = await Promise.all([
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
@@ -58,11 +58,21 @@ export default async function NuevoConsumoAlmacenPage({
     lotesPorAlmacen[a.id] = Object.fromEntries(skuIds.map((skuId, i) => [skuId, lotesPorSku[i]]));
   }
 
+  let solicitudDespacho = null;
+  if (solicitudDespachoId) {
+    const pendientes = await calcularSolicitudesDespachoPendientes();
+    solicitudDespacho = pendientes.find((s) => s.id === solicitudDespachoId) ?? null;
+  }
+
   return (
     <div>
       <PageHeader
         titulo={`Nuevo consumo de almacén — ${numeroTentativo}`}
-        descripcion="Registra el consumo de materiales de un almacén. Solo se pueden consumir productos con stock disponible en el almacén elegido. El precio unitario ponderado se calcula automáticamente según los ingresos históricos de ese producto en ese almacén."
+        descripcion={
+          solicitudDespacho
+            ? `Atendiendo la solicitud de despacho ${solicitudDespacho.numero}. Puedes ajustar las cantidades si no entregas todo lo pedido.`
+            : "Registra el consumo de materiales de un almacén. Solo se pueden consumir productos con stock disponible en el almacén elegido. El precio unitario ponderado se calcula automáticamente según los ingresos históricos de ese producto en ese almacén."
+        }
       />
       <ConsumoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
@@ -81,6 +91,16 @@ export default async function NuevoConsumoAlmacenPage({
           tipo: TIPOS_VEHICULO.find((t) => t.valor === v.tipo)?.nombre ?? v.tipo,
         }))}
         almacenIdInicial={almacenId}
+        solicitudDespachoInicial={
+          solicitudDespacho
+            ? {
+                id: solicitudDespacho.id,
+                numero: solicitudDespacho.numero,
+                almacenId: solicitudDespacho.almacenId,
+                items: solicitudDespacho.items,
+              }
+            : undefined
+        }
       />
     </div>
   );

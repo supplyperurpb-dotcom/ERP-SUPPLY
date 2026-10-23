@@ -308,3 +308,90 @@ export async function calcularStockPorLote(almacenId: string, skuId: string, db:
     .filter((l) => l.cantidad > 0)
     .sort((a, b) => a.lote.localeCompare(b.lote));
 }
+
+// ---------------------------------------------------------------------
+// Consumo desde Solicitud de Despacho: la cantidad pendiente de atender de
+// un SolicitudDespachoItem es su cantidad menos la suma de
+// ConsumoAlmacenItem.cantidad de todos los consumos que ya la referenciaron
+// (ver solicitudDespachoItemId en ConsumoAlmacenItem). Igual que la
+// Solicitud de Traslado, no hay estado de aprobación: una Solicitud de
+// Despacho es atendible apenas se crea.
+// ---------------------------------------------------------------------
+export async function cantidadPendienteDespachoItem(solicitudDespachoItemId: string, db: Db = prisma): Promise<number> {
+  const item = await db.solicitudDespachoItem.findUnique({ where: { id: solicitudDespachoItemId } });
+  if (!item) return 0;
+  const atendido = await db.consumoAlmacenItem.aggregate({
+    where: { solicitudDespachoItemId },
+    _sum: { cantidad: true },
+  });
+  return Number(item.cantidad) - Number(atendido._sum.cantidad ?? 0);
+}
+
+export type ItemSolicitudDespachoPendiente = {
+  id: string; // SolicitudDespachoItem.id
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  cantidadSolicitada: number;
+  cantidadPendiente: number;
+};
+
+export type SolicitudDespachoConPendientes = {
+  id: string;
+  numero: string;
+  fecha: Date;
+  almacenId: string;
+  almacenNombre: string;
+  items: ItemSolicitudDespachoPendiente[];
+};
+
+// Todas las Solicitudes de Despacho con al menos un ítem pendiente de
+// atender, para el buscador de "Nuevo Consumo". Una solicitud ya atendida
+// por completo (en uno o varios consumos) deja de aparecer.
+export async function calcularSolicitudesDespachoPendientes(db: Db = prisma): Promise<SolicitudDespachoConPendientes[]> {
+  const solicitudes = await db.solicitudDespacho.findMany({
+    include: { almacen: true, items: { include: { sku: true } } },
+    orderBy: { fecha: "asc" },
+  });
+
+  const itemIds = solicitudes.flatMap((s) => s.items.map((i) => i.id));
+  if (itemIds.length === 0) return [];
+
+  const atendidoPorItem = await db.consumoAlmacenItem.groupBy({
+    by: ["solicitudDespachoItemId"],
+    where: { solicitudDespachoItemId: { in: itemIds } },
+    _sum: { cantidad: true },
+  });
+  const atendidoMap = new Map(atendidoPorItem.map((a) => [a.solicitudDespachoItemId as string, Number(a._sum.cantidad ?? 0)]));
+
+  const resultado: SolicitudDespachoConPendientes[] = [];
+  for (const solicitud of solicitudes) {
+    const items: ItemSolicitudDespachoPendiente[] = [];
+    for (const item of solicitud.items) {
+      const cantidadSolicitada = Number(item.cantidad);
+      const atendido = atendidoMap.get(item.id) ?? 0;
+      const cantidadPendiente = Math.round((cantidadSolicitada - atendido) * 1000) / 1000;
+      if (cantidadPendiente <= 0) continue;
+      items.push({
+        id: item.id,
+        skuId: item.skuId,
+        codigo: item.sku.codigo,
+        descripcion: item.sku.descripcion,
+        unidadMedida: item.unidadMedida,
+        cantidadSolicitada,
+        cantidadPendiente,
+      });
+    }
+    if (items.length === 0) continue;
+    resultado.push({
+      id: solicitud.id,
+      numero: solicitud.numero,
+      fecha: solicitud.fecha,
+      almacenId: solicitud.almacenId,
+      almacenNombre: solicitud.almacen.nombre,
+      items,
+    });
+  }
+  return resultado;
+}

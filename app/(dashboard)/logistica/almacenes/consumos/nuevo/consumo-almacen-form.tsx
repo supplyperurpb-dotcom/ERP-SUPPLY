@@ -31,7 +31,22 @@ import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
 type Opcion = { id: string; nombre: string; categoriaGeneral: string | null };
 type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
 
-const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "", lote: "", fechaProduccion: undefined, fechaVencimiento: undefined };
+const ITEM_VACIO = {
+  skuId: "",
+  cantidad: 0,
+  unidadMedida: "",
+  lote: "",
+  fechaProduccion: undefined,
+  fechaVencimiento: undefined,
+  solicitudDespachoItemId: "",
+};
+
+type SolicitudDespachoInicial = {
+  id: string;
+  numero: string;
+  almacenId: string;
+  items: { id: string; skuId: string; codigo: string; descripcion: string; unidadMedida: string; cantidadPendiente: number }[];
+};
 
 function soloFecha(d: Date | string | undefined): string {
   if (!d) return "";
@@ -45,6 +60,7 @@ export function ConsumoAlmacenForm({
   retiradores,
   vehiculos,
   almacenIdInicial,
+  solicitudDespachoInicial,
   edicion,
 }: {
   almacenes: Opcion[];
@@ -56,6 +72,11 @@ export function ConsumoAlmacenForm({
   retiradores: RetiradorOpcion[];
   vehiculos: VehiculoOpcionCombobox[];
   almacenIdInicial?: string;
+  /** Presente cuando este consumo viene de "Atender" una Solicitud de
+   * Despacho (ver consumos/nuevo/page.tsx): precarga sus líneas pendientes
+   * y fija el almacén, pero las cantidades siguen siendo editables por si
+   * no se entrega todo lo pedido. */
+  solicitudDespachoInicial?: SolicitudDespachoInicial;
   /** Presente solo cuando el formulario edita un consumo ya existente.
    * `stockPorAlmacen` ya viene ajustado por la página (ver
    * consumos/[id]/editar/page.tsx): incluye de vuelta lo que este mismo
@@ -72,7 +93,7 @@ export function ConsumoAlmacenForm({
     defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
       horaRetiro: horaLocalAhora(),
-      almacenOrigenId: almacenIdInicial ?? "",
+      almacenOrigenId: solicitudDespachoInicial?.almacenId ?? almacenIdInicial ?? "",
       retiradoPor: "",
       retiradoPorDni: "",
       vehiculoPlaca: "",
@@ -80,7 +101,17 @@ export function ConsumoAlmacenForm({
       firmaArchivo: "",
       fotoEvidenciaArchivo: "",
       observaciones: "",
-      items: [ITEM_VACIO],
+      items: solicitudDespachoInicial
+        ? solicitudDespachoInicial.items.map((item) => ({
+            skuId: item.skuId,
+            cantidad: item.cantidadPendiente,
+            unidadMedida: item.unidadMedida,
+            lote: "",
+            fechaProduccion: undefined,
+            fechaVencimiento: undefined,
+            solicitudDespachoItemId: item.id,
+          }))
+        : [ITEM_VACIO],
     },
   });
 
@@ -226,6 +257,12 @@ export function ConsumoAlmacenForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos del consumo</CardTitle>
+          {solicitudDespachoInicial && (
+            <p className="text-sm text-muted-foreground">
+              Atendiendo la solicitud de despacho <strong>{solicitudDespachoInicial.numero}</strong>. Las cantidades
+              ya vienen cargadas; ajústalas si no vas a entregar todo lo pedido.
+            </p>
+          )}
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
@@ -236,6 +273,7 @@ export function ConsumoAlmacenForm({
               render={({ field }) => (
                 <Select
                   value={field.value}
+                  disabled={!!solicitudDespachoInicial}
                   onValueChange={(valor) => {
                     field.onChange(valor);
                     // Los productos de las líneas ya cargadas pueden no
@@ -453,6 +491,9 @@ export function ConsumoAlmacenForm({
                                   form.setValue(`items.${index}.lote`, "");
                                   form.setValue(`items.${index}.fechaProduccion`, undefined);
                                   form.setValue(`items.${index}.fechaVencimiento`, undefined);
+                                  // Si esta línea venía de una Solicitud de Despacho, cambiar el
+                                  // producto la desvincula (ya no es "el mismo" pedido).
+                                  form.setValue(`items.${index}.solicitudDespachoItemId`, "");
                                 }}
                               />
                             )}

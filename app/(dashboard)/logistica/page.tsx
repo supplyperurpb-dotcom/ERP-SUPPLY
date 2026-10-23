@@ -3,6 +3,7 @@ import {
   ClipboardList,
   List,
   Package,
+  PackageMinus,
   PackageSearch,
   ShoppingCart,
   Users,
@@ -47,6 +48,12 @@ const TILES = [
     descripcion: "Catálogo de almacenes generales y sub-almacenes.",
     href: "/logistica/almacenes",
     icono: Warehouse,
+  },
+  {
+    titulo: "Solicitudes de despacho",
+    descripcion: "Pide que Almacén te despache stock disponible de un producto.",
+    href: "/logistica/solicitudes-despacho",
+    icono: PackageMinus,
   },
   {
     titulo: "Listas",

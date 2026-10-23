@@ -123,6 +123,9 @@ const itemConsumoSchema = z.object({
   lote: z.string().max(60).optional().or(z.literal("")),
   fechaProduccion: z.coerce.date().optional(),
   fechaVencimiento: z.coerce.date().optional(),
+  // Si esta línea atiende (total o parcialmente) un ítem de una Solicitud
+  // de Despacho, de cuál — ver crearConsumoAlmacenAction.
+  solicitudDespachoItemId: z.string().optional().or(z.literal("")),
 });
 
 export const consumoAlmacenSchema = z.object({

@@ -272,6 +272,7 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
             lote: item.lote || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
+            solicitudDespachoItemId: item.solicitudDespachoItemId || null,
           },
         });
 
@@ -413,6 +414,7 @@ export async function actualizarConsumoAlmacenAction(
             lote: item.lote || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
+            solicitudDespachoItemId: item.solicitudDespachoItemId || null,
           },
         });
 
