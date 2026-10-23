@@ -166,6 +166,61 @@ export async function crearSkuServicioAction(data: SkuServicioInput): Promise<Sk
   }
 }
 
+export type CrearSkusNoValoradosState = { error?: string; creados?: number; omitidos?: string[] } | undefined;
+
+// ---------------------------------------------------------------------
+// Crear la versión "no valorada" de uno o más SKU ya existentes: el mismo
+// código, con "NV" antepuesto (p. ej. AGFO0001 -> NVAGFO0001), sin pasar
+// por el correlativo propio de "no valorado" que usan los formularios de
+// creación manual — ver CrearSkuNoValoradoDialog.
+// ---------------------------------------------------------------------
+export async function crearSkusNoValoradosAction(ids: string[]): Promise<CrearSkusNoValoradosState> {
+  if (ids.length === 0) {
+    return { error: "Selecciona al menos un código." };
+  }
+
+  const usuario = await getUsuarioActual();
+  const base = await prisma.sku.findMany({ where: { id: { in: ids } } });
+
+  let creados = 0;
+  const omitidos: string[] = [];
+
+  for (const sku of base) {
+    if (sku.codigo.startsWith("NV")) {
+      omitidos.push(`${sku.codigo} (ya es no valorado)`);
+      continue;
+    }
+    if (sku.categoria === "Servicios") {
+      omitidos.push(`${sku.codigo} (los servicios no tienen versión no valorada)`);
+      continue;
+    }
+
+    const nuevoCodigo = `NV${sku.codigo}`;
+    const existe = await prisma.sku.findUnique({ where: { codigo: nuevoCodigo } });
+    if (existe) {
+      omitidos.push(`${sku.codigo} (ya existe ${nuevoCodigo})`);
+      continue;
+    }
+
+    const descripcionBase = sku.descripcion.replace(/\s+NV$/i, "").trim();
+    await prisma.sku.create({
+      data: {
+        codigo: nuevoCodigo,
+        descripcion: `${descripcionBase} NV`.toUpperCase(),
+        categoria: sku.categoria,
+        subfamilia: sku.subfamilia,
+        unidadMedida: sku.unidadMedida,
+        stockMinimo: sku.stockMinimo,
+        creadoPorId: usuario?.id,
+      },
+    });
+    creados++;
+  }
+
+  revalidatePath("/logistica/sku");
+  return { creados, omitidos: omitidos.length > 0 ? omitidos : undefined };
+}
+
 // Editar o eliminar un SKU (de cualquier categoría: Agroquímicos,
 // Fertilizantes, Ósmosis, Suministros o Servicios) es solo para
 // administradores; el resto de usuarios solo puede crear SKU nuevos.
