@@ -61,7 +61,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   );
   const embarquesCombinadoPorSemana = useMemo(() => calcularEmbarquesCombinadoPorSemana(filasFiltradas), [filasFiltradas]);
   const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
-  const kgPorSemanaEtiqueta = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "label"), [filasFiltradas]);
 
   // Resumen rápido de contenedores (arribados vs. en agua).
   const resumenEstado = useMemo(() => calcularResumenPorEstado(filasFiltradas), [filasFiltradas]);
@@ -89,6 +88,15 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <EstadoResumenCards resumen={resumenEstado} />
 
+      <StackedBarChart
+        titulo="Estatus De Embarques Por Semana"
+        puntos={embarquesCombinadoPorSemana.puntos}
+        series={embarquesCombinadoPorSemana.series}
+        etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado" : s === "EN TRANSITO" ? "En tránsito" : s)}
+        ocultarPorcentaje
+        formatearCategoria={(c) => `W${c}`}
+      />
+
       <EvolucionPrecioChart
         titulo="Evolución Semanal De Precios"
         descripcion="PU CIF Facturado vs PU CIF Liquidado"
@@ -107,7 +115,11 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <DimensionBreakdownChart titulo="Kg Exportados Por Puerto De Destino" filas={porDestino} />
       </div>
 
-      <VariedadMercadoChart titulo="Kg Exportados Por Variedad, Según Mercado" datos={exportacionesPorVariedadYMercado} />
+      <StackedBarChart
+        titulo="Kg Por Semana De Despacho Según Tipo De Producto"
+        puntos={kgPorSemanaTipo.puntos}
+        series={kgPorSemanaTipo.series}
+      />
 
       <VariedadTipoChart titulo="Kg Exportados Por Variedad, Según Tipo" datos={exportacionesPorVariedadYTipo} />
 
@@ -116,27 +128,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         datos={exportacionesPorVariedadYEtiquetaPremium}
       />
 
-      <StackedBarChart
-        titulo="Estatus De Embarques Por Semana"
-        puntos={embarquesCombinadoPorSemana.puntos}
-        series={embarquesCombinadoPorSemana.series}
-        etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado" : s === "EN TRANSITO" ? "En tránsito" : s)}
-        ocultarPorcentaje
-        formatearCategoria={(c) => `W${c}`}
-      />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StackedBarChart
-          titulo="Kg Por Semana De Despacho Según Tipo De Producto"
-          puntos={kgPorSemanaTipo.puntos}
-          series={kgPorSemanaTipo.series}
-        />
-        <StackedBarChart
-          titulo="Kg Por Semana De Despacho Según Etiqueta"
-          puntos={kgPorSemanaEtiqueta.puntos}
-          series={kgPorSemanaEtiqueta.series}
-        />
-      </div>
+      <VariedadMercadoChart titulo="Kg Exportados Por Variedad, Según Mercado" datos={exportacionesPorVariedadYMercado} />
     </div>
   );
 }
