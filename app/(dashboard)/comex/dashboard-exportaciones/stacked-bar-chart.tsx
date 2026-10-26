@@ -40,9 +40,6 @@ function ContenidoTooltip({
   return (
     <div className="rounded-md border bg-popover p-2 text-sm text-popover-foreground shadow-md">
       <p className="mb-1 font-medium">{formatearCategoria ? formatearCategoria(String(label)) : label}</p>
-      {valorFacturado !== null && (
-        <p className="mb-1 text-muted-foreground">Valorizado facturado: {formatMoneda(valorFacturado, "USD")}</p>
-      )}
       {entradas.map((p) => {
         const valor = Number(p.value);
         const pctTexto = ocultarPorcentaje || total === 0 ? "" : ` (${((valor / total) * 100).toFixed(1)}%)`;
@@ -56,6 +53,9 @@ function ContenidoTooltip({
           </p>
         );
       })}
+      {valorFacturado !== null && (
+        <p className="mt-1 text-muted-foreground">Valorizado Facturado: {formatMoneda(valorFacturado, "USD")}</p>
+      )}
     </div>
   );
 }
