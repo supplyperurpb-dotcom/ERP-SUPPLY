@@ -88,6 +88,14 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <EstadoResumenCards resumen={resumenEstado} />
 
+      <EvolucionPrecioChart
+        titulo="Evolución Semanal De Precios"
+        descripcion="PU CIF Facturado vs PU CIF Liquidado"
+        puntos={evolucionPrecioSemanal}
+      />
+
+      <ImpactoLiquidacionCard resumen={impactoLiquidacion} />
+
       <StackedBarChart
         titulo="Estatus De Embarques Por Semana"
         puntos={embarquesCombinadoPorSemana.puntos}
@@ -96,14 +104,6 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         ocultarPorcentaje
         formatearCategoria={(c) => `W${c}`}
       />
-
-      <EvolucionPrecioChart
-        titulo="Evolución Semanal De Precios"
-        descripcion="PU CIF Facturado vs PU CIF Liquidado"
-        puntos={evolucionPrecioSemanal}
-      />
-
-      <ImpactoLiquidacionCard resumen={impactoLiquidacion} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DimensionBreakdownChart titulo="Kg Exportados Por Formato" filas={porFormato} mostrarEmbarques={false} />
