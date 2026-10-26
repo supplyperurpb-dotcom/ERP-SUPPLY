@@ -305,12 +305,15 @@ export type PuntoApilado = { categoria: string; [serie: string]: string | number
 // proyección — construido directo sobre las filas de la tabla (no sobre
 // una tabla dinámica del Excel). Cada serie lleva su kg (para la barra) y
 // su n° de contenedores (PO distintas) acompañando en "<estado>__n", que
-// StackedBarChart agrega al tooltip si lo encuentra.
+// StackedBarChart agrega al tooltip si lo encuentra. También lleva el
+// valorizado facturado total de la semana (invoicedAmount, sin separar por
+// estado) para que el tooltip lo muestre aparte.
 export function calcularEmbarquesCombinadoPorSemana(filas: FilaFacturacion[]): {
   puntos: PuntoApilado[];
   series: string[];
 } {
   const porSemana = new Map<number, Map<string, { kg: number; pos: Set<string> }>>();
+  const facturadoPorSemana = new Map<number, number>();
   const estados = new Set<string>();
   for (const f of filas) {
     const semana = f.statusEmbarque === "ARRIBADO" ? f.weekAta : f.weekEta;
@@ -322,12 +325,13 @@ export function calcularEmbarquesCombinadoPorSemana(filas: FilaFacturacion[]): {
     actual.pos.add(f.po);
     porEstado.set(f.statusEmbarque, actual);
     porSemana.set(semana, porEstado);
+    facturadoPorSemana.set(semana, (facturadoPorSemana.get(semana) ?? 0) + f.invoicedAmount);
   }
   const series = [...estados].sort();
   const puntos = [...porSemana.entries()]
     .sort(([a], [b]) => a - b)
     .map(([semana, porEstado]) => {
-      const punto: PuntoApilado = { categoria: String(semana) };
+      const punto: PuntoApilado = { categoria: String(semana), invoicedAmount: facturadoPorSemana.get(semana) ?? 0 };
       for (const estado of series) {
         const t = porEstado.get(estado);
         punto[estado] = t?.kg ?? 0;

@@ -3,7 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCantidad } from "@/lib/utils";
+import { formatCantidad, formatMoneda } from "@/lib/utils";
 import { colorPara, COLOR_GRILLA, COLOR_EJE } from "./colores";
 import type { PuntoApilado } from "@/lib/facturacion-exportacion";
 
@@ -33,10 +33,16 @@ function ContenidoTooltip({
   const total = fila ? series.reduce((acc, s) => acc + Number(fila[s] ?? 0), 0) : 0;
   const entradas = payload.filter((p) => Number(p.value) !== 0);
   if (entradas.length === 0) return null;
+  // Valorizado facturado total de la categoría (semana), si el punto lo
+  // trae — solo calcularEmbarquesCombinadoPorSemana lo incluye hoy.
+  const valorFacturado = typeof fila?.invoicedAmount === "number" ? fila.invoicedAmount : null;
 
   return (
     <div className="rounded-md border bg-popover p-2 text-sm text-popover-foreground shadow-md">
       <p className="mb-1 font-medium">{formatearCategoria ? formatearCategoria(String(label)) : label}</p>
+      {valorFacturado !== null && (
+        <p className="mb-1 text-muted-foreground">Valorizado facturado: {formatMoneda(valorFacturado, "USD")}</p>
+      )}
       {entradas.map((p) => {
         const valor = Number(p.value);
         const pctTexto = ocultarPorcentaje || total === 0 ? "" : ` (${((valor / total) * 100).toFixed(1)}%)`;
