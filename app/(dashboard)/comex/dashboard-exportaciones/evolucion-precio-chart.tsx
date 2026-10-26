@@ -56,7 +56,15 @@ export function EvolucionPrecioChart({
                   }}
                 />
                 <Legend formatter={(value) => ETIQUETA_SERIE[value] ?? value} />
-                <Line type="monotone" dataKey="puFacturado" stroke={AZUL} strokeWidth={2} dot={false} connectNulls={false} />
+                <Line
+                  type="monotone"
+                  dataKey="puFacturado"
+                  stroke={AZUL}
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={false}
+                  connectNulls={false}
+                />
                 <Line type="monotone" dataKey="puLiquidado" stroke={GRIS} strokeWidth={2} dot={false} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
