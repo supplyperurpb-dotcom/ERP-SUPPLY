@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, X, Ban, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useConfirm } from "@/components/shared/confirm-dialog-provider";
+import { useConfirm, usePrompt } from "@/components/shared/confirm-dialog-provider";
 import {
   decidirItemSolicitudAction,
   finalizarAprobacionSolicitudAction,
@@ -114,9 +114,10 @@ export function AnularSolicitudBoton({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const confirmar = useConfirm();
+  const pedir = usePrompt();
 
   async function handleAnular() {
-    const comentario = prompt(`Motivo de la anulación de ${numero} (opcional):`);
+    const comentario = await pedir(`Motivo de la anulación de ${numero} (opcional):`);
     if (comentario === null) return;
     if (!(await confirmar(`¿Anular la solicitud ${numero}?`))) return;
     startTransition(async () => {
