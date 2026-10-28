@@ -16,7 +16,6 @@ import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/component
 import { SkuCombobox, type SkuOpcionCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, fechaLocalManana, formatMoneda } from "@/lib/utils";
 import {
-  CATEGORIAS_COMPRA,
   CONDICIONES_PAGO,
   IGV_TASA,
   LUGARES_ENTREGA,
@@ -57,19 +56,22 @@ function filaVacia(centroCostoInicial: string): FilaItem {
 
 export function OrdenCompraDirectaForm({
   skus,
+  categoria,
   tipoOrden,
   proveedores,
   centrosCosto,
   numerosTentativos,
 }: {
   skus: SkuOpcion[];
+  // Fija según el botón con el que se entró (Compra/Servicio) — no se
+  // elige dentro del formulario, igual que tipoOrden.
+  categoria: CategoriaCompraCodigo;
   tipoOrden: TipoOrdenCodigo;
   proveedores: ProveedorOpcionSelect[];
   centrosCosto: string[];
   numerosTentativos: Record<CategoriaCompraCodigo, string>;
 }) {
   const router = useRouter();
-  const [categoria, setCategoria] = useState<CategoriaCompraCodigo>("COMPRA");
   const [proveedorId, setProveedorId] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<ProveedorOpcionSelect | null>(null);
   const fecha = fechaLocalHoy();
@@ -85,13 +87,6 @@ export function OrdenCompraDirectaForm({
 
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const skusDeCategoria = skus.filter((s) => (categoria === "SERVICIO" ? s.categoria === "Servicios" : s.categoria !== "Servicios"));
-
-  function cambiarCategoria(c: CategoriaCompraCodigo) {
-    setCategoria(c);
-    // El catálogo de SKU depende de la categoría (Servicios vs el resto) —
-    // las líneas ya elegidas con el catálogo anterior ya no aplicarían.
-    setFilas([filaVacia(centroCostoInicial)]);
-  }
 
   function actualizarFila(index: number, cambios: Partial<FilaItem>) {
     setFilas((prev) => prev.map((f, i) => (i === index ? { ...f, ...cambios } : f)));
@@ -198,19 +193,7 @@ export function OrdenCompraDirectaForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>Categoría</Label>
-            <Select value={categoria} onValueChange={(v) => cambiarCategoria(v as CategoriaCompraCodigo)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIAS_COMPRA.map((c) => (
-                  <SelectItem key={c.valor} value={c.valor}>
-                    {c.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Cambiarla vacía los productos ya elegidos.</p>
+            <Input disabled value={nombreDocumento} />
           </div>
           <div className="space-y-2">
             <Label>Proveedor</Label>

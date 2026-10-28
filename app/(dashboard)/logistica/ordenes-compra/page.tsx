@@ -6,7 +6,7 @@ import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { OrdenesCompraTable, type FilaOrdenCompra } from "./ordenes-compra-table";
-import { NuevaOrdenDropdown } from "./nueva-orden-dropdown";
+import { NuevaOrdenDialog } from "./nueva-orden-dialog";
 import type { AreaEmpresa } from "@prisma/client";
 
 export default async function OrdenesCompraPage() {
@@ -59,15 +59,8 @@ export default async function OrdenesCompraPage() {
         descripcion="Órdenes de compra emitidas a proveedores de insumos, generadas a partir de solicitudes de pedido."
         acciones={
           <div className="flex items-center gap-2">
-            <NuevaOrdenDropdown etiqueta="Orden de Servicio" baseHref="/logistica/ordenes-compra/nuevo?categoria=SERVICIO" />
-            <NuevaOrdenDropdown
-              etiqueta="Orden de Compra"
-              baseHref="/logistica/ordenes-compra/nuevo?categoria=COMPRA"
-              variant="default"
-            />
-            <div className="ml-2 border-l pl-4">
-              <NuevaOrdenDropdown etiqueta="Orden de Compra" baseHref="/logistica/ordenes-compra/nueva-directa" />
-            </div>
+            <NuevaOrdenDialog etiqueta="Con Solped" basePath="/logistica/ordenes-compra/nuevo" variant="default" />
+            <NuevaOrdenDialog etiqueta="Directa" basePath="/logistica/ordenes-compra/nueva-directa" />
           </div>
         }
       />
