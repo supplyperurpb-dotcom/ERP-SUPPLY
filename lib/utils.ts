@@ -185,10 +185,23 @@ export function horaLocalAhora(): string {
 // criterio que formatDateTime() para fechaIngreso, para que el filtro y lo
 // que se muestra en pantalla siempre coincidan sin importar dónde corra el
 // servidor.
+// Un valor de filtro inválido (URL editada a mano, un enlace viejo, un
+// bookmark) no debe tumbar la página con un error de Prisma — se ignora
+// como si no se hubiera mandado ese filtro.
+function fechaValida(d: Date): Date | undefined {
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 export function rangoFechaIngreso(desde?: string, hasta?: string): { gte?: Date; lte?: Date } | undefined {
   const rango: { gte?: Date; lte?: Date } = {};
-  if (desde) rango.gte = new Date(`${desde}T00:00:00-05:00`);
-  if (hasta) rango.lte = new Date(`${hasta}T23:59:59.999-05:00`);
+  if (desde) {
+    const d = fechaValida(new Date(`${desde}T00:00:00-05:00`));
+    if (d) rango.gte = d;
+  }
+  if (hasta) {
+    const d = fechaValida(new Date(`${hasta}T23:59:59.999-05:00`));
+    if (d) rango.lte = d;
+  }
   return Object.keys(rango).length > 0 ? rango : undefined;
 }
 
@@ -199,8 +212,14 @@ export function rangoFechaIngreso(desde?: string, hasta?: string): { gte?: Date;
 // se guardó.
 export function rangoFechaCosecha(desde?: string, hasta?: string): { gte?: Date; lte?: Date } | undefined {
   const rango: { gte?: Date; lte?: Date } = {};
-  if (desde) rango.gte = new Date(`${desde}T00:00:00.000Z`);
-  if (hasta) rango.lte = new Date(`${hasta}T23:59:59.999Z`);
+  if (desde) {
+    const d = fechaValida(new Date(`${desde}T00:00:00.000Z`));
+    if (d) rango.gte = d;
+  }
+  if (hasta) {
+    const d = fechaValida(new Date(`${hasta}T23:59:59.999Z`));
+    if (d) rango.lte = d;
+  }
   return Object.keys(rango).length > 0 ? rango : undefined;
 }
 
