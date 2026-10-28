@@ -260,10 +260,11 @@ model Sku {
 // desde el general (o entre sí), nunca por ingreso directo — ver
 // crearIngresoAlmacenAction, que exige esGeneral=true.
 enum AlmacenCategoriaGeneral {
-  PACKING
-  AGROQUIMICOS_FERTILIZANTES
+  PESTICIDAS
+  FERTILIZANTES
   COMBUSTIBLE
   SUMINISTROS
+  EMPAQUES
 }
 
 model Almacen {

@@ -50,7 +50,7 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
   // cantidad, mismo criterio que arriba con el stock total).
   const lotesPorAlmacen: Record<string, Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>>> = {};
   for (const a of almacenes) {
-    if (a.categoriaGeneral !== "AGROQUIMICOS_FERTILIZANTES") continue;
+    if (a.categoriaGeneral !== "PESTICIDAS" && a.categoriaGeneral !== "FERTILIZANTES") continue;
     const skuIds = stockPorAlmacen[a.id]?.map((s) => s.skuId) ?? [];
     const lotesPorSku = await Promise.all(skuIds.map((skuId) => calcularStockPorLote(a.id, skuId)));
     const porSku = Object.fromEntries(skuIds.map((skuId, i) => [skuId, lotesPorSku[i]]));

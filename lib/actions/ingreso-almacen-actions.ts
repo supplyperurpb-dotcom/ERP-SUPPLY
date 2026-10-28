@@ -92,7 +92,7 @@ async function validarOrigen(tx: Tx, data: IngresoAlmacenInput) {
         `La cantidad de ${itemOc.sku.codigo} supera lo pendiente de la OC (disponible: ${pendiente}, ingresado ahora: ${item.cantidad}). Actualiza la página e intenta de nuevo.`
       );
     }
-    if (almacen.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES") {
+    if (almacen.categoriaGeneral === "PESTICIDAS" || almacen.categoriaGeneral === "FERTILIZANTES") {
       if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {
         throw new Error(
           `${itemOc.sku.codigo}: lote, fecha de producción y fecha de vencimiento son obligatorios en un almacén de Agroquímicos y Fertilizantes.`

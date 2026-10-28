@@ -19,10 +19,11 @@ const TIPO_LABEL: Record<TipoAlmacen, string> = {
 };
 
 const CATEGORIA_GENERAL_LABEL: Record<string, string> = {
-  PACKING: "Packing",
-  AGROQUIMICOS_FERTILIZANTES: "Agroquímicos y Fertilizantes",
+  PESTICIDAS: "Pesticidas",
+  FERTILIZANTES: "Fertilizantes",
   COMBUSTIBLE: "Combustible",
   SUMINISTROS: "Suministros",
+  EMPAQUES: "Empaques",
 };
 
 export default async function AlmacenesPage() {
@@ -41,8 +42,12 @@ export default async function AlmacenesPage() {
         descripcion="Catálogo de almacenes generales (donde se registran los ingresos) y sus sub-almacenes (que reciben inventario por traslado)."
         acciones={
           <NuevoMovimientoDialog
-            almacenesGenerales={almacenesGenerales}
-            almacenesTodos={almacenesActivos.map((a) => ({ id: a.id, nombre: a.nombre }))}
+            almacenes={almacenesActivos.map((a) => ({
+              id: a.id,
+              nombre: a.nombre,
+              categoriaGeneral: a.categoriaGeneral,
+              esGeneral: a.esGeneral,
+            }))}
           />
         }
       />

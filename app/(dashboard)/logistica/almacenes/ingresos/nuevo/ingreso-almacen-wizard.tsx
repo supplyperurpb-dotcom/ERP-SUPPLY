@@ -61,7 +61,7 @@ export function IngresoAlmacenWizard({
   const almacen = almacenes.find((a) => a.id === almacenId);
   const ordenSeleccionada = ordenesCompra.find((o) => o.id === ordenCompraId);
   const moneda = (ordenSeleccionada?.moneda ?? "PEN") as "PEN" | "USD";
-  const requiereLoteFecha = almacen?.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
+  const requiereLoteFecha = almacen?.categoriaGeneral === "PESTICIDAS" || almacen?.categoriaGeneral === "FERTILIZANTES";
   const muestraLoteFecha = requiereLoteFecha || almacen?.categoriaGeneral === "SUMINISTROS";
 
   function seleccionarOrden(orden: OrdenCompraPendienteOpcion) {

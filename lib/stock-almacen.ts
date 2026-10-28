@@ -265,7 +265,7 @@ export async function calcularOcPendientesIngreso(db: Db = prisma): Promise<Orde
 
 // ---------------------------------------------------------------------
 // Stock por lote (solo tiene sentido donde el ingreso ya exige lote, ver
-// almacén.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES"): cuánto queda
+// almacén.categoriaGeneral === "PESTICIDAS" | "FERTILIZANTES"): cuánto queda
 // de cada lote, sumando lo que entró por ingreso o traslado (recibido) y
 // restando lo que ya se consumió o se trasladó (enviado) de ESE mismo
 // lote. Un sub-almacén (que nunca recibe ingreso directo) solo tiene stock

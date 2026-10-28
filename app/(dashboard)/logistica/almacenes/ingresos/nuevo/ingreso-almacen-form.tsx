@@ -75,7 +75,7 @@ export function IngresoAlmacenForm({
   const [enviando, setEnviando] = useState(false);
 
   const moneda = edicion.ordenCompra.moneda as "PEN" | "USD";
-  const requiereLoteFecha = almacen.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
+  const requiereLoteFecha = almacen.categoriaGeneral === "PESTICIDAS" || almacen.categoriaGeneral === "FERTILIZANTES";
   const muestraLoteFecha = requiereLoteFecha || almacen.categoriaGeneral === "SUMINISTROS";
 
   function actualizarFila(ordenCompraItemId: string, cambios: Partial<Fila>) {

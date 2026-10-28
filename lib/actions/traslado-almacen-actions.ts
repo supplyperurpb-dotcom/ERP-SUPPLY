@@ -23,7 +23,7 @@ async function validarLotesSiAplica(
   items: TrasladoAlmacenInput["items"],
   db: Db
 ): Promise<{ error?: string }> {
-  if (almacenOrigen.categoriaGeneral !== "AGROQUIMICOS_FERTILIZANTES") return {};
+  if (almacenOrigen.categoriaGeneral !== "PESTICIDAS" && almacenOrigen.categoriaGeneral !== "FERTILIZANTES") return {};
 
   for (const item of items) {
     if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {

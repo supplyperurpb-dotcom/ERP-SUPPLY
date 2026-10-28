@@ -41,7 +41,7 @@ export function TrasladoAlmacenForm({
   almacenes: Opcion[];
   proveedores: ProveedorOpcionRemitente[];
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
-  /** Solo trae datos para almacenes de origen de categoría AGROQUIMICOS_FERTILIZANTES. */
+  /** Solo trae datos para almacenes de origen de categoría PESTICIDAS o FERTILIZANTES. */
   lotesPorAlmacen: Record<string, Record<string, LoteStock[]>>;
   almacenOrigenIdInicial?: string;
   /** Presente solo cuando el formulario edita un traslado ya existente.
@@ -99,7 +99,8 @@ export function TrasladoAlmacenForm({
   // trasladar no puede superar lo que queda de ESE lote puntual, no solo
   // el total del SKU en el almacén.
   const almacenOrigenActual = almacenes.find((a) => a.id === almacenOrigenId);
-  const muestraLote = almacenOrigenActual?.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
+  const muestraLote =
+    almacenOrigenActual?.categoriaGeneral === "PESTICIDAS" || almacenOrigenActual?.categoriaGeneral === "FERTILIZANTES";
 
   function lotesDe(skuId: string): LoteStock[] {
     if (!muestraLote || !almacenOrigenId || !skuId) return [];

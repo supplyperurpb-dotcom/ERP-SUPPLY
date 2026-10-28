@@ -28,10 +28,11 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 const CATEGORIA_GENERAL_LABEL: Record<string, string> = {
-  PACKING: "Packing",
-  AGROQUIMICOS_FERTILIZANTES: "Agroquímicos y Fertilizantes",
+  PESTICIDAS: "Pesticidas",
+  FERTILIZANTES: "Fertilizantes",
   COMBUSTIBLE: "Combustible",
   SUMINISTROS: "Suministros",
+  EMPAQUES: "Empaques",
 };
 
 type AlmacenGeneralOpcion = { id: string; nombre: string };
@@ -154,7 +155,7 @@ export function AlmacenFormDialog({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  En Agroquímicos y Fertilizantes, lote/fecha de producción/vencimiento son obligatorios al
+                  En Pesticidas y Fertilizantes, lote/fecha de producción/vencimiento son obligatorios al
                   ingresar; en Suministros son opcionales; en los demás no aplican.
                 </p>
               </div>

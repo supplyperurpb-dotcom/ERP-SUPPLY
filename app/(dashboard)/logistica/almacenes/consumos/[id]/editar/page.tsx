@@ -67,7 +67,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
   // este mismo consumo ya le había restado.
   const almacenEditado = almacenes.find((a) => a.id === consumo.almacenOrigenId);
   const lotesPorAlmacen: Record<string, Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>>> = {};
-  if (almacenEditado?.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES") {
+  if (almacenEditado?.categoriaGeneral === "PESTICIDAS" || almacenEditado?.categoriaGeneral === "FERTILIZANTES") {
     const skuIds = [...new Set(filas.map((f) => f.skuId))];
     const lotesPorSku = await Promise.all(skuIds.map((skuId) => calcularStockPorLote(consumo.almacenOrigenId, skuId)));
     const mapa: Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>> = {};

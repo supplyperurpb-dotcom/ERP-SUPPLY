@@ -78,7 +78,7 @@ export function ConsumoAlmacenForm({
   /** Para almacenes de categoría COMBUSTIBLE, la página ya filtró esta lista
    * a solo SKU de subfamilia "Combustibles" (ver consumos/nuevo/page.tsx). */
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
-  /** Solo trae datos para almacenes de categoría AGROQUIMICOS_FERTILIZANTES. */
+  /** Solo trae datos para almacenes de categoría PESTICIDAS o FERTILIZANTES. */
   lotesPorAlmacen: Record<string, Record<string, LoteStock[]>>;
   retiradores: RetiradorOpcion[];
   vehiculos: VehiculoOpcionCombobox[];
@@ -150,7 +150,8 @@ export function ConsumoAlmacenForm({
   // no puede superar lo que queda de ESE lote puntual, no solo el total
   // del SKU en el almacén.
   const almacenActual = almacenes.find((a) => a.id === almacenOrigenId);
-  const muestraLote = almacenActual?.categoriaGeneral === "AGROQUIMICOS_FERTILIZANTES";
+  const muestraLote =
+    almacenActual?.categoriaGeneral === "PESTICIDAS" || almacenActual?.categoriaGeneral === "FERTILIZANTES";
   // Un almacén de Combustible exige indicar a qué vehículo se despachó y su
   // horómetro/kilometraje (ver validarVehiculoSiAplica en
   // lib/actions/consumo-almacen-actions.ts), y solo deja elegir productos

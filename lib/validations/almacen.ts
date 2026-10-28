@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const CATEGORIAS_GENERAL = ["PACKING", "AGROQUIMICOS_FERTILIZANTES", "COMBUSTIBLE", "SUMINISTROS"] as const;
+const CATEGORIAS_GENERAL = ["PESTICIDAS", "FERTILIZANTES", "COMBUSTIBLE", "SUMINISTROS", "EMPAQUES"] as const;
 
 // Un almacén general es donde se registran los ingresos (ver
 // ingresoAlmacenSchema); un sub-almacén solo recibe por traslado desde su
@@ -88,7 +88,7 @@ const itemTrasladoSchema = z.object({
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
   // Obligatorios solo si el almacén de origen es de categoría
-  // AGROQUIMICOS_FERTILIZANTES (lo exige el servidor, ver
+  // PESTICIDAS o FERTILIZANTES (lo exige el servidor, ver
   // crearTrasladoAlmacenAction) — de qué lote sale, y ese mismo lote viaja
   // con el ítem hasta el almacén de destino. Igual que en ingreso/consumo.
   lote: z.string().max(60).optional().or(z.literal("")),
@@ -117,7 +117,7 @@ const itemConsumoSchema = z.object({
   skuId: z.string().min(1, "Selecciona un producto"),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
-  // Obligatorios solo en almacenes de categoría AGROQUIMICOS_FERTILIZANTES
+  // Obligatorios solo en almacenes de categoría PESTICIDAS o FERTILIZANTES
   // (lo exige el servidor, ver crearConsumoAlmacenAction) — igual que en el
   // ingreso, acá quedan opcionales porque en los demás almacenes no aplican.
   lote: z.string().max(60).optional().or(z.literal("")),
