@@ -110,6 +110,22 @@ export function SkuFormDialog({ sku }: { sku: Sku }) {
             <NumberInput id="stockMinimo" name="stockMinimo" value={stockMinimo} onChange={setStockMinimo} />
           </div>
 
+          <div className="flex items-center gap-2">
+            <input
+              id="requiereLote"
+              name="requiereLote"
+              type="checkbox"
+              className="h-4 w-4"
+              defaultChecked={sku.requiereLote}
+            />
+            <Label htmlFor="requiereLote" className="font-normal">
+              Registrar Lote, Fecha de Producción y Fecha de Vencimiento
+            </Label>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Si se marca, todo ingreso a almacén de este SKU exigirá esos 3 datos, sin importar el almacén.
+          </p>
+
           <input type="hidden" name="activo" value={sku.activo ? "true" : "false"} />
 
           {state?.error && <p className="text-sm font-medium text-destructive">{state.error}</p>}

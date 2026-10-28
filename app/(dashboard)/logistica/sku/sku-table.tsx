@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { eliminarSkuAction } from "@/lib/actions/sku-actions";
+import { crearSkusNoValoradosAction, eliminarSkuAction } from "@/lib/actions/sku-actions";
 import { SkuFormDialog } from "./sku-form-dialog";
 
 const POR_PAGINA = 50;
@@ -17,6 +17,8 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
+
+  const codigosExistentes = useMemo(() => new Set(skus.map((s) => s.codigo)), [skus]);
 
   const skusFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
@@ -44,6 +46,28 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
         return;
       }
       toast.success("SKU eliminado");
+    });
+  }
+
+  // Elegible para versión no valorada: no es Servicios (sin NV), no es ya
+  // una versión NV, y todavía no tiene su NV creado.
+  function puedeCrearNv(sku: Sku) {
+    return sku.categoria !== "Servicios" && !sku.codigo.startsWith("NV") && !codigosExistentes.has(`NV${sku.codigo}`);
+  }
+
+  function handleCrearNv(id: string, codigo: string) {
+    if (!confirm(`¿Seguro que quiere crear un Código No Valorado para este SKU?`)) return;
+    startTransition(async () => {
+      const resultado = await crearSkusNoValoradosAction([id]);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      if (resultado?.omitidos && resultado.omitidos.length > 0) {
+        toast.error(resultado.omitidos[0]);
+        return;
+      }
+      toast.success(`NV${codigo} creado`);
     });
   }
 
@@ -89,6 +113,17 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
                 </TableCell>
                 {esAdmin && (
                   <TableCell className="flex justify-end gap-1">
+                    {puedeCrearNv(sku) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isPending}
+                        title="Crear código no valorado"
+                        onClick={() => handleCrearNv(sku.id, sku.codigo)}
+                      >
+                        NV
+                      </Button>
+                    )}
                     <SkuFormDialog sku={sku} />
                     <Button
                       variant="ghost"

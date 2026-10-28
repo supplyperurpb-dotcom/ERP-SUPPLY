@@ -7,7 +7,6 @@ import { prisma } from "@/lib/db/prisma";
 import { serializar } from "@/lib/utils";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { SkuTable } from "./sku-table";
-import { CrearSkuNoValoradoDialog } from "./crear-no-valorado-dialog";
 
 export default async function SkuPage() {
   const [skusRaw, usuario] = await Promise.all([
@@ -49,7 +48,6 @@ export default async function SkuPage() {
                   Servicios
                 </Link>
               </Button>
-              <CrearSkuNoValoradoDialog skus={skus} />
             </div>
           }
         />

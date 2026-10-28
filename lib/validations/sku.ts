@@ -9,6 +9,7 @@ export const skuSchema = z.object({
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10),
   stockMinimo: z.coerce.number().min(0).optional().nullable(),
   activo: z.coerce.boolean().default(true),
+  requiereLote: z.coerce.boolean().default(false),
 });
 
 export type SkuInput = z.infer<typeof skuSchema>;
