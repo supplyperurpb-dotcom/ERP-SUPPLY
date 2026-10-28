@@ -176,3 +176,40 @@ export const SUBFAMILIAS_SERVICIOS = [
   "Servicio de maquila de fruta",
   "Fletes Marítimos",
 ] as const;
+
+// ---------------------------------------------------------------------
+// A qué categoría de almacén general (AlmacenCategoriaGeneral) queda
+// restringido cada código, según su tipo — se usa al ingresar, trasladar o
+// consumir (ver validarOrigen/validarCategoriaExclusivaSiAplica en
+// lib/actions/ingreso-almacen-actions.ts, traslado-almacen-actions.ts y
+// consumo-almacen-actions.ts) para impedir que un código entre, salga o se
+// mueva hacia un almacén que no le corresponde:
+//   - Agroquímicos (AG/NVAG)                      -> Pesticidas
+//   - Fertilizantes (FE/NVFE)                      -> Fertilizantes
+//   - Ósmosis (OS/NVOS)                            -> Pesticidas, salvo que
+//     sea un filtro o cartucho (no tienen subfamilia propia, se
+//     reconocen por la descripción) -> esos van a Suministros
+//   - Suministros (SU/NVSU)                        -> Suministros, salvo
+//     subfamilia Combustibles -> esos van a Combustible
+// null = sin restricción (Servicios).
+// ---------------------------------------------------------------------
+export const ETIQUETA_CATEGORIA_ALMACEN: Record<string, string> = {
+  PESTICIDAS: "Pesticidas",
+  FERTILIZANTES: "Fertilizantes",
+  COMBUSTIBLE: "Combustible",
+  SUMINISTROS: "Suministros",
+  EMPAQUES: "Empaques",
+};
+
+function esFiltroOCartuchoOsmosis(descripcion: string): boolean {
+  return /FILTRO|CARTUCHO/i.test(descripcion);
+}
+
+export function categoriaAlmacenExigidaPorSku(sku: { codigo: string; descripcion: string; subfamilia: string }): string | null {
+  const codigo = sku.codigo.startsWith("NV") ? sku.codigo.slice(2) : sku.codigo;
+  if (codigo.startsWith("AG")) return "PESTICIDAS";
+  if (codigo.startsWith("FE")) return "FERTILIZANTES";
+  if (codigo.startsWith("OS")) return esFiltroOCartuchoOsmosis(sku.descripcion) ? "SUMINISTROS" : "PESTICIDAS";
+  if (codigo.startsWith("SU")) return sku.subfamilia === "Combustibles" ? "COMBUSTIBLE" : "SUMINISTROS";
+  return null;
+}

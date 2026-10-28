@@ -6,6 +6,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
 import { convertirAUsd, type MonedaCodigo } from "@/lib/constants/moneda";
 import { stockDisponible, cantidadPendienteIngresoOC } from "@/lib/stock-almacen";
+import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { subirArchivo } from "@/lib/storage";
 import { ingresoAlmacenSchema, type IngresoAlmacenInput } from "@/lib/validations/almacen";
 import type { Prisma } from "@prisma/client";
@@ -93,6 +94,15 @@ async function validarOrigen(tx: Tx, data: IngresoAlmacenInput, exigirActivo: bo
     }
     if (itemOc.cerrado) {
       throw new Error(`${itemOc.sku.codigo}: esta línea fue cerrada manualmente y ya no admite ingresos.`);
+    }
+    // Cada código solo puede ingresar al almacén de la categoría que le
+    // corresponde según su tipo (Agroquímicos/Fertilizantes/Ósmosis/
+    // Suministros) — ver categoriaAlmacenExigidaPorSku.
+    const categoriaExigida = categoriaAlmacenExigidaPorSku(itemOc.sku);
+    if (categoriaExigida && almacen.categoriaGeneral !== categoriaExigida) {
+      throw new Error(
+        `${itemOc.sku.codigo} solo se puede ingresar a un almacén de categoría ${ETIQUETA_CATEGORIA_ALMACEN[categoriaExigida]} (${almacen.nombre} no lo es).`
+      );
     }
     const pendiente = await cantidadPendienteIngresoOC(item.ordenCompraItemId, tx);
     // Al editar, la línea que se está editando ya "libera" su propia

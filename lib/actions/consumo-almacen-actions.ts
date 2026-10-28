@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { costosParaValidacion, calcularStockPorLote } from "@/lib/stock-almacen";
+import { costosParaValidacion, calcularStockPorLote, categoriaEfectivaAlmacen } from "@/lib/stock-almacen";
+import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { subirArchivo } from "@/lib/storage";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 import type { Prisma, PrismaClient } from "@prisma/client";
@@ -69,6 +70,28 @@ async function validarSubfamiliaCombustibleSiAplica(
   const noCombustible = skus.find((s) => s.subfamilia !== "Combustibles");
   if (noCombustible) {
     return { error: `${noCombustible.codigo}: en ${almacen.nombre} solo se pueden despachar productos de subfamilia Combustibles.` };
+  }
+  return {};
+}
+
+// Cada código solo puede consumirse desde el almacén de la categoría que le
+// corresponde según su tipo (Agroquímicos/Fertilizantes/Ósmosis/
+// Suministros) — ver categoriaAlmacenExigidaPorSku.
+async function validarCategoriaExclusivaSiAplica(
+  almacen: { nombre: string; esGeneral: boolean; categoriaGeneral: string | null; almacenPadreId: string | null },
+  items: ConsumoAlmacenInput["items"],
+  db: Db
+): Promise<{ error?: string }> {
+  const categoriaAlmacen = await categoriaEfectivaAlmacen(almacen, db);
+  const skuIds = [...new Set(items.map((i) => i.skuId))];
+  const skus = await db.sku.findMany({ where: { id: { in: skuIds } }, select: { codigo: true, descripcion: true, subfamilia: true } });
+  for (const sku of skus) {
+    const categoriaExigida = categoriaAlmacenExigidaPorSku(sku);
+    if (categoriaExigida && categoriaAlmacen !== categoriaExigida) {
+      return {
+        error: `${sku.codigo} solo se puede consumir desde un almacén de categoría ${ETIQUETA_CATEGORIA_ALMACEN[categoriaExigida]} (${almacen.nombre} no lo es).`,
+      };
+    }
   }
   return {};
 }
@@ -201,6 +224,9 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
 
   const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
   if (permiso.error) return permiso;
+
+  const permisoCategoria = await validarCategoriaExclusivaSiAplica(almacen, items, prisma);
+  if (permisoCategoria.error) return permisoCategoria;
 
   const permisoLotes = await validarLotesSiAplica(almacen, almacenOrigenId, items, prisma);
   if (permisoLotes.error) return permisoLotes;
@@ -337,6 +363,9 @@ export async function actualizarConsumoAlmacenAction(
 
   const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
   if (permiso.error) return permiso;
+
+  const permisoCategoria = await validarCategoriaExclusivaSiAplica(almacen, items, prisma);
+  if (permisoCategoria.error) return permisoCategoria;
 
   const permisoCombustible = await validarSubfamiliaCombustibleSiAplica(almacen, items, prisma);
   if (permisoCombustible.error) return permisoCombustible;

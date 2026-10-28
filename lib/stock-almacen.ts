@@ -169,6 +169,21 @@ export async function precioUnitarioPonderado(almacenId: string, skuId: string, 
   return mapa.get(skuId)?.precioUnitarioPonderado ?? null;
 }
 
+// La categoría de un almacén general es la suya propia; la de un
+// sub-almacén es la de su padre (un sub-almacén nunca tiene
+// categoriaGeneral propia, ver el schema) — se usa para exigir que el
+// origen y el destino de un traslado, o el almacén de un ingreso/consumo,
+// sean de la categoría que le corresponde a cada producto.
+export async function categoriaEfectivaAlmacen(
+  almacen: { esGeneral: boolean; categoriaGeneral: string | null; almacenPadreId: string | null },
+  db: Db = prisma
+): Promise<string | null> {
+  if (almacen.esGeneral) return almacen.categoriaGeneral;
+  if (!almacen.almacenPadreId) return null;
+  const padre = await db.almacen.findUnique({ where: { id: almacen.almacenPadreId }, select: { categoriaGeneral: true } });
+  return padre?.categoriaGeneral ?? null;
+}
+
 // ---------------------------------------------------------------------
 // Ingreso a almacén desde Orden de Compra: la cantidad pendiente de
 // recibir de un OrdenCompraItem es su cantidad menos la suma de

@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
 import { convertirAUsd } from "@/lib/constants/moneda";
-import { costosParaValidacion, stockDisponible, calcularStockPorLote } from "@/lib/stock-almacen";
+import { costosParaValidacion, stockDisponible, calcularStockPorLote, categoriaEfectivaAlmacen } from "@/lib/stock-almacen";
+import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { subirArchivo } from "@/lib/storage";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import type { Prisma } from "@prisma/client";
@@ -89,6 +90,42 @@ async function validarLotesSiAplica(
   return {};
 }
 
+// El almacén de destino siempre debe ser de la MISMA categoría general que
+// el de origen (Pesticidas solo traslada a Pesticidas, Fertilizantes a
+// Fertilizantes, Combustible a Combustible, etc.) y cada producto solo
+// puede salir de la categoría de almacén que le corresponde según su tipo
+// — ver categoriaAlmacenExigidaPorSku. Como el destino ya queda forzado a
+// ser igual al origen, validar el origen alcanza para ambos.
+async function validarCategoriasSiAplica(
+  almacenOrigen: { nombre: string; esGeneral: boolean; categoriaGeneral: string | null; almacenPadreId: string | null },
+  almacenDestino: { nombre: string; esGeneral: boolean; categoriaGeneral: string | null; almacenPadreId: string | null },
+  items: TrasladoAlmacenInput["items"],
+  db: Db
+): Promise<{ error?: string }> {
+  const [categoriaOrigen, categoriaDestino] = await Promise.all([
+    categoriaEfectivaAlmacen(almacenOrigen, db),
+    categoriaEfectivaAlmacen(almacenDestino, db),
+  ]);
+  if (categoriaOrigen !== categoriaDestino) {
+    return {
+      error: `El almacén de destino (${almacenDestino.nombre}) debe ser de la misma categoría que el de origen (${almacenOrigen.nombre}).`,
+    };
+  }
+
+  const skuIds = [...new Set(items.map((i) => i.skuId))];
+  const skus = await db.sku.findMany({ where: { id: { in: skuIds } }, select: { codigo: true, descripcion: true, subfamilia: true } });
+  for (const sku of skus) {
+    const categoriaExigida = categoriaAlmacenExigidaPorSku(sku);
+    if (categoriaExigida && categoriaOrigen !== categoriaExigida) {
+      return {
+        error: `${sku.codigo} solo se puede trasladar entre almacenes de categoría ${ETIQUETA_CATEGORIA_ALMACEN[categoriaExigida]} (${almacenOrigen.nombre} no lo es).`,
+      };
+    }
+  }
+
+  return {};
+}
+
 export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Promise<TrasladoAlmacenActionState> {
   const parsed = trasladoAlmacenSchema.safeParse(data);
   if (!parsed.success) {
@@ -111,6 +148,9 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   if (!almacenOrigen.activo || !almacenDestino.activo) {
     return { error: "Uno de los almacenes seleccionados está inactivo. Actívalo antes de trasladar." };
   }
+
+  const permisoCategorias = await validarCategoriasSiAplica(almacenOrigen, almacenDestino, items, prisma);
+  if (permisoCategorias.error) return permisoCategorias;
 
   const permisoLotes = await validarLotesSiAplica(almacenOrigen, items, prisma);
   if (permisoLotes.error) return permisoLotes;
@@ -278,6 +318,9 @@ export async function actualizarTrasladoAlmacenAction(
       // abajo (con el mismo `tx`) vea el mundo sin este traslado.
       await tx.movimientoStock.deleteMany({ where: { documentoOrigenId: id, documentoOrigenTipo: "TRASLADO_ALMACEN" } });
       await tx.trasladoAlmacenItem.deleteMany({ where: { trasladoAlmacenId: id } });
+
+      const permisoCategorias = await validarCategoriasSiAplica(almacenOrigen, almacenDestino, items, tx);
+      if (permisoCategorias.error) throw new Error(permisoCategorias.error);
 
       const permisoLotes = await validarLotesSiAplica(almacenOrigen, items, tx);
       if (permisoLotes.error) throw new Error(permisoLotes.error);

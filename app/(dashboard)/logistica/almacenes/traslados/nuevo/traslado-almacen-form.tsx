@@ -101,6 +101,13 @@ export function TrasladoAlmacenForm({
   const muestraLote =
     almacenOrigenActual?.categoriaGeneral === "PESTICIDAS" || almacenOrigenActual?.categoriaGeneral === "FERTILIZANTES";
 
+  // El destino solo puede ser de la misma categoría que el origen (ver
+  // validarCategoriasSiAplica en traslado-almacen-actions.ts) — acá se
+  // filtra la lista para que ni se pueda elegir uno distinto.
+  const almacenesDestino = almacenOrigenId
+    ? almacenes.filter((a) => a.id !== almacenOrigenId && a.categoriaGeneral === almacenOrigenActual?.categoriaGeneral)
+    : almacenes;
+
   function lotesDe(skuId: string): LoteStock[] {
     if (!muestraLote || !almacenOrigenId || !skuId) return [];
     return lotesPorAlmacen[almacenOrigenId]?.[skuId] ?? [];
@@ -194,6 +201,13 @@ export function TrasladoAlmacenForm({
                     // Los productos de las líneas ya cargadas pueden no
                     // tener stock en el nuevo origen: se limpian.
                     replace([ITEM_VACIO]);
+                    // El destino elegido puede ya no ser de la misma
+                    // categoría que el nuevo origen: se limpia también.
+                    const nuevaCategoria = almacenes.find((a) => a.id === valor)?.categoriaGeneral;
+                    const destinoActual = form.getValues("almacenDestinoId");
+                    if (destinoActual && almacenes.find((a) => a.id === destinoActual)?.categoriaGeneral !== nuevaCategoria) {
+                      form.setValue("almacenDestinoId", "");
+                    }
                   }}
                 >
                   <SelectTrigger>
@@ -220,16 +234,24 @@ export function TrasladoAlmacenForm({
               control={form.control}
               name="almacenDestinoId"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={!almacenOrigenId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un almacén" />
+                    <SelectValue
+                      placeholder={almacenOrigenId ? "Selecciona un almacén" : "Primero elige el almacén de origen"}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {almacenes.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.nombre}
-                      </SelectItem>
-                    ))}
+                    {almacenesDestino.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No hay otro almacén de esta categoría
+                      </div>
+                    ) : (
+                      almacenesDestino.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.nombre}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               )}
