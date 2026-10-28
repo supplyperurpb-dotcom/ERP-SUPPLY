@@ -53,9 +53,12 @@ type Tx = Prisma.TransactionClient;
 // para armar el ingreso: moneda/proveedor de la OC y, por cada línea
 // enviada, su OrdenCompraItem real (nunca se confía en lo que mande el
 // cliente para sku/precio — se vuelve a leer de la OC).
-async function validarOrigen(tx: Tx, data: IngresoAlmacenInput) {
+async function validarOrigen(tx: Tx, data: IngresoAlmacenInput, exigirActivo: boolean) {
   const almacen = await tx.almacen.findUnique({ where: { id: data.almacenId } });
   if (!almacen) throw new Error("El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo.");
+  if (exigirActivo && !almacen.activo) {
+    throw new Error(`${almacen.nombre} está inactivo. Actívalo antes de registrar ingresos ahí.`);
+  }
   if (!almacen.esGeneral) {
     throw new Error("Los ingresos solo se registran en un almacén general; este es un sub-almacén.");
   }
@@ -115,7 +118,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
     const usuario = await getUsuarioActual();
 
     const nuevoIngreso = await prisma.$transaction(async (tx) => {
-      const { orden, itemOcPorId } = await validarOrigen(tx, parsed.data);
+      const { orden, itemOcPorId } = await validarOrigen(tx, parsed.data, true);
       const moneda = orden.moneda as MonedaCodigo;
 
       const precios = items.map((item) => Number(itemOcPorId.get(item.ordenCompraItemId)!.precioUnitario));
@@ -237,7 +240,7 @@ export async function actualizarIngresoAlmacenAction(
       await tx.movimientoStock.deleteMany({ where: { documentoOrigenId: id, documentoOrigenTipo: "INGRESO_ALMACEN" } });
       await tx.ingresoAlmacenItem.deleteMany({ where: { ingresoAlmacenId: id } });
 
-      const { orden, itemOcPorId } = await validarOrigen(tx, parsed.data);
+      const { orden, itemOcPorId } = await validarOrigen(tx, parsed.data, false);
       const moneda = orden.moneda as MonedaCodigo;
 
       const precios = items.map((item) => Number(itemOcPorId.get(item.ordenCompraItemId)!.precioUnitario));

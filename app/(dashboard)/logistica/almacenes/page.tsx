@@ -11,10 +11,12 @@ import { AlmacenFormDialog } from "./almacen-form-dialog";
 import { NuevoMovimientoDialog } from "./nuevo-movimiento-dialog";
 
 const TIPO_LABEL: Record<TipoAlmacen, string> = {
-  INSUMOS: "Insumos",
+  INSUMOS: "Suministros",
   AGROQUIMICOS: "Agroquímicos",
   MATERIAL_EMPAQUE: "Material de empaque",
   CAMARA_FRIO: "Cámara de frío",
+  FERTILIZANTES: "Fertilizantes",
+  COMBUSTIBLE: "Combustible",
   OTRO: "Otro",
 };
 

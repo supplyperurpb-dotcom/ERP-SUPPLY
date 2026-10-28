@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
+import { siguienteNumero } from "@/lib/utils";
 import { almacenSchema, type AlmacenInput } from "@/lib/validations/almacen";
 
 export type AlmacenActionState = { error?: string; success?: boolean } | undefined;
 
 function datosAlmacen(data: AlmacenInput) {
-  const { codigo, nombre, tipo, ubicacion, activo, esGeneral, categoriaGeneral, almacenPadreId } = data;
+  const { nombre, tipo, ubicacion, activo, esGeneral, categoriaGeneral, almacenPadreId } = data;
   return {
-    codigo,
     nombre,
     tipo,
     ubicacion: ubicacion || null,
@@ -26,13 +26,13 @@ export async function crearAlmacenAction(_prevState: AlmacenActionState, formDat
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  const existente = await prisma.almacen.findUnique({ where: { codigo: parsed.data.codigo } });
-  if (existente) {
-    return { error: `Ya existe un almacén con el código ${parsed.data.codigo}` };
-  }
-
   try {
-    await prisma.almacen.create({ data: datosAlmacen(parsed.data) });
+    // Código único generado por el servidor (ALM- + correlativo de 4
+    // dígitos): nunca lo elige el usuario, igual que el número de un
+    // ingreso/traslado/consumo.
+    const existentes = await prisma.almacen.findMany({ select: { codigo: true } });
+    const codigo = siguienteNumero(existentes.map((a) => a.codigo), "ALM-");
+    await prisma.almacen.create({ data: { codigo, ...datosAlmacen(parsed.data) } });
   } catch (e) {
     return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al crear el almacén." };
   }

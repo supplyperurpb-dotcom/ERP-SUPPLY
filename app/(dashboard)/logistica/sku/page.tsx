@@ -21,7 +21,7 @@ export default async function SkuPage() {
     <div className="flex h-full flex-col">
       <div className="shrink-0">
         <PageHeader
-          titulo="SKU"
+          titulo="Creación de Materiales"
           descripcion="Catálogo de códigos de producto e insumo. Elige la categoría para generar el código automáticamente."
           acciones={
             <div className="flex flex-wrap gap-2">

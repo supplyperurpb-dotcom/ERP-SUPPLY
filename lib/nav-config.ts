@@ -48,7 +48,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
       { titulo: "Solicitudes de pedido", href: "/logistica/solicitudes-pedido", icono: ClipboardList },
       { titulo: "Órdenes de compra", href: "/logistica/ordenes-compra", icono: ShoppingCart },
       { titulo: "Proveedores", href: "/logistica/proveedores", icono: Users },
-      { titulo: "SKU", href: "/logistica/sku", icono: Package },
+      { titulo: "Creación de Materiales", href: "/logistica/sku", icono: Package },
       { titulo: "Inventario", href: "/logistica/inventario", icono: PackageSearch },
       { titulo: "Almacenes", href: "/logistica/almacenes", icono: Warehouse },
       { titulo: "Solicitudes de despacho", href: "/logistica/solicitudes-despacho", icono: PackageMinus },

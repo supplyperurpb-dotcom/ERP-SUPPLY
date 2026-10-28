@@ -7,7 +7,10 @@ const CATEGORIAS_GENERAL = ["PESTICIDAS", "FERTILIZANTES", "COMBUSTIBLE", "SUMIN
 // general (o de otro sub), nunca por ingreso directo.
 export const almacenSchema = z
   .object({
-    codigo: z.string().min(1, "El código es obligatorio").max(30),
+    // Se genera solo (ALM- + correlativo de 4 dígitos, ver
+    // crearAlmacenAction) — nunca lo manda el cliente al crear. Al editar
+    // viaja de todos modos en el formulario (input readOnly) pero el
+    // servidor lo ignora: el código no se puede cambiar.
     nombre: z.string().min(1, "El nombre es obligatorio").max(150),
     tipo: z.enum(["INSUMOS", "AGROQUIMICOS", "MATERIAL_EMPAQUE", "CAMARA_FRIO", "OTRO"], {
       required_error: "Selecciona el tipo",

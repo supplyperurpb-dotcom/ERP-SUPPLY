@@ -41,8 +41,11 @@ export function IngresoAlmacenWizard({
 }) {
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
 
-  // Paso 1: elegir almacén + OC, y marcar qué ítems se van a ingresar.
+  // Paso 1: elegir almacén + OC, y marcar qué ítems se van a ingresar. El
+  // almacén se bloquea apenas se elige (o si ya llegó preseleccionado desde
+  // el diálogo "Nuevo Movimiento") — "Anterior" lo vuelve a dejar editable.
   const [almacenId, setAlmacenId] = useState(almacenIdInicial ?? "");
+  const [almacenBloqueado, setAlmacenBloqueado] = useState(!!almacenIdInicial);
   const [ordenCompraId, setOrdenCompraId] = useState("");
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
 
@@ -423,18 +426,33 @@ export function IngresoAlmacenWizard({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Almacén</Label>
-              <Select value={almacenId} onValueChange={setAlmacenId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un almacén general" />
-                </SelectTrigger>
-                <SelectContent>
-                  {almacenes.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {almacenBloqueado ? (
+                <div className="flex items-center gap-2">
+                  <Input disabled className="cursor-not-allowed bg-muted opacity-70" value={almacen?.nombre ?? ""} />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setAlmacenBloqueado(false)}>
+                    Anterior
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={almacenId}
+                  onValueChange={(v) => {
+                    setAlmacenId(v);
+                    setAlmacenBloqueado(true);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un almacén general" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {almacenes.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Orden de compra (aprobadas, con ítems pendientes)</Label>

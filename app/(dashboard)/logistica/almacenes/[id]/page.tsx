@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PackagePlus, ArrowLeftRight, PackageMinus, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
@@ -43,28 +44,38 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
         titulo={almacen.nombre}
         descripcion={`Código ${almacen.codigo}${almacen.ubicacion ? ` · ${almacen.ubicacion}` : ""}`}
         acciones={
-          <>
-            <Button variant="outline" asChild>
-              <Link href={`/logistica/almacenes/ingresos/nuevo?almacenId=${id}`}>
-                <PackagePlus className="mr-2 h-4 w-4" />
-                Ingreso
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={`/logistica/almacenes/traslados/nuevo?almacenId=${id}`}>
-                <ArrowLeftRight className="mr-2 h-4 w-4" />
-                Traslado
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={`/logistica/almacenes/consumos/nuevo?almacenId=${id}`}>
-                <PackageMinus className="mr-2 h-4 w-4" />
-                Consumo
-              </Link>
-            </Button>
-          </>
+          almacen.activo ? (
+            <>
+              <Button variant="outline" asChild>
+                <Link href={`/logistica/almacenes/ingresos/nuevo?almacenId=${id}`}>
+                  <PackagePlus className="mr-2 h-4 w-4" />
+                  Ingreso
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/logistica/almacenes/traslados/nuevo?almacenId=${id}`}>
+                  <ArrowLeftRight className="mr-2 h-4 w-4" />
+                  Traslado
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/logistica/almacenes/consumos/nuevo?almacenId=${id}`}>
+                  <PackageMinus className="mr-2 h-4 w-4" />
+                  Consumo
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <Badge variant="secondary">Inactivo</Badge>
+          )
         }
       />
+      {!almacen.activo && (
+        <p className="-mt-6 text-sm text-muted-foreground">
+          Este almacén está inactivo: no se pueden registrar ingresos, traslados ni consumos hasta que se active
+          desde el catálogo de almacenes.
+        </p>
+      )}
 
       <section>
         <h2 className="mb-3 text-base font-semibold">Stock actual</h2>

@@ -32,7 +32,7 @@ const TILES = [
     icono: Users,
   },
   {
-    titulo: "SKU",
+    titulo: "Creación de Materiales",
     descripcion: "Catálogo de códigos de producto e insumo.",
     href: "/logistica/sku",
     icono: Package,

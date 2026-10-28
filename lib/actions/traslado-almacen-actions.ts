@@ -80,6 +80,9 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   if (!almacenOrigen || !almacenDestino) {
     return { error: "Uno de los almacenes seleccionados ya no existe. Actualiza la página e intenta de nuevo." };
   }
+  if (!almacenOrigen.activo || !almacenDestino.activo) {
+    return { error: "Uno de los almacenes seleccionados está inactivo. Actívalo antes de trasladar." };
+  }
 
   const permisoLotes = await validarLotesSiAplica(almacenOrigen, items, prisma);
   if (permisoLotes.error) return permisoLotes;

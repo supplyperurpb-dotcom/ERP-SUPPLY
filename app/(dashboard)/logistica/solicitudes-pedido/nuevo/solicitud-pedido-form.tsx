@@ -228,7 +228,16 @@ export function SolicitudPedidoForm({
               type="date"
               min={fechaLocalHoy()}
               {...form.register("fechaNecesidad", {
+                // El navegador no dispara onChange si el usuario reabre el
+                // selector y elige la MISMA fecha ya sugerida (no hay
+                // cambio de valor que detectar) — por eso también se
+                // confirma con onBlur: alcanza con que haya entrado al
+                // campo y salido, haya cambiado la fecha o no.
                 onChange: () => {
+                  setFechaNecesidadConfirmada(true);
+                  form.clearErrors("fechaNecesidad");
+                },
+                onBlur: () => {
                   setFechaNecesidadConfirmada(true);
                   form.clearErrors("fechaNecesidad");
                 },

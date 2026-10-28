@@ -195,6 +195,9 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
   if (!almacen) {
     return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
   }
+  if (!almacen.activo) {
+    return { error: `${almacen.nombre} está inactivo. Actívalo antes de registrar consumos ahí.` };
+  }
 
   const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
   if (permiso.error) return permiso;

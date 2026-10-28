@@ -20,10 +20,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { crearAlmacenAction, actualizarAlmacenAction, type AlmacenActionState } from "@/lib/actions/almacen-actions";
 
 const TIPO_LABEL: Record<string, string> = {
-  INSUMOS: "Insumos",
+  INSUMOS: "Suministros",
   AGROQUIMICOS: "Agroquímicos",
   MATERIAL_EMPAQUE: "Material de empaque",
   CAMARA_FRIO: "Cámara de frío",
+  FERTILIZANTES: "Fertilizantes",
+  COMBUSTIBLE: "Combustible",
   OTRO: "Otro",
 };
 
@@ -80,17 +82,22 @@ export function AlmacenFormDialog({
         </DialogHeader>
 
         <form action={formAction} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          {esEdicion && (
             <div className="space-y-2">
               <Label htmlFor="codigo">Código</Label>
               <Input
                 id="codigo"
-                name="codigo"
                 defaultValue={almacen?.codigo}
-                required
-                readOnly={esEdicion}
-                className={esEdicion ? "cursor-not-allowed bg-muted opacity-70" : undefined}
+                readOnly
+                className="cursor-not-allowed bg-muted opacity-70"
               />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="nombre">Nombre</Label>
+              <Input id="nombre" name="nombre" defaultValue={almacen?.nombre} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo</Label>
@@ -109,10 +116,11 @@ export function AlmacenFormDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="nombre">Nombre</Label>
-            <Input id="nombre" name="nombre" defaultValue={almacen?.nombre} required />
-          </div>
+          {!esEdicion && (
+            <p className="text-xs text-muted-foreground">
+              El código se genera automáticamente (ALM- + correlativo) al crear el almacén.
+            </p>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="ubicacion">Ubicación (opcional)</Label>
