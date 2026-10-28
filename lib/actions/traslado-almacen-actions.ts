@@ -6,6 +6,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
 import { convertirAUsd } from "@/lib/constants/moneda";
 import { costosParaValidacion, stockDisponible, calcularStockPorLote } from "@/lib/stock-almacen";
+import { subirArchivo } from "@/lib/storage";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import type { Prisma } from "@prisma/client";
 
@@ -13,6 +14,39 @@ export type TrasladoAlmacenActionState = { error?: string; id?: string } | undef
 
 type Tx = Prisma.TransactionClient;
 type Db = typeof prisma | Tx;
+
+const TIPOS_GUIA_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic"];
+
+// Sube la foto/escaneo/PDF de la guía de remisión antes de registrar el
+// traslado (el formulario primero sube el archivo y recién con la ruta
+// devuelta llama a crear/actualizarTrasladoAlmacenAction) — mismo criterio
+// que subirGuiaRemisionIngresoAction.
+export async function subirGuiaRemisionTrasladoAction(formData: FormData): Promise<{ path?: string; error?: string }> {
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Selecciona un archivo." };
+  }
+  if (!TIPOS_GUIA_PERMITIDOS.includes(archivo.type)) {
+    return { error: "Formato no permitido. Sube una foto (JPG/PNG/HEIC) o un PDF." };
+  }
+  if (archivo.size > 10 * 1024 * 1024) {
+    return { error: "El archivo no puede superar 10 MB." };
+  }
+
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const extension = archivo.name.includes(".") ? archivo.name.split(".").pop() : "bin";
+  const ruta = `traslados-almacen/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+
+  try {
+    const path = await subirArchivo(ruta, archivo);
+    return { path };
+  } catch (e) {
+    console.error("Error subiendo guía de remisión:", e);
+    return { error: e instanceof Error ? e.message : "No se pudo subir el archivo." };
+  }
+}
 
 // Igual que en Ingreso y Consumo: solo si el almacén de ORIGEN es de
 // categoría Agroquímicos y Fertilizantes se exige elegir de qué lote sale
@@ -60,7 +94,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, almacenDestinoId, guiaRemision, observaciones, items } = parsed.data;
+  const { fecha, almacenOrigenId, almacenDestinoId, guiaRemision, guiaRemisionArchivo, observaciones, items } = parsed.data;
   // El flete y los datos de transporte se quitaron de este flujo (ver
   // trasladoAlmacenSchema): quedan siempre en 0/null, pero las columnas
   // *Asignado siguen existiendo porque las usa el costeo ponderado
@@ -133,6 +167,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
           almacenDestinoId,
           moneda,
           guiaRemision,
+          guiaRemisionArchivo,
           remitenteRuc: null,
           remitente: null,
           flete: null,
@@ -199,7 +234,7 @@ export async function actualizarTrasladoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, almacenDestinoId, guiaRemision, observaciones, items } = parsed.data;
+  const { fecha, almacenOrigenId, almacenDestinoId, guiaRemision, guiaRemisionArchivo, observaciones, items } = parsed.data;
   const moneda = "PEN" as const;
 
   const existente = await prisma.trasladoAlmacen.findUnique({
@@ -277,6 +312,7 @@ export async function actualizarTrasladoAlmacenAction(
           almacenDestinoId,
           moneda,
           guiaRemision,
+          guiaRemisionArchivo,
           remitenteRuc: null,
           remitente: null,
           flete: null,

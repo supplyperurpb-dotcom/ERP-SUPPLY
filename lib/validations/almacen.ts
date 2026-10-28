@@ -110,6 +110,10 @@ export const trasladoAlmacenSchema = z
     almacenOrigenId: z.string().min(1, "Selecciona el almacén de origen"),
     almacenDestinoId: z.string().min(1, "Selecciona el almacén de destino"),
     guiaRemision: z.string().trim().min(1, "El número de guía de remisión es obligatorio").max(60),
+    // Ruta en Supabase Storage del archivo ya subido (foto/escaneo/PDF) de
+    // la guía de remisión física — ver lib/storage.ts. Obligatorio, igual
+    // que en el ingreso.
+    guiaRemisionArchivo: z.string().min(1, "Adjunta la guía de remisión (foto o PDF)"),
     observaciones: z.string().max(500).optional().or(z.literal("")),
     items: z.array(itemTrasladoSchema).min(1, "Agrega al menos un producto"),
   })

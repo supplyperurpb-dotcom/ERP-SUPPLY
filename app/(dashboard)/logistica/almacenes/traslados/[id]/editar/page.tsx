@@ -80,6 +80,7 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
     almacenOrigenId: traslado.almacenOrigenId,
     almacenDestinoId: traslado.almacenDestinoId,
     guiaRemision: traslado.guiaRemision ?? "",
+    guiaRemisionArchivo: traslado.guiaRemisionArchivo ?? "",
     observaciones: traslado.observaciones ?? "",
     items: traslado.items.map((item) => ({
       skuId: item.skuId,

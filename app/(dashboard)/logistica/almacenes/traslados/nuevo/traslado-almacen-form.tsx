@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -16,7 +17,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, formatCantidad } from "@/lib/utils";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
-import { crearTrasladoAlmacenAction, actualizarTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
+import {
+  crearTrasladoAlmacenAction,
+  actualizarTrasladoAlmacenAction,
+  subirGuiaRemisionTrasladoAction,
+} from "@/lib/actions/traslado-almacen-actions";
 import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; nombre: string; categoriaGeneral: string | null };
@@ -51,6 +56,8 @@ export function TrasladoAlmacenForm({
 }) {
   const router = useRouter();
   const fechaRegistro = edicion?.fechaRegistro ?? fechaLocalHoy();
+  const [archivoFile, setArchivoFile] = useState<File | null>(null);
+  const [subiendoArchivo, setSubiendoArchivo] = useState(false);
 
   const form = useForm<TrasladoAlmacenInput>({
     resolver: zodResolver(trasladoAlmacenSchema),
@@ -59,6 +66,7 @@ export function TrasladoAlmacenForm({
       almacenOrigenId: almacenOrigenIdInicial ?? "",
       almacenDestinoId: "",
       guiaRemision: "",
+      guiaRemisionArchivo: "",
       observaciones: "",
       items: [ITEM_VACIO],
     },
@@ -67,6 +75,7 @@ export function TrasladoAlmacenForm({
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
+  const archivoActual = edicion?.valoresIniciales.guiaRemisionArchivo;
 
   // Solo se puede trasladar lo que el almacén de origen realmente tiene en
   // stock: el combobox de producto se restringe a esa lista, y sirve
@@ -100,6 +109,32 @@ export function TrasladoAlmacenForm({
   function stockDisponibleEfectivo(skuId: string, lote: string) {
     if (!muestraLote) return stockDisponibleDe(skuId);
     return lotesDe(skuId).find((l) => l.lote === lote)?.cantidad ?? 0;
+  }
+
+  async function handleSubmitConArchivo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!archivoFile && !archivoActual) {
+      toast.error("Adjunta la guía de remisión (foto o PDF)");
+      return;
+    }
+
+    if (archivoFile) {
+      setSubiendoArchivo(true);
+      try {
+        const fd = new FormData();
+        fd.set("archivo", archivoFile);
+        const resultado = await subirGuiaRemisionTrasladoAction(fd);
+        if (resultado.error || !resultado.path) {
+          toast.error(resultado.error ?? "No se pudo subir la guía de remisión");
+          return;
+        }
+        form.setValue("guiaRemisionArchivo", resultado.path, { shouldValidate: true });
+      } finally {
+        setSubiendoArchivo(false);
+      }
+    }
+
+    await form.handleSubmit(onSubmit)();
   }
 
   async function onSubmit(data: TrasladoAlmacenInput) {
@@ -140,7 +175,7 @@ export function TrasladoAlmacenForm({
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmitConArchivo} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos del traslado</CardTitle>
@@ -228,6 +263,35 @@ export function TrasladoAlmacenForm({
             <Input id="guiaRemision" {...form.register("guiaRemision")} />
             {form.formState.errors.guiaRemision && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.guiaRemision.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <Label htmlFor="archivoGuia">
+              {edicion ? "Reemplazar guía de remisión (foto, escaneo o PDF)" : "Guía de remisión (foto, escaneo o PDF)"}
+            </Label>
+            <div className="flex items-center gap-3">
+              {archivoActual && !archivoFile && edicion && (
+                <a
+                  href={`/api/almacenes/traslados/${edicion.id}/guia`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary underline underline-offset-2"
+                >
+                  Ver archivo actual
+                </a>
+              )}
+              <Input
+                id="archivoGuia"
+                type="file"
+                accept="application/pdf,image/*"
+                capture="environment"
+                onChange={(e) => setArchivoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            {archivoFile && <p className="text-xs text-muted-foreground">Seleccionado: {archivoFile.name}</p>}
+            {form.formState.errors.guiaRemisionArchivo && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.guiaRemisionArchivo.message}</p>
             )}
           </div>
 
@@ -420,8 +484,14 @@ export function TrasladoAlmacenForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar traslado"}
+        <Button type="submit" disabled={form.formState.isSubmitting || subiendoArchivo}>
+          {subiendoArchivo
+            ? "Subiendo archivo..."
+            : form.formState.isSubmitting
+              ? "Guardando..."
+              : edicion
+                ? "Guardar cambios"
+                : "Registrar traslado"}
         </Button>
       </div>
     </form>

@@ -780,6 +780,11 @@ model TrasladoAlmacen {
   almacenOrigenId  String
   almacenDestinoId String
   guiaRemision     String?
+  // Ruta (no URL pública) del archivo subido con la guía de remisión física
+  // (foto/escaneo/PDF), dentro del bucket privado de Supabase Storage (ver
+  // lib/storage.ts) — mismo criterio que IngresoAlmacen.guiaRemisionArchivo.
+  // Se descarga via GET /api/almacenes/traslados/[id]/guia.
+  guiaRemisionArchivo String?
   remitenteRuc     String?
   remitente        String?
   // Moneda del precio del flete de este traslado ("PEN" | "USD"). El costeo
