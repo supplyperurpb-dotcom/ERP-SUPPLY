@@ -11,9 +11,8 @@ export default async function NuevoTrasladoAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const [almacenes, proveedores, existentes] = await Promise.all([
+  const [almacenes, existentes] = await Promise.all([
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
-    prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     prisma.trasladoAlmacen.findMany({ select: { numero: true } }),
   ]);
   // Solo un adelanto: el número real se asigna recién al guardar (ver
@@ -45,11 +44,6 @@ export default async function NuevoTrasladoAlmacenPage({
       />
       <TrasladoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
-        proveedores={proveedores.map((p) => ({
-          id: p.id,
-          razonSocial: p.razonSocial,
-          ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
-        }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
         almacenOrigenIdInicial={almacenId}

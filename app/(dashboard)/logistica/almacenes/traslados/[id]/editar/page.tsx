@@ -8,10 +8,9 @@ import type { TrasladoAlmacenInput } from "@/lib/validations/almacen";
 export default async function EditarTrasladoAlmacenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [traslado, almacenes, proveedores] = await Promise.all([
+  const [traslado, almacenes] = await Promise.all([
     prisma.trasladoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true } } } }),
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
-    prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
   ]);
   if (!traslado) notFound();
 
@@ -80,11 +79,7 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
     fecha: traslado.fecha.toISOString().slice(0, 10) as unknown as Date,
     almacenOrigenId: traslado.almacenOrigenId,
     almacenDestinoId: traslado.almacenDestinoId,
-    moneda: traslado.moneda as "PEN" | "USD",
     guiaRemision: traslado.guiaRemision ?? "",
-    remitenteRuc: traslado.remitenteRuc ?? "",
-    remitente: traslado.remitente ?? "",
-    flete: traslado.flete !== null ? Number(traslado.flete) : 0,
     observaciones: traslado.observaciones ?? "",
     items: traslado.items.map((item) => ({
       skuId: item.skuId,
@@ -104,14 +99,9 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
       />
       <TrasladoAlmacenForm
         almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
-        proveedores={proveedores.map((p) => ({
-          id: p.id,
-          razonSocial: p.razonSocial,
-          ruc: p.tipoDocumento === "RUC" ? p.numeroDocumento : "",
-        }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
-        edicion={{ id: traslado.id, valoresIniciales }}
+        edicion={{ id: traslado.id, fechaRegistro: traslado.createdAt.toISOString().slice(0, 10), valoresIniciales }}
       />
     </div>
   );

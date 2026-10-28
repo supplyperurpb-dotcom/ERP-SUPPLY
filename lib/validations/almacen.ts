@@ -43,17 +43,6 @@ export const almacenSchema = z
 
 export type AlmacenInput = z.infer<typeof almacenSchema>;
 
-// Datos de transporte comunes a ingreso y traslado (consumo no los tiene:
-// es una salida interna, no un movimiento con guía/transporte): guía de
-// remisión, RUC y nombre del remitente, y el precio del flete (que luego se
-// prorratea entre los items, ver cada action).
-const datosTransporte = {
-  guiaRemision: z.string().max(60).optional().or(z.literal("")),
-  remitenteRuc: z.string().max(20).optional().or(z.literal("")),
-  remitente: z.string().max(150).optional().or(z.literal("")),
-  flete: z.coerce.number().min(0, "El flete no puede ser negativo").optional().nullable(),
-};
-
 // El ingreso ahora se arma a partir de una Orden de Compra real: cada línea
 // apunta a su OrdenCompraItem (de ahí sale el sku/precio, ver
 // crearIngresoAlmacenAction) y solo se captura cuánto se recibe ahora —
@@ -120,10 +109,9 @@ export const trasladoAlmacenSchema = z
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
     almacenOrigenId: z.string().min(1, "Selecciona el almacén de origen"),
     almacenDestinoId: z.string().min(1, "Selecciona el almacén de destino"),
-    moneda: z.enum(["PEN", "USD"]).default("PEN"),
+    guiaRemision: z.string().trim().min(1, "El número de guía de remisión es obligatorio").max(60),
     observaciones: z.string().max(500).optional().or(z.literal("")),
     items: z.array(itemTrasladoSchema).min(1, "Agrega al menos un producto"),
-    ...datosTransporte,
   })
   .refine((data) => data.almacenOrigenId !== data.almacenDestinoId, {
     message: "El almacén de origen y destino no pueden ser el mismo",

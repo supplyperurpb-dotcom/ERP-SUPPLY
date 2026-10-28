@@ -14,9 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { ProveedorRemitenteCombobox, type ProveedorOpcionRemitente } from "@/components/shared/proveedor-remitente-combobox";
-import { fechaLocalHoy, formatMoneda, formatCantidad, prorratear } from "@/lib/utils";
-import { MONEDAS, TIPO_CAMBIO_PEN_USD, convertirAUsd } from "@/lib/constants/moneda";
+import { fechaLocalHoy, formatCantidad } from "@/lib/utils";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import { crearTrasladoAlmacenAction, actualizarTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
 import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
@@ -32,14 +30,12 @@ function soloFecha(d: Date | string | undefined): string {
 
 export function TrasladoAlmacenForm({
   almacenes,
-  proveedores,
   stockPorAlmacen,
   lotesPorAlmacen,
   almacenOrigenIdInicial,
   edicion,
 }: {
   almacenes: Opcion[];
-  proveedores: ProveedorOpcionRemitente[];
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
   /** Solo trae datos para almacenes de origen de categoría PESTICIDAS o FERTILIZANTES. */
   lotesPorAlmacen: Record<string, Record<string, LoteStock[]>>;
@@ -48,10 +44,13 @@ export function TrasladoAlmacenForm({
    * `stockPorAlmacen` ya viene ajustado por la página para el almacén de
    * origen original (ver traslados/[id]/editar/page.tsx): incluye de
    * vuelta lo que este mismo traslado le había restado, como si ya
-   * estuviera reversado (que es justo lo que hace el servidor al guardar). */
-  edicion?: { id: string; valoresIniciales: TrasladoAlmacenInput };
+   * estuviera reversado (que es justo lo que hace el servidor al guardar).
+   * `fechaRegistro` es solo informativa (cuándo se creó el registro,
+   * Prisma.createdAt): en un traslado nuevo es hoy, bloqueada. */
+  edicion?: { id: string; fechaRegistro: string; valoresIniciales: TrasladoAlmacenInput };
 }) {
   const router = useRouter();
+  const fechaRegistro = edicion?.fechaRegistro ?? fechaLocalHoy();
 
   const form = useForm<TrasladoAlmacenInput>({
     resolver: zodResolver(trasladoAlmacenSchema),
@@ -59,11 +58,7 @@ export function TrasladoAlmacenForm({
       fecha: fechaLocalHoy() as unknown as Date,
       almacenOrigenId: almacenOrigenIdInicial ?? "",
       almacenDestinoId: "",
-      moneda: "PEN",
       guiaRemision: "",
-      remitenteRuc: "",
-      remitente: "",
-      flete: 0,
       observaciones: "",
       items: [ITEM_VACIO],
     },
@@ -72,8 +67,6 @@ export function TrasladoAlmacenForm({
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
-  const flete = useWatch({ control: form.control, name: "flete" });
-  const moneda = useWatch({ control: form.control, name: "moneda" }) ?? "PEN";
 
   // Solo se puede trasladar lo que el almacén de origen realmente tiene en
   // stock: el combobox de producto se restringe a esa lista, y sirve
@@ -89,9 +82,6 @@ export function TrasladoAlmacenForm({
 
   function stockDisponibleDe(skuId: string) {
     return stockPorSkuId.get(skuId)?.cantidad ?? 0;
-  }
-  function costoUnitarioDe(skuId: string) {
-    return stockPorSkuId.get(skuId)?.precioUnitarioPonderado ?? 0;
   }
 
   // Agroquímicos y Fertilizantes exige elegir de qué lote sale cada
@@ -111,10 +101,6 @@ export function TrasladoAlmacenForm({
     if (!muestraLote) return stockDisponibleDe(skuId);
     return lotesDe(skuId).find((l) => l.lote === lote)?.cantidad ?? 0;
   }
-
-  const valoresTotales = items.map((item) => (Number(item?.cantidad) || 0) * costoUnitarioDe(item?.skuId ?? ""));
-  const fletePorItem = prorratear(Number(flete) || 0, valoresTotales);
-  const fleteTotalUsd = convertirAUsd(Number(flete) || 0, moneda);
 
   async function onSubmit(data: TrasladoAlmacenInput) {
     const excedeAlgunaLinea = data.items.some(
@@ -227,93 +213,27 @@ export function TrasladoAlmacenForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guiaRemision">N° de guía de remisión (opcional)</Label>
+            <Label htmlFor="fechaRegistro">Fecha de registro</Label>
+            <Input
+              id="fechaRegistro"
+              type="date"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              value={fechaRegistro}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="guiaRemision">N° de guía de remisión</Label>
             <Input id="guiaRemision" {...form.register("guiaRemision")} />
+            {form.formState.errors.guiaRemision && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.guiaRemision.message}</p>
+            )}
           </div>
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>
             <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Datos de transporte</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            El flete se prorratea entre los productos según su participación en el valor trasladado, y se suma
-            a su costo para el precio unitario ponderado del almacén de destino.
-          </p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <Label htmlFor="remitenteRuc">RUC del remitente (opcional)</Label>
-            <Input id="remitenteRuc" {...form.register("remitenteRuc")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="remitente">Nombre del remitente (opcional)</Label>
-            <Controller
-              control={form.control}
-              name="remitente"
-              render={({ field }) => (
-                <ProveedorRemitenteCombobox
-                  proveedores={proveedores}
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  onSelect={(proveedor) => {
-                    field.onChange(proveedor.razonSocial);
-                    if (proveedor.ruc) form.setValue("remitenteRuc", proveedor.ruc);
-                  }}
-                />
-              )}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Moneda del flete</Label>
-            <Controller
-              control={form.control}
-              name="moneda"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONEDAS.map((m) => (
-                      <SelectItem key={m.codigo} value={m.codigo}>
-                        {m.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="flete">Precio del flete (opcional)</Label>
-            <Controller
-              control={form.control}
-              name="flete"
-              render={({ field: fleteField }) => (
-                <NumberInput
-                  id="flete"
-                  value={String(fleteField.value ?? "")}
-                  onChange={fleteField.onChange}
-                />
-              )}
-            />
-            {form.formState.errors.flete && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.flete.message}</p>
-            )}
-            {moneda === "PEN" && (
-              <p className="text-xs text-muted-foreground">
-                ≈ {formatMoneda(fleteTotalUsd, "USD")} (tipo de cambio fijo S/ {TIPO_CAMBIO_PEN_USD.toFixed(2)})
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -357,7 +277,6 @@ export function TrasladoAlmacenForm({
                         <TableHead className="w-32">F. vencimiento</TableHead>
                       </>
                     )}
-                    <TableHead className="w-28 text-right">Flete asignado</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -476,9 +395,6 @@ export function TrasladoAlmacenForm({
                             </TableCell>
                           </>
                         )}
-                        <TableCell className="text-right align-top pt-4 text-sm text-muted-foreground">
-                          {formatMoneda(fletePorItem[index] ?? 0, moneda)}
-                        </TableCell>
                         <TableCell className="align-top">
                           <Button
                             type="button"
