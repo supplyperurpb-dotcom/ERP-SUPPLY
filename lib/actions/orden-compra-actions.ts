@@ -410,19 +410,61 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
       return { error: "El proveedor seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
     }
 
+    // Las líneas ya existentes no se pueden quitar (solo ajustar) — las
+    // que llegan sin id son nuevas y se crean aparte, ver más abajo.
     const idsExistentes = new Set(orden.items.map((i) => i.id));
-    const idsEnviados = new Set(items.map((i) => i.id));
+    const itemsExistentes = items.filter((i) => i.id);
+    const itemsNuevos = items.filter((i) => !i.id);
+    const idsEnviados = new Set(itemsExistentes.map((i) => i.id!));
     if (idsEnviados.size !== idsExistentes.size || [...idsEnviados].some((itemId) => !idsExistentes.has(itemId))) {
       return { error: "Los ítems de la orden cambiaron desde que abriste esta página. Actualízala e intenta de nuevo." };
     }
 
-    const subtotales = items.map((item) => Math.round(item.cantidad * item.precioUnitario * 100) / 100);
-    const subtotal = subtotales.reduce((a, b) => a + b, 0);
-    const igv = items.reduce((acc, item, i) => (item.gravado ? acc + subtotales[i] * IGV_TASA : acc), 0);
+    // Si dos líneas nuevas repiten el mismo ítem de solicitud, se valida la suma.
+    const cantidadNuevaPorItemSolped = new Map<string, number>();
+    for (const item of itemsNuevos) {
+      if (!item.solicitudPedidoItemId) continue;
+      cantidadNuevaPorItemSolped.set(
+        item.solicitudPedidoItemId,
+        (cantidadNuevaPorItemSolped.get(item.solicitudPedidoItemId) ?? 0) + item.cantidad
+      );
+    }
+
+    const subtotalesExistentes = itemsExistentes.map((item) => Math.round(item.cantidad * item.precioUnitario * 100) / 100);
+    const subtotalesNuevos = itemsNuevos.map((item) => Math.round(item.cantidad * item.precioUnitario * 100) / 100);
+    const subtotal = [...subtotalesExistentes, ...subtotalesNuevos].reduce((a, b) => a + b, 0);
+    const igv =
+      itemsExistentes.reduce((acc, item, i) => (item.gravado ? acc + subtotalesExistentes[i] * IGV_TASA : acc), 0) +
+      itemsNuevos.reduce((acc, item, i) => (item.gravado ? acc + subtotalesNuevos[i] * IGV_TASA : acc), 0);
     const igvRedondeado = Math.round(igv * 100) / 100;
     const montoTotal = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
     await prisma.$transaction(async (tx) => {
+      // Las líneas nuevas que vienen de una Solped deben validarse contra
+      // lo pendiente de esa solicitud, igual que al crear la orden — la
+      // cantidad que esta MISMA orden ya tenía de esa línea (si la hubiera)
+      // no se resta porque es un ítem de solped distinto (uno nuevo no
+      // puede repetir el id de uno ya existente en la orden).
+      for (const [solicitudPedidoItemId, cantidadSolicitadaAhora] of cantidadNuevaPorItemSolped) {
+        const categoriaItem = await categoriaDeItem(solicitudPedidoItemId, tx);
+        if (categoriaItem !== null && categoriaItem !== orden.categoria) {
+          throw new Error("No se puede agregar un ítem de una solicitud de categoría distinta a la de esta orden.");
+        }
+        const pendiente = await cantidadPendiente(solicitudPedidoItemId, tx);
+        if (cantidadSolicitadaAhora > pendiente) {
+          const itemOriginal = await tx.solicitudPedidoItem.findUnique({
+            where: { id: solicitudPedidoItemId },
+            include: { sku: true, solicitudPedido: true },
+          });
+          const etiqueta = itemOriginal
+            ? `${itemOriginal.sku.codigo} (solicitud ${itemOriginal.solicitudPedido.numero})`
+            : solicitudPedidoItemId;
+          throw new Error(
+            `La cantidad de ${etiqueta} supera lo pendiente (disponible: ${pendiente}, solicitado ahora: ${cantidadSolicitadaAhora}).`
+          );
+        }
+      }
+
       await tx.ordenCompra.update({
         where: { id },
         data: {
@@ -439,22 +481,41 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
         },
       });
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+      for (let i = 0; i < itemsExistentes.length; i++) {
+        const item = itemsExistentes[i];
         await tx.ordenCompraItem.update({
           where: { id: item.id },
           data: {
             cantidad: item.cantidad,
             precioUnitario: item.precioUnitario,
-            subtotal: subtotales[i],
+            subtotal: subtotalesExistentes[i],
             gravado: item.gravado,
             descripcion: item.descripcion || null,
           },
         });
       }
 
+      const centroCostosNuevos: string[] = [];
+      for (let i = 0; i < itemsNuevos.length; i++) {
+        const item = itemsNuevos[i];
+        centroCostosNuevos.push(item.centroCosto!);
+        await tx.ordenCompraItem.create({
+          data: {
+            ordenCompraId: id,
+            solicitudPedidoItemId: item.solicitudPedidoItemId || null,
+            skuId: item.skuId!,
+            cantidad: item.cantidad,
+            precioUnitario: item.precioUnitario,
+            subtotal: subtotalesNuevos[i],
+            gravado: item.gravado,
+            centroCosto: item.centroCosto!,
+            descripcion: item.descripcion || null,
+          },
+        });
+      }
+
       await tx.ordenCompraFirma.deleteMany({ where: { ordenCompraId: id } });
-      const centroCostos = [...new Set(orden.items.map((i) => i.centroCosto))];
+      const centroCostos = [...new Set([...orden.items.map((i) => i.centroCosto), ...centroCostosNuevos])];
       const roles = rolesFirmaRequeridos(montoEnUsd(montoTotal, moneda), centroCostos);
       for (const rol of roles) {
         await tx.ordenCompraFirma.create({ data: { ordenCompraId: id, rol } });

@@ -100,29 +100,45 @@ export const ordenCompraSchema = z
 export type OrdenCompraInput = z.infer<typeof ordenCompraSchema>;
 
 // Edición de una OC/OS ya creada (solo en BORRADOR, ver
-// editarOrdenCompraAction): las líneas son las YA EXISTENTES (se
-// identifican por id, no se agregan ni quitan), y no incluye
-// solicitudPedidoItemId/skuId/centroCosto porque esos no cambian al
-// editar (centroCosto además está bloqueado en la UI, ver
-// orden-compra-form.tsx).
+// editarOrdenCompraAction): una línea con id es una YA EXISTENTE (no se
+// puede quitar, solo ajustar cantidad/precio/gravado/descripción — su
+// skuId/centroCosto/solicitudPedidoItemId no cambian). Una línea SIN id es
+// NUEVA: trae su propio skuId y centroCosto, y — si la orden viene de una
+// Solped — también solicitudPedidoItemId (ver superRefine abajo, que
+// exige ambos solo cuando no hay id).
 const itemOrdenCompraEditSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().optional(),
+  skuId: z.string().optional(),
+  centroCosto: z.string().optional(),
+  solicitudPedidoItemId: z.string().optional(),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   gravado: z.coerce.boolean().default(true),
   descripcion: z.string().max(500).optional().or(z.literal("")),
 });
 
-export const editarOrdenCompraSchema = z.object({
-  proveedorId: z.string().min(1, "Selecciona un proveedor"),
-  fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-  fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
-  condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
-  lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
-  observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
-  moneda: z.enum(["PEN", "USD"]).default("PEN"),
-  items: z.array(itemOrdenCompraEditSchema).min(1, "La orden debe tener al menos un ítem"),
-});
+export const editarOrdenCompraSchema = z
+  .object({
+    proveedorId: z.string().min(1, "Selecciona un proveedor"),
+    fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
+    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
+    observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
+    moneda: z.enum(["PEN", "USD"]).default("PEN"),
+    items: z.array(itemOrdenCompraEditSchema).min(1, "La orden debe tener al menos un ítem"),
+  })
+  .superRefine((data, ctx) => {
+    data.items.forEach((item, i) => {
+      if (!item.id && (!item.skuId || !item.centroCosto)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Falta el producto o el centro de costo de la línea nueva",
+          path: ["items", i],
+        });
+      }
+    });
+  });
 
 export type EditarOrdenCompraInput = z.infer<typeof editarOrdenCompraSchema>;
 

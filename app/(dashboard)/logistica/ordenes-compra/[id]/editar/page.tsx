@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { calcularSolicitudesConPendientes } from "@/lib/compras";
+import { obtenerValoresActivos } from "@/lib/listas";
 import { fechaInputValue } from "@/lib/utils";
 import { NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { OrdenCompraEditarForm } from "./orden-compra-editar-form";
@@ -26,21 +28,29 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
   if (!puedeEditar) notFound();
 
   const categoria = orden.categoria as CategoriaCompraCodigo;
+  // Una orden "Directa" no tiene ningún ítem con solicitudPedidoItemId —
+  // ver crearOrdenCompraDirectaAction. Determina de dónde se agregan
+  // productos nuevos al editar: del catálogo de SKU libre, o de lo
+  // pendiente de una Solped.
+  const esDirecta = orden.items.every((item) => !item.solicitudPedidoItemId);
 
-  const proveedores = await prisma.proveedor.findMany({
-    where: { activo: true },
-    orderBy: { razonSocial: "asc" },
-  });
+  const [proveedores, skus, solicitudesPendientes, centrosCosto] = await Promise.all([
+    prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
+    esDirecta ? prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }) : Promise.resolve([]),
+    esDirecta ? Promise.resolve([]) : calcularSolicitudesConPendientes(prisma, categoria),
+    esDirecta ? obtenerValoresActivos("CENTRO_COSTO") : Promise.resolve([]),
+  ]);
 
   return (
     <div>
       <PageHeader
         titulo={`Editar ${NOMBRE_ORDEN[categoria].toLowerCase()} — ${orden.numero}`}
-        descripcion="Solo se puede editar mientras esté en estado Borrador (antes de que alguien la firme)."
+        descripcion="Solo se puede editar mientras esté en estado Borrador (antes de que alguien la firme). Se pueden agregar productos nuevos, pero no quitar los ya existentes."
       />
       <OrdenCompraEditarForm
         ordenId={orden.id}
         categoria={categoria}
+        esDirecta={esDirecta}
         proveedores={proveedores.map((p) => ({
           id: p.id,
           razonSocial: p.razonSocial,
@@ -53,6 +63,9 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
           descripcion: item.sku.descripcion,
           centroCosto: item.centroCosto,
         }))}
+        skus={skus.map((s) => ({ id: s.id, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida, categoria: s.categoria }))}
+        centrosCosto={centrosCosto}
+        solicitudesPendientes={solicitudesPendientes}
         valoresIniciales={{
           proveedorId: orden.proveedorId,
           fecha: fechaInputValue(orden.fecha),
