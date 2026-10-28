@@ -11,9 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { eliminarSkuAction } from "@/lib/actions/sku-actions";
 import { SkuFormDialog } from "./sku-form-dialog";
 
+const POR_PAGINA = 50;
+
 export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
+  const [pagina, setPagina] = useState(1);
 
   const skusFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
@@ -22,6 +25,15 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
       (sku) => sku.codigo.toLowerCase().includes(termino) || sku.descripcion.toLowerCase().includes(termino)
     );
   }, [skus, busqueda]);
+
+  const totalPaginas = Math.max(1, Math.ceil(skusFiltrados.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const skusPagina = skusFiltrados.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+
+  function cambiarBusqueda(valor: string) {
+    setBusqueda(valor);
+    setPagina(1);
+  }
 
   function handleEliminar(id: string, codigo: string) {
     if (!confirm(`¿Eliminar el SKU ${codigo}? Esta acción no se puede deshacer.`)) return;
@@ -42,7 +54,7 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
         <Input
           placeholder="Buscar por código o nombre..."
           value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          onChange={(e) => cambiarBusqueda(e.target.value)}
           className="pl-8"
         />
       </div>
@@ -65,7 +77,7 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {skusFiltrados.map((sku) => (
+            {skusPagina.map((sku) => (
               <TableRow key={sku.id}>
                 <TableCell className="font-medium">{sku.codigo}</TableCell>
                 <TableCell>{sku.descripcion}</TableCell>
@@ -92,6 +104,34 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {skusFiltrados.length > 0 && (
+        <div className="flex shrink-0 items-center justify-between gap-3 text-sm text-muted-foreground">
+          <p>
+            {skusFiltrados.length} código{skusFiltrados.length === 1 ? "" : "s"} · Página {paginaActual} de {totalPaginas}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={paginaActual <= 1}
+              onClick={() => setPagina((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={paginaActual >= totalPaginas}
+              onClick={() => setPagina((p) => p + 1)}
+            >
+              Siguiente
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
