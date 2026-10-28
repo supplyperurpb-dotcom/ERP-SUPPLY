@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 
 /**
- * Botón de eliminar con aviso de confirmación (confirm() nativo, igual que
- * en SKU y Proveedor) para los movimientos de almacén (ingreso, traslado,
- * consumo). `redirectTo` se usa en la página de detalle (para volver al
- * listado); se omite en las filas de una tabla, donde basta refrescar.
+ * Botón de eliminar con aviso de confirmación (ventana propia de la app,
+ * igual que en SKU y Proveedor) para los movimientos de almacén (ingreso,
+ * traslado, consumo). `redirectTo` se usa en la página de detalle (para
+ * volver al listado); se omite en las filas de una tabla, donde basta
+ * refrescar.
  */
 export function EliminarMovimientoButton({
   id,
@@ -27,9 +29,10 @@ export function EliminarMovimientoButton({
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleClick() {
-    if (!confirm(`¿Eliminar ${etiqueta} ${numero}? Esta acción no se puede deshacer.`)) return;
+  async function handleClick() {
+    if (!(await confirmar(`¿Eliminar ${etiqueta} ${numero}? Esta acción no se puede deshacer.`))) return;
     startTransition(async () => {
       const resultado = await accion(id);
       if (resultado?.error) {

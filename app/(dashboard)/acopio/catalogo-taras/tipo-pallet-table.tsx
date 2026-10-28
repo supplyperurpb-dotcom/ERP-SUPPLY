@@ -8,14 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { eliminarTipoPalletAction } from "@/lib/actions/tara-actions";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { formatKg } from "@/lib/utils";
 import { TipoPalletFormDialog } from "./tipo-pallet-form-dialog";
 
 export function TipoPalletTable({ tiposPallet }: { tiposPallet: TipoPallet[] }) {
   const [isPending, startTransition] = useTransition();
+  const confirmar = useConfirm();
 
-  function handleEliminar(id: string, nombre: string) {
-    if (!confirm(`¿Eliminar el tipo de pallet ${nombre}? Esta acción no se puede deshacer.`)) return;
+  async function handleEliminar(id: string, nombre: string) {
+    if (!(await confirmar(`¿Eliminar el tipo de pallet ${nombre}? Esta acción no se puede deshacer.`))) return;
     startTransition(async () => {
       await eliminarTipoPalletAction(id);
       toast.success("Tipo de pallet eliminado");

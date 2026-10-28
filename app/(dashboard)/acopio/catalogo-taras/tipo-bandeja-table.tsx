@@ -8,14 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { eliminarTipoBandejaAction } from "@/lib/actions/tara-actions";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { formatKg } from "@/lib/utils";
 import { TipoBandejaFormDialog } from "./tipo-bandeja-form-dialog";
 
 export function TipoBandejaTable({ tiposBandeja }: { tiposBandeja: TipoBandeja[] }) {
   const [isPending, startTransition] = useTransition();
+  const confirmar = useConfirm();
 
-  function handleEliminar(id: string, nombre: string) {
-    if (!confirm(`¿Eliminar el tipo de bandeja ${nombre}? Esta acción no se puede deshacer.`)) return;
+  async function handleEliminar(id: string, nombre: string) {
+    if (!(await confirmar(`¿Eliminar el tipo de bandeja ${nombre}? Esta acción no se puede deshacer.`))) return;
     startTransition(async () => {
       await eliminarTipoBandejaAction(id);
       toast.success("Tipo de bandeja eliminado");

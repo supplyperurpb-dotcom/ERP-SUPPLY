@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, X, Ban, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import {
   decidirItemSolicitudAction,
   finalizarAprobacionSolicitudAction,
@@ -69,9 +70,10 @@ export function FinalizarAprobacionBoton({
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleFinalizar() {
-    if (!confirm(`¿Finalizar la aprobación de ${numero}? Ya no vas a poder cambiar las decisiones de cada producto.`)) return;
+  async function handleFinalizar() {
+    if (!(await confirmar(`¿Finalizar la aprobación de ${numero}? Ya no vas a poder cambiar las decisiones de cada producto.`))) return;
     startTransition(async () => {
       const resultado = await finalizarAprobacionSolicitudAction(id);
       if (resultado?.error) {
@@ -111,11 +113,12 @@ export function AnularSolicitudBoton({
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleAnular() {
+  async function handleAnular() {
     const comentario = prompt(`Motivo de la anulación de ${numero} (opcional):`);
     if (comentario === null) return;
-    if (!confirm(`¿Anular la solicitud ${numero}?`)) return;
+    if (!(await confirmar(`¿Anular la solicitud ${numero}?`))) return;
     startTransition(async () => {
       const resultado = await anularSolicitudPedidoAction(id, comentario);
       if (resultado?.error) {

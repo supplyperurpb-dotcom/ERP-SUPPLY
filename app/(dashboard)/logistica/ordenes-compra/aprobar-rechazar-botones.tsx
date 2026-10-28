@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, X, Ban, Undo2, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import {
   firmarOrdenCompraAction,
   anularOrdenCompraAction,
@@ -19,9 +20,10 @@ import {
 export function FirmarOrdenBotones({ id, numero, rolLabel }: { id: string; numero: string; rolLabel: string }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleAprobar() {
-    if (!confirm(`¿Aprobar ${numero} como ${rolLabel}?`)) return;
+  async function handleAprobar() {
+    if (!(await confirmar(`¿Aprobar ${numero} como ${rolLabel}?`))) return;
     startTransition(async () => {
       const resultado = await firmarOrdenCompraAction(id, "APROBADO");
       if (resultado?.error) {
@@ -68,11 +70,12 @@ export function FirmarOrdenBotones({ id, numero, rolLabel }: { id: string; numer
 export function AnularFirmaBoton({ id, firmaId, numero, rolLabel }: { id: string; firmaId: string; numero: string; rolLabel: string }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleAnularFirma() {
+  async function handleAnularFirma() {
     const comentario = prompt(`Motivo para anular tu aprobación (${rolLabel}) de ${numero} (opcional):`);
     if (comentario === null) return;
-    if (!confirm(`¿Anular tu aprobación (${rolLabel}) de ${numero}?`)) return;
+    if (!(await confirmar(`¿Anular tu aprobación (${rolLabel}) de ${numero}?`))) return;
     startTransition(async () => {
       const resultado = await anularFirmaOrdenCompraAction(id, firmaId, comentario);
       if (resultado?.error) {
@@ -108,11 +111,12 @@ export function AnularOrdenBoton({
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleAnular() {
+  async function handleAnular() {
     const comentario = prompt(`Motivo de la anulación de ${numero} (opcional):`);
     if (comentario === null) return;
-    if (!confirm(`¿Anular ${numero}?`)) return;
+    if (!(await confirmar(`¿Anular ${numero}?`))) return;
     startTransition(async () => {
       const resultado = await anularOrdenCompraAction(id, comentario);
       if (resultado?.error) {
@@ -143,11 +147,12 @@ export function AnularOrdenBoton({
 export function CerrarPosicionBoton({ itemId, codigo }: { itemId: string; codigo: string }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleCerrar() {
+  async function handleCerrar() {
     const motivo = prompt(`Motivo del cierre de ${codigo} (opcional):`);
     if (motivo === null) return;
-    if (!confirm(`¿Cerrar la posición de ${codigo}? Dejará de aparecer como pendiente de recibir.`)) return;
+    if (!(await confirmar(`¿Cerrar la posición de ${codigo}? Dejará de aparecer como pendiente de recibir.`))) return;
     startTransition(async () => {
       const resultado = await cerrarPosicionOrdenCompraItemAction(itemId, motivo);
       if (resultado?.error) {
@@ -177,9 +182,10 @@ export function CerrarPosicionBoton({ itemId, codigo }: { itemId: string; codigo
 export function ReabrirPosicionBoton({ itemId, codigo }: { itemId: string; codigo: string }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const confirmar = useConfirm();
 
-  function handleReabrir() {
-    if (!confirm(`¿Reabrir la posición de ${codigo}? Volverá a contar como pendiente de recibir.`)) return;
+  async function handleReabrir() {
+    if (!(await confirmar(`¿Reabrir la posición de ${codigo}? Volverá a contar como pendiente de recibir.`))) return;
     startTransition(async () => {
       const resultado = await reabrirPosicionOrdenCompraItemAction(itemId);
       if (resultado?.error) {

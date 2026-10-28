@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/shared/dashboard-shell";
+import { ConfirmDialogProvider } from "@/components/shared/confirm-dialog-provider";
 import { getUsuarioActual } from "@/lib/auth/session";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <DashboardShell roles={usuario.roles} usuario={usuario}>
-      {children}
+      <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
     </DashboardShell>
   );
 }

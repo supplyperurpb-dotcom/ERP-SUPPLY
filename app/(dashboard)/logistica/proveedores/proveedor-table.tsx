@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { eliminarProveedorAction } from "@/lib/actions/proveedor-actions";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { ProveedorFormDialog } from "./proveedor-form-dialog";
 
 const TIPO_LABEL: Record<Proveedor["tipo"], string> = {
@@ -21,9 +22,10 @@ const TIPO_LABEL: Record<Proveedor["tipo"], string> = {
 
 export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
   const [isPending, startTransition] = useTransition();
+  const confirmar = useConfirm();
 
-  function handleEliminar(id: string, razonSocial: string) {
-    if (!confirm(`¿Eliminar el proveedor ${razonSocial}? Esta acción no se puede deshacer.`)) return;
+  async function handleEliminar(id: string, razonSocial: string) {
+    if (!(await confirmar(`¿Eliminar el proveedor ${razonSocial}? Esta acción no se puede deshacer.`))) return;
     startTransition(async () => {
       await eliminarProveedorAction(id);
       toast.success("Proveedor eliminado");

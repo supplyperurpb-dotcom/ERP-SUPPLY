@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { crearSkusNoValoradosAction, eliminarSkuAction } from "@/lib/actions/sku-actions";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { SkuFormDialog } from "./sku-form-dialog";
 
 const POR_PAGINA = 50;
@@ -17,6 +18,7 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
+  const confirmar = useConfirm();
 
   const codigosExistentes = useMemo(() => new Set(skus.map((s) => s.codigo)), [skus]);
 
@@ -37,8 +39,8 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
     setPagina(1);
   }
 
-  function handleEliminar(id: string, codigo: string) {
-    if (!confirm(`¿Eliminar el SKU ${codigo}? Esta acción no se puede deshacer.`)) return;
+  async function handleEliminar(id: string, codigo: string) {
+    if (!(await confirmar(`¿Eliminar el SKU ${codigo}? Esta acción no se puede deshacer.`))) return;
     startTransition(async () => {
       const resultado = await eliminarSkuAction(id);
       if (resultado?.error) {
@@ -55,8 +57,8 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
     return sku.categoria !== "Servicios" && !sku.codigo.startsWith("NV") && !codigosExistentes.has(`NV${sku.codigo}`);
   }
 
-  function handleCrearNv(id: string, codigo: string) {
-    if (!confirm(`¿Seguro que quiere crear un Código No Valorado para este SKU?`)) return;
+  async function handleCrearNv(id: string, codigo: string) {
+    if (!(await confirmar(`¿Seguro que quiere crear un Código No Valorado para este SKU?`))) return;
     startTransition(async () => {
       const resultado = await crearSkusNoValoradosAction([id]);
       if (resultado?.error) {
