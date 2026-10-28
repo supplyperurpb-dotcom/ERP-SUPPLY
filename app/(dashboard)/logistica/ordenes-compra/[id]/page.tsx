@@ -124,8 +124,11 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   // rol propio pendiente — la primera pendiente, como respaldo.
   const firmasPendientes = orden.firmas.filter((f) => f.estado === "PENDIENTE");
   const firmaPropiaId = usuario ? firmasPendientes.find((f) => aprobadorPorRolEspecial.get(f.rol) === usuario.id)?.id : undefined;
+  // BORRADOR también cuenta: firmarOrdenCompraAction ya permite firmar ahí
+  // (es justo la primera firma la que saca a la orden de BORRADOR), así que
+  // el botón tiene que poder aparecer antes de que exista ninguna firma.
   const firmaQuePuedeUsar =
-    orden.estado === "PENDIENTE"
+    orden.estado === "BORRADOR" || orden.estado === "PENDIENTE"
       ? (firmaPropiaId ?? (esAdmin && firmasPendientes.length > 0 ? firmasPendientes[0].id : undefined))
       : undefined;
 
