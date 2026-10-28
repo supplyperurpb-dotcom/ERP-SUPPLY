@@ -71,6 +71,14 @@ async function validarOrigen(tx: Tx, data: IngresoAlmacenInput, exigirActivo: bo
   if (orden.estado !== "APROBADO" || orden.categoria !== "COMPRA") {
     throw new Error("Solo se puede ingresar desde una orden de compra aprobada.");
   }
+  // Una orden Abierta deja de admitir ingresos pasado su plazo de vigencia,
+  // aunque siga figurando como APROBADA — no es un estado nuevo, es solo
+  // una fecha límite de uso (ver TipoOrdenCompra en el schema).
+  if (orden.tipoOrden === "ABIERTA" && orden.vigenteHasta && orden.vigenteHasta < new Date()) {
+    throw new Error(
+      `${orden.numero} es una orden abierta vencida (vigente hasta ${orden.vigenteHasta.toLocaleDateString("es-PE")}); ya no se pueden registrar ingresos.`
+    );
+  }
 
   const itemsOc = await tx.ordenCompraItem.findMany({
     where: { ordenCompraId: orden.id },
@@ -95,11 +103,19 @@ async function validarOrigen(tx: Tx, data: IngresoAlmacenInput, exigirActivo: bo
         `La cantidad de ${itemOc.sku.codigo} supera lo pendiente de la OC (disponible: ${pendiente}, ingresado ahora: ${item.cantidad}). Actualiza la página e intenta de nuevo.`
       );
     }
-    if (almacen.categoriaGeneral === "PESTICIDAS" || almacen.categoriaGeneral === "FERTILIZANTES") {
-      if (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento) {
-        throw new Error(
-          `${itemOc.sku.codigo}: lote, fecha de producción y fecha de vencimiento son obligatorios en un almacén de Agroquímicos y Fertilizantes.`
-        );
+    // Lo exige el almacén (Pesticidas/Fertilizantes, para todo lo que
+    // ingrese ahí) o el propio SKU (Sku.requiereLote, sin importar el
+    // almacén) — ver también el checkbox "Registrar Lote, Fecha de
+    // Producción y Fecha de Vencimiento" al crear el SKU.
+    if (almacen.categoriaGeneral === "PESTICIDAS" || almacen.categoriaGeneral === "FERTILIZANTES" || itemOc.sku.requiereLote) {
+      if (!item.lote?.trim()) {
+        throw new Error(`Al código ${itemOc.sku.codigo} no se le ha registrado Lote.`);
+      }
+      if (!item.fechaProduccion) {
+        throw new Error(`Al código ${itemOc.sku.codigo} no se le ha registrado Fecha de Producción.`);
+      }
+      if (!item.fechaVencimiento) {
+        throw new Error(`Al código ${itemOc.sku.codigo} no se le ha registrado Fecha de Vencimiento.`);
       }
     }
   }
@@ -112,7 +128,8 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, flete, observaciones, items } = parsed.data;
+  const { fecha, fechaContabilizacion, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, observaciones, items } =
+    parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
@@ -123,7 +140,10 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
 
       const precios = items.map((item) => Number(itemOcPorId.get(item.ordenCompraItemId)!.precioUnitario));
       const subtotales = items.map((item, i) => item.cantidad * precios[i]);
-      const fletePorItem = prorratear(flete ?? 0, subtotales);
+      // El flete se eliminó de este flujo (ver ingresoAlmacenSchema): queda
+      // siempre en 0, pero las columnas *Asignado siguen existiendo porque
+      // las usa el costeo ponderado (mapaCostosAlmacen).
+      const fletePorItem = prorratear(0, subtotales);
       const subtotalesUsd = subtotales.map((s) => convertirAUsd(s, moneda));
       const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
 
@@ -134,14 +154,15 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
         data: {
           numero,
           fecha,
+          fechaContabilizacion,
           ocNumero: orden.numero,
           ordenCompraId: orden.id,
           moneda,
-          guiaRemision: guiaRemision || null,
+          guiaRemision,
           guiaRemisionArchivo,
           remitenteRuc: orden.proveedor.tipoDocumento === "RUC" ? orden.proveedor.numeroDocumento : null,
           remitente: orden.proveedor.razonSocial,
-          flete: flete || null,
+          flete: null,
           proveedorId: orden.proveedorId,
           almacenId,
           observaciones: observaciones || null,
@@ -212,7 +233,8 @@ export async function actualizarIngresoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, flete, observaciones, items } = parsed.data;
+  const { fecha, fechaContabilizacion, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, observaciones, items } =
+    parsed.data;
 
   const existente = await prisma.ingresoAlmacen.findUnique({ where: { id }, include: { items: true } });
   if (!existente) return { error: "El ingreso ya no existe." };
@@ -245,7 +267,7 @@ export async function actualizarIngresoAlmacenAction(
 
       const precios = items.map((item) => Number(itemOcPorId.get(item.ordenCompraItemId)!.precioUnitario));
       const subtotales = items.map((item, i) => item.cantidad * precios[i]);
-      const fletePorItem = prorratear(flete ?? 0, subtotales);
+      const fletePorItem = prorratear(0, subtotales);
       const subtotalesUsd = subtotales.map((s) => convertirAUsd(s, moneda));
       const fletePorItemUsd = fletePorItem.map((f) => convertirAUsd(f, moneda));
 
@@ -253,14 +275,15 @@ export async function actualizarIngresoAlmacenAction(
         where: { id },
         data: {
           fecha,
+          fechaContabilizacion,
           ocNumero: orden.numero,
           ordenCompraId: orden.id,
           moneda,
-          guiaRemision: guiaRemision || null,
+          guiaRemision,
           guiaRemisionArchivo,
           remitenteRuc: orden.proveedor.tipoDocumento === "RUC" ? orden.proveedor.numeroDocumento : null,
           remitente: orden.proveedor.razonSocial,
-          flete: flete || null,
+          flete: null,
           proveedorId: orden.proveedorId,
           almacenId,
           observaciones: observaciones || null,

@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { calcularOcPendientesIngreso } from "@/lib/stock-almacen";
@@ -28,11 +27,9 @@ export default async function NuevoIngresoAlmacenPage({
 
   return (
     <div>
-      <PageHeader
+      <IngresoAlmacenWizard
         titulo={`Nuevo ingreso a almacén — ${numeroTentativo}`}
         descripcion="Elige la orden de compra de origen y los ítems a recibir: el proveedor, el SKU y el precio se jalan de la OC."
-      />
-      <IngresoAlmacenWizard
         usuario={{ nombres: usuario.nombres, apellidos: usuario.apellidos }}
         almacenes={almacenesGenerales.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         ordenesCompra={ordenesConPendientes.map((o) => ({
@@ -50,6 +47,7 @@ export default async function NuevoIngresoAlmacenPage({
             precioUnitario: i.precioUnitario,
             cantidadOc: i.cantidadOc,
             cantidadPendiente: i.cantidadPendiente,
+            skuRequiereLote: i.skuRequiereLote,
           })),
         }))}
         almacenIdInicial={almacenId}

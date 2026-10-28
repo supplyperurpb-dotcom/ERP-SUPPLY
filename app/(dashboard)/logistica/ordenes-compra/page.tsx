@@ -1,13 +1,12 @@
-import Link from "next/link";
-import { ShoppingCart, Plus } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
-import { Button } from "@/components/ui/button";
 import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { OrdenesCompraTable, type FilaOrdenCompra } from "./ordenes-compra-table";
+import { NuevaOrdenDropdown } from "./nueva-orden-dropdown";
 import type { AreaEmpresa } from "@prisma/client";
 
 export default async function OrdenesCompraPage() {
@@ -59,19 +58,16 @@ export default async function OrdenesCompraPage() {
         titulo="Órdenes de compra"
         descripcion="Órdenes de compra emitidas a proveedores de insumos, generadas a partir de solicitudes de pedido."
         acciones={
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/logistica/ordenes-compra/nuevo?categoria=SERVICIO">
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Servicio
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/logistica/ordenes-compra/nuevo?categoria=COMPRA">
-                <Plus className="mr-2 h-4 w-4" />
-                Nueva Compra
-              </Link>
-            </Button>
+          <div className="flex items-center gap-2">
+            <NuevaOrdenDropdown etiqueta="Orden de Servicio" baseHref="/logistica/ordenes-compra/nuevo?categoria=SERVICIO" />
+            <NuevaOrdenDropdown
+              etiqueta="Orden de Compra"
+              baseHref="/logistica/ordenes-compra/nuevo?categoria=COMPRA"
+              variant="default"
+            />
+            <div className="ml-2 border-l pl-4">
+              <NuevaOrdenDropdown etiqueta="Orden de Compra" baseHref="/logistica/ordenes-compra/nueva-directa" />
+            </div>
           </div>
         }
       />

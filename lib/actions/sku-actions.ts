@@ -30,8 +30,20 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { subfamilia, producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion, unidadMedida, stockMinimo } =
-    parsed.data;
+  const {
+    subfamilia,
+    producto,
+    material,
+    marca,
+    medida,
+    destinoDescripcion,
+    codigoParte,
+    color,
+    presentacion,
+    unidadMedida,
+    stockMinimo,
+    requiereLote,
+  } = parsed.data;
 
   const descripcion = [producto, material, marca, medida, destinoDescripcion, codigoParte, color, presentacion]
     .map((v) => v?.trim())
@@ -55,6 +67,7 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
           subfamilia,
           unidadMedida,
           stockMinimo: stockMinimo ?? null,
+          requiereLote,
           creadoPorId: usuario?.id,
         },
       });
@@ -81,7 +94,7 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { tipo, subfamilia, producto, activo, clasificacion, unidadMedida, stockMinimo } = parsed.data;
+  const { tipo, subfamilia, producto, activo, clasificacion, unidadMedida, stockMinimo, requiereLote } = parsed.data;
 
   const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === (tipo as TipoAgroquimicoCodigo));
   if (!tipoInfo) return { error: "Tipo inválido." };
@@ -107,6 +120,7 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
           subfamilia,
           unidadMedida,
           stockMinimo: stockMinimo ?? null,
+          requiereLote,
           creadoPorId: usuario?.id,
         },
       });

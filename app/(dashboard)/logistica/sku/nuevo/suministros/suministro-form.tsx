@@ -32,6 +32,7 @@ export function SuministroForm() {
       color: "",
       presentacion: "",
       unidadMedida: "UND",
+      requiereLote: false,
     },
   });
 
@@ -167,6 +168,21 @@ export function SuministroForm() {
               )}
             />
           </div>
+
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <input
+              id="requiereLote"
+              type="checkbox"
+              className="h-4 w-4"
+              {...form.register("requiereLote")}
+            />
+            <Label htmlFor="requiereLote" className="font-normal">
+              Registrar Lote, Fecha de Producción y Fecha de Vencimiento
+            </Label>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground sm:col-span-2">
+            Si se marca, todo ingreso a almacén de este SKU exigirá esos 3 datos, sin importar el almacén.
+          </p>
 
           <div className="space-y-2 sm:col-span-2 rounded-md border bg-muted/40 p-3">
             <p className="text-xs text-muted-foreground">Vista previa del nombre del artículo</p>

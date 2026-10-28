@@ -15,7 +15,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, fechaLocalManana, formatMoneda } from "@/lib/utils";
-import { CONDICIONES_PAGO, IGV_TASA, LUGARES_ENTREGA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import {
+  CONDICIONES_PAGO,
+  IGV_TASA,
+  LUGARES_ENTREGA,
+  NOMBRE_ORDEN,
+  NOMBRE_SOLICITUD,
+  type CategoriaCompraCodigo,
+  type TipoOrdenCodigo,
+} from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
@@ -56,12 +64,14 @@ function filaVacia(item: ItemPlano): FilaSeleccion {
 export function OrdenCompraForm({
   solicitudes,
   categoria,
+  tipoOrden,
   proveedores,
   solicitudIdInicial,
   centrosCosto,
 }: {
   solicitudes: SolicitudConPendientes[];
   categoria: CategoriaCompraCodigo;
+  tipoOrden: TipoOrdenCodigo;
   proveedores: ProveedorOpcionSelect[];
   /** Si se llega desde el botón "Generar OC/OS" de una solicitud puntual, sus ítems se precargan ya marcados. */
   solicitudIdInicial?: string;
@@ -75,6 +85,10 @@ export function OrdenCompraForm({
   // retrofechar ni adelantar una OC/OS.
   const fecha = fechaLocalHoy();
   const [fechaEntrega, setFechaEntrega] = useState(fechaLocalManana());
+  // Solo para una orden Abierta: plazo de vigencia, pasado el cual no se
+  // pueden registrar más ingresos contra ella (ver validarOrigen en
+  // lib/actions/ingreso-almacen-actions.ts).
+  const [vigenteHasta, setVigenteHasta] = useState("");
   const [condicionPago, setCondicionPago] = useState<string>(CONDICIONES_PAGO[2]);
   const [lugarEntrega, setLugarEntrega] = useState("");
   const [comentario, setComentario] = useState("");
@@ -203,6 +217,10 @@ export function OrdenCompraForm({
       toast.error("El comentario es obligatorio");
       return;
     }
+    if (tipoOrden === "ABIERTA" && !vigenteHasta) {
+      toast.error("Selecciona el plazo de vigencia de la orden abierta");
+      return;
+    }
     if (itemsEnOrden.length === 0) {
       toast.error("Agrega al menos un producto con el botón 'Agregar producto'");
       return;
@@ -224,6 +242,8 @@ export function OrdenCompraForm({
     try {
       const resultado = await crearOrdenCompraAction({
         proveedorId,
+        tipoOrden,
+        vigenteHasta: tipoOrden === "ABIERTA" ? (new Date(vigenteHasta) as unknown as Date) : undefined,
         fecha: new Date(fecha) as unknown as Date,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
         condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
@@ -300,6 +320,22 @@ export function OrdenCompraForm({
               onChange={(e) => setFechaEntrega(e.target.value)}
             />
           </div>
+          {tipoOrden === "ABIERTA" && (
+            <div className="space-y-2">
+              <Label htmlFor="vigenteHasta">Vigente hasta</Label>
+              <Input
+                id="vigenteHasta"
+                type="date"
+                required
+                min={fecha}
+                value={vigenteHasta}
+                onChange={(e) => setVigenteHasta(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Pasada esta fecha, la orden ya no admite más ingresos a almacén.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Moneda</Label>
             <Select value={moneda} onValueChange={(v) => setMoneda(v as "PEN" | "USD")}>

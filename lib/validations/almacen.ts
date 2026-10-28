@@ -70,19 +70,35 @@ const itemIngresoSchema = z.object({
   fechaVencimiento: z.coerce.date().optional(),
 });
 
-export const ingresoAlmacenSchema = z.object({
-  fecha: z.coerce.date({ required_error: "La fecha de recepción es obligatoria" }),
-  ordenCompraId: z.string().min(1, "Selecciona una orden de compra"),
-  almacenId: z.string().min(1, "Selecciona el almacén"),
-  guiaRemision: z.string().max(60).optional().or(z.literal("")),
-  // Ruta en Supabase Storage del archivo ya subido (foto/escaneo/PDF) de
-  // la guía de remisión física — ver lib/storage.ts. Obligatorio: sin
-  // sustento no se puede registrar el ingreso.
-  guiaRemisionArchivo: z.string().min(1, "Adjunta la guía de remisión (foto o PDF)"),
-  flete: z.coerce.number().min(0, "El flete no puede ser negativo").optional().nullable(),
-  observaciones: z.string().max(500).optional().or(z.literal("")),
-  items: z.array(itemIngresoSchema).min(1, "Agrega al menos un producto"),
-});
+export const ingresoAlmacenSchema = z
+  .object({
+    // Fecha del ingreso: siempre hoy, bloqueada en el formulario — no viaja
+    // como input del usuario, ver crearIngresoAlmacenAction.
+    fecha: z.coerce.date({ required_error: "La fecha de recepción es obligatoria" }),
+    // A diferencia de fecha, esta sí la elige el usuario — pero nunca puede
+    // ser posterior a hoy (no se pueden contabilizar ingresos "a futuro").
+    fechaContabilizacion: z.coerce.date({ required_error: "La fecha de contabilización es obligatoria" }),
+    ordenCompraId: z.string().min(1, "Selecciona una orden de compra"),
+    almacenId: z.string().min(1, "Selecciona el almacén"),
+    guiaRemision: z.string().trim().min(1, "El número de guía de remisión es obligatorio").max(60),
+    // Ruta en Supabase Storage del archivo ya subido (foto/escaneo/PDF) de
+    // la guía de remisión física — ver lib/storage.ts. Obligatorio: sin
+    // sustento no se puede registrar el ingreso.
+    guiaRemisionArchivo: z.string().min(1, "Adjunta la guía de remisión (foto o PDF)"),
+    observaciones: z.string().max(500).optional().or(z.literal("")),
+    items: z.array(itemIngresoSchema).min(1, "Agrega al menos un producto"),
+  })
+  .superRefine((data, ctx) => {
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999);
+    if (data.fechaContabilizacion > hoy) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La fecha de contabilización no puede ser posterior a hoy",
+        path: ["fechaContabilizacion"],
+      });
+    }
+  });
 
 export type IngresoAlmacenInput = z.infer<typeof ingresoAlmacenSchema>;
 

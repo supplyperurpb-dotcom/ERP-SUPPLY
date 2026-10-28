@@ -57,6 +57,9 @@ export const skuSuministroSchema = z.object({
   presentacion: z.string().max(60).optional().or(z.literal("")),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10),
   stockMinimo: z.coerce.number().min(0).optional().nullable(),
+  // Si está marcado, todo ingreso a almacén de este SKU exige lote/fecha de
+  // producción/vencimiento, sin importar la categoría del almacén.
+  requiereLote: z.coerce.boolean().default(false),
 });
 
 export type SkuSuministroInput = z.infer<typeof skuSuministroSchema>;
@@ -75,6 +78,7 @@ export const skuAgroquimicoSchema = z.object({
   clasificacion: z.string().max(60).optional().or(z.literal("")),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10),
   stockMinimo: z.coerce.number().min(0).optional().nullable(),
+  requiereLote: z.coerce.boolean().default(false),
 });
 
 export type SkuAgroquimicoInput = z.infer<typeof skuAgroquimicoSchema>;

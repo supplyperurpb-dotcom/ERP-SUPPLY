@@ -3,6 +3,7 @@ import { CONDICIONES_PAGO, LUGARES_ENTREGA } from "@/lib/constants/compras";
 
 const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SERVICIOS_GENERALES", "RRHH"] as const;
 const CATEGORIAS = ["COMPRA", "SERVICIO"] as const;
+const TIPOS_ORDEN = ["ABIERTA", "ESTANDAR"] as const;
 
 const itemSolicitudPedidoSchema = z.object({
   // Solo lo usa editarSolicitudPedidoAction, para saber si la línea ya
@@ -67,19 +68,34 @@ const itemOrdenCompraSchema = z.object({
   descripcion: z.string().max(500).optional().or(z.literal("")),
 });
 
-export const ordenCompraSchema = z.object({
-  proveedorId: z.string().min(1, "Selecciona un proveedor"),
-  fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-  fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
-  condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
-  lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
-  // "Comentario" en la UI — reemplaza lo que antes era la justificación
-  // (auto-pulled de la Solped) mostrada de solo lectura; ahora es un
-  // comentario propio de la OC/OS, escrito a mano y obligatorio.
-  observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
-  moneda: z.enum(["PEN", "USD"]).default("PEN"),
-  items: z.array(itemOrdenCompraSchema).min(1, "Selecciona al menos un ítem pendiente"),
-});
+export const ordenCompraSchema = z
+  .object({
+    proveedorId: z.string().min(1, "Selecciona un proveedor"),
+    // Fija según el botón con el que se entró (Abierta/Estándar) — no se
+    // elige dentro del formulario. ABIERTA exige vigenteHasta; ESTANDAR no
+    // la lleva (ver superRefine abajo).
+    tipoOrden: z.enum(TIPOS_ORDEN, { required_error: "Falta el tipo de orden" }),
+    vigenteHasta: z.coerce.date().optional(),
+    fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
+    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
+    // "Comentario" en la UI — reemplaza lo que antes era la justificación
+    // (auto-pulled de la Solped) mostrada de solo lectura; ahora es un
+    // comentario propio de la OC/OS, escrito a mano y obligatorio.
+    observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
+    moneda: z.enum(["PEN", "USD"]).default("PEN"),
+    items: z.array(itemOrdenCompraSchema).min(1, "Selecciona al menos un ítem pendiente"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.tipoOrden === "ABIERTA" && !data.vigenteHasta) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el plazo de vigencia de la orden abierta",
+        path: ["vigenteHasta"],
+      });
+    }
+  });
 
 export type OrdenCompraInput = z.infer<typeof ordenCompraSchema>;
 
@@ -109,6 +125,59 @@ export const editarOrdenCompraSchema = z.object({
 });
 
 export type EditarOrdenCompraInput = z.infer<typeof editarOrdenCompraSchema>;
+
+// Orden "directa": se arma a mano, sin jalar ítems de ninguna Solicitud de
+// Pedido (ver crearOrdenCompraDirectaAction) — por eso cada línea trae su
+// propio skuId/centroCosto en vez de un solicitudPedidoItemId, y la orden
+// necesita su propia categoría (Compra/Servicio) porque no hay solicitud
+// de la que heredarla. Sigue pasando por el mismo flujo de firmas según
+// monto que una orden normal.
+const itemOrdenCompraDirectaSchema = z.object({
+  skuId: z.string().min(1, "Selecciona un producto"),
+  cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
+  precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
+  gravado: z.coerce.boolean().default(true),
+  centroCosto: z.string().min(1, "Selecciona el centro de costo"),
+  descripcion: z.string().max(500).optional().or(z.literal("")),
+});
+
+export const ordenCompraDirectaSchema = z
+  .object({
+    categoria: z.enum(CATEGORIAS, { required_error: "Selecciona si es una compra o un servicio" }),
+    // Igual que en ordenCompraSchema: fija según el botón con el que se
+    // entró (Abierta/Estándar), no se elige dentro del formulario.
+    tipoOrden: z.enum(TIPOS_ORDEN, { required_error: "Falta el tipo de orden" }),
+    vigenteHasta: z.coerce.date().optional(),
+    proveedorId: z.string().min(1, "Selecciona un proveedor"),
+    fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
+    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
+    observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
+    moneda: z.enum(["PEN", "USD"]).default("PEN"),
+    items: z.array(itemOrdenCompraDirectaSchema).min(1, "Agrega al menos un producto"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.tipoOrden === "ABIERTA" && !data.vigenteHasta) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el plazo de vigencia de la orden abierta",
+        path: ["vigenteHasta"],
+      });
+    }
+    if (data.categoria !== "SERVICIO") return;
+    data.items.forEach((item, i) => {
+      if (!item.descripcion?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Describe el detalle del servicio",
+          path: ["items", i, "descripcion"],
+        });
+      }
+    });
+  });
+
+export type OrdenCompraDirectaInput = z.infer<typeof ordenCompraDirectaSchema>;
 
 export const aprobadoresAreaSchema = z.object({
   asignaciones: z.array(

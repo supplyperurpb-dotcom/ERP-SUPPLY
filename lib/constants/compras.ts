@@ -38,9 +38,20 @@ export const PREFIJO_SOLICITUD: Record<CategoriaCompraCodigo, string> = {
   SERVICIO: "SS-",
 };
 
-export const PREFIJO_ORDEN: Record<CategoriaCompraCodigo, string> = {
-  COMPRA: "OC-",
-  SERVICIO: "OS-",
+// Una orden Abierta (con plazo de vigencia) y una Estándar (sin plazo)
+// llevan series de numeración separadas: NB para Abierta, FO para
+// Estándar, siempre después de OC-/OS- (ver TipoOrdenCompra en el schema
+// y TIPOS_ORDEN más abajo).
+export const TIPOS_ORDEN = [
+  { valor: "ABIERTA", nombre: "Abierta" },
+  { valor: "ESTANDAR", nombre: "Estándar" },
+] as const;
+
+export type TipoOrdenCodigo = (typeof TIPOS_ORDEN)[number]["valor"];
+
+export const PREFIJO_ORDEN: Record<CategoriaCompraCodigo, Record<TipoOrdenCodigo, string>> = {
+  COMPRA: { ABIERTA: "OC-NB-", ESTANDAR: "OC-FO-" },
+  SERVICIO: { ABIERTA: "OS-NB-", ESTANDAR: "OS-FO-" },
 };
 
 export const NOMBRE_SOLICITUD: Record<CategoriaCompraCodigo, string> = {

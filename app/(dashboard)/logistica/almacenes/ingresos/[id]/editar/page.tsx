@@ -47,6 +47,7 @@ export default async function EditarIngresoAlmacenPage({ params }: { params: Pro
         lote: item.lote ?? "",
         fechaProduccion: item.fechaProduccion ? item.fechaProduccion.toISOString().slice(0, 10) : "",
         fechaVencimiento: item.fechaVencimiento ? item.fechaVencimiento.toISOString().slice(0, 10) : "",
+        skuRequiereLote: item.sku.requiereLote,
       };
     })
   );
@@ -55,7 +56,7 @@ export default async function EditarIngresoAlmacenPage({ params }: { params: Pro
     <div>
       <PageHeader
         titulo={`Editar ingreso ${ingreso.numero}`}
-        descripcion="Modifica la cantidad recibida, el lote/fechas, la guía de remisión o el flete. El stock y el costeo del almacén se recalculan al guardar."
+        descripcion="Modifica la cantidad recibida, el lote/fechas, la guía de remisión o la fecha de contabilización. El stock y el costeo del almacén se recalculan al guardar."
       />
       <IngresoAlmacenForm
         almacen={{ id: ingreso.almacen.id, nombre: ingreso.almacen.nombre, categoriaGeneral: ingreso.almacen.categoriaGeneral }}
@@ -71,9 +72,9 @@ export default async function EditarIngresoAlmacenPage({ params }: { params: Pro
             items: [],
           },
           fecha: ingreso.fecha.toISOString().slice(0, 10),
+          fechaContabilizacion: ingreso.fechaContabilizacion.toISOString().slice(0, 10),
           guiaRemision: ingreso.guiaRemision ?? "",
           guiaRemisionArchivo: ingreso.guiaRemisionArchivo ?? "",
-          flete: ingreso.flete !== null ? String(Number(ingreso.flete)) : "0",
           observaciones: ingreso.observaciones ?? "",
           filas,
         }}

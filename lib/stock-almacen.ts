@@ -196,6 +196,11 @@ export type ItemOcPendienteIngreso = {
   precioUnitario: number;
   cantidadOc: number;
   cantidadPendiente: number;
+  // Del catálogo de SKU (Sku.requiereLote): exige lote/fecha de producción/
+  // vencimiento en el ingreso aunque el almacén no sea de categoría
+  // Pesticidas/Fertilizantes — ver validarOrigen en
+  // lib/actions/ingreso-almacen-actions.ts.
+  skuRequiereLote: boolean;
 };
 
 export type OrdenCompraConPendientesIngreso = {
@@ -214,7 +219,14 @@ export type OrdenCompraConPendientesIngreso = {
 // aparecer.
 export async function calcularOcPendientesIngreso(db: Db = prisma): Promise<OrdenCompraConPendientesIngreso[]> {
   const ordenes = await db.ordenCompra.findMany({
-    where: { estado: "APROBADO", categoria: "COMPRA" },
+    where: {
+      estado: "APROBADO",
+      categoria: "COMPRA",
+      // Una Abierta vencida ya no admite ingresos (ver validarOrigen en
+      // lib/actions/ingreso-almacen-actions.ts) — ni aparece en el
+      // buscador, para no dejar elegirla y recién fallar al guardar.
+      OR: [{ tipoOrden: "ESTANDAR" }, { vigenteHasta: null }, { vigenteHasta: { gte: new Date() } }],
+    },
     include: { proveedor: true, items: { include: { sku: true } } },
     orderBy: { fecha: "asc" },
   });
@@ -247,6 +259,7 @@ export async function calcularOcPendientesIngreso(db: Db = prisma): Promise<Orde
         precioUnitario: Number(item.precioUnitario),
         cantidadOc,
         cantidadPendiente,
+        skuRequiereLote: item.sku.requiereLote,
       });
     }
     if (items.length === 0) continue;

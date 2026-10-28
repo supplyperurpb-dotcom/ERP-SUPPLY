@@ -15,8 +15,10 @@ import {
 import {
   ordenCompraSchema,
   editarOrdenCompraSchema,
+  ordenCompraDirectaSchema,
   type OrdenCompraInput,
   type EditarOrdenCompraInput,
+  type OrdenCompraDirectaInput,
 } from "@/lib/validations/compras";
 
 export type OrdenCompraActionState = { error?: string; id?: string } | undefined;
@@ -26,7 +28,8 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { proveedorId, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } = parsed.data;
+  const { proveedorId, tipoOrden, vigenteHasta, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } =
+    parsed.data;
 
   const proveedor = await prisma.proveedor.findUnique({ where: { id: proveedorId } });
   if (!proveedor) {
@@ -80,13 +83,15 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
         throw new Error("No se pudo determinar la categoría (Compra/Servicio) de los ítems seleccionados.");
       }
 
-      const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria], 9);
+      const existentes = await tx.ordenCompra.findMany({ where: { categoria, tipoOrden }, select: { numero: true } });
+      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria][tipoOrden], 9);
 
       const orden = await tx.ordenCompra.create({
         data: {
           numero,
           categoria,
+          tipoOrden,
+          vigenteHasta: tipoOrden === "ABIERTA" ? vigenteHasta : null,
           proveedorId,
           // Nace en BORRADOR (editable, nadie la firmó aún) — pasa a
           // PENDIENTE recién con la primera firma (ver firmarOrdenCompraAction).
@@ -139,6 +144,93 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   } catch (e) {
     console.error("Error inesperado en crearOrdenCompraAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al guardar la orden de compra." };
+  }
+}
+
+// Orden "directa": igual que crearOrdenCompraAction pero sin ninguna
+// Solicitud de Pedido detrás — cada línea trae su propio SKU/centro de
+// costo en vez de un solicitudPedidoItemId, así que no hay nada que
+// validar contra "lo pendiente" de una solicitud. Sigue el mismo flujo de
+// firmas por monto (rolesFirmaRequeridos) que una orden normal.
+export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInput): Promise<OrdenCompraActionState> {
+  const parsed = ordenCompraDirectaSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const { categoria, tipoOrden, vigenteHasta, proveedorId, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } =
+    parsed.data;
+
+  const proveedor = await prisma.proveedor.findUnique({ where: { id: proveedorId } });
+  if (!proveedor) {
+    return { error: "El proveedor seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
+  }
+
+  const subtotales = items.map((item) => Math.round(item.cantidad * item.precioUnitario * 100) / 100);
+  const subtotal = subtotales.reduce((a, b) => a + b, 0);
+  const igv = items.reduce((acc, item, i) => (item.gravado ? acc + subtotales[i] * IGV_TASA : acc), 0);
+  const igvRedondeado = Math.round(igv * 100) / 100;
+  const montoTotal = Math.round((subtotal + igvRedondeado) * 100) / 100;
+
+  try {
+    const usuario = await getUsuarioActual();
+
+    const nuevaOrden = await prisma.$transaction(async (tx) => {
+      const existentes = await tx.ordenCompra.findMany({ where: { categoria, tipoOrden }, select: { numero: true } });
+      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria][tipoOrden], 9);
+
+      const orden = await tx.ordenCompra.create({
+        data: {
+          numero,
+          categoria,
+          tipoOrden,
+          vigenteHasta: tipoOrden === "ABIERTA" ? vigenteHasta : null,
+          proveedorId,
+          // Nace en BORRADOR igual que una orden normal — pasa a PENDIENTE
+          // recién con la primera firma (ver firmarOrdenCompraAction).
+          estado: "BORRADOR",
+          fecha,
+          fechaEntrega: fechaEntrega || null,
+          condicionPago: condicionPago || null,
+          lugarEntrega: lugarEntrega || null,
+          observaciones: observaciones || null,
+          moneda,
+          subtotal,
+          igv: igvRedondeado,
+          montoTotal,
+          creadoPorId: usuario?.id,
+        },
+      });
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        await tx.ordenCompraItem.create({
+          data: {
+            ordenCompraId: orden.id,
+            skuId: item.skuId,
+            cantidad: item.cantidad,
+            precioUnitario: item.precioUnitario,
+            subtotal: subtotales[i],
+            gravado: item.gravado,
+            centroCosto: item.centroCosto,
+            descripcion: item.descripcion || null,
+          },
+        });
+      }
+
+      const centroCostos = [...new Set(items.map((i) => i.centroCosto))];
+      const roles = rolesFirmaRequeridos(montoEnUsd(montoTotal, moneda), centroCostos);
+      for (const rol of roles) {
+        await tx.ordenCompraFirma.create({ data: { ordenCompraId: orden.id, rol } });
+      }
+
+      return orden;
+    });
+
+    revalidatePath("/logistica/ordenes-compra");
+    return { id: nuevaOrden.id };
+  } catch (e) {
+    console.error("Error inesperado en crearOrdenCompraDirectaAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al guardar la orden directa." };
   }
 }
 

@@ -25,6 +25,9 @@ export type ItemOc = {
   precioUnitario: number;
   cantidadOc: number;
   cantidadPendiente: number;
+  // Del SKU (ver Sku.requiereLote): exige lote/fechas en este ítem aunque
+  // el almacén no sea de categoría Pesticidas/Fertilizantes.
+  skuRequiereLote: boolean;
 };
 export type OrdenCompraOpcion = {
   id: string;
@@ -45,8 +48,8 @@ type Fila = ItemOc & {
 // Esta vista es SOLO de edición: crear un ingreso nuevo usa el asistente
 // de ingresos/nuevo/ingreso-almacen-wizard.tsx (selección de OC + ítems en
 // pasos). Aquí el almacén y la OC ya están fijos; solo se ajustan
-// cantidades, lote/fechas, la guía de remisión (número y archivo) y el
-// flete.
+// cantidades, lote/fechas, la guía de remisión (número y archivo) y la
+// fecha de contabilización.
 export function IngresoAlmacenForm({
   almacen,
   edicion,
@@ -56,27 +59,30 @@ export function IngresoAlmacenForm({
     id: string;
     ordenCompra: OrdenCompraOpcion;
     fecha: string;
+    fechaContabilizacion: string;
     guiaRemision: string;
     guiaRemisionArchivo: string;
-    flete: string;
     observaciones: string;
     filas: Fila[];
   };
 }) {
   const router = useRouter();
 
-  const [fecha, setFecha] = useState(edicion.fecha);
+  // Fecha de ingreso: bloqueada, queda como se registró originalmente — no
+  // se retrofecha ni adelanta ni siquiera al editar. Fecha de
+  // contabilización sí es editable, pero nunca posterior a hoy.
+  const fecha = edicion.fecha;
+  const [fechaContabilizacion, setFechaContabilizacion] = useState(edicion.fechaContabilizacion);
   const [guiaRemision, setGuiaRemision] = useState(edicion.guiaRemision);
   const [archivoActual] = useState(edicion.guiaRemisionArchivo);
   const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null);
-  const [flete, setFlete] = useState(edicion.flete);
   const [observaciones, setObservaciones] = useState(edicion.observaciones);
   const [filas, setFilas] = useState<Fila[]>(edicion.filas);
   const [enviando, setEnviando] = useState(false);
 
   const moneda = edicion.ordenCompra.moneda as "PEN" | "USD";
-  const requiereLoteFecha = almacen.categoriaGeneral === "PESTICIDAS" || almacen.categoriaGeneral === "FERTILIZANTES";
-  const muestraLoteFecha = requiereLoteFecha || almacen.categoriaGeneral === "SUMINISTROS";
+  const requierePorAlmacen = almacen.categoriaGeneral === "PESTICIDAS" || almacen.categoriaGeneral === "FERTILIZANTES";
+  const muestraLoteFecha = requierePorAlmacen || almacen.categoriaGeneral === "SUMINISTROS" || filas.some((f) => f.skuRequiereLote);
 
   function actualizarFila(ordenCompraItemId: string, cambios: Partial<Fila>) {
     setFilas((prev) => prev.map((f) => (f.id === ordenCompraItemId ? { ...f, ...cambios } : f)));
@@ -84,11 +90,22 @@ export function IngresoAlmacenForm({
 
   const filasActivas = filas.filter((f) => (Number(f.cantidad) || 0) > 0);
   const subtotales = filasActivas.map((f) => (Number(f.cantidad) || 0) * f.precioUnitario);
-  const totalSubtotal = subtotales.reduce((a, b) => a + b, 0);
-  const totalGeneral = totalSubtotal + (Number(flete) || 0);
+  const totalGeneral = subtotales.reduce((a, b) => a + b, 0);
   const totalGeneralUsd = convertirAUsd(totalGeneral, moneda);
 
   async function handleSubmit() {
+    if (!guiaRemision.trim()) {
+      toast.error("El número de guía de remisión es obligatorio");
+      return;
+    }
+    if (!fechaContabilizacion) {
+      toast.error("La fecha de contabilización es obligatoria");
+      return;
+    }
+    if (fechaContabilizacion > fechaLocalHoy()) {
+      toast.error("La fecha de contabilización no puede ser posterior a hoy");
+      return;
+    }
     if (filasActivas.length === 0) {
       toast.error("Ingresa una cantidad mayor a 0 en al menos un producto");
       return;
@@ -99,9 +116,20 @@ export function IngresoAlmacenForm({
         toast.error(`La cantidad de ${f.codigo} no puede superar lo pendiente (${f.cantidadPendiente})`);
         return;
       }
-      if (requiereLoteFecha && (!f.lote.trim() || !f.fechaProduccion || !f.fechaVencimiento)) {
-        toast.error(`${f.codigo}: lote, fecha de producción y fecha de vencimiento son obligatorios en este almacén`);
-        return;
+      const requiereEsteItem = requierePorAlmacen || f.skuRequiereLote;
+      if (requiereEsteItem) {
+        if (!f.lote.trim()) {
+          toast.error(`Al código ${f.codigo} no se le ha registrado Lote`);
+          return;
+        }
+        if (!f.fechaProduccion) {
+          toast.error(`Al código ${f.codigo} no se le ha registrado Fecha de Producción`);
+          return;
+        }
+        if (!f.fechaVencimiento) {
+          toast.error(`Al código ${f.codigo} no se le ha registrado Fecha de Vencimiento`);
+          return;
+        }
       }
     }
 
@@ -121,11 +149,11 @@ export function IngresoAlmacenForm({
 
       const payload: IngresoAlmacenInput = {
         fecha: new Date(fecha) as unknown as Date,
+        fechaContabilizacion: new Date(fechaContabilizacion) as unknown as Date,
         ordenCompraId: edicion.ordenCompra.id,
         almacenId: almacen.id,
         guiaRemision,
         guiaRemisionArchivo,
-        flete: flete ? Number(flete) : null,
         observaciones,
         items: filasActivas.map((f) => ({
           ordenCompraItemId: f.id,
@@ -172,18 +200,24 @@ export function IngresoAlmacenForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fecha">Fecha de recepción</Label>
-            <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <Label htmlFor="fecha">Fecha de ingreso</Label>
+            <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guiaRemision">N° de guía de remisión (opcional)</Label>
+            <Label htmlFor="fechaContabilizacion">Fecha de contabilización</Label>
+            <Input
+              id="fechaContabilizacion"
+              type="date"
+              max={fechaLocalHoy()}
+              value={fechaContabilizacion}
+              onChange={(e) => setFechaContabilizacion(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="guiaRemision">N° de guía de remisión</Label>
             <Input id="guiaRemision" value={guiaRemision} onChange={(e) => setGuiaRemision(e.target.value)} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="flete">Precio del flete (opcional)</Label>
-            <NumberInput id="flete" value={flete} onChange={setFlete} />
           </div>
 
           <div className="space-y-2">
@@ -250,9 +284,9 @@ export function IngresoAlmacenForm({
                   <TableHead className="w-28">Cant. a Ingresar</TableHead>
                   {muestraLoteFecha && (
                     <>
-                      <TableHead className="w-28">Lote{requiereLoteFecha ? " *" : ""}</TableHead>
-                      <TableHead className="w-36">F. producción{requiereLoteFecha ? " *" : ""}</TableHead>
-                      <TableHead className="w-36">F. vencimiento{requiereLoteFecha ? " *" : ""}</TableHead>
+                      <TableHead className="w-28">Lote</TableHead>
+                      <TableHead className="w-36">F. producción</TableHead>
+                      <TableHead className="w-36">F. vencimiento</TableHead>
                     </>
                   )}
                 </TableRow>
@@ -260,7 +294,10 @@ export function IngresoAlmacenForm({
               <TableBody>
                 {filas.map((f) => (
                   <TableRow key={f.id}>
-                    <TableCell className="font-medium align-top">{f.codigo}</TableCell>
+                    <TableCell className="font-medium align-top">
+                      {f.codigo}
+                      {(requierePorAlmacen || f.skuRequiereLote) && <span className="text-destructive"> *</span>}
+                    </TableCell>
                     <TableCell className="align-top">{f.descripcion}</TableCell>
                     <TableCell className="align-top">{f.unidadMedida}</TableCell>
                     <TableCell className="text-right align-top pt-4">{formatMoneda(f.precioUnitario, moneda)}</TableCell>
@@ -297,12 +334,6 @@ export function IngresoAlmacenForm({
           </div>
 
           <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
-            <p>
-              Subtotal productos: <span className="font-medium">{formatMoneda(totalSubtotal, moneda)}</span>
-            </p>
-            <p>
-              Flete: <span className="font-medium">{formatMoneda(Number(flete) || 0, moneda)}</span>
-            </p>
             <p className="text-base">
               Total: <span className="font-semibold text-primary">{formatMoneda(totalGeneral, moneda)}</span>
             </p>

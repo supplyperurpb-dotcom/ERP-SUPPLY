@@ -186,13 +186,19 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
     };
   }
 
+  const vencida = orden.tipoOrden === "ABIERTA" && !!orden.vigenteHasta && orden.vigenteHasta < new Date();
+  const descripcionTipoOrden =
+    orden.tipoOrden === "ABIERTA"
+      ? ` · Abierta, vigente hasta ${orden.vigenteHasta ? formatDate(orden.vigenteHasta) : "—"}${vencida ? " (VENCIDA)" : ""}`
+      : " · Estándar";
+
   return (
     // Pedido explícito: toda la página sale en mayúscula (solo visual, vía
     // CSS -- no cambia el dato real ni lo que se envía al servidor).
     <div className="space-y-6 uppercase">
       <PageHeader
         titulo={`${NOMBRE_ORDEN[orden.categoria as CategoriaCompraCodigo]} ${orden.numero}`}
-        descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}`}
+        descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}${descripcionTipoOrden}`}
         acciones={
           <div className="flex gap-2">
             {puedeEditar && (

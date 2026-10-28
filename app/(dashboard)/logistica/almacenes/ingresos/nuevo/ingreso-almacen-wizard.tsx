@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,11 +30,15 @@ type Fila = ItemOc & {
 };
 
 export function IngresoAlmacenWizard({
+  titulo,
+  descripcion,
   usuario,
   almacenes,
   ordenesCompra,
   almacenIdInicial,
 }: {
+  titulo: string;
+  descripcion: string;
   usuario: { nombres: string; apellidos: string };
   almacenes: AlmacenOpcion[];
   ordenesCompra: OrdenCompraOpcion[];
@@ -51,10 +56,13 @@ export function IngresoAlmacenWizard({
 
   // Paso 2: datos del ingreso + cantidades/lote por línea seleccionada.
   const [filas, setFilas] = useState<Fila[]>([]);
-  const [fecha, setFecha] = useState(fechaLocalHoy());
+  // Fecha de ingreso: siempre hoy, bloqueada — igual que la fecha de
+  // emisión de una OC/Solped. Fecha de contabilización sí es editable,
+  // pero nunca posterior a hoy (ver ingresoAlmacenSchema).
+  const fecha = fechaLocalHoy();
+  const [fechaContabilizacion, setFechaContabilizacion] = useState(fechaLocalHoy());
   const [guiaRemision, setGuiaRemision] = useState("");
   const [archivo, setArchivo] = useState<File | null>(null);
-  const [flete, setFlete] = useState("0");
   const [observaciones, setObservaciones] = useState("");
   const [enviando, setEnviando] = useState(false);
 
@@ -64,8 +72,8 @@ export function IngresoAlmacenWizard({
   const almacen = almacenes.find((a) => a.id === almacenId);
   const ordenSeleccionada = ordenesCompra.find((o) => o.id === ordenCompraId);
   const moneda = (ordenSeleccionada?.moneda ?? "PEN") as "PEN" | "USD";
-  const requiereLoteFecha = almacen?.categoriaGeneral === "PESTICIDAS" || almacen?.categoriaGeneral === "FERTILIZANTES";
-  const muestraLoteFecha = requiereLoteFecha || almacen?.categoriaGeneral === "SUMINISTROS";
+  const requierePorAlmacen = almacen?.categoriaGeneral === "PESTICIDAS" || almacen?.categoriaGeneral === "FERTILIZANTES";
+  const muestraLoteFecha = requierePorAlmacen || almacen?.categoriaGeneral === "SUMINISTROS" || filas.some((f) => f.skuRequiereLote);
 
   function seleccionarOrden(orden: OrdenCompraPendienteOpcion) {
     setOrdenCompraId(orden.id);
@@ -108,20 +116,41 @@ export function IngresoAlmacenWizard({
   }
 
   const subtotales = filas.map((f) => (Number(f.cantidad) || 0) * f.precioUnitario);
-  const totalSubtotal = subtotales.reduce((a, b) => a + b, 0);
-  const totalGeneral = totalSubtotal + (Number(flete) || 0);
+  const totalGeneral = subtotales.reduce((a, b) => a + b, 0);
   const totalGeneralUsd = convertirAUsd(totalGeneral, moneda);
 
   async function handleRegistrar() {
+    if (!guiaRemision.trim()) {
+      toast.error("El número de guía de remisión es obligatorio");
+      return;
+    }
+    if (!fechaContabilizacion) {
+      toast.error("La fecha de contabilización es obligatoria");
+      return;
+    }
+    if (fechaContabilizacion > fechaLocalHoy()) {
+      toast.error("La fecha de contabilización no puede ser posterior a hoy");
+      return;
+    }
     for (const f of filas) {
       const cantidad = Number(f.cantidad) || 0;
       if (cantidad <= 0 || cantidad > f.cantidadPendiente) {
         toast.error(`La cantidad a ingresar de ${f.codigo} debe ser mayor a 0 y no superar lo pendiente de la OC (${f.cantidadPendiente})`);
         return;
       }
-      if (requiereLoteFecha && (!f.lote.trim() || !f.fechaProduccion || !f.fechaVencimiento)) {
-        toast.error(`${f.codigo}: lote, fecha de producción y fecha de vencimiento son obligatorios en este almacén`);
-        return;
+      if (requierePorAlmacen || f.skuRequiereLote) {
+        if (!f.lote.trim()) {
+          toast.error(`Al código ${f.codigo} no se le ha registrado Lote`);
+          return;
+        }
+        if (!f.fechaProduccion) {
+          toast.error(`Al código ${f.codigo} no se le ha registrado Fecha de Producción`);
+          return;
+        }
+        if (!f.fechaVencimiento) {
+          toast.error(`Al código ${f.codigo} no se le ha registrado Fecha de Vencimiento`);
+          return;
+        }
       }
     }
     if (!archivo) {
@@ -141,11 +170,11 @@ export function IngresoAlmacenWizard({
 
       const payload: IngresoAlmacenInput = {
         fecha: new Date(fecha) as unknown as Date,
+        fechaContabilizacion: new Date(fechaContabilizacion) as unknown as Date,
         ordenCompraId,
         almacenId,
         guiaRemision,
         guiaRemisionArchivo: subidaResultado.path,
-        flete: flete ? Number(flete) : null,
         observaciones,
         items: filas.map((f) => ({
           ordenCompraItemId: f.id,
@@ -179,21 +208,38 @@ export function IngresoAlmacenWizard({
     setOrdenCompraId("");
     setSeleccionados(new Set());
     setFilas([]);
-    setFecha(fechaLocalHoy());
+    setFechaContabilizacion(fechaLocalHoy());
     setGuiaRemision("");
     setArchivo(null);
-    setFlete("0");
     setObservaciones("");
     setResultado(null);
   }
 
+  // Paso 1: "Anterior" (vuelve a dejar el almacén editable) y "Siguiente"
+  // (pasa al paso 2) van juntos arriba a la derecha, a la altura del
+  // título — no al costado del campo Almacén ni al pie de la tarjeta.
+  const accionesPaso1 = (
+    <>
+      {almacenBloqueado && (
+        <Button type="button" variant="outline" onClick={() => setAlmacenBloqueado(false)}>
+          Anterior
+        </Button>
+      )}
+      <Button type="button" onClick={irAPaso2}>
+        Siguiente
+      </Button>
+    </>
+  );
+
   if (paso === 3 && resultado) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ingreso {resultado.numero} registrado</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="space-y-6">
+        <PageHeader titulo={titulo} />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Ingreso {resultado.numero} registrado</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-muted-foreground">Almacén</p>
@@ -244,14 +290,16 @@ export function IngresoAlmacenWizard({
               <Link href={`/logistica/almacenes/ingresos/${resultado.id}`}>Ver detalle completo</Link>
             </Button>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (paso === 2) {
     return (
       <div className="space-y-6">
+        <PageHeader titulo={titulo} />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Datos del ingreso</CardTitle>
@@ -276,15 +324,21 @@ export function IngresoAlmacenWizard({
 
             <div className="space-y-2">
               <Label htmlFor="fecha">Fecha de ingreso</Label>
-              <Input id="fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+              <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="guiaRemision">N° de guía de remisión (opcional)</Label>
+              <Label htmlFor="fechaContabilizacion">Fecha de contabilización</Label>
+              <Input
+                id="fechaContabilizacion"
+                type="date"
+                max={fechaLocalHoy()}
+                value={fechaContabilizacion}
+                onChange={(e) => setFechaContabilizacion(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="guiaRemision">N° de guía de remisión</Label>
               <Input id="guiaRemision" value={guiaRemision} onChange={(e) => setGuiaRemision(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="flete">Precio del flete (opcional)</Label>
-              <NumberInput id="flete" value={flete} onChange={setFlete} />
             </div>
             <div className="space-y-2">
               <Label>Usuario que hizo el ingreso</Label>
@@ -335,9 +389,9 @@ export function IngresoAlmacenWizard({
                     <TableHead className="w-28">Cant. a Ingresar</TableHead>
                     {muestraLoteFecha && (
                       <>
-                        <TableHead className="w-28">Lote{requiereLoteFecha ? " *" : ""}</TableHead>
-                        <TableHead className="w-36">F. producción{requiereLoteFecha ? " *" : ""}</TableHead>
-                        <TableHead className="w-36">F. vencimiento{requiereLoteFecha ? " *" : ""}</TableHead>
+                        <TableHead className="w-28">Lote</TableHead>
+                        <TableHead className="w-36">F. producción</TableHead>
+                        <TableHead className="w-36">F. vencimiento</TableHead>
                       </>
                     )}
                   </TableRow>
@@ -345,7 +399,10 @@ export function IngresoAlmacenWizard({
                 <TableBody>
                   {filas.map((f) => (
                     <TableRow key={f.id}>
-                      <TableCell className="font-medium align-top">{f.codigo}</TableCell>
+                      <TableCell className="font-medium align-top">
+                        {f.codigo}
+                        {(requierePorAlmacen || f.skuRequiereLote) && <span className="text-destructive"> *</span>}
+                      </TableCell>
                       <TableCell className="align-top">{f.descripcion}</TableCell>
                       <TableCell className="align-top">{f.unidadMedida}</TableCell>
                       <TableCell className="text-right align-top pt-4">{formatMoneda(f.precioUnitario, moneda)}</TableCell>
@@ -382,12 +439,6 @@ export function IngresoAlmacenWizard({
             </div>
 
             <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
-              <p>
-                Subtotal productos: <span className="font-medium">{formatMoneda(totalSubtotal, moneda)}</span>
-              </p>
-              <p>
-                Flete: <span className="font-medium">{formatMoneda(Number(flete) || 0, moneda)}</span>
-              </p>
               <p className="text-base">
                 Total: <span className="font-semibold text-primary">{formatMoneda(totalGeneral, moneda)}</span>
               </p>
@@ -414,6 +465,7 @@ export function IngresoAlmacenWizard({
 
   return (
     <div className="space-y-6">
+      <PageHeader titulo={titulo} descripcion={descripcion} acciones={accionesPaso1} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">1. Elige la orden de compra y los productos</CardTitle>
@@ -427,12 +479,7 @@ export function IngresoAlmacenWizard({
             <div className="space-y-2">
               <Label>Almacén</Label>
               {almacenBloqueado ? (
-                <div className="flex items-center gap-2">
-                  <Input disabled className="cursor-not-allowed bg-muted opacity-70" value={almacen?.nombre ?? ""} />
-                  <Button type="button" variant="outline" size="sm" onClick={() => setAlmacenBloqueado(false)}>
-                    Anterior
-                  </Button>
-                </div>
+                <Input disabled className="cursor-not-allowed bg-muted opacity-70" value={almacen?.nombre ?? ""} />
               ) : (
                 <Select
                   value={almacenId}
@@ -509,12 +556,6 @@ export function IngresoAlmacenWizard({
           )}
         </CardContent>
       </Card>
-
-      <div className="flex justify-end gap-2">
-        <Button type="button" onClick={irAPaso2}>
-          Siguiente
-        </Button>
-      </div>
     </div>
   );
 }

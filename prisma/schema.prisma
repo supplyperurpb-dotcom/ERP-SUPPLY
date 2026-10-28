@@ -240,6 +240,11 @@ model Sku {
   subfamilia   String
   unidadMedida String // catálogo SUNAT simplificado (KGM, NIU, BX, LTR, ...)
   stockMinimo  Decimal? @db.Decimal(12, 3)
+  // Si está marcado, un ingreso a almacén de este SKU exige lote/fecha de
+  // producción/vencimiento aunque el almacén no sea de categoría Pesticidas
+  // o Fertilizantes (que ya lo exigen para todos sus SKU) — ver validarOrigen
+  // en lib/actions/ingreso-almacen-actions.ts.
+  requiereLote Boolean  @default(false)
   activo       Boolean  @default(true)
   creadoPorId  String?
   createdAt    DateTime @default(now())
@@ -571,10 +576,24 @@ model SolicitudPedidoItem {
   @@map("solicitud_pedido_items")
 }
 
+// Una orden ABIERTA tiene un plazo de vigencia (vigenteHasta, obligatorio
+// para ella): pasada esa fecha no se pueden registrar más ingresos contra
+// sus líneas (ver validarOrigen en lib/actions/ingreso-almacen-actions.ts),
+// aunque siga figurando como APROBADA — es una fecha límite de uso, no un
+// estado nuevo del flujo de aprobación. Una ESTANDAR no tiene vencimiento.
+enum TipoOrdenCompra {
+  ABIERTA
+  ESTANDAR
+}
+
 model OrdenCompra {
   id                String          @id @default(cuid())
-  numero            String          @unique // serie-número interno, ej. OC-000000001 / OS-000000001
+  numero            String          @unique // serie-número interno, ej. OC-FO-000000001 / OS-NB-000000001
   categoria         CategoriaCompra @default(COMPRA)
+  // NB = Abierta, FO = Estándar (va en el propio numero, ver PREFIJO_ORDEN
+  // en lib/constants/compras.ts) — determina si vigenteHasta aplica.
+  tipoOrden         TipoOrdenCompra @default(ESTANDAR)
+  vigenteHasta      DateTime?
   proveedorId       String
   estado            EstadoDocumento @default(BORRADOR)
   fecha             DateTime        @default(now())
@@ -670,7 +689,13 @@ model OrdenCompraItem {
 model IngresoAlmacen {
   id                  String   @id @default(cuid())
   numero              String   @unique // IA-0001
+  // Fecha del ingreso en sí: siempre la de hoy, bloqueada en el formulario
+  // (no se puede retrofechar ni adelantar) — igual que fecha en OrdenCompra.
   fecha               DateTime
+  // A diferencia de fecha, esta sí es editable — para cuando el ingreso
+  // físico fue antes pero se contabiliza en otra fecha dentro del mismo
+  // periodo. Nunca puede ser posterior a hoy (ver ingresoAlmacenSchema).
+  fechaContabilizacion DateTime
   ocNumero            String?
   // Orden de compra real de donde se jalaron los items (ver
   // crearIngresoAlmacenAction) — null en ingresos antiguos, de antes de
