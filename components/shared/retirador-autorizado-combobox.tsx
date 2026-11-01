@@ -20,11 +20,15 @@ export function RetiradorAutorizadoCombobox({
   value,
   onSelect,
   disabled = false,
+  mensajeDeshabilitado = "Selecciona primero el almacén.",
+  mensajeVacio = "Nadie tiene permiso de retirar de este almacén. Agrégalo en Listas > Retiradores autorizados.",
 }: {
   retiradores: RetiradorOpcionCombobox[];
   value: string;
   onSelect: (retirador: RetiradorOpcionCombobox) => void;
   disabled?: boolean;
+  mensajeDeshabilitado?: string;
+  mensajeVacio?: string;
 }) {
   const [open, setOpen] = useState(false);
   const seleccionado = retiradores.find((r) => r.id === value);
@@ -50,11 +54,7 @@ export function RetiradorAutorizadoCombobox({
         <Command filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
           <CommandInput placeholder="Buscar por nombre o DNI..." />
           <CommandList>
-            <CommandEmpty>
-              {disabled
-                ? "Selecciona primero el almacén."
-                : "Nadie tiene permiso de retirar de este almacén. Agrégalo en Listas > Retiradores autorizados."}
-            </CommandEmpty>
+            <CommandEmpty>{disabled ? mensajeDeshabilitado : mensajeVacio}</CommandEmpty>
             <CommandGroup>
               {retiradores.map((r) => (
                 <CommandItem

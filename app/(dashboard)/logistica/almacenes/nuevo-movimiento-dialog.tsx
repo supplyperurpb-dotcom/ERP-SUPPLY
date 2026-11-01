@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, ChevronLeft, PackageMinus, PackagePlus, Plus } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, PackageMinus, PackagePlus, Plus, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { AlmacenCategoriaGeneral } from "@prisma/client";
 
-type TipoMovimiento = "INGRESO" | "TRASLADO" | "CONSUMO";
+type TipoMovimiento = "INGRESO" | "TRASLADO" | "CONSUMO" | "DEVOLUCION";
 
 const CATEGORIAS: { valor: AlmacenCategoriaGeneral; etiqueta: string }[] = [
   { valor: "PESTICIDAS", etiqueta: "Pesticidas" },
@@ -22,6 +22,7 @@ const RUTA_BASE: Record<TipoMovimiento, string> = {
   INGRESO: "/logistica/almacenes/ingresos/nuevo",
   TRASLADO: "/logistica/almacenes/traslados/nuevo",
   CONSUMO: "/logistica/almacenes/consumos/nuevo",
+  DEVOLUCION: "/logistica/almacenes/devoluciones/nuevo",
 };
 
 type AlmacenOpcion = { id: string; nombre: string; categoriaGeneral: AlmacenCategoriaGeneral | null; esGeneral: boolean };
@@ -52,7 +53,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
   }
 
   const almacenesDeCategoria = categoria
-    ? almacenes.filter((a) => a.categoriaGeneral === categoria && (tipo !== "INGRESO" || a.esGeneral))
+    ? almacenes.filter((a) => a.categoriaGeneral === categoria && (tipo === "TRASLADO" || tipo === "CONSUMO" || a.esGeneral))
     : [];
 
   return (
@@ -82,7 +83,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
             <DialogHeader>
               <DialogTitle>¿Qué movimiento quieres registrar?</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Card
                 className="cursor-pointer transition-colors hover:border-primary hover:bg-accent/40"
                 onClick={() => setTipo("INGRESO")}
@@ -108,6 +109,15 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
                 <CardHeader className="items-center text-center">
                   <PackageMinus className="mb-2 h-6 w-6 text-primary" />
                   <CardTitle className="text-sm">Consumo</CardTitle>
+                </CardHeader>
+              </Card>
+              <Card
+                className="cursor-pointer transition-colors hover:border-primary hover:bg-accent/40"
+                onClick={() => setTipo("DEVOLUCION")}
+              >
+                <CardHeader className="items-center text-center">
+                  <Undo2 className="mb-2 h-6 w-6 text-primary" />
+                  <CardTitle className="text-sm">Devolución</CardTitle>
                 </CardHeader>
               </Card>
             </div>

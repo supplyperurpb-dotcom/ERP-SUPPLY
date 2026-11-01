@@ -31,12 +31,13 @@ type CostoSku = { cantidad: number; precioUnitarioPonderado: number | null };
 // stock).
 //
 // Valor neto = ingresos + traslados recibidos (con el costo que traían del
-// almacén de origen, ver TrasladoAlmacenItem.costoUnitario) - consumos -
-// traslados enviados. Dividido entre la cantidad da el costo unitario
-// ponderado ACTUAL de lo que queda — no solo un promedio histórico de
-// ingresos, porque eso ignoraría el valor que entra o sale por traslados.
+// almacén de origen, ver TrasladoAlmacenItem.costoUnitario) + devoluciones
+// - consumos - traslados enviados. Dividido entre la cantidad da el costo
+// unitario ponderado ACTUAL de lo que queda — no solo un promedio histórico
+// de ingresos, porque eso ignoraría el valor que entra o sale por traslados
+// y devoluciones.
 async function mapaCostosAlmacen(almacenId: string, db: Db = prisma): Promise<Map<string, CostoSku>> {
-  const [entradas, salidas, ingresos, trasladosEntrantes, trasladosSalientes, consumos] = await Promise.all([
+  const [entradas, salidas, ingresos, trasladosEntrantes, trasladosSalientes, consumos, devoluciones] = await Promise.all([
     db.movimientoStock.groupBy({
       by: ["skuId"],
       where: { almacenDestinoId: almacenId, tipo: { in: ["INGRESO", "TRANSFERENCIA"] } },
@@ -63,6 +64,10 @@ async function mapaCostosAlmacen(almacenId: string, db: Db = prisma): Promise<Ma
       where: { consumoAlmacen: { almacenOrigenId: almacenId } },
       select: { skuId: true, valorConsumido: true },
     }),
+    db.devolucionAlmacenItem.findMany({
+      where: { devolucionAlmacen: { almacenId } },
+      select: { skuId: true, subtotal: true },
+    }),
   ]);
 
   const cantidadPorSku = new Map<string, number>();
@@ -86,6 +91,9 @@ async function mapaCostosAlmacen(almacenId: string, db: Db = prisma): Promise<Ma
   for (const t of trasladosEntrantes) sumarValor(t.skuId, Number(t.valorTotal) + Number(t.fleteAsignadoUsd));
   for (const t of trasladosSalientes) sumarValor(t.skuId, -Number(t.valorTotal));
   for (const c of consumos) sumarValor(c.skuId, -Number(c.valorConsumido));
+  // Una devolución entra como un ingreso más: ya está en Dólares (ver
+  // DevolucionAlmacenItem.subtotal), así que se suma directo.
+  for (const d of devoluciones) sumarValor(d.skuId, Number(d.subtotal));
 
   const skuIds = new Set([...cantidadPorSku.keys(), ...valorPorSku.keys()]);
   const mapa = new Map<string, CostoSku>();

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PackagePlus, ArrowLeftRight, PackageMinus, Download } from "lucide-react";
+import { PackagePlus, ArrowLeftRight, PackageMinus, Undo2, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
   const almacen = await prisma.almacen.findUnique({ where: { id } });
   if (!almacen) notFound();
 
-  const [stock, ingresos, traslados, consumos] = await Promise.all([
+  const [stock, ingresos, traslados, consumos, devoluciones] = await Promise.all([
     calcularStockAlmacen(id),
     prisma.ingresoAlmacen.findMany({
       where: { almacenId: id },
@@ -32,6 +32,12 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
     }),
     prisma.consumoAlmacen.findMany({
       where: { almacenOrigenId: id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: { _count: { select: { items: true } } },
+    }),
+    prisma.devolucionAlmacen.findMany({
+      where: { almacenId: id },
       orderBy: { createdAt: "desc" },
       take: 10,
       include: { _count: { select: { items: true } } },
@@ -64,6 +70,12 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
                   Consumo
                 </Link>
               </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/logistica/almacenes/devoluciones/nuevo?almacenId=${id}`}>
+                  <Undo2 className="mr-2 h-4 w-4" />
+                  Devolución
+                </Link>
+              </Button>
             </>
           ) : (
             <Badge variant="secondary">Inactivo</Badge>
@@ -72,8 +84,8 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
       />
       {!almacen.activo && (
         <p className="-mt-6 text-sm text-muted-foreground">
-          Este almacén está inactivo: no se pueden registrar ingresos, traslados ni consumos hasta que se active
-          desde el catálogo de almacenes.
+          Este almacén está inactivo: no se pueden registrar ingresos, traslados, consumos ni devoluciones hasta que
+          se active desde el catálogo de almacenes.
         </p>
       )}
 
@@ -216,6 +228,34 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
                   <TableCell className="font-medium">{consumo.numero}</TableCell>
                   <TableCell>{formatDateTime(consumo.fecha)}</TableCell>
                   <TableCell className="text-right">{consumo._count.items}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-base font-semibold">Últimas devoluciones</h2>
+        {devoluciones.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin devoluciones registradas.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Número</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Quien trae</TableHead>
+                <TableHead className="text-right">Ítems</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {devoluciones.map((devolucion) => (
+                <TableRow key={devolucion.id}>
+                  <TableCell className="font-medium">{devolucion.numero}</TableCell>
+                  <TableCell>{formatDateTime(devolucion.fecha)}</TableCell>
+                  <TableCell>{devolucion.personaQueTrae}</TableCell>
+                  <TableCell className="text-right">{devolucion._count.items}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
