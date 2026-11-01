@@ -32,8 +32,6 @@ export async function GET(request: Request) {
     "U.M.": string;
     "Costo unit. ponderado (US$)": number;
     "Valor (US$)": number;
-    "Flete asignado": number;
-    "Flete (US$)": number;
     Observaciones: string;
   };
 
@@ -56,8 +54,6 @@ export async function GET(request: Request) {
         "U.M.": item.unidadMedida,
         "Costo unit. ponderado (US$)": Number(item.costoUnitario),
         "Valor (US$)": Number(item.valorTotal),
-        "Flete asignado": Number(item.fleteAsignado),
-        "Flete (US$)": Number(item.fleteAsignadoUsd),
         Observaciones: traslado.observaciones ?? "",
       });
     }
@@ -66,7 +62,7 @@ export async function GET(request: Request) {
   const hoja = XLSX.utils.json_to_sheet(filas);
   hoja["!cols"] = [
     { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
-    { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 30 },
+    { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 14 }, { wch: 30 },
   ];
 
   const libro = XLSX.utils.book_new();

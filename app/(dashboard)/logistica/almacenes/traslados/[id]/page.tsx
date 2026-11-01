@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
-import { MONEDAS, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
 import { eliminarTrasladoAlmacenAction } from "@/lib/actions/traslado-almacen-actions";
 
 export default async function TrasladoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,10 +18,7 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
   });
   if (!traslado) notFound();
 
-  const moneda = traslado.moneda as "PEN" | "USD";
   const valorTotal = traslado.items.reduce((acc, item) => acc + Number(item.valorTotal), 0);
-  const flete = traslado.items.reduce((acc, item) => acc + Number(item.fleteAsignado), 0);
-  const fleteUsd = traslado.items.reduce((acc, item) => acc + Number(item.fleteAsignadoUsd), 0);
 
   return (
     <div className="space-y-6">
@@ -67,14 +63,6 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
           <p className="text-muted-foreground">Nombre del remitente</p>
           <p className="font-medium">{traslado.remitente ?? "—"}</p>
         </div>
-        <div>
-          <p className="text-muted-foreground">Moneda del flete</p>
-          <p className="font-medium">{MONEDAS.find((m) => m.codigo === moneda)?.nombre ?? moneda}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Flete</p>
-          <p className="font-medium">{traslado.flete !== null ? formatMoneda(Number(traslado.flete), moneda) : "—"}</p>
-        </div>
         <div className="sm:col-span-2 lg:col-span-4">
           <p className="text-muted-foreground">Observaciones</p>
           <p className="font-medium">{traslado.observaciones ?? "—"}</p>
@@ -93,8 +81,6 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
             <TableHead>U.M.</TableHead>
             <TableHead className="text-right">Costo unit. ponderado (US$)</TableHead>
             <TableHead className="text-right">Valor (US$)</TableHead>
-            <TableHead className="text-right">Flete asignado</TableHead>
-            <TableHead className="text-right">Flete (US$)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -109,30 +95,14 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
               <TableCell>{item.unidadMedida}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.costoUnitario), "USD")}</TableCell>
               <TableCell className="text-right">{formatMoneda(Number(item.valorTotal), "USD")}</TableCell>
-              <TableCell className="text-right">{formatMoneda(Number(item.fleteAsignado), moneda)}</TableCell>
-              <TableCell className="text-right text-muted-foreground">
-                {formatMoneda(Number(item.fleteAsignadoUsd), "USD")}
-              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
 
       <div className="flex flex-col items-end gap-1 text-sm">
-        <p>
-          Valor trasladado: <span className="font-medium">{formatMoneda(valorTotal, "USD")}</span>
-        </p>
-        <p>
-          Flete: <span className="font-medium">{formatMoneda(flete, moneda)}</span>
-          {moneda === "PEN" && (
-            <span className="ml-1 text-xs text-muted-foreground">
-              (≈ {formatMoneda(fleteUsd, "USD")}, tipo de cambio fijo S/ {TIPO_CAMBIO_PEN_USD.toFixed(2)})
-            </span>
-          )}
-        </p>
         <p className="text-base">
-          Valor con flete (costo en destino):{" "}
-          <span className="font-semibold text-primary">{formatMoneda(valorTotal + fleteUsd, "USD")}</span>
+          Valor trasladado: <span className="font-semibold text-primary">{formatMoneda(valorTotal, "USD")}</span>
         </p>
       </div>
     </div>

@@ -34,7 +34,6 @@ export async function GET(request: Request) {
     "U.M.": string;
     "Precio unitario": number;
     Subtotal: number;
-    "Flete asignado": number;
     "Costo (US$)": number;
     Observaciones: string;
   };
@@ -60,8 +59,7 @@ export async function GET(request: Request) {
         "U.M.": item.unidadMedida,
         "Precio unitario": Number(item.precioUnitario),
         Subtotal: Number(item.subtotal),
-        "Flete asignado": Number(item.fleteAsignado),
-        "Costo (US$)": Number(item.subtotalUsd) + Number(item.fleteAsignadoUsd),
+        "Costo (US$)": Number(item.subtotalUsd),
         Observaciones: ingreso.observaciones ?? "",
       });
     }
@@ -71,7 +69,7 @@ export async function GET(request: Request) {
   hoja["!cols"] = [
     { wch: 12 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
     { wch: 22 }, { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 14 },
-    { wch: 14 }, { wch: 14 }, { wch: 30 },
+    { wch: 14 }, { wch: 30 },
   ];
 
   const libro = XLSX.utils.book_new();
