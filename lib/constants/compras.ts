@@ -93,6 +93,12 @@ export const LUGARES_ENTREGA = [
 
 export type LugarEntregaCodigo = (typeof LUGARES_ENTREGA)[number];
 
+// Los primeros 8 valores son los originales — se mantiene su orden/posición
+// para no romper los `CONDICIONES_PAGO[2]` ya usados en otros formularios
+// (ver CONDICION_PAGO_POR_DEFECTO más abajo, el reemplazo recomendado). El
+// resto se agregó al importar la base de proveedores real (ver
+// scripts/importar-proveedores.ts): son condiciones que de verdad se usan y
+// no tenían equivalente en esta lista.
 export const CONDICIONES_PAGO = [
   "CREDITO 7 DIAS",
   "CREDITO 15 DIAS",
@@ -102,6 +108,21 @@ export const CONDICIONES_PAGO = [
   "FACTURA NEGOCIABLE 45 DIAS",
   "FACTURA NEGOCIABLE 60 DIAS",
   "FACTURA NEGOCIABLE 120 DIAS",
+  "CONTADO",
+  "CREDITO 10 DIAS",
+  "CREDITO 75 DIAS",
+  "CREDITO 90 DIAS",
+  "FACTURA NEGOCIABLE 90 DIAS",
+  "ADELANTO 20%",
+  "ADELANTO 30%",
+  "ADELANTO 40%",
+  "ADELANTO 50%",
+  "SEGUN OBSERVACION",
 ] as const;
 
 export type CondicionPagoCodigo = (typeof CONDICIONES_PAGO)[number];
+
+// Reemplazo explícito de los `CONDICIONES_PAGO[2]` usados como valor por
+// defecto en los formularios — un índice mágico se habría corrido al
+// agregar valores nuevos al final de la lista.
+export const CONDICION_PAGO_POR_DEFECTO: CondicionPagoCodigo = "CREDITO 30 DIAS";

@@ -11,22 +11,25 @@ const opcional = (max: number) =>
 
 export const proveedorSchema = z
   .object({
-    tipoDocumento: z.enum(["RUC", "DNI"], { required_error: "Selecciona el tipo de documento" }),
+    procedencia: z.enum(["NACIONAL", "EXTRANJERO"], { required_error: "Selecciona la procedencia" }),
+    tipoDocumento: z.enum(["RUC", "DNI", "EXTRANJERO"], { required_error: "Selecciona el tipo de documento" }),
     numeroDocumento: z.string().min(1, "El número de documento es obligatorio").max(20),
     razonSocial: z.string().min(1, "La razón social es obligatoria").max(200),
     nombreComercial: opcional(200),
     tipo: z.enum(["INSUMOS", "FUNDO", "AMBOS", "TRANSPORTE", "MATERIALES_EMPAQUE", "ALMACEN"], {
       required_error: "Selecciona el tipo de proveedor",
     }),
+    // Actividad económica / rubro (texto libre) — distinto de `tipo`.
+    rubro: opcional(250),
     direccion: opcional(300),
+    lugar: opcional(150),
     distrito: opcional(100),
     provincia: opcional(100),
     departamento: opcional(100),
-    telefono: opcional(30),
-    email: z.preprocess(
-      (v) => (v === "" ? undefined : v),
-      z.string().email("Correo inválido").max(150).optional()
-    ),
+    // Texto libre, no se exige formato de correo único: en la práctica
+    // llegan varios correos separados por ";" en un mismo campo.
+    telefono: opcional(60),
+    email: opcional(200),
     contactoNombre: opcional(150),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     activo: z.coerce.boolean().default(true),

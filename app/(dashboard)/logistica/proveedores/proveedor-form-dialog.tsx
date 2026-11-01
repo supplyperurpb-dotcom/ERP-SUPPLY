@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TIPOS_PROVEEDOR } from "@/lib/validations/proveedor";
-import { CONDICIONES_PAGO } from "@/lib/constants/compras";
+import { CONDICIONES_PAGO, CONDICION_PAGO_POR_DEFECTO } from "@/lib/constants/compras";
 import {
   crearProveedorAction,
   actualizarProveedorAction,
@@ -31,12 +31,23 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
   const action = esEdicion ? actualizarProveedorAction.bind(null, proveedor.id) : crearProveedorAction;
   const [state, formAction] = useFormState<ProveedorActionState, FormData>(action, undefined);
 
+  const [procedencia, setProcedencia] = useState<"NACIONAL" | "EXTRANJERO">(proveedor?.procedencia ?? "NACIONAL");
+  const [tipoDocumento, setTipoDocumento] = useState<"RUC" | "DNI" | "EXTRANJERO">(proveedor?.tipoDocumento ?? "RUC");
+
   useEffect(() => {
     if (state?.success) {
       toast.success(esEdicion ? "Proveedor actualizado" : "Proveedor creado");
       setOpen(false);
     }
   }, [state, esEdicion]);
+
+  function cambiarProcedencia(valor: "NACIONAL" | "EXTRANJERO") {
+    setProcedencia(valor);
+    // Un proveedor del extranjero no tiene RUC/DNI: su documento queda
+    // fijo en "EXTRANJERO" (ver proveedorSchema, que no le exige formato).
+    // Uno nacional vuelve a RUC por defecto.
+    setTipoDocumento(valor === "EXTRANJERO" ? "EXTRANJERO" : "RUC");
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -52,7 +63,7 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{esEdicion ? "Editar proveedor" : "Nuevo proveedor"}</DialogTitle>
         </DialogHeader>
@@ -60,28 +71,50 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
         <form action={formAction} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="tipoDocumento">Tipo de documento</Label>
-              <Select name="tipoDocumento" defaultValue={proveedor?.tipoDocumento ?? "RUC"}>
-                <SelectTrigger id="tipoDocumento">
+              <Label htmlFor="procedencia">Procedencia</Label>
+              <Select name="procedencia" value={procedencia} onValueChange={cambiarProcedencia}>
+                <SelectTrigger id="procedencia">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="RUC">RUC</SelectItem>
-                  <SelectItem value="DNI">DNI</SelectItem>
+                  <SelectItem value="NACIONAL">Nacional</SelectItem>
+                  <SelectItem value="EXTRANJERO">Extranjero</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="numeroDocumento">Número de documento</Label>
-              <Input
-                id="numeroDocumento"
-                name="numeroDocumento"
-                defaultValue={proveedor?.numeroDocumento}
-                required
-                readOnly={esEdicion}
-                className={esEdicion ? "cursor-not-allowed bg-muted opacity-70" : undefined}
-              />
+              <Label htmlFor="tipoDocumento">Tipo de documento</Label>
+              {procedencia === "EXTRANJERO" ? (
+                <>
+                  <Input disabled className="cursor-not-allowed bg-muted opacity-70" value="Extranjero" />
+                  <input type="hidden" name="tipoDocumento" value="EXTRANJERO" />
+                </>
+              ) : (
+                <Select name="tipoDocumento" value={tipoDocumento} onValueChange={(v) => setTipoDocumento(v as "RUC" | "DNI")}>
+                  <SelectTrigger id="tipoDocumento">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RUC">RUC</SelectItem>
+                    <SelectItem value="DNI">DNI</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="numeroDocumento">
+              {procedencia === "EXTRANJERO" ? "Código / identificador tributario" : "Número de documento"}
+            </Label>
+            <Input
+              id="numeroDocumento"
+              name="numeroDocumento"
+              defaultValue={proveedor?.numeroDocumento}
+              required
+              readOnly={esEdicion}
+              className={esEdicion ? "cursor-not-allowed bg-muted opacity-70" : undefined}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -95,25 +128,31 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="tipo">Tipo de proveedor</Label>
-            <Select name="tipo" defaultValue={proveedor?.tipo ?? "INSUMOS"}>
-              <SelectTrigger id="tipo">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIPOS_PROVEEDOR.map((t) => (
-                  <SelectItem key={t.valor} value={t.valor}>
-                    {t.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="tipo">Tipo de proveedor</Label>
+              <Select name="tipo" defaultValue={proveedor?.tipo ?? "INSUMOS"}>
+                <SelectTrigger id="tipo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_PROVEEDOR.map((t) => (
+                    <SelectItem key={t.valor} value={t.valor}>
+                      {t.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rubro">Rubro / actividad económica (opcional)</Label>
+              <Input id="rubro" name="rubro" defaultValue={proveedor?.rubro ?? ""} />
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="condicionPago">Condición de pago</Label>
-            <Select name="condicionPago" defaultValue={proveedor?.condicionPago ?? CONDICIONES_PAGO[2]}>
+            <Select name="condicionPago" defaultValue={proveedor?.condicionPago ?? CONDICION_PAGO_POR_DEFECTO}>
               <SelectTrigger id="condicionPago">
                 <SelectValue />
               </SelectTrigger>
@@ -136,19 +175,8 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
               <Input id="direccion" name="direccion" defaultValue={proveedor?.direccion ?? ""} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="distrito">Distrito (opcional)</Label>
-              <Input id="distrito" name="distrito" defaultValue={proveedor?.distrito ?? ""} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="provincia">Provincia (opcional)</Label>
-              <Input id="provincia" name="provincia" defaultValue={proveedor?.provincia ?? ""} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="departamento">Departamento (opcional)</Label>
-              <Input id="departamento" name="departamento" defaultValue={proveedor?.departamento ?? ""} />
+              <Label htmlFor="lugar">Lugar (opcional)</Label>
+              <Input id="lugar" name="lugar" defaultValue={proveedor?.lugar ?? ""} placeholder="Ciudad / región / país" />
             </div>
           </div>
 
@@ -159,7 +187,7 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email (opcional)</Label>
-              <Input id="email" name="email" type="email" defaultValue={proveedor?.email ?? ""} />
+              <Input id="email" name="email" defaultValue={proveedor?.email ?? ""} />
             </div>
           </div>
 

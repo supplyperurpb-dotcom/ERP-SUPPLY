@@ -17,6 +17,7 @@ import { SkuCombobox, type SkuOpcionCombobox } from "@/components/shared/sku-com
 import { fechaLocalHoy, fechaLocalManana, formatMoneda } from "@/lib/utils";
 import {
   CONDICIONES_PAGO,
+  CONDICION_PAGO_POR_DEFECTO,
   IGV_TASA,
   LUGARES_ENTREGA,
   NOMBRE_ORDEN,
@@ -77,7 +78,7 @@ export function OrdenCompraDirectaForm({
   const fecha = fechaLocalHoy();
   const [fechaEntrega, setFechaEntrega] = useState(fechaLocalManana());
   const [vigenteHasta, setVigenteHasta] = useState("");
-  const [condicionPago, setCondicionPago] = useState<string>(CONDICIONES_PAGO[2]);
+  const [condicionPago, setCondicionPago] = useState<string>(CONDICION_PAGO_POR_DEFECTO);
   const [lugarEntrega, setLugarEntrega] = useState("");
   const [comentario, setComentario] = useState("");
   const [moneda, setMoneda] = useState<"PEN" | "USD">("PEN");
@@ -203,7 +204,7 @@ export function OrdenCompraDirectaForm({
               onSelect={(p) => {
                 setProveedorId(p?.id ?? "");
                 setProveedorSeleccionado(p);
-                setCondicionPago(p?.condicionPago ?? CONDICIONES_PAGO[2]);
+                setCondicionPago(p?.condicionPago ?? CONDICION_PAGO_POR_DEFECTO);
               }}
             />
           </div>

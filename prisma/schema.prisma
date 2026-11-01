@@ -38,6 +38,15 @@ enum AccionPermiso {
 enum TipoDocumentoIdentidad {
   RUC
   DNI
+  // Proveedor del extranjero: su identificador tributario no sigue el
+  // formato RUC (11 dígitos) ni DNI (8 dígitos) — ver proveedorSchema, que
+  // por eso no le exige ese formato.
+  EXTRANJERO
+}
+
+enum Procedencia {
+  NACIONAL
+  EXTRANJERO
 }
 
 enum TipoProveedor {
@@ -196,12 +205,22 @@ model AsignacionRol {
 
 model Proveedor {
   id              String                 @id @default(cuid())
+  procedencia     Procedencia            @default(NACIONAL)
   tipoDocumento   TipoDocumentoIdentidad
   numeroDocumento String
   razonSocial     String
   nombreComercial String?
   tipo            TipoProveedor
+  // Actividad económica / rubro tal como lo trae la fuente (texto libre,
+  // p. ej. "TRANSPORTE DE CARGA POR CARRETERA") — distinto de `tipo`
+  // (la clasificación fija que sí usa el resto del sistema).
+  rubro           String?
   direccion       String?
+  // Campo único de ubicación (ciudad/región), como lo trae la fuente —
+  // reemplaza a distrito/provincia/departamento para proveedores nuevos.
+  // Esos tres campos se conservan solo por los proveedores ya existentes
+  // que los tenían (ver el armado de dirección en el PDF de OC).
+  lugar           String?
   distrito        String?
   provincia       String?
   departamento    String?
