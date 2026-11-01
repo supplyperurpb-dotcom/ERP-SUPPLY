@@ -318,7 +318,13 @@ export function ConsumoAlmacenForm({
 
           <div className="space-y-2">
             <Label htmlFor="horaRetiro">Hora de retiro</Label>
-            <Input id="horaRetiro" type="time" {...form.register("horaRetiro")} />
+            <Input
+              id="horaRetiro"
+              type="time"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("horaRetiro")}
+            />
             {form.formState.errors.horaRetiro && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaRetiro.message}</p>
             )}
