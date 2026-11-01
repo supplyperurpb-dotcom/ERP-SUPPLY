@@ -33,39 +33,52 @@ type CostoSku = { cantidad: number; precioUnitarioPonderado: number | null };
 // Valor neto = ingresos + traslados recibidos (con el costo que traían del
 // almacén de origen, ver TrasladoAlmacenItem.costoUnitario) + devoluciones
 // - consumos - traslados enviados. Dividido entre la cantidad da el costo
-// unitario ponderado ACTUAL de lo que queda — no solo un promedio histórico
-// de ingresos, porque eso ignoraría el valor que entra o sale por traslados
-// y devoluciones.
-async function mapaCostosAlmacen(almacenId: string, db: Db = prisma): Promise<Map<string, CostoSku>> {
+// unitario ponderado de lo que queda — no solo un promedio histórico de
+// ingresos, porque eso ignoraría el valor que entra o sale por traslados y
+// devoluciones.
+//
+// `fechaCorte`, si se pasa, limita TODOS los movimientos considerados a
+// `fecha <= fechaCorte` — tanto los que forman la cantidad como los que
+// forman el valor neto. Esto da el costo ponderado TAL COMO ERA en esa
+// fecha (una "foto" histórica), no el actual: si el 1 de noviembre el
+// ponderado era 10 USD y entre el 2 y el 4 entraron más ingresos a otro
+// precio que lo subieron a 10.5, una operación fechada el 1 de noviembre
+// debe costearse a 10, sin importar cuándo se registre en el sistema. Sin
+// `fechaCorte` (el default) se usan TODOS los movimientos sin límite de
+// fecha, es decir el ponderado actual/de hoy — correcto para el stock
+// disponible (siempre se valida contra el total físico de ahora) y para
+// el reporte de stock.
+async function mapaCostosAlmacen(almacenId: string, db: Db = prisma, fechaCorte?: Date): Promise<Map<string, CostoSku>> {
+  const corte = fechaCorte ? { lte: fechaCorte } : undefined;
   const [entradas, salidas, ingresos, trasladosEntrantes, trasladosSalientes, consumos, devoluciones] = await Promise.all([
     db.movimientoStock.groupBy({
       by: ["skuId"],
-      where: { almacenDestinoId: almacenId, tipo: { in: ["INGRESO", "TRANSFERENCIA"] } },
+      where: { almacenDestinoId: almacenId, tipo: { in: ["INGRESO", "TRANSFERENCIA"] }, ...(corte && { fecha: corte }) },
       _sum: { cantidad: true },
     }),
     db.movimientoStock.groupBy({
       by: ["skuId"],
-      where: { almacenOrigenId: almacenId, tipo: { in: ["SALIDA", "TRANSFERENCIA"] } },
+      where: { almacenOrigenId: almacenId, tipo: { in: ["SALIDA", "TRANSFERENCIA"] }, ...(corte && { fecha: corte }) },
       _sum: { cantidad: true },
     }),
     db.ingresoAlmacenItem.findMany({
-      where: { ingresoAlmacen: { almacenId } },
+      where: { ingresoAlmacen: { almacenId, ...(corte && { fecha: corte }) } },
       select: { skuId: true, subtotalUsd: true, fleteAsignadoUsd: true },
     }),
     db.trasladoAlmacenItem.findMany({
-      where: { trasladoAlmacen: { almacenDestinoId: almacenId } },
+      where: { trasladoAlmacen: { almacenDestinoId: almacenId, ...(corte && { fecha: corte }) } },
       select: { skuId: true, valorTotal: true, fleteAsignadoUsd: true },
     }),
     db.trasladoAlmacenItem.findMany({
-      where: { trasladoAlmacen: { almacenOrigenId: almacenId } },
+      where: { trasladoAlmacen: { almacenOrigenId: almacenId, ...(corte && { fecha: corte }) } },
       select: { skuId: true, valorTotal: true },
     }),
     db.consumoAlmacenItem.findMany({
-      where: { consumoAlmacen: { almacenOrigenId: almacenId } },
+      where: { consumoAlmacen: { almacenOrigenId: almacenId, ...(corte && { fecha: corte }) } },
       select: { skuId: true, valorConsumido: true },
     }),
     db.devolucionAlmacenItem.findMany({
-      where: { devolucionAlmacen: { almacenId } },
+      where: { devolucionAlmacen: { almacenId, ...(corte && { fecha: corte }) } },
       select: { skuId: true, subtotal: true },
     }),
   ]);
@@ -174,6 +187,27 @@ export async function stockDisponible(almacenId: string, skuId: string, db: Db =
 
 export async function precioUnitarioPonderado(almacenId: string, skuId: string, db: Db = prisma): Promise<number | null> {
   const mapa = await mapaCostosAlmacen(almacenId, db);
+  return mapa.get(skuId)?.precioUnitarioPonderado ?? null;
+}
+
+// Costo ponderado + cantidad tal como eran en `fecha` (ver el comentario de
+// mapaCostosAlmacen) — usado para COSTEAR traslados, consumos y
+// devoluciones con el ponderado del día de la operación, nunca el de hoy.
+// La cantidad DISPONIBLE para validar que alcance el stock sigue
+// viniendo de costosParaValidacion/stockDisponible (sin fechaCorte): eso
+// siempre se compara contra el total físico actual, sin importar qué
+// fecha se le puso a la operación.
+export async function costosAFecha(almacenId: string, fecha: Date, db: Db = prisma): Promise<Map<string, CostoSku>> {
+  return mapaCostosAlmacen(almacenId, db, fecha);
+}
+
+export async function precioUnitarioPonderadoAFecha(
+  almacenId: string,
+  skuId: string,
+  fecha: Date,
+  db: Db = prisma
+): Promise<number | null> {
+  const mapa = await mapaCostosAlmacen(almacenId, db, fecha);
   return mapa.get(skuId)?.precioUnitarioPonderado ?? null;
 }
 

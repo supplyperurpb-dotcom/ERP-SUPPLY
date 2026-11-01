@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero, prorratear } from "@/lib/utils";
 import { convertirAUsd } from "@/lib/constants/moneda";
-import { costosParaValidacion, stockDisponible, calcularStockPorLote, categoriaEfectivaAlmacen } from "@/lib/stock-almacen";
+import { costosParaValidacion, costosAFecha, stockDisponible, calcularStockPorLote, categoriaEfectivaAlmacen } from "@/lib/stock-almacen";
 import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { subirArchivo } from "@/lib/storage";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
@@ -163,7 +163,11 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   for (const item of items) {
     cantidadPorSku.set(item.skuId, (cantidadPorSku.get(item.skuId) ?? 0) + item.cantidad);
   }
-  const costosOrigen = await costosParaValidacion(almacenOrigenId);
+  // El stock disponible se valida contra el total físico de AHORA
+  // (costosParaValidacion), pero el costo con el que "viaja" el producto
+  // hacia el destino es el ponderado tal como era en `fecha` (el día del
+  // traslado) — no el de hoy, ver costosAFecha.
+  const [costosOrigen, costosHistoricos] = await Promise.all([costosParaValidacion(almacenOrigenId), costosAFecha(almacenOrigenId, fecha)]);
   const costoUnitarioPorSku = new Map<string, number>();
   for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
     const costo = costosOrigen.get(skuId);
@@ -174,13 +178,14 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
         error: `No hay suficiente stock de ${sku?.codigo ?? skuId} en ${almacenOrigen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`,
       };
     }
-    if (costo?.precioUnitarioPonderado === null || costo?.precioUnitarioPonderado === undefined) {
+    const costoHistorico = costosHistoricos.get(skuId);
+    if (costoHistorico?.precioUnitarioPonderado === null || costoHistorico?.precioUnitarioPonderado === undefined) {
       const sku = await prisma.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
       return {
-        error: `No se pudo determinar el costo unitario ponderado de ${sku?.codigo ?? skuId} en ${almacenOrigen.nombre}.`,
+        error: `No se pudo determinar el costo unitario ponderado de ${sku?.codigo ?? skuId} en ${almacenOrigen.nombre} hasta la fecha de este traslado.`,
       };
     }
-    costoUnitarioPorSku.set(skuId, costo.precioUnitarioPonderado);
+    costoUnitarioPorSku.set(skuId, costoHistorico.precioUnitarioPonderado);
   }
 
   // El flete se prorratea entre los items según su participación en el
@@ -325,7 +330,10 @@ export async function actualizarTrasladoAlmacenAction(
       const permisoLotes = await validarLotesSiAplica(almacenOrigen, items, tx);
       if (permisoLotes.error) throw new Error(permisoLotes.error);
 
-      const costosOrigen = await costosParaValidacion(almacenOrigenId, tx);
+      const [costosOrigen, costosHistoricos] = await Promise.all([
+        costosParaValidacion(almacenOrigenId, tx),
+        costosAFecha(almacenOrigenId, fecha, tx),
+      ]);
       const costoUnitarioPorSku = new Map<string, number>();
       for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
         const costo = costosOrigen.get(skuId);
@@ -336,11 +344,14 @@ export async function actualizarTrasladoAlmacenAction(
             `No hay suficiente stock de ${sku?.codigo ?? skuId} en ${almacenOrigen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`
           );
         }
-        if (costo?.precioUnitarioPonderado === null || costo?.precioUnitarioPonderado === undefined) {
+        const costoHistorico = costosHistoricos.get(skuId);
+        if (costoHistorico?.precioUnitarioPonderado === null || costoHistorico?.precioUnitarioPonderado === undefined) {
           const sku = await tx.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
-          throw new Error(`No se pudo determinar el costo unitario ponderado de ${sku?.codigo ?? skuId} en ${almacenOrigen.nombre}.`);
+          throw new Error(
+            `No se pudo determinar el costo unitario ponderado de ${sku?.codigo ?? skuId} en ${almacenOrigen.nombre} hasta la fecha de este traslado.`
+          );
         }
-        costoUnitarioPorSku.set(skuId, costo.precioUnitarioPonderado);
+        costoUnitarioPorSku.set(skuId, costoHistorico.precioUnitarioPonderado);
       }
 
       const valoresTotales = items.map((item) => item.cantidad * costoUnitarioPorSku.get(item.skuId)!);

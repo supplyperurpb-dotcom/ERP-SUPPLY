@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { stockDisponible, precioUnitarioPonderado } from "@/lib/stock-almacen";
+import { stockDisponible, precioUnitarioPonderadoAFecha } from "@/lib/stock-almacen";
 import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { devolucionAlmacenSchema, type DevolucionAlmacenInput } from "@/lib/validations/devolucion-almacen";
 import type { Prisma } from "@prisma/client";
@@ -16,10 +16,12 @@ type Tx = Prisma.TransactionClient;
 // Solo para mostrarle al usuario una vista previa del precio mientras arma
 // la devolución (ver devolucion-almacen-form.tsx) — el precio real que se
 // guarda siempre se recalcula en el servidor al enviar el formulario (ver
-// validarOrigen), nunca se confía en este valor.
-export async function obtenerPrecioPonderadoAction(almacenId: string, skuId: string): Promise<number | null> {
+// validarOrigen), nunca se confía en este valor. Se pide con la misma
+// `fecha` que se va a guardar: el ponderado tal como era ESE día, no el de
+// hoy (ver precioUnitarioPonderadoAFecha).
+export async function obtenerPrecioPonderadoAction(almacenId: string, skuId: string, fecha: Date): Promise<number | null> {
   if (!almacenId || !skuId) return null;
-  return precioUnitarioPonderado(almacenId, skuId);
+  return precioUnitarioPonderadoAFecha(almacenId, skuId, fecha);
 }
 
 type ItemConPrecio = DevolucionAlmacenInput["items"][number] & { precioUnitario: number; subtotal: number };
@@ -72,10 +74,12 @@ async function validarOrigen(tx: Tx, data: DevolucionAlmacenInput, exigirActivo:
 
     let precioUnitario = 0;
     if (!item.noValorado) {
-      const precio = await precioUnitarioPonderado(data.almacenId, item.skuId, tx);
+      // El ponderado tal como era en la fecha de la devolución (no el de
+      // hoy) — ver precioUnitarioPonderadoAFecha en lib/stock-almacen.ts.
+      const precio = await precioUnitarioPonderadoAFecha(data.almacenId, item.skuId, data.fecha, tx);
       if (precio === null) {
         throw new Error(
-          `No hay costo ponderado calculable de ${sku.codigo} en ${almacen.nombre} (nunca ingresó ahí). Marca "No valorado" para esta línea o corrige el almacén.`
+          `No hay costo ponderado calculable de ${sku.codigo} en ${almacen.nombre} hasta la fecha de esta devolución (nunca ingresó ahí). Marca "No valorado" para esta línea o corrige el almacén.`
         );
       }
       precioUnitario = precio;

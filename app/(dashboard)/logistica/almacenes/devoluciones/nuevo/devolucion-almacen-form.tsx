@@ -111,12 +111,13 @@ export function DevolucionAlmacenForm({
       })
     : [];
 
-  // Trae el costo unitario ponderado ACTUAL del SKU en el almacén elegido,
-  // solo como vista previa — el servidor lo vuelve a calcular al guardar
-  // (ver crearDevolucionAlmacenAction) y nunca confía en este valor.
+  // Trae el costo unitario ponderado del SKU en el almacén elegido TAL
+  // COMO ERA en `fecha` (la fecha de la devolución), solo como vista
+  // previa — el servidor lo vuelve a calcular al guardar (ver
+  // crearDevolucionAlmacenAction) y nunca confía en este valor.
   async function cargarPrecio(index: number, skuId: string) {
     if (!almacenId || !skuId) return;
-    const precio = await obtenerPrecioPonderadoAction(almacenId, skuId);
+    const precio = await obtenerPrecioPonderadoAction(almacenId, skuId, fecha);
     setPreciosPorFila((prev) => ({ ...prev, [index]: precio }));
   }
 
