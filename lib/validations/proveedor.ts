@@ -16,6 +16,9 @@ export const proveedorSchema = z
     numeroDocumento: z.string().min(1, "El número de documento es obligatorio").max(20),
     razonSocial: z.string().min(1, "La razón social es obligatoria").max(200),
     nombreComercial: opcional(200),
+    // Se usa para filtrar: Acopio solo ofrece FUNDO/AMBOS como proveedor de
+    // fruta en "Nuevo ingreso" (ver app/(dashboard)/acopio/ingreso*/page.tsx) —
+    // no quitar este campo sin revisar esos usos primero.
     tipo: z.enum(["INSUMOS", "FUNDO", "AMBOS", "TRANSPORTE", "MATERIALES_EMPAQUE", "ALMACEN"], {
       required_error: "Selecciona el tipo de proveedor",
     }),
@@ -28,9 +31,9 @@ export const proveedorSchema = z
     departamento: opcional(100),
     // Texto libre, no se exige formato de correo único: en la práctica
     // llegan varios correos separados por ";" en un mismo campo.
-    telefono: opcional(60),
-    email: opcional(200),
-    contactoNombre: opcional(150),
+    telefono: z.string().trim().min(1, "El teléfono es obligatorio").max(60),
+    email: z.string().trim().min(1, "El email es obligatorio").max(200),
+    contactoNombre: z.string().trim().min(1, "El nombre de contacto es obligatorio").max(150),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     activo: z.coerce.boolean().default(true),
   })

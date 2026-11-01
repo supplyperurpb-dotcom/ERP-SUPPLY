@@ -49,6 +49,10 @@ enum Procedencia {
   EXTRANJERO
 }
 
+// Se usa para filtrar qué proveedores aparecen en cada flujo: Acopio solo
+// ofrece FUNDO/AMBOS en "Nuevo ingreso" de fruta/IQF (ver esas páginas en
+// app/(dashboard)/acopio/ingreso*/), el resto del sistema usa proveedores
+// en general. No quitar sin revisar esos usos primero.
 enum TipoProveedor {
   INSUMOS
   FUNDO
@@ -213,7 +217,7 @@ model Proveedor {
   tipo            TipoProveedor
   // Actividad económica / rubro tal como lo trae la fuente (texto libre,
   // p. ej. "TRANSPORTE DE CARGA POR CARRETERA") — distinto de `tipo`
-  // (la clasificación fija que sí usa el resto del sistema).
+  // (la clasificación fija que sí filtra Acopio).
   rubro           String?
   direccion       String?
   // Campo único de ubicación (ciudad/región), como lo trae la fuente —

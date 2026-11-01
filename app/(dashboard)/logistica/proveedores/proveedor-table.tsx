@@ -77,6 +77,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
             <TableHead>Documento</TableHead>
             <TableHead>Razón social</TableHead>
             <TableHead>Tipo</TableHead>
+            <TableHead>Rubro</TableHead>
             <TableHead>Lugar</TableHead>
             <TableHead>Contacto</TableHead>
             <TableHead>Estado</TableHead>
@@ -98,6 +99,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
               <TableCell>
                 <Badge variant="outline">{TIPO_LABEL[proveedor.tipo]}</Badge>
               </TableCell>
+              <TableCell>{proveedor.rubro || "—"}</TableCell>
               <TableCell>{proveedor.lugar || "—"}</TableCell>
               <TableCell>{proveedor.telefono || proveedor.email || "—"}</TableCell>
               <TableCell>

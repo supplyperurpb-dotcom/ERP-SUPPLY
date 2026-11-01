@@ -143,6 +143,7 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">Fundo/Ambos es lo que Acopio ofrece como proveedor de fruta.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="rubro">Rubro / actividad económica (opcional)</Label>
@@ -182,18 +183,18 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="telefono">Teléfono (opcional)</Label>
-              <Input id="telefono" name="telefono" defaultValue={proveedor?.telefono ?? ""} />
+              <Label htmlFor="telefono">Teléfono</Label>
+              <Input id="telefono" name="telefono" defaultValue={proveedor?.telefono ?? ""} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email (opcional)</Label>
-              <Input id="email" name="email" defaultValue={proveedor?.email ?? ""} />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" defaultValue={proveedor?.email ?? ""} required />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactoNombre">Nombre de contacto (opcional)</Label>
-            <Input id="contactoNombre" name="contactoNombre" defaultValue={proveedor?.contactoNombre ?? ""} />
+            <Label htmlFor="contactoNombre">Nombre de contacto</Label>
+            <Input id="contactoNombre" name="contactoNombre" defaultValue={proveedor?.contactoNombre ?? ""} required />
           </div>
 
           <input type="hidden" name="activo" value={(proveedor?.activo ?? true) ? "true" : "false"} />
