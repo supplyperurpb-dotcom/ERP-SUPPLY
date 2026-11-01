@@ -307,7 +307,6 @@ export function TrasladoAlmacenForm({
                 id="archivoGuia"
                 type="file"
                 accept="application/pdf,image/*"
-                capture="environment"
                 onChange={(e) => setArchivoFile(e.target.files?.[0] ?? null)}
               />
             </div>

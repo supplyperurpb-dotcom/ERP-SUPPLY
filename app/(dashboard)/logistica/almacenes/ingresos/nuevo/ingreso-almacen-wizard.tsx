@@ -355,7 +355,6 @@ export function IngresoAlmacenWizard({
                 id="archivoGuia"
                 type="file"
                 accept="application/pdf,image/*"
-                capture="environment"
                 onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
               />
               {archivo && <p className="text-xs text-muted-foreground">Seleccionado: {archivo.name}</p>}

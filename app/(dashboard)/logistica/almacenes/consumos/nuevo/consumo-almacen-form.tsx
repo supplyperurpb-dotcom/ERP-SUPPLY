@@ -406,7 +406,6 @@ export function ConsumoAlmacenForm({
               id="fotoEvidencia"
               type="file"
               accept="image/jpeg,image/png"
-              capture="environment"
               onChange={(e) => setFotoFile(e.target.files?.[0] ?? null)}
             />
             {fotoFile && <p className="text-xs text-muted-foreground">Seleccionada: {fotoFile.name}</p>}
