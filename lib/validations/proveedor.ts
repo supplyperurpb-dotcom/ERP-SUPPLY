@@ -24,7 +24,7 @@ export const proveedorSchema = z
     }),
     // Actividad económica / rubro (texto libre) — distinto de `tipo`.
     rubro: opcional(250),
-    direccion: opcional(300),
+    direccion: z.string().trim().min(1, "La dirección es obligatoria").max(300),
     lugar: opcional(150),
     distrito: opcional(100),
     provincia: opcional(100),

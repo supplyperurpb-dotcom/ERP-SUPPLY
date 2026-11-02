@@ -172,8 +172,8 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="direccion">Dirección (opcional)</Label>
-              <Input id="direccion" name="direccion" defaultValue={proveedor?.direccion ?? ""} />
+              <Label htmlFor="direccion">Dirección</Label>
+              <Input id="direccion" name="direccion" defaultValue={proveedor?.direccion ?? ""} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lugar">Lugar (opcional)</Label>
