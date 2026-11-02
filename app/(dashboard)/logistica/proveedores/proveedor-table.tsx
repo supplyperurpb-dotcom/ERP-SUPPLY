@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Search, Trash2 } from "lucide-react";
+import { Download, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Proveedor } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
   const [isPending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
+  const [exportando, setExportando] = useState(false);
   const confirmar = useConfirm();
 
   const proveedoresFiltrados = useMemo(() => {
@@ -59,16 +60,52 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
     });
   }
 
+  async function handleExportar() {
+    setExportando(true);
+    try {
+      const XLSX = await import("xlsx");
+      const filas = proveedores.map((p) => ({
+        Procedencia: p.procedencia,
+        "Tipo de documento": p.tipoDocumento,
+        "Número de documento": p.numeroDocumento,
+        "Razón social": p.razonSocial,
+        "Nombre comercial": p.nombreComercial ?? "",
+        Tipo: TIPO_LABEL[p.tipo],
+        Rubro: p.rubro ?? "",
+        Dirección: p.direccion,
+        Lugar: p.lugar ?? "",
+        Teléfono: p.telefono,
+        Email: p.email,
+        Contacto: p.contactoNombre,
+        "Condición de pago": p.condicionPago,
+        Estado: p.activo ? "Activo" : "Inactivo",
+      }));
+      const hoja = XLSX.utils.json_to_sheet(filas);
+      const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, hoja, "Proveedores");
+      const fecha = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(libro, `proveedores_${fecha}.xlsx`);
+    } finally {
+      setExportando(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por razón social, RUC/DNI, rubro o lugar..."
-          value={busqueda}
-          onChange={(e) => cambiarBusqueda(e.target.value)}
-          className="pl-8"
-        />
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por razón social, RUC/DNI, rubro o lugar..."
+            value={busqueda}
+            onChange={(e) => cambiarBusqueda(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Button variant="outline" onClick={handleExportar} disabled={exportando}>
+          <Download className="mr-2 h-4 w-4" />
+          {exportando ? "Exportando..." : "Exportar"}
+        </Button>
       </div>
 
       <Table>
