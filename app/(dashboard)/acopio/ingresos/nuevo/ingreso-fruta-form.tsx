@@ -325,7 +325,14 @@ export function IngresoFrutaForm({
 
           <div className="space-y-2">
             <Label htmlFor="horaIngreso">Hora de recepción</Label>
-            <Input id="horaIngreso" type="time" {...form.register("horaIngreso")} />
+            <Input
+              id="horaIngreso"
+              type="time"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("horaIngreso")}
+            />
+            <p className="text-xs text-muted-foreground">Se registra con la hora actual, no se puede modificar.</p>
             {form.formState.errors.horaIngreso && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaIngreso.message}</p>
             )}
@@ -333,7 +340,14 @@ export function IngresoFrutaForm({
 
           <div className="space-y-2">
             <Label htmlFor="fechaCosecha">Fecha de cosecha</Label>
-            <Input id="fechaCosecha" type="date" {...form.register("fechaCosecha")} />
+            <Input
+              id="fechaCosecha"
+              type="date"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("fechaCosecha")}
+            />
+            <p className="text-xs text-muted-foreground">Se registra con la fecha actual, no se puede modificar.</p>
             {form.formState.errors.fechaCosecha && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.fechaCosecha.message}</p>
             )}

@@ -12,6 +12,8 @@ import { prisma } from "@/lib/db/prisma";
 import { formatKg, formatCantidad, rangoFechaCosecha } from "@/lib/utils";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import type { Prisma } from "@prisma/client";
+import { CerrarPalletBoton } from "@/components/shared/cerrar-pallet-boton";
+import { cerrarPalletIQFAction } from "@/lib/actions/pallet-actions";
 import { TarjaIQFBoton } from "./tarja-iqf-boton";
 
 const ORIGEN_LABEL: Record<"DESCARTE_CAMPO" | "DESCARTE_PLANTA", string> = {
@@ -167,7 +169,7 @@ export default async function TarjasIQFPage({
                 <TableHead>Peso neto</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Despacho</TableHead>
-                <TableHead className="text-right">Tarja</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -208,7 +210,10 @@ export default async function TarjasIQFPage({
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <TarjaIQFBoton palletId={pallet.id} tarjaNumero={pallet.tarja?.numero ?? null} />
+                      <div className="flex justify-end gap-2">
+                        <CerrarPalletBoton palletId={pallet.id} estado={pallet.estado} accion={cerrarPalletIQFAction} />
+                        <TarjaIQFBoton palletId={pallet.id} tarjaNumero={pallet.tarja?.numero ?? null} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

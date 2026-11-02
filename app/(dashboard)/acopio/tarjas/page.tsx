@@ -12,6 +12,8 @@ import { prisma } from "@/lib/db/prisma";
 import { formatKg, formatCantidad, rangoFechaCosecha } from "@/lib/utils";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import type { Prisma } from "@prisma/client";
+import { CerrarPalletBoton } from "@/components/shared/cerrar-pallet-boton";
+import { cerrarPalletAction } from "@/lib/actions/pallet-actions";
 import { TarjaBoton } from "./tarja-boton";
 
 export default async function TarjasPage({
@@ -148,7 +150,7 @@ export default async function TarjasPage({
                 <TableHead>Peso neto</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Despacho</TableHead>
-                <TableHead className="text-right">Tarja</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -183,7 +185,10 @@ export default async function TarjasPage({
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <TarjaBoton palletId={pallet.id} tarjaNumero={pallet.tarja?.numero ?? null} />
+                      <div className="flex justify-end gap-2">
+                        <CerrarPalletBoton palletId={pallet.id} estado={pallet.estado} accion={cerrarPalletAction} />
+                        <TarjaBoton palletId={pallet.id} tarjaNumero={pallet.tarja?.numero ?? null} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
