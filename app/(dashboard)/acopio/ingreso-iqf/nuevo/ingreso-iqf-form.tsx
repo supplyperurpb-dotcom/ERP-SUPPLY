@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
 import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoIQFSchema, type IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
 import { crearIngresoIQFAction, actualizarIngresoIQFAction } from "@/lib/actions/ingreso-iqf-actions";
@@ -52,12 +53,14 @@ export function IngresoIQFForm({
   tiposBandeja,
   tiposPallet,
   palletsAbiertos,
+  vehiculos,
   edicion,
 }: {
   proveedores: ProveedorOption[];
   tiposBandeja: TipoBandejaOption[];
   tiposPallet: TipoPalletOption[];
   palletsAbiertos: PalletAbierto[];
+  vehiculos: VehiculoTransporteOption[];
   /** Presente solo cuando el formulario edita un ingreso IQF ya existente. */
   edicion?: {
     ingresoId: string;
@@ -253,7 +256,13 @@ export function IngresoIQFForm({
 
           <div className="space-y-2">
             <Label htmlFor="placaTransporte">Placa del vehículo</Label>
-            <Input id="placaTransporte" placeholder="Ej. ABC-123" {...form.register("placaTransporte")} />
+            <Controller
+              control={form.control}
+              name="placaTransporte"
+              render={({ field }) => (
+                <PlacaVehiculoField vehiculos={vehiculos} value={field.value} onChange={field.onChange} />
+              )}
+            />
             {form.formState.errors.placaTransporte && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.placaTransporte.message}</p>
             )}

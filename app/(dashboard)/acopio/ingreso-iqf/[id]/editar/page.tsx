@@ -7,7 +7,7 @@ import type { IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
 export default async function EditarIngresoIQFPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb] = await Promise.all([
+  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, vehiculosDb] = await Promise.all([
     prisma.ingresoIQF.findUnique({ where: { id }, include: { pallets: true } }),
     prisma.proveedor.findMany({
       where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
@@ -19,6 +19,7 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
       where: { estado: "ABIERTO", origen: "DESCARTE_PLANTA" },
       orderBy: { numero: "asc" },
     }),
+    prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
   ]);
 
   if (!ingreso) {
@@ -37,6 +38,7 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
   const proveedores = proveedoresDb.map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
   const tiposBandeja = tiposBandejaDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const tiposPallet = tiposPalletDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
+  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
 
   const palletsPorId = new Map(
     [...palletsAbiertosDb, ...palletsPropiosDb].map((p) => [p.id, p])
@@ -82,6 +84,7 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
         tiposBandeja={tiposBandeja}
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
+        vehiculos={vehiculos}
         edicion={{ ingresoId: ingreso.id, valoresIniciales, contribucionOriginalPorPallet }}
       />
     </div>

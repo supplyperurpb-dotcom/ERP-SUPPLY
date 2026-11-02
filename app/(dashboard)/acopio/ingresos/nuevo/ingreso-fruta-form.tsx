@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
 import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
@@ -67,6 +68,7 @@ export function IngresoFrutaForm({
   tiposPallet,
   palletsAbiertos,
   palletsAbiertosIQF,
+  vehiculos,
   edicion,
 }: {
   proveedores: ProveedorOption[];
@@ -75,6 +77,7 @@ export function IngresoFrutaForm({
   palletsAbiertos: PalletAbierto[];
   /** Pallets IQF abiertos de origen "Descarte Campo" (ver PalletIQF.origen). */
   palletsAbiertosIQF: PalletAbierto[];
+  vehiculos: VehiculoTransporteOption[];
   /** Presente solo cuando el formulario edita un ingreso ya existente. */
   edicion?: {
     ingresoId: string;
@@ -317,7 +320,13 @@ export function IngresoFrutaForm({
 
           <div className="space-y-2">
             <Label htmlFor="placaTransporte">Placa del vehículo</Label>
-            <Input id="placaTransporte" placeholder="Ej. ABC-123" {...form.register("placaTransporte")} />
+            <Controller
+              control={form.control}
+              name="placaTransporte"
+              render={({ field }) => (
+                <PlacaVehiculoField vehiculos={vehiculos} value={field.value} onChange={field.onChange} />
+              )}
+            />
             {form.formState.errors.placaTransporte && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.placaTransporte.message}</p>
             )}

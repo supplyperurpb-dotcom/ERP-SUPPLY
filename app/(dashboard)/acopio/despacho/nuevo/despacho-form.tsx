@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
 import { PackageX } from "lucide-react";
 import { fechaLocalHoy, horaLocalAhora, formatKg, formatCantidad } from "@/lib/utils";
 import { despachoSchema, type DespachoInput } from "@/lib/validations/despacho";
@@ -23,7 +24,13 @@ type TarjaDisponible = {
   pesoNetoKg: number;
 };
 
-export function DespachoForm({ tarjasDisponibles }: { tarjasDisponibles: TarjaDisponible[] }) {
+export function DespachoForm({
+  tarjasDisponibles,
+  vehiculos,
+}: {
+  tarjasDisponibles: TarjaDisponible[];
+  vehiculos: VehiculoTransporteOption[];
+}) {
   const router = useRouter();
 
   const form = useForm<DespachoInput>({
@@ -74,7 +81,13 @@ export function DespachoForm({ tarjasDisponibles }: { tarjasDisponibles: TarjaDi
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-2">
             <Label htmlFor="placaCamion">Placa del camión</Label>
-            <Input id="placaCamion" placeholder="Ej. ABC-123" {...form.register("placaCamion")} />
+            <Controller
+              control={form.control}
+              name="placaCamion"
+              render={({ field }) => (
+                <PlacaVehiculoField vehiculos={vehiculos} value={field.value} onChange={field.onChange} />
+              )}
+            />
             {form.formState.errors.placaCamion && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.placaCamion.message}</p>
             )}

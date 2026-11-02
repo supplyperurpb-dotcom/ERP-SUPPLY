@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { IngresoIQFForm } from "./ingreso-iqf-form";
 
 export default async function NuevoIngresoIQFPage() {
-  const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb] = await Promise.all([
+  const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, vehiculosDb] = await Promise.all([
     prisma.proveedor.findMany({
       where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
       orderBy: { razonSocial: "asc" },
@@ -14,6 +14,7 @@ export default async function NuevoIngresoIQFPage() {
       where: { estado: "ABIERTO", origen: "DESCARTE_PLANTA" },
       orderBy: { numero: "asc" },
     }),
+    prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
   ]);
 
   // Se mapea explícitamente a objetos planos: el campo Decimal de Prisma no
@@ -30,6 +31,7 @@ export default async function NuevoIngresoIQFPage() {
     pesoTaraKg: t.pesoTaraKg.toString(),
   }));
   const palletsAbiertos = palletsAbiertosDb.map((p) => ({ id: p.id, numero: p.numero, cantidadBandejas: p.cantidadBandejas }));
+  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
 
   return (
     <div>
@@ -42,6 +44,7 @@ export default async function NuevoIngresoIQFPage() {
         tiposBandeja={tiposBandeja}
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
+        vehiculos={vehiculos}
       />
     </div>
   );

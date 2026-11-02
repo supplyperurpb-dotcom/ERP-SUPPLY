@@ -459,6 +459,28 @@ model Vehiculo {
   @@map("vehiculos")
 }
 
+enum TipoPropiedadVehiculoTransporte {
+  PROPIO
+  TERCERO
+}
+
+// Catálogo de placas de camiones que entregan o recogen fruta en planta
+// (ver IngresoFruta/IngresoIQF.placaTransporte, DespachoTarja/DespachoIQF.
+// placaCamion) — se arma sobre la marcha con "Registrar vehículo" desde
+// esos formularios, sin requerir rol ADMIN (a diferencia de Vehiculo, que
+// es el catálogo de activos propios para despacho de combustible). Nunca
+// se borra un registro ya usado: se desactiva (activo=false).
+model VehiculoTransporte {
+  id        String                          @id @default(cuid())
+  placa     String                          @unique
+  tipo      TipoPropiedadVehiculoTransporte
+  activo    Boolean                         @default(true)
+  createdAt DateTime                        @default(now())
+  updatedAt DateTime                        @updatedAt
+
+  @@map("vehiculos_transporte")
+}
+
 enum TipoNecesidad {
   URGENTE
   ESTANDAR

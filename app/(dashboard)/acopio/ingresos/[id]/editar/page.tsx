@@ -7,7 +7,7 @@ import type { IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 export default async function EditarIngresoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIQFDb] =
+  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIQFDb, vehiculosDb] =
     await Promise.all([
       prisma.ingresoFruta.findUnique({ where: { id }, include: { pallets: true } }),
       prisma.proveedor.findMany({
@@ -21,6 +21,7 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
         where: { estado: "ABIERTO", origen: "DESCARTE_CAMPO" },
         orderBy: { numero: "asc" },
       }),
+      prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
     ]);
 
   if (!ingreso) {
@@ -46,6 +47,7 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
   const proveedores = proveedoresDb.map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
   const tiposBandeja = tiposBandejaDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const tiposPallet = tiposPalletDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
+  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
 
   const palletsPorId = new Map([...palletsAbiertosDb, ...palletsPropiosDb].map((p) => [p.id, p]));
   const palletsAbiertos = Array.from(palletsPorId.values()).map((p) => ({
@@ -103,6 +105,7 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
         palletsAbiertosIQF={palletsAbiertosIQF}
+        vehiculos={vehiculos}
         edicion={{ ingresoId: ingreso.id, valoresIniciales, contribucionOriginalPorPallet }}
       />
     </div>
