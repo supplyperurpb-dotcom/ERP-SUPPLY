@@ -45,7 +45,7 @@ function EtiquetaKg(props: {
   const cx = Number(x) + Number(width) / 2;
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
-    <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={16} fontWeight={600} fill={COLOR_EJE}>
+    <text x={cx} y={anchorY - 28} textAnchor="middle" fontSize={16} fontWeight={600} fill={COLOR_EJE}>
       {formatCantidad(kg)} Kg
     </text>
   );
@@ -158,7 +158,7 @@ export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string
         ) : (
           <div className="h-[420px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={puntos} margin={{ top: 40, left: 8, right: 8 }}>
+              <BarChart data={puntos} margin={{ top: 48, left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
                 <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
                 <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
