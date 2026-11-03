@@ -104,8 +104,8 @@ export function StackedBarChart({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={puntos} margin={{ left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="categoria" interval={0} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis tickFormatter={fmt} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
+                <XAxis dataKey="categoria" interval={0} fontSize={16} stroke={COLOR_EJE} tickLine={false} />
+                <YAxis tickFormatter={fmt} fontSize={16} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
                 <Tooltip
                   content={(props) => (
                     <ContenidoTooltip

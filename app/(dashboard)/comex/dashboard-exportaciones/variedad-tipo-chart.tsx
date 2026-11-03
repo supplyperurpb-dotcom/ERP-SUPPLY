@@ -47,7 +47,7 @@ function EtiquetaKg(props: {
   const cx = Number(x) + Number(width) / 2;
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
-    <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={11} fontWeight={600} fill={COLOR_EJE}>
+    <text x={cx} y={anchorY - 20} textAnchor="middle" fontSize={16} fontWeight={600} fill={COLOR_EJE}>
       {formatCantidad(kg)} Kg
     </text>
   );
@@ -67,7 +67,7 @@ function EtiquetaPU(props: {
   const cx = Number(x) + Number(width) / 2;
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
-    <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={11} fill={COLOR_EJE}>
+    <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={16} fill={COLOR_EJE}>
       {formatMoneda(pu, "USD")}
     </text>
   );
@@ -104,7 +104,7 @@ function EtiquetaPorcentaje(props: {
   const color =
     flagAranaPremium === "1" ? "#fff" : tipo === "CONVENCIONAL" || alturaBarra < PCT_MIN_ALTURA_PX ? "#000" : "#fff";
   return (
-    <text x={cx} y={cy} textAnchor="middle" fontSize={12} fill={color}>
+    <text x={cx} y={cy} textAnchor="middle" fontSize={16} fill={color}>
       {pct.toFixed(0)}%
     </text>
   );
@@ -166,7 +166,7 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={puntos} margin={{ top: 40, left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="variedad" fontSize={12} stroke={COLOR_EJE} tickLine={false} />
+                <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
                 <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
                 <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
                 <Legend formatter={(value) => ETIQUETA_TIPO[value] ?? value} />

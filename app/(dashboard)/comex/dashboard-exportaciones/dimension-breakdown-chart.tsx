@@ -40,7 +40,7 @@ export function DimensionBreakdownChart({
               <BarChart data={datos} layout="vertical" margin={{ left: 8, right: 48 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} horizontal={false} />
                 <XAxis type="number" tick={false} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="etiqueta" width={140} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="etiqueta" width={140} fontSize={16} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
                 <Tooltip
                   formatter={(value, name, item) => {
                     const payload = item?.payload as (FilaDimension & { participacionPct: number }) | undefined;
@@ -59,7 +59,7 @@ export function DimensionBreakdownChart({
                     dataKey="participacionPct"
                     position="right"
                     formatter={(v) => (typeof v === "number" ? `${v.toFixed(1)}%` : "")}
-                    fontSize={12}
+                    fontSize={16}
                     fill={COLOR_EJE}
                   />
                 </Bar>

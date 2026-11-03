@@ -75,7 +75,7 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={puntos} margin={{ top: 30, left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="variedad" fontSize={12} stroke={COLOR_EJE} tickLine={false} />
+                <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
                 <YAxis domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
                 <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
                 <Legend />
@@ -86,14 +86,14 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
                       position="center"
                       formatter={(v) => (typeof v === "number" && v > 0 ? `${v.toFixed(0)}%` : "")}
                       fill="#fff"
-                      fontSize={12}
+                      fontSize={16}
                     />
                     {i === series.length - 1 && (
                       <LabelList
                         dataKey="totalKg"
                         position="top"
                         formatter={(v) => (typeof v === "number" ? `${formatCantidad(v)} Kg` : "")}
-                        fontSize={12}
+                        fontSize={16}
                         fill={COLOR_EJE}
                       />
                     )}
