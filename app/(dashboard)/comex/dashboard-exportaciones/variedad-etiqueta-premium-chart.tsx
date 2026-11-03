@@ -90,7 +90,7 @@ function EtiquetaPorcentaje(props: {
   // lo bastante alta); JB y S&C siempre en negro.
   const color = etiqueta === "SB" && alturaBarra >= PCT_MIN_ALTURA_PX ? "#fff" : "#000";
   return (
-    <text x={cx} y={cy} textAnchor="middle" fontSize={12} fill={color}>
+    <text x={cx} y={cy} textAnchor="middle" fontSize={14} fill={color}>
       {pct.toFixed(0)}%
     </text>
   );
