@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { dibujarMarcaDeAgua } from "./marca-agua";
 
 // 1 cm = 28.3465 pt. Etiqueta de 10 x 15 cm (para imprimir y pegar en el pallet).
 const CM = 28.3465;
@@ -28,6 +29,7 @@ export async function generarTarjaPdf({
   pesoBrutoTotalKg,
   pesoTaraTotalKg,
   pesoNetoTotalKg,
+  palletAbierto,
 }: {
   tarjaNumero: string;
   palletNumero: string;
@@ -38,6 +40,8 @@ export async function generarTarjaPdf({
   pesoBrutoTotalKg: number;
   pesoTaraTotalKg: number;
   pesoNetoTotalKg: number;
+  /** El pallet todavía admite más bandejas (no se cerró ni llegó a la capacidad máxima): la tarja sale con marca de agua "BORRADOR", igual que una Orden de Compra sin aprobar. */
+  palletAbierto: boolean;
 }): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([ANCHO, ALTO]);
@@ -121,6 +125,8 @@ export async function generarTarjaPdf({
     "Documento interno — no válido como comprobante SUNAT.",
     { x: margen, y: 16, size: 5.5, font: regular, color: GRIS }
   );
+
+  if (palletAbierto) dibujarMarcaDeAgua(pdfDoc, bold, "BORRADOR", 36);
 
   return pdfDoc.save();
 }

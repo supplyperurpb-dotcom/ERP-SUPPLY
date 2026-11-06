@@ -38,6 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
     pesoBrutoTotalKg: Number(pallet.pesoBrutoTotalKg),
     pesoTaraTotalKg: Number(pallet.pesoTaraTotalKg),
     pesoNetoTotalKg: Number(pallet.pesoNetoKg),
+    palletAbierto: pallet.estado === "ABIERTO",
   });
 
   return new NextResponse(new Uint8Array(bytes), {

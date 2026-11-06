@@ -5,8 +5,12 @@ import { PDFDocument, PDFFont, rgb, degrees } from "pdf-lib";
 // documento no esté APROBADO, "ANULADA" si quedó anulado. Desaparece en
 // cuanto queda aprobado (y nunca se dibuja junto con la firma de
 // aprobación: son estados excluyentes).
-export function dibujarMarcaDeAgua(pdfDoc: PDFDocument, font: PDFFont, texto: "BORRADOR" | "ANULADA" = "BORRADOR") {
-  const tamano = 80;
+export function dibujarMarcaDeAgua(
+  pdfDoc: PDFDocument,
+  font: PDFFont,
+  texto: "BORRADOR" | "ANULADA" = "BORRADOR",
+  tamano = 80
+) {
   const anguloGrados = 40;
   const anguloRad = (anguloGrados * Math.PI) / 180;
   const anchoTexto = font.widthOfTextAtSize(texto, tamano);
