@@ -41,6 +41,10 @@ const SIN_PALLET = "__sin_pallet__";
 
 const LINEA_VACIA = {
   variedad: "",
+  // Cada línea trae su propia fecha de cosecha (un camión puede traer
+  // descarte de variedades cosechadas en fechas distintas) — se parte de
+  // hoy por conveniencia, el usuario la cambia si corresponde.
+  fechaCosecha: fechaLocalHoy() as unknown as Date,
   tipoBandejaId: "",
   tipoPalletId: "",
   cantidadBandejas: 0,
@@ -88,10 +92,6 @@ export function IngresoIQFForm({
     resolver: zodResolver(ingresoIQFSchema),
     defaultValues: edicion?.valoresIniciales ?? {
       proveedorId: "",
-      // El <input type="date"> trabaja con un string "YYYY-MM-DD" en la fecha
-      // LOCAL del navegador; react-hook-form lo deja pasar tal cual y zod lo
-      // convierte a Date recién al validar.
-      fechaCosecha: fechaLocalHoy() as unknown as Date,
       horaIngreso: horaLocalAhora(),
       placaTransporte: "",
       observaciones: "",
@@ -301,17 +301,6 @@ export function IngresoIQFForm({
             <p className="text-xs text-muted-foreground">Fecha en la que se registró este ingreso, no se puede modificar.</p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="fechaCosecha">Fecha de cosecha</Label>
-            <Input id="fechaCosecha" type="date" {...form.register("fechaCosecha")} />
-            {form.formState.errors.fechaCosecha && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.fechaCosecha.message}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Debe coincidir con una fecha en la que Ingreso de Materia Prima registró la misma variedad.
-            </p>
-          </div>
-
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>
             <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
@@ -391,6 +380,16 @@ export function IngresoIQFForm({
                   <div className="space-y-1">
                     <Label className="text-xs">Tipo de producto</Label>
                     <Input value="Descarte Planta" disabled readOnly />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fecha de cosecha</Label>
+                    <Input type="date" {...form.register(`pallets.${index}.fechaCosecha`)} />
+                    {form.formState.errors.pallets?.[index]?.fechaCosecha && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.fechaCosecha?.message}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Debe coincidir con una fecha en la que Ingreso de Materia Prima registró esta variedad.</p>
                   </div>
                 </div>
 

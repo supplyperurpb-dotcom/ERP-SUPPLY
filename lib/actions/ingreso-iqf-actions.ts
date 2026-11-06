@@ -13,6 +13,7 @@ export type IngresoIQFActionState = { error?: string; success?: boolean; id?: st
 type LineaCalculada = {
   numeroPallet: number;
   variedad: string;
+  fechaCosecha: Date;
   tipoProducto: string;
   tipoBandejaId: string;
   tipoPalletId: string | null;
@@ -56,21 +57,21 @@ async function validarBandejaContraExistente(
 // variedad solo se puede registrar en una fecha de cosecha en la que esa
 // variedad SÍ llegó como materia prima (Ingreso de Materia Prima). Evita
 // registrar por error un descarte de una variedad que ese día no se cosechó.
-async function validarVariedadesContraMateriaPrima(fechaCosecha: Date, variedades: string[]) {
-  const variedadesUnicas = Array.from(new Set(variedades));
-  const registros = await prisma.ingresoFrutaPallet.findMany({
-    where: {
-      variedad: { in: variedadesUnicas },
-      ingresoFruta: { fechaCosecha },
-    },
-    select: { variedad: true },
-  });
-  const variedadesConRegistro = new Set(registros.map((r) => r.variedad));
+// Cada línea tiene su propia fecha de cosecha, así que se valida cada
+// combinación (fecha, variedad) por separado.
+async function validarVariedadesContraMateriaPrima(lineas: { variedad: string; fechaCosecha: Date }[]) {
+  const combinacionesUnicas = Array.from(
+    new Map(lineas.map((l) => [`${l.fechaCosecha.toISOString()}|${l.variedad}`, l])).values()
+  );
 
-  for (const variedad of variedadesUnicas) {
-    if (!variedadesConRegistro.has(variedad)) {
+  for (const { variedad, fechaCosecha } of combinacionesUnicas) {
+    const registro = await prisma.ingresoFrutaPallet.findFirst({
+      where: { variedad, ingresoFruta: { fechaCosecha } },
+      select: { id: true },
+    });
+    if (!registro) {
       throw new ErrorValidacion(
-        `No se tuvo registro de la variedad "${variedad}" en la fecha de cosecha ingresada. Verifica la fecha o la variedad.`
+        `No se tuvo registro de la variedad "${variedad}" en la fecha de cosecha ingresada (${fechaCosecha.toLocaleDateString("es-PE")}). Verifica la fecha o la variedad.`
       );
     }
   }
@@ -78,14 +79,8 @@ async function validarVariedadesContraMateriaPrima(fechaCosecha: Date, variedade
 
 // Calcula tara/neto por línea y valida que los tipos de bandeja/pallet
 // referenciados sigan existiendo. Compartido por crear y actualizar.
-async function calcularLineas(
-  fechaCosecha: Date,
-  pallets: IngresoIQFInput["pallets"]
-): Promise<LineaCalculada[]> {
-  await validarVariedadesContraMateriaPrima(
-    fechaCosecha,
-    pallets.map((p) => p.variedad)
-  );
+async function calcularLineas(pallets: IngresoIQFInput["pallets"]): Promise<LineaCalculada[]> {
+  await validarVariedadesContraMateriaPrima(pallets.map((p) => ({ variedad: p.variedad, fechaCosecha: p.fechaCosecha })));
 
   const tiposBandeja = await prisma.tipoBandeja.findMany({
     where: { id: { in: pallets.map((p) => p.tipoBandejaId) } },
@@ -114,6 +109,7 @@ async function calcularLineas(
     return {
       numeroPallet: index + 1,
       variedad: linea.variedad,
+      fechaCosecha: linea.fechaCosecha,
       tipoProducto: TIPO_PRODUCTO_DESCARTE_PLANTA,
       tipoBandejaId: linea.tipoBandejaId,
       tipoPalletId: linea.tipoPalletId || null,
@@ -175,6 +171,7 @@ function datosLineaCrear(linea: LineaCalculada, palletId: string) {
     numeroPallet: linea.numeroPallet,
     palletId,
     variedad: linea.variedad,
+    fechaCosecha: linea.fechaCosecha,
     tipoProducto: linea.tipoProducto,
     tipoBandejaId: linea.tipoBandejaId,
     tipoPalletId: linea.tipoPalletId,
@@ -192,7 +189,7 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
   }
 
   try {
-    const lineasCalculadas = await calcularLineas(parsed.data.fechaCosecha, parsed.data.pallets);
+    const lineasCalculadas = await calcularLineas(parsed.data.pallets);
     const { gruposNuevo, gruposExistente } = agruparPorDestino(lineasCalculadas);
 
     const idsExistentes = Array.from(gruposExistente.keys());
@@ -270,7 +267,6 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
         data: {
           numero,
           proveedorId: parsed.data.proveedorId,
-          fechaCosecha: parsed.data.fechaCosecha,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
           observaciones: parsed.data.observaciones || null,
@@ -315,7 +311,7 @@ export async function actualizarIngresoIQFAction(
   }
 
   try {
-    const lineasCalculadas = await calcularLineas(parsed.data.fechaCosecha, parsed.data.pallets);
+    const lineasCalculadas = await calcularLineas(parsed.data.pallets);
     const { gruposNuevo, gruposExistente } = agruparPorDestino(lineasCalculadas);
     const usuario = await getUsuarioActual();
 
@@ -418,7 +414,6 @@ export async function actualizarIngresoIQFAction(
         where: { id: ingresoId },
         data: {
           proveedorId: parsed.data.proveedorId,
-          fechaCosecha: parsed.data.fechaCosecha,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
           observaciones: parsed.data.observaciones || null,

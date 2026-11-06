@@ -1334,7 +1334,9 @@ model IngresoIQF {
   id              String          @id @default(cuid())
   numero          String          @unique // ej. IQF-0001
   proveedorId     String
-  fechaCosecha    DateTime
+  // Ya no vive acá: cada línea tiene su propia fecha de cosecha (ver
+  // IngresoIQFPallet.fechaCosecha), porque un mismo camión puede traer
+  // descarte de variedades cosechadas en fechas distintas.
   fechaIngreso    DateTime        @default(now())
   horaIngreso     String?
   placaTransporte String?
@@ -1383,6 +1385,12 @@ model IngresoIQFPallet {
   numeroPallet     Int // correlativo de la línea dentro de este ingreso
   palletId         String
   variedad         String
+  // Un camión puede traer descarte de variedades cosechadas en fechas
+  // distintas, así que cada línea tiene su propia fecha de cosecha (ya
+  // no es un solo valor por ingreso, ver IngresoIQF). Se valida contra
+  // Ingreso de Materia Prima (ver validarVariedadesContraMateriaPrima en
+  // lib/actions/ingreso-iqf-actions.ts).
+  fechaCosecha     DateTime
   tipoProducto     String // fijo: "Descarte Planta"
   tipoPalletId     String?
   tipoBandejaId    String

@@ -65,18 +65,18 @@ export default async function ReporteAcopioPage({
     // Todo lo registrado en Ingreso IQF cuenta como Nacional Campo (ver
     // comentario arriba: acá no se distingue descarte de planta).
     prisma.ingresoIQFPallet.findMany({
-      where: fechaCosecha ? { ingresoIQF: { fechaCosecha } } : undefined,
+      where: fechaCosecha ? { fechaCosecha } : undefined,
       select: {
         variedad: true,
         pesoNetoKg: true,
-        ingresoIQF: { select: { fechaCosecha: true } },
+        fechaCosecha: true,
       },
     }),
     // Universo completo de fechas de cosecha (sin aplicar el filtro actual)
     // para que el desplegable de semanas siempre muestre todas las semanas
     // con datos, no solo las del filtro ya aplicado.
     prisma.ingresoFruta.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
-    prisma.ingresoIQF.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
+    prisma.ingresoIQFPallet.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
   ]);
 
   const semanasDisponiblesMap = new Map<string, { anio: number; semana: number }>();
@@ -111,7 +111,7 @@ export default async function ReporteAcopioPage({
     }
   }
   for (const linea of lineasIQF) {
-    const fila = obtenerFila(linea.ingresoIQF.fechaCosecha, linea.variedad);
+    const fila = obtenerFila(linea.fechaCosecha, linea.variedad);
     fila.nacionalCampo += Number(linea.pesoNetoKg);
   }
 

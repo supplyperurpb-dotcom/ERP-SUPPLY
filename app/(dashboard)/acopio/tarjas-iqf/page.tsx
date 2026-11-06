@@ -58,7 +58,7 @@ export default async function TarjasIQFPage({
                     lineas: {
                       some: {
                         ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
-                        ...(fechaCosecha ? { ingresoIQF: { fechaCosecha } } : {}),
+                        ...(fechaCosecha ? { fechaCosecha } : {}),
                       },
                     },
                   },

@@ -87,7 +87,6 @@ export default async function DetalleIngresoIQFPage({ params }: { params: Promis
           <Dato label="Fundo" valor={ingreso.proveedor.razonSocial} />
           <Dato label="Placa del vehículo" valor={ingreso.placaTransporte ?? "—"} />
           <Dato label="Hora de recepción" valor={ingreso.horaIngreso ?? "—"} />
-          <Dato label="Fecha de cosecha" valor={formatDate(ingreso.fechaCosecha)} />
           <Dato label="Fecha de ingreso" valor={formatDateTime(ingreso.fechaIngreso)} />
           <Dato label="Observaciones" valor={ingreso.observaciones ?? "—"} />
         </CardContent>
@@ -108,6 +107,7 @@ export default async function DetalleIngresoIQFPage({ params }: { params: Promis
                 <TableHeader>
                   <TableRow>
                     <TableHead>Variedad</TableHead>
+                    <TableHead>Fecha de cosecha</TableHead>
                     <TableHead>Tipo de producto</TableHead>
                     <TableHead>Tipo de bandeja</TableHead>
                     <TableHead>Tipo de pallet</TableHead>
@@ -122,6 +122,7 @@ export default async function DetalleIngresoIQFPage({ params }: { params: Promis
                   {ingreso.pallets.map((linea) => (
                     <TableRow key={linea.id}>
                       <TableCell>{linea.variedad}</TableCell>
+                      <TableCell>{formatDate(linea.fechaCosecha)}</TableCell>
                       <TableCell>{linea.tipoProducto}</TableCell>
                       <TableCell>{linea.tipoBandeja.nombre}</TableCell>
                       <TableCell>{linea.tipoPallet?.nombre ?? "—"}</TableCell>

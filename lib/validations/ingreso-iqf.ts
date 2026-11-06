@@ -6,6 +6,7 @@ import { z } from "zod";
 // Ingreso de Materia Prima — ver lib/validations/ingreso-fruta.ts.
 export const palletIQFFormSchema = z.object({
   variedad: z.string().min(1, "La variedad es obligatoria").max(50),
+  fechaCosecha: z.coerce.date({ invalid_type_error: "Ingresa la fecha de cosecha" }),
   tipoBandejaId: z.string().min(1, "Selecciona el tipo de bandeja"),
   tipoPalletId: z.string().optional().or(z.literal("")),
   cantidadBandejas: z.coerce
@@ -22,7 +23,6 @@ export type PalletIQFFormInput = z.infer<typeof palletIQFFormSchema>;
 
 export const ingresoIQFSchema = z.object({
   proveedorId: z.string().min(1, "Selecciona el proveedor/fundo"),
-  fechaCosecha: z.coerce.date({ invalid_type_error: "Ingresa la fecha de cosecha" }),
   horaIngreso: z.string().min(1, "La hora de recepción es obligatoria").max(10),
   placaTransporte: z.string().min(1, "La placa del vehículo es obligatoria").max(20),
   observaciones: z.string().max(500).optional().or(z.literal("")),

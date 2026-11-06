@@ -57,14 +57,14 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
 
   const valoresIniciales: IngresoIQFInput = {
     proveedorId: ingreso.proveedorId,
-    // Igual que al crear: string "YYYY-MM-DD", no objeto Date (zod lo
-    // convierte recién al validar).
-    fechaCosecha: ingreso.fechaCosecha.toISOString().slice(0, 10) as unknown as Date,
     horaIngreso: ingreso.horaIngreso ?? "",
     placaTransporte: ingreso.placaTransporte ?? "",
     observaciones: ingreso.observaciones ?? "",
     pallets: ingreso.pallets.map((linea) => ({
       variedad: linea.variedad,
+      // Igual que al crear: string "YYYY-MM-DD", no objeto Date (zod lo
+      // convierte recién al validar).
+      fechaCosecha: linea.fechaCosecha.toISOString().slice(0, 10) as unknown as Date,
       tipoBandejaId: linea.tipoBandejaId,
       tipoPalletId: linea.tipoPalletId ?? "",
       cantidadBandejas: linea.cantidadBandejas,
