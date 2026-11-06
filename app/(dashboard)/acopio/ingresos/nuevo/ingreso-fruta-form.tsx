@@ -49,6 +49,18 @@ type PalletNuevo = { tempId: string; etiqueta: string; tipo: "fruta" | "iqf" };
 // placeholder), así que se usa este sentinel para representar "sin pallet".
 const SIN_PALLET = "__sin_pallet__";
 
+// Para "Exportable" solo se puede usar bandeja (nunca jaba, que es
+// exclusiva de descarte) — se reconoce por el nombre, ya que el catálogo
+// no tiene un campo de clasificación propio (ver TipoBandeja en schema.prisma).
+function esBandejaDeExportacion(nombre: string): boolean {
+  return nombre.toUpperCase().startsWith("BANDEJA");
+}
+
+function tiposBandejaDisponibles(todos: TipoBandejaOption[], tipoProducto: string | undefined): TipoBandejaOption[] {
+  if (tipoProducto !== "Exportable") return todos;
+  return todos.filter((t) => esBandejaDeExportacion(t.nombre));
+}
+
 const LINEA_VACIA = {
   modulo: "",
   turno: "",
@@ -572,6 +584,16 @@ export function IngresoFrutaForm({
                               liberarPalletNuevoSiHuerfano(pallets[index]?.palletAsignado, index);
                               form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true });
                             }
+                            // Si pasa a "Exportable" y la bandeja elegida ya
+                            // no es válida para ese tipo (p. ej. era una
+                            // jaba), se limpia para no dejar un valor oculto.
+                            const bandejaActual = pallets[index]?.tipoBandejaId;
+                            const bandejaSigueValida = tiposBandejaDisponibles(tiposBandeja, valor).some(
+                              (t) => t.id === bandejaActual
+                            );
+                            if (bandejaActual && !bandejaSigueValida) {
+                              form.setValue(`pallets.${index}.tipoBandejaId`, "", { shouldValidate: true });
+                            }
                             selectField.onChange(valor);
                           }}
                         >
@@ -615,7 +637,7 @@ export function IngresoFrutaForm({
                             <SelectValue placeholder="Selecciona..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {tiposBandeja.map((t) => (
+                            {tiposBandejaDisponibles(tiposBandeja, pallets[index]?.tipoProducto).map((t) => (
                               <SelectItem key={t.id} value={t.id}>
                                 {t.nombre}
                               </SelectItem>
