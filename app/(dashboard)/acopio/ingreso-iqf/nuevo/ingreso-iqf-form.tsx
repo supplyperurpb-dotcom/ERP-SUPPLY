@@ -68,12 +68,17 @@ export function IngresoIQFForm({
     /** bandejas que este mismo ingreso ya aportaba a cada pallet (para
      * "liberar" ese espacio en el cálculo de capacidad mientras se edita). */
     contribucionOriginalPorPallet: Record<string, number>;
+    /** Fecha real en la que se creó este ingreso (IngresoIQF.fechaIngreso), solo para mostrarla fija en "Fecha de registro". */
+    fechaRegistro: string;
   };
 }) {
   const router = useRouter();
   const taraPorTipo = new Map(tiposBandeja.map((t) => [t.id, Number(t.pesoTaraKg)]));
   const taraPorTipoPallet = new Map(tiposPallet.map((t) => [t.id, Number(t.pesoTaraKg)]));
   const contribucionOriginal = edicion?.contribucionOriginalPorPallet ?? {};
+  // "Fecha de registro": fija, no editable. Al crear es hoy; al editar, la
+  // fecha real en la que se creó el ingreso (IngresoIQF.fechaIngreso).
+  const fechaRegistro = edicion?.fechaRegistro ?? fechaLocalHoy();
 
   const [palletsNuevos, setPalletsNuevos] = useState<PalletNuevo[]>([]);
   const [lineaDialogoAbierto, setLineaDialogoAbierto] = useState<number | null>(null);
@@ -270,10 +275,30 @@ export function IngresoIQFForm({
 
           <div className="space-y-2">
             <Label htmlFor="horaIngreso">Hora de recepción</Label>
-            <Input id="horaIngreso" type="time" {...form.register("horaIngreso")} />
+            <Input
+              id="horaIngreso"
+              type="time"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("horaIngreso")}
+            />
+            <p className="text-xs text-muted-foreground">Se registra con la hora actual, no se puede modificar.</p>
             {form.formState.errors.horaIngreso && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaIngreso.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fechaRegistro">Fecha de registro</Label>
+            <Input
+              id="fechaRegistro"
+              type="date"
+              readOnly
+              disabled
+              className="cursor-not-allowed bg-muted opacity-70"
+              value={fechaRegistro}
+            />
+            <p className="text-xs text-muted-foreground">Fecha en la que se registró este ingreso, no se puede modificar.</p>
           </div>
 
           <div className="space-y-2">

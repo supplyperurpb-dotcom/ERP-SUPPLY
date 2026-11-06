@@ -85,7 +85,12 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
         vehiculos={vehiculos}
-        edicion={{ ingresoId: ingreso.id, valoresIniciales, contribucionOriginalPorPallet }}
+        edicion={{
+          ingresoId: ingreso.id,
+          valoresIniciales,
+          contribucionOriginalPorPallet,
+          fechaRegistro: ingreso.fechaIngreso.toISOString().slice(0, 10),
+        }}
       />
     </div>
   );

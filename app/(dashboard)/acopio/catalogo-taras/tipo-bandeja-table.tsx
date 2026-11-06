@@ -12,14 +12,18 @@ import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { formatKg } from "@/lib/utils";
 import { TipoBandejaFormDialog } from "./tipo-bandeja-form-dialog";
 
-export function TipoBandejaTable({ tiposBandeja }: { tiposBandeja: TipoBandeja[] }) {
+export function TipoBandejaTable({ tiposBandeja, esAdmin }: { tiposBandeja: TipoBandeja[]; esAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
   const confirmar = useConfirm();
 
   async function handleEliminar(id: string, nombre: string) {
     if (!(await confirmar(`¿Eliminar el tipo de bandeja ${nombre}? Esta acción no se puede deshacer.`))) return;
     startTransition(async () => {
-      await eliminarTipoBandejaAction(id);
+      const resultado = await eliminarTipoBandejaAction(id);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
       toast.success("Tipo de bandeja eliminado");
     });
   }
@@ -45,15 +49,21 @@ export function TipoBandejaTable({ tiposBandeja }: { tiposBandeja: TipoBandeja[]
               </Badge>
             </TableCell>
             <TableCell className="flex justify-end gap-1">
-              <TipoBandejaFormDialog tipoBandeja={tipoBandeja} />
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={isPending}
-                onClick={() => handleEliminar(tipoBandeja.id, tipoBandeja.nombre)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
+              {esAdmin ? (
+                <>
+                  <TipoBandejaFormDialog tipoBandeja={tipoBandeja} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending}
+                    onClick={() => handleEliminar(tipoBandeja.id, tipoBandeja.nombre)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
             </TableCell>
           </TableRow>
         ))}

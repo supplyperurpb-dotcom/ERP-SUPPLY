@@ -3,18 +3,19 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
 import { serializar } from "@/lib/utils";
-import { TipoBandejaFormDialog } from "./tipo-bandeja-form-dialog";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { TipoBandejaTable } from "./tipo-bandeja-table";
 import { TipoPalletFormDialog } from "./tipo-pallet-form-dialog";
 import { TipoPalletTable } from "./tipo-pallet-table";
 
 export default async function CatalogoTarasPage() {
-  const [tiposBandeja, tiposPallet] = serializar(
-    await Promise.all([
-      prisma.tipoBandeja.findMany({ orderBy: { createdAt: "desc" } }),
-      prisma.tipoPallet.findMany({ orderBy: { createdAt: "desc" } }),
-    ])
-  );
+  const [tiposBandejaDb, tiposPalletDb, usuario] = await Promise.all([
+    prisma.tipoBandeja.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.tipoPallet.findMany({ orderBy: { createdAt: "desc" } }),
+    getUsuarioActual(),
+  ]);
+  const [tiposBandeja, tiposPallet] = serializar([tiposBandejaDb, tiposPalletDb]);
+  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
 
   return (
     <div>
@@ -27,8 +28,10 @@ export default async function CatalogoTarasPage() {
         <section>
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <h2 className="text-lg font-semibold tracking-tight">Tipos de bandeja</h2>
-            <TipoBandejaFormDialog />
           </div>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Catálogo cerrado: no se crean tipos nuevos.{!esAdmin && " Solo un administrador puede editarlos."}
+          </p>
           {tiposBandeja.length === 0 ? (
             <EmptyState
               icono={Ruler}
@@ -36,7 +39,7 @@ export default async function CatalogoTarasPage() {
               descripcion="Crea el primer tipo de bandeja con su peso tara estándar."
             />
           ) : (
-            <TipoBandejaTable tiposBandeja={tiposBandeja} />
+            <TipoBandejaTable tiposBandeja={tiposBandeja} esAdmin={esAdmin} />
           )}
         </section>
 
