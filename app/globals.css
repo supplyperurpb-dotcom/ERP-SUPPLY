@@ -24,6 +24,15 @@
     --input: 214 32% 91%;
     --ring: 217 91% 30%;
     --radius: 0.5rem;
+
+    /* Superficies del shell (sidebar/contenido) — separadas de --card/--background
+       a propósito: --card sigue blanco para Topbar, Dialog, etc. */
+    --sidebar-background: 217 91% 16%;
+    --sidebar-foreground: 210 20% 96%;
+    --sidebar-border: 217 60% 22%;
+    --sidebar-accent: 217 70% 24%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --content-background: 220 14% 97%;
   }
 
   .dark {
@@ -46,6 +55,15 @@
     --border: 217 33% 20%;
     --input: 217 33% 20%;
     --ring: 217 91% 60%;
+
+    /* Modo oscuro no está activado en la app todavía (sin next-themes/toggle),
+       pero se completan estas variables para que el bloque no quede a medias. */
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 16%;
+    --sidebar-accent: 217 33% 14%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --content-background: 222 47% 10%;
   }
 }
 

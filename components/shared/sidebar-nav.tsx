@@ -35,36 +35,39 @@ export function SidebarNav({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r bg-card transition-transform",
+        "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform",
         abierto ? "translate-x-0" : "-translate-x-full",
         colapsado ? "md:hidden" : "md:static md:z-auto md:flex md:translate-x-0"
       )}
     >
-      <div className="flex h-16 items-center gap-2 border-b px-4">
-        <div className="relative h-10 w-10 shrink-0">
+      <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
+        {/* Chip blanco detrás del logo: el archivo (public/logo-rpb.jpg) tiene
+            fondo blanco sólido, no transparente — sin este chip se vería como
+            un rectángulo flotando sobre el navy. No se toca la imagen. */}
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-white p-1 shadow-sm">
           {logoError ? (
-            <Sprout className="h-6 w-6 text-primary" />
+            <Sprout className="h-full w-full text-primary" />
           ) : (
             <Image
               src="/logo-rpb.jpg"
               alt="Logo de ERP Supply Chain"
               fill
               sizes="40px"
-              className="object-contain"
+              className="object-contain p-0.5"
               onError={() => setLogoError(true)}
             />
           )}
         </div>
-        <span className="text-sm font-semibold leading-tight">
+        <span className="text-sm font-semibold leading-tight text-sidebar-foreground">
           ERP Supply Chain
           <br />
-          <span className="text-xs font-normal text-muted-foreground">Ica, Perú</span>
+          <span className="text-xs font-normal text-sidebar-foreground/70">Ica, Perú</span>
         </span>
         {onColapsar && (
           <Button
             variant="ghost"
             size="icon"
-            className="ml-auto hidden shrink-0 md:inline-flex"
+            className="ml-auto hidden shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:inline-flex"
             onClick={onColapsar}
             title="Ocultar menú"
           >
@@ -78,7 +81,7 @@ export function SidebarNav({
 
         {gruposVisibles.map((grupo) => (
           <div key={grupo.modulo}>
-            <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/60">
               {grupo.titulo}
             </p>
             <div className="space-y-0.5">
@@ -113,7 +116,7 @@ function NavLink({
         "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
         activo
           ? "bg-primary text-primary-foreground"
-          : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
+          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       )}
     >
       <Icono className="h-4 w-4 shrink-0" />
