@@ -32,16 +32,18 @@ export const TURNOS_POR_MODULO_VARIEDAD: Record<string, Record<string, string[]>
   },
 };
 
-export const FORMATOS_LINEA_PESAJE = ["Sweetest Batch", "Pinta", "Sweet & Crunchy", "DHK", "DOC"] as const;
+export const FORMATOS_LINEA_PESAJE = ["DOTA SB", "DOTA PINTA", "DOTA 18 OZ YL", "DHK 4.4OZ", "DOC 4.4 OZ", "DHK S&C"] as const;
 
 export const TIPOS_PRODUCTO_LINEA_PESAJE = ["Exportable", "Descarte Campo"] as const;
 
 // Cada fundo cosecha solo de ciertos módulos (dato real del campo, no una
-// regla de la app): Achirana Blue cubre los módulos 1 a 3 y Papito el
-// módulo 4. Se usa para filtrar el desplegable de Módulo según el Fundo
-// elegido en Ingreso de Materia Prima. Si un fundo no aparece acá (uno
-// nuevo, todavía sin configurar), se muestran todos los módulos.
+// regla de la app): "Achirana M 01-02-03" cubre los módulos 1 a 3 y
+// "Achirana M 04" el módulo 4 — mismos nombres de campo que Logística >
+// Listas (ListaValor, tipo CAMPO). Se usa para filtrar el desplegable de
+// Módulo según el Fundo elegido en Ingreso de Materia Prima. Si un fundo
+// no aparece acá (uno nuevo, todavía sin configurar), se muestran todos
+// los módulos.
 export const MODULOS_POR_FUNDO: Record<string, string[]> = {
-  "ACHIRANA BLUE": ["MODULO 1", "MODULO 2", "MODULO 3"],
-  PAPITO: ["MODULO 4"],
+  "ACHIRANA M 01-02-03": ["MODULO 1", "MODULO 2", "MODULO 3"],
+  "ACHIRANA M 04": ["MODULO 4"],
 };
