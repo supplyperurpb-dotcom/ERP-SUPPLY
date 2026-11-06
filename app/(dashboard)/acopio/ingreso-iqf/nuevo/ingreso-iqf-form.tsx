@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
+import { TIPOS_CAMION } from "@/lib/validations/transporte";
 import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoIQFSchema, type IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
 import {
@@ -38,6 +38,10 @@ type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
 type TipoPalletOption = { id: string; nombre: string; pesoTaraKg: string };
 type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
 type PalletNuevo = { tempId: string; etiqueta: string };
+type CamionOption = { id: string; placa: string; tipo: string };
+type ConductorOption = { id: string; nombre: string };
+
+const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
 
 // Radix Select no permite un SelectItem con value="" (lo reserva para el
 // placeholder), así que se usa este sentinel para representar "sin pallet".
@@ -61,14 +65,16 @@ export function IngresoIQFForm({
   tiposBandeja,
   tiposPallet,
   palletsAbiertos,
-  vehiculos,
+  camiones,
+  conductores,
   edicion,
 }: {
   proveedores: ProveedorOption[];
   tiposBandeja: TipoBandejaOption[];
   tiposPallet: TipoPalletOption[];
   palletsAbiertos: PalletAbierto[];
-  vehiculos: VehiculoTransporteOption[];
+  camiones: CamionOption[];
+  conductores: ConductorOption[];
   /** Presente solo cuando el formulario edita un ingreso IQF ya existente. */
   edicion?: {
     ingresoId: string;
@@ -101,6 +107,7 @@ export function IngresoIQFForm({
       proveedorId: "",
       horaIngreso: horaLocalAhora(),
       placaTransporte: "",
+      conductor: "",
       numeroGuiaRemision: "",
       guiaRemisionArchivo: "",
       observaciones: "",
@@ -300,11 +307,57 @@ export function IngresoIQFForm({
               control={form.control}
               name="placaTransporte"
               render={({ field }) => (
-                <PlacaVehiculoField vehiculos={vehiculos} value={field.value} onChange={field.onChange} />
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="placaTransporte">
+                    <SelectValue placeholder="Selecciona un camión" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camiones.map((c) => (
+                      <SelectItem key={c.id} value={c.placa}>
+                        {c.placa} — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             />
+            {camiones.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay camiones registrados. Créalos en Información Transporte.
+              </p>
+            )}
             {form.formState.errors.placaTransporte && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.placaTransporte.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="conductor">Conductor</Label>
+            <Controller
+              control={form.control}
+              name="conductor"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="conductor">
+                    <SelectValue placeholder="Selecciona un conductor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conductores.map((c) => (
+                      <SelectItem key={c.id} value={c.nombre}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {conductores.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay conductores registrados. Créalos en Información Transporte.
+              </p>
+            )}
+            {form.formState.errors.conductor && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.conductor.message}</p>
             )}
           </div>
 

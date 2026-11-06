@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { IngresoFrutaForm } from "./ingreso-fruta-form";
 
 export default async function NuevoIngresoPage() {
-  const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIQFDb, vehiculosDb] =
+  const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIQFDb, camionesDb, conductoresDb] =
     await Promise.all([
       prisma.proveedor.findMany({
         where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
@@ -16,7 +16,8 @@ export default async function NuevoIngresoPage() {
         where: { estado: "ABIERTO", origen: "DESCARTE_CAMPO" },
         orderBy: { numero: "asc" },
       }),
-      prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+      prisma.camion.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+      prisma.conductor.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     ]);
 
   // Se mapea explícitamente a objetos planos: el campo Decimal de Prisma no
@@ -35,7 +36,8 @@ export default async function NuevoIngresoPage() {
   // cantidadBandejas es Int (no Decimal), así que no necesita conversión.
   const palletsAbiertos = palletsAbiertosDb.map((p) => ({ id: p.id, numero: p.numero, cantidadBandejas: p.cantidadBandejas }));
   const palletsAbiertosIQF = palletsAbiertosIQFDb.map((p) => ({ id: p.id, numero: p.numero, cantidadBandejas: p.cantidadBandejas }));
-  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
+  const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
+  const conductores = conductoresDb.map((c) => ({ id: c.id, nombre: c.nombre }));
 
   return (
     <div>
@@ -49,7 +51,8 @@ export default async function NuevoIngresoPage() {
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
         palletsAbiertosIQF={palletsAbiertosIQF}
-        vehiculos={vehiculos}
+        camiones={camiones}
+        conductores={conductores}
       />
     </div>
   );

@@ -331,6 +331,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
           fechaCosecha: parsed.data.fechaCosecha,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
+          conductor: parsed.data.conductor,
           observaciones: parsed.data.observaciones || null,
           creadoPorId: usuario?.id,
           pallets: {
@@ -565,6 +566,7 @@ export async function actualizarIngresoFrutaAction(
           fechaCosecha: parsed.data.fechaCosecha,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
+          conductor: parsed.data.conductor,
           observaciones: parsed.data.observaciones || null,
           pallets: {
             create: lineasCalculadas.map((linea) => {

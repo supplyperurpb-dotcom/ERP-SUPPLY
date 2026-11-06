@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
+import { TIPOS_CAMION } from "@/lib/validations/transporte";
 import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
@@ -40,6 +40,10 @@ type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
 type TipoPalletOption = { id: string; nombre: string; pesoTaraKg: string };
 type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
+type CamionOption = { id: string; placa: string; tipo: string };
+type ConductorOption = { id: string; nombre: string };
+
+const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
 // "fruta" arma un Pallet normal (líneas "Exportable"); "iqf" arma un
 // PalletIQF (líneas "Descarte Campo"), para que su tarja salga en Tarjas
 // IQF. Un mismo pallet nunca mezcla ambos tipos de producto.
@@ -80,7 +84,8 @@ export function IngresoFrutaForm({
   tiposPallet,
   palletsAbiertos,
   palletsAbiertosIQF,
-  vehiculos,
+  camiones,
+  conductores,
   edicion,
 }: {
   proveedores: ProveedorOption[];
@@ -89,7 +94,8 @@ export function IngresoFrutaForm({
   palletsAbiertos: PalletAbierto[];
   /** Pallets IQF abiertos de origen "Descarte Campo" (ver PalletIQF.origen). */
   palletsAbiertosIQF: PalletAbierto[];
-  vehiculos: VehiculoTransporteOption[];
+  camiones: CamionOption[];
+  conductores: ConductorOption[];
   /** Presente solo cuando el formulario edita un ingreso ya existente. */
   edicion?: {
     ingresoId: string;
@@ -119,6 +125,7 @@ export function IngresoFrutaForm({
       fechaCosecha: fechaLocalHoy() as unknown as Date,
       horaIngreso: horaLocalAhora(),
       placaTransporte: "",
+      conductor: "",
       observaciones: "",
       pallets: [LINEA_VACIA],
     },
@@ -336,11 +343,57 @@ export function IngresoFrutaForm({
               control={form.control}
               name="placaTransporte"
               render={({ field }) => (
-                <PlacaVehiculoField vehiculos={vehiculos} value={field.value} onChange={field.onChange} />
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="placaTransporte">
+                    <SelectValue placeholder="Selecciona un camión" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camiones.map((c) => (
+                      <SelectItem key={c.id} value={c.placa}>
+                        {c.placa} — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             />
+            {camiones.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay camiones registrados. Créalos en Información Transporte.
+              </p>
+            )}
             {form.formState.errors.placaTransporte && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.placaTransporte.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="conductor">Conductor</Label>
+            <Controller
+              control={form.control}
+              name="conductor"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="conductor">
+                    <SelectValue placeholder="Selecciona un conductor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conductores.map((c) => (
+                      <SelectItem key={c.id} value={c.nombre}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {conductores.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay conductores registrados. Créalos en Información Transporte.
+              </p>
+            )}
+            {form.formState.errors.conductor && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.conductor.message}</p>
             )}
           </div>
 

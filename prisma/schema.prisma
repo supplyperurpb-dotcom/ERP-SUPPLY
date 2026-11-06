@@ -1145,6 +1145,7 @@ model IngresoFruta {
   fechaIngreso    DateTime        @default(now())
   horaIngreso     String?
   placaTransporte String?
+  conductor       String?
   observaciones   String?
   estado          EstadoDocumento @default(BORRADOR)
   creadoPorId     String?
@@ -1400,6 +1401,7 @@ model IngresoIQF {
   fechaIngreso    DateTime        @default(now())
   horaIngreso     String?
   placaTransporte String?
+  conductor       String?
   observaciones   String?
   // Guía de remisión física del transportista (obligatoria, ver
   // ingresoIQFSchema) — mismo criterio que IngresoAlmacen.guiaRemisionArchivo:

@@ -7,7 +7,7 @@ import type { IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 export default async function EditarIngresoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIQFDb, vehiculosDb] =
+  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIQFDb, camionesDb, conductoresDb] =
     await Promise.all([
       prisma.ingresoFruta.findUnique({ where: { id }, include: { pallets: true } }),
       prisma.proveedor.findMany({
@@ -21,7 +21,8 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
         where: { estado: "ABIERTO", origen: "DESCARTE_CAMPO" },
         orderBy: { numero: "asc" },
       }),
-      prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+      prisma.camion.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+      prisma.conductor.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     ]);
 
   if (!ingreso) {
@@ -47,7 +48,8 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
   const proveedores = proveedoresDb.map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
   const tiposBandeja = tiposBandejaDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const tiposPallet = tiposPalletDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
-  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
+  const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
+  const conductores = conductoresDb.map((c) => ({ id: c.id, nombre: c.nombre }));
 
   const palletsPorId = new Map([...palletsAbiertosDb, ...palletsPropiosDb].map((p) => [p.id, p]));
   const palletsAbiertos = Array.from(palletsPorId.values()).map((p) => ({
@@ -78,6 +80,7 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
     fechaCosecha: ingreso.fechaCosecha.toISOString().slice(0, 10) as unknown as Date,
     horaIngreso: ingreso.horaIngreso ?? "",
     placaTransporte: ingreso.placaTransporte ?? "",
+    conductor: ingreso.conductor ?? "",
     observaciones: ingreso.observaciones ?? "",
     pallets: ingreso.pallets.map((linea) => ({
       modulo: linea.modulo,
@@ -105,7 +108,8 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
         palletsAbiertosIQF={palletsAbiertosIQF}
-        vehiculos={vehiculos}
+        camiones={camiones}
+        conductores={conductores}
         edicion={{ ingresoId: ingreso.id, valoresIniciales, contribucionOriginalPorPallet }}
       />
     </div>

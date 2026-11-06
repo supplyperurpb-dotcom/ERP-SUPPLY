@@ -38,6 +38,7 @@ export const ingresoFrutaSchema = z.object({
   fechaCosecha: z.coerce.date({ invalid_type_error: "Ingresa la fecha de cosecha" }),
   horaIngreso: z.string().min(1, "La hora de recepción es obligatoria").max(10),
   placaTransporte: z.string().min(1, "La placa del vehículo es obligatoria").max(20),
+  conductor: z.string().min(1, "Selecciona el conductor").max(150),
   observaciones: z.string().max(500).optional().or(z.literal("")),
   pallets: z.array(palletFormSchema).min(1, "Agrega al menos una línea de pesaje"),
 });

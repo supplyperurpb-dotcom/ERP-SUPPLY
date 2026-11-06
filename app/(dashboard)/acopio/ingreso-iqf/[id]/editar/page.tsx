@@ -7,7 +7,7 @@ import type { IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
 export default async function EditarIngresoIQFPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, vehiculosDb] = await Promise.all([
+  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, camionesDb, conductoresDb] = await Promise.all([
     prisma.ingresoIQF.findUnique({ where: { id }, include: { pallets: true } }),
     prisma.proveedor.findMany({
       where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
@@ -19,7 +19,8 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
       where: { estado: "ABIERTO", origen: "DESCARTE_PLANTA" },
       orderBy: { numero: "asc" },
     }),
-    prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    prisma.camion.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    prisma.conductor.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
   ]);
 
   if (!ingreso) {
@@ -38,7 +39,8 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
   const proveedores = proveedoresDb.map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
   const tiposBandeja = tiposBandejaDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const tiposPallet = tiposPalletDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
-  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
+  const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
+  const conductores = conductoresDb.map((c) => ({ id: c.id, nombre: c.nombre }));
 
   const palletsPorId = new Map(
     [...palletsAbiertosDb, ...palletsPropiosDb].map((p) => [p.id, p])
@@ -59,6 +61,7 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
     proveedorId: ingreso.proveedorId,
     horaIngreso: ingreso.horaIngreso ?? "",
     placaTransporte: ingreso.placaTransporte ?? "",
+    conductor: ingreso.conductor ?? "",
     numeroGuiaRemision: ingreso.numeroGuiaRemision ?? "",
     guiaRemisionArchivo: ingreso.guiaRemisionArchivo ?? "",
     observaciones: ingreso.observaciones ?? "",
@@ -86,7 +89,8 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
         tiposBandeja={tiposBandeja}
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
-        vehiculos={vehiculos}
+        camiones={camiones}
+        conductores={conductores}
         edicion={{
           ingresoId: ingreso.id,
           valoresIniciales,
