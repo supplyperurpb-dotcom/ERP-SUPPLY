@@ -27,7 +27,7 @@ export default async function StockCamaraPage() {
         />
       ) : (
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Formato de exportación</TableHead>
               <TableHead>Lote</TableHead>

@@ -2,9 +2,9 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/cards/section-card";
 import { formatCantidad, formatMoneda } from "@/lib/utils";
-import { colorPara, COLOR_GRILLA, COLOR_EJE } from "./colores";
+import { colorPara, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { FilaVariedadMercado } from "@/lib/facturacion-exportacion";
 
 type Punto = { variedad: string; totalKg: number; [clave: string]: string | number };
@@ -63,47 +63,42 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {puntos.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
-        ) : (
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={puntos} margin={{ top: 30, left: 8, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
-                <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
-                <Legend />
-                {series.map((mercado, i) => (
-                  <Bar key={mercado} dataKey={mercado} stackId="a" fill={colorPara(mercado, i)}>
+    <SectionCard title={titulo}>
+      {puntos.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
+      ) : (
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={puntos} margin={{ top: 30, left: 8, right: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
+              <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
+              <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
+              <Legend wrapperStyle={ESTILO_LEYENDA} />
+              {series.map((mercado, i) => (
+                <Bar key={mercado} dataKey={mercado} stackId="a" fill={colorPara(mercado, i)} maxBarSize={GROSOR_MAX_BARRA}>
+                  <LabelList
+                    dataKey={mercado}
+                    position="center"
+                    formatter={(v) => (typeof v === "number" && v > 0 ? `${v.toFixed(0)}%` : "")}
+                    fill="#fff"
+                    fontSize={16}
+                  />
+                  {i === series.length - 1 && (
                     <LabelList
-                      dataKey={mercado}
-                      position="center"
-                      formatter={(v) => (typeof v === "number" && v > 0 ? `${v.toFixed(0)}%` : "")}
-                      fill="#fff"
+                      dataKey="totalKg"
+                      position="top"
+                      formatter={(v) => (typeof v === "number" ? `${formatCantidad(v)} Kg` : "")}
                       fontSize={16}
+                      fill={COLOR_EJE}
                     />
-                    {i === series.length - 1 && (
-                      <LabelList
-                        dataKey="totalKg"
-                        position="top"
-                        formatter={(v) => (typeof v === "number" ? `${formatCantidad(v)} Kg` : "")}
-                        fontSize={16}
-                        fill={COLOR_EJE}
-                      />
-                    )}
-                  </Bar>
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                  )}
+                </Bar>
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </SectionCard>
   );
 }

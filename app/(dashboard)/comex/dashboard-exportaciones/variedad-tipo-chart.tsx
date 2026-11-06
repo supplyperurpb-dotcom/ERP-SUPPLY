@@ -2,9 +2,9 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/cards/section-card";
 import { formatCantidad, formatMoneda } from "@/lib/utils";
-import { colorPara, COLOR_GRILLA, COLOR_EJE } from "./colores";
+import { colorPara, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { FilaVariedadTipo } from "@/lib/facturacion-exportacion";
 
 // Orden fijo (no alfabético): Premium primero, Convencional después,
@@ -154,41 +154,36 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {puntos.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
-        ) : (
-          <div className="h-[420px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={puntos} margin={{ top: 48, left: 8, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
-                <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
-                <Legend formatter={(value) => ETIQUETA_TIPO[value] ?? value} />
-                {TIPOS.map((tipo, i) => (
-                  <Bar key={tipo} dataKey={tipo} fill={colorPara(tipo, i)}>
-                    <LabelList dataKey={tipo} content={(props) => <EtiquetaKg {...props} />} />
-                    <LabelList dataKey={`${tipo}__pu`} content={(props) => <EtiquetaPU {...props} />} />
-                    <LabelList
-                      valueAccessor={(entry: { payload?: Punto }) => {
-                        const pct = entry.payload?.[`${tipo}__pct`];
-                        const esAranaPremium = tipo === "PREMIUM" && entry.payload?.variedad === "ARANA";
-                        return `${typeof pct === "number" ? pct : 0}|${esAranaPremium ? "1" : "0"}`;
-                      }}
-                      content={(props) => <EtiquetaPorcentaje {...props} tipo={tipo} />}
-                    />
-                  </Bar>
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <SectionCard title={titulo}>
+      {puntos.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
+      ) : (
+        <div className="h-[420px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={puntos} margin={{ top: 48, left: 8, right: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
+              <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
+              <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
+              <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
+              <Legend formatter={(value) => ETIQUETA_TIPO[value] ?? value} wrapperStyle={ESTILO_LEYENDA} />
+              {TIPOS.map((tipo, i) => (
+                <Bar key={tipo} dataKey={tipo} fill={colorPara(tipo, i)} maxBarSize={GROSOR_MAX_BARRA}>
+                  <LabelList dataKey={tipo} content={(props) => <EtiquetaKg {...props} />} />
+                  <LabelList dataKey={`${tipo}__pu`} content={(props) => <EtiquetaPU {...props} />} />
+                  <LabelList
+                    valueAccessor={(entry: { payload?: Punto }) => {
+                      const pct = entry.payload?.[`${tipo}__pct`];
+                      const esAranaPremium = tipo === "PREMIUM" && entry.payload?.variedad === "ARANA";
+                      return `${typeof pct === "number" ? pct : 0}|${esAranaPremium ? "1" : "0"}`;
+                    }}
+                    content={(props) => <EtiquetaPorcentaje {...props} tipo={tipo} />}
+                  />
+                </Bar>
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </SectionCard>
   );
 }

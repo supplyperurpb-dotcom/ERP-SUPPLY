@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Package, DollarSign } from "lucide-react";
+import { KPICard } from "@/components/ui/cards/kpi-card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
 import { PALETA_SOBRIA } from "./colores";
 import type { KpisFacturacion } from "@/lib/facturacion-exportacion";
@@ -10,22 +11,6 @@ const AZUL_CLARO = "#8dcfec";
 // Liquidados / PU CIF Liquidado.
 const PLOMO_CLARO = PALETA_SOBRIA[2];
 
-type Tarjeta = { titulo: string; lineaPrincipal: string; lineaSecundaria?: string; acento?: string };
-
-function TarjetaKpi({ t }: { t: Tarjeta }) {
-  return (
-    <Card style={t.acento ? { backgroundColor: `${t.acento}1A`, borderColor: `${t.acento}66` } : undefined}>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{t.titulo}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1">
-        <p className="text-2xl font-semibold text-foreground">{t.lineaPrincipal}</p>
-        {t.lineaSecundaria && <p className="text-base font-medium text-foreground">{t.lineaSecundaria}</p>}
-      </CardContent>
-    </Card>
-  );
-}
-
 // Puramente presentacional: solo pinta los números que le llegan por
 // props (y el $/kg, que es pura división de dos de ellos, no una cifra de
 // negocio nueva). Toda la suma/filtro vive en lib/facturacion-exportacion.ts.
@@ -36,45 +21,37 @@ export function KpiCards({ kpis }: { kpis: KpisFacturacion }) {
   const cifPorKgFacturado = kpis.netWeight > 0 ? kpis.invoicedAmount / kpis.netWeight : 0;
   const cifPorKgLiquidado = kpis.netKilosLiquidated > 0 ? kpis.cifLiquidatedTariffs / kpis.netKilosLiquidated : 0;
 
-  const columnaFacturado: Tarjeta[] = [
-    {
-      titulo: "Kg Facturados",
-      lineaPrincipal: `${formatCantidad(kpis.netWeight)} Kg`,
-      lineaSecundaria: formatMoneda(kpis.invoicedAmount, "USD"),
-      acento: AZUL_CLARO,
-    },
-    {
-      titulo: "PU CIF Facturado",
-      lineaPrincipal: formatMoneda(cifPorKgFacturado, "USD"),
-      acento: AZUL_CLARO,
-    },
-  ];
-
-  const columnaLiquidado: Tarjeta[] = [
-    {
-      titulo: "Kg Liquidados",
-      lineaPrincipal: `${formatCantidad(kpis.netKilosLiquidated)} Kg`,
-      lineaSecundaria: formatMoneda(kpis.cifLiquidatedTariffs, "USD"),
-      acento: PLOMO_CLARO,
-    },
-    {
-      titulo: "PU CIF Liquidado",
-      lineaPrincipal: formatMoneda(cifPorKgLiquidado, "USD"),
-      acento: PLOMO_CLARO,
-    },
-  ];
-
   return (
     <>
       <div className="flex flex-col gap-4">
-        {columnaFacturado.map((t) => (
-          <TarjetaKpi key={t.titulo} t={t} />
-        ))}
+        <KPICard
+          label="Kg Facturados"
+          value={`${formatCantidad(kpis.netWeight)} Kg`}
+          secondaryLine={formatMoneda(kpis.invoicedAmount, "USD")}
+          color={AZUL_CLARO}
+          icon={Package}
+        />
+        <KPICard
+          label="PU CIF Facturado"
+          value={formatMoneda(cifPorKgFacturado, "USD")}
+          color={AZUL_CLARO}
+          icon={DollarSign}
+        />
       </div>
       <div className="flex flex-col gap-4">
-        {columnaLiquidado.map((t) => (
-          <TarjetaKpi key={t.titulo} t={t} />
-        ))}
+        <KPICard
+          label="Kg Liquidados"
+          value={`${formatCantidad(kpis.netKilosLiquidated)} Kg`}
+          secondaryLine={formatMoneda(kpis.cifLiquidatedTariffs, "USD")}
+          color={PLOMO_CLARO}
+          icon={Package}
+        />
+        <KPICard
+          label="PU CIF Liquidado"
+          value={formatMoneda(cifPorKgLiquidado, "USD")}
+          color={PLOMO_CLARO}
+          icon={DollarSign}
+        />
       </div>
     </>
   );

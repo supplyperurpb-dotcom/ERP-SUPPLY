@@ -41,7 +41,7 @@ export default async function InventarioPage() {
         />
       ) : (
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Fecha</TableHead>
               <TableHead>SKU</TableHead>

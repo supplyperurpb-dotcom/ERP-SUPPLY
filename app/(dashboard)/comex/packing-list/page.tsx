@@ -50,7 +50,7 @@ export default async function PackingListPage() {
         />
       ) : (
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Número</TableHead>
               <TableHead>Embarque</TableHead>

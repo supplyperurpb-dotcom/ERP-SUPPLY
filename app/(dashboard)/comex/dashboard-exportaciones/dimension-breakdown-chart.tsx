@@ -1,9 +1,9 @@
 "use client";
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList, ResponsiveContainer } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/cards/section-card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
-import { PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE } from "./colores";
+import { PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE, GROSOR_MAX_BARRA } from "./colores";
 import type { FilaDimension } from "@/lib/facturacion-exportacion";
 
 // Barras horizontales de kg exportados por una dimensión (cliente, mercado,
@@ -27,47 +27,42 @@ export function DimensionBreakdownChart({
   const datos = filas.map((f) => ({ ...f, participacionPct: totalKg > 0 ? (f.netWeight / totalKg) * 100 : 0 }));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {filas.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
-        ) : (
-          <div style={{ height: alto }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={datos} layout="vertical" margin={{ left: 8, right: 48 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} horizontal={false} />
-                <XAxis type="number" tick={false} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="etiqueta" width={140} fontSize={16} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
-                <Tooltip
-                  formatter={(value, name, item) => {
-                    const payload = item?.payload as (FilaDimension & { participacionPct: number }) | undefined;
-                    const pctTexto = payload ? ` (${payload.participacionPct.toFixed(1)}%)` : "";
-                    const embarquesTexto =
-                      payload && mostrarEmbarques
-                        ? ` · ${payload.embarques} embarque${payload.embarques === 1 ? "" : "s"}`
-                        : "";
-                    return name === "netWeight"
-                      ? [`${formatCantidad(Number(value))} Kg${pctTexto}${embarquesTexto}`, "Kg"]
-                      : [formatMoneda(Number(value), "USD"), "Facturado"];
-                  }}
+    <SectionCard title={titulo}>
+      {filas.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
+      ) : (
+        <div style={{ height: alto }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={datos} layout="vertical" margin={{ left: 8, right: 48 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} horizontal={false} />
+              <XAxis type="number" tick={false} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="etiqueta" width={140} fontSize={16} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
+              <Tooltip
+                formatter={(value, name, item) => {
+                  const payload = item?.payload as (FilaDimension & { participacionPct: number }) | undefined;
+                  const pctTexto = payload ? ` (${payload.participacionPct.toFixed(1)}%)` : "";
+                  const embarquesTexto =
+                    payload && mostrarEmbarques
+                      ? ` · ${payload.embarques} embarque${payload.embarques === 1 ? "" : "s"}`
+                      : "";
+                  return name === "netWeight"
+                    ? [`${formatCantidad(Number(value))} Kg${pctTexto}${embarquesTexto}`, "Kg"]
+                    : [formatMoneda(Number(value), "USD"), "Facturado"];
+                }}
+              />
+              <Bar dataKey="netWeight" fill={PALETA_SOBRIA[0]} radius={[0, 4, 4, 0]} maxBarSize={GROSOR_MAX_BARRA}>
+                <LabelList
+                  dataKey="participacionPct"
+                  position="right"
+                  formatter={(v) => (typeof v === "number" ? `${v.toFixed(1)}%` : "")}
+                  fontSize={16}
+                  fill={COLOR_EJE}
                 />
-                <Bar dataKey="netWeight" fill={PALETA_SOBRIA[0]} radius={[0, 4, 4, 0]}>
-                  <LabelList
-                    dataKey="participacionPct"
-                    position="right"
-                    formatter={(v) => (typeof v === "number" ? `${v.toFixed(1)}%` : "")}
-                    fontSize={16}
-                    fill={COLOR_EJE}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </SectionCard>
   );
 }

@@ -2,9 +2,9 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/cards/section-card";
 import { formatCantidad, formatMoneda } from "@/lib/utils";
-import { colorPara, COLOR_GRILLA, COLOR_EJE } from "./colores";
+import { colorPara, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { PuntoApilado } from "@/lib/facturacion-exportacion";
 
 // Tooltip a medida: a diferencia del "formatter" por defecto de recharts,
@@ -91,42 +91,36 @@ export function StackedBarChart({
   const mostrarSerie = etiquetaSerie ?? ((s: string) => s);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-        {descripcion && <p className="text-sm text-muted-foreground">{descripcion}</p>}
-      </CardHeader>
-      <CardContent>
-        {puntos.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
-        ) : (
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={puntos} margin={{ left: 8, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="categoria" interval={0} fontSize={16} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis tickFormatter={fmt} fontSize={16} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
-                <Tooltip
-                  content={(props) => (
-                    <ContenidoTooltip
-                      {...props}
-                      series={series}
-                      fmt={fmt}
-                      mostrarSerie={mostrarSerie}
-                      ocultarPorcentaje={ocultarPorcentaje}
-                      formatearCategoria={formatearCategoria}
-                    />
-                  )}
-                />
-                <Legend formatter={mostrarSerie} />
-                {series.map((s, i) => (
-                  <Bar key={s} dataKey={s} stackId="a" fill={colorPara(s, i)} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <SectionCard title={titulo} description={descripcion}>
+      {puntos.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
+      ) : (
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={puntos} margin={{ left: 8, right: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
+              <XAxis dataKey="categoria" interval={0} fontSize={16} stroke={COLOR_EJE} tickLine={false} />
+              <YAxis tickFormatter={fmt} fontSize={16} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
+              <Tooltip
+                content={(props) => (
+                  <ContenidoTooltip
+                    {...props}
+                    series={series}
+                    fmt={fmt}
+                    mostrarSerie={mostrarSerie}
+                    ocultarPorcentaje={ocultarPorcentaje}
+                    formatearCategoria={formatearCategoria}
+                  />
+                )}
+              />
+              <Legend formatter={mostrarSerie} wrapperStyle={ESTILO_LEYENDA} />
+              {series.map((s, i) => (
+                <Bar key={s} dataKey={s} stackId="a" fill={colorPara(s, i)} maxBarSize={GROSOR_MAX_BARRA} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </SectionCard>
   );
 }

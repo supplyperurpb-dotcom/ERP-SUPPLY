@@ -37,3 +37,13 @@ export function colorPara(etiqueta: string, indiceRespaldo: number): string {
 // discreto que el gris por defecto de recharts.
 export const COLOR_GRILLA = "#E5E7EB";
 export const COLOR_EJE = "#6B7280";
+
+// Fase 3 (modernización visual): tamaño de texto de leyenda un poco mayor
+// que el default de recharts (~12px), para que sean "más notorias" sin
+// competir con las etiquetas de datos (16px) — mismo valor en los 6
+// gráficos del dashboard.
+export const ESTILO_LEYENDA = { fontSize: 13, paddingTop: 8 } as const;
+
+// Fase 3: ancho máximo de barra, para que las columnas se vean "un poco
+// más delgadas" en pantallas anchas en vez de ensancharse sin límite.
+export const GROSOR_MAX_BARRA = 56;

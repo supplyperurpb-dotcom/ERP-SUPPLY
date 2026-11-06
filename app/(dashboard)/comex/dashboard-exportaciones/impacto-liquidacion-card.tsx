@@ -1,3 +1,4 @@
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCantidad, formatMoneda } from "@/lib/utils";
@@ -20,15 +21,28 @@ export function ImpactoLiquidacionCard({ resumen }: { resumen: ResumenImpactoLiq
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pérdida Total</p>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  <TrendingDown className="h-3.5 w-3.5 shrink-0 text-red-600" />
+                  Pérdida Total
+                </p>
                 <p className="text-xl font-semibold text-red-600">– {formatMoneda(resumen.totalPerdida, "USD")}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Ganancia Total</p>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  <TrendingUp className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                  Ganancia Total
+                </p>
                 <p className="text-xl font-semibold text-green-600">+ {formatMoneda(resumen.totalGanancia, "USD")}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Neto</p>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  {resumen.neto >= 0 ? (
+                    <TrendingUp className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-3.5 w-3.5 shrink-0 text-red-600" />
+                  )}
+                  Neto
+                </p>
                 <p className={`text-xl font-semibold ${resumen.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
                   {resumen.neto >= 0 ? "+" : ""}
                   {formatMoneda(resumen.neto, "USD")}
@@ -37,7 +51,7 @@ export function ImpactoLiquidacionCard({ resumen }: { resumen: ResumenImpactoLiq
             </div>
 
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead>Semana</TableHead>
                   <TableHead className="text-right">PU CIF Facturado</TableHead>

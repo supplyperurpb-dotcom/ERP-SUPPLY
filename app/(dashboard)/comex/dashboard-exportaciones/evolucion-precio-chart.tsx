@@ -1,9 +1,9 @@
 "use client";
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/cards/section-card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
-import { PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE } from "./colores";
+import { PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA } from "./colores";
 import type { PuntoEvolucionPrecio } from "@/lib/facturacion-exportacion";
 
 // Mismos colores que las tarjetas KPI: azul claro para Facturado, plomo
@@ -30,47 +30,41 @@ export function EvolucionPrecioChart({
   puntos: PuntoEvolucionPrecio[];
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-        {descripcion && <p className="text-sm text-muted-foreground">{descripcion}</p>}
-      </CardHeader>
-      <CardContent>
-        {puntos.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
-        ) : (
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={puntos} margin={{ left: 8, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="semana" interval={0} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis tickFormatter={(v) => formatMoneda(v, "USD")} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
-                <Tooltip
-                  labelFormatter={(label) => `W${label}`}
-                  formatter={(value, name, item) => {
-                    const etiqueta = ETIQUETA_SERIE[String(name)] ?? String(name);
-                    if (value === null || value === undefined) return ["Sin datos esa semana", etiqueta];
-                    const payload = item?.payload as PuntoEvolucionPrecio | undefined;
-                    const kg = name === "puFacturado" ? payload?.kgFacturado : payload?.kgLiquidado;
-                    return [`${formatMoneda(Number(value), "USD")} (${formatCantidad(kg ?? 0)} Kg)`, etiqueta];
-                  }}
-                />
-                <Legend formatter={(value) => ETIQUETA_SERIE[value] ?? value} />
-                <Line
-                  type="monotone"
-                  dataKey="puFacturado"
-                  stroke={AZUL}
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  dot={false}
-                  connectNulls={false}
-                />
-                <Line type="monotone" dataKey="puLiquidado" stroke={GRIS} strokeWidth={2} dot={false} connectNulls={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <SectionCard title={titulo} description={descripcion}>
+      {puntos.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
+      ) : (
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={puntos} margin={{ left: 8, right: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
+              <XAxis dataKey="semana" interval={0} fontSize={12} stroke={COLOR_EJE} tickLine={false} />
+              <YAxis tickFormatter={(v) => formatMoneda(v, "USD")} fontSize={12} stroke={COLOR_EJE} tickLine={false} axisLine={false} />
+              <Tooltip
+                labelFormatter={(label) => `W${label}`}
+                formatter={(value, name, item) => {
+                  const etiqueta = ETIQUETA_SERIE[String(name)] ?? String(name);
+                  if (value === null || value === undefined) return ["Sin datos esa semana", etiqueta];
+                  const payload = item?.payload as PuntoEvolucionPrecio | undefined;
+                  const kg = name === "puFacturado" ? payload?.kgFacturado : payload?.kgLiquidado;
+                  return [`${formatMoneda(Number(value), "USD")} (${formatCantidad(kg ?? 0)} Kg)`, etiqueta];
+                }}
+              />
+              <Legend formatter={(value) => ETIQUETA_SERIE[value] ?? value} wrapperStyle={ESTILO_LEYENDA} />
+              <Line
+                type="monotone"
+                dataKey="puFacturado"
+                stroke={AZUL}
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                connectNulls={false}
+              />
+              <Line type="monotone" dataKey="puLiquidado" stroke={GRIS} strokeWidth={2} dot={false} connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </SectionCard>
   );
 }

@@ -2,9 +2,9 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionCard } from "@/components/ui/cards/section-card";
 import { formatCantidad, formatMoneda } from "@/lib/utils";
-import { colorPara, COLOR_GRILLA, COLOR_EJE } from "./colores";
+import { colorPara, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { FilaVariedadEtiqueta } from "@/lib/facturacion-exportacion";
 
 // Orden fijo (no alfabético), igual criterio que el resto del dashboard:
@@ -148,37 +148,32 @@ export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {puntos.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
-        ) : (
-          <div className="h-[420px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={puntos} margin={{ top: 48, left: 8, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
-                <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
-                <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
-                <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
-                <Legend />
-                {series.map((etiqueta, i) => (
-                  <Bar key={etiqueta} dataKey={etiqueta} fill={colorPara(etiqueta, i)}>
-                    <LabelList dataKey={etiqueta} content={(props) => <EtiquetaKg {...props} />} />
-                    <LabelList dataKey={`${etiqueta}__pu`} content={(props) => <EtiquetaPU {...props} />} />
-                    <LabelList
-                      dataKey={`${etiqueta}__pct`}
-                      content={(props) => <EtiquetaPorcentaje {...props} etiqueta={etiqueta} />}
-                    />
-                  </Bar>
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <SectionCard title={titulo}>
+      {puntos.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
+      ) : (
+        <div className="h-[420px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={puntos} margin={{ top: 48, left: 8, right: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
+              <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
+              <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
+              <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
+              <Legend wrapperStyle={ESTILO_LEYENDA} />
+              {series.map((etiqueta, i) => (
+                <Bar key={etiqueta} dataKey={etiqueta} fill={colorPara(etiqueta, i)} maxBarSize={GROSOR_MAX_BARRA}>
+                  <LabelList dataKey={etiqueta} content={(props) => <EtiquetaKg {...props} />} />
+                  <LabelList dataKey={`${etiqueta}__pu`} content={(props) => <EtiquetaPU {...props} />} />
+                  <LabelList
+                    dataKey={`${etiqueta}__pct`}
+                    content={(props) => <EtiquetaPorcentaje {...props} etiqueta={etiqueta} />}
+                  />
+                </Bar>
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </SectionCard>
   );
 }

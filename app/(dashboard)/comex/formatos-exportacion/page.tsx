@@ -1,7 +1,7 @@
 import { Package } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Badge } from "@/components/ui/badge";
+import { ActivoBadge } from "@/components/ui/estado-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
 
@@ -23,7 +23,7 @@ export default async function FormatosExportacionPage() {
         />
       ) : (
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Nombre</TableHead>
@@ -40,9 +40,7 @@ export default async function FormatosExportacionPage() {
                 <TableCell>{formato.pesoNetoUnitarioG?.toString() ?? "—"}</TableCell>
                 <TableCell>{formato.unidadesPorCaja ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant={formato.activo ? "success" : "secondary"}>
-                    {formato.activo ? "Activo" : "Inactivo"}
-                  </Badge>
+                  <ActivoBadge activo={formato.activo} />
                 </TableCell>
               </TableRow>
             ))}

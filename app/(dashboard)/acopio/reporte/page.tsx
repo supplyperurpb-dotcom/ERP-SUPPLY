@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SummaryCard } from "@/components/ui/cards/summary-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
 import { cn, rangoFechaCosecha, rangoSemanaISO, semanaISOConAnio } from "@/lib/utils";
@@ -249,7 +250,7 @@ export default async function ReporteAcopioPage({
       ) : (
         <>
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>Semana</TableHead>
                 <TableHead>Variedad</TableHead>
@@ -289,19 +290,11 @@ export default async function ReporteAcopioPage({
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex flex-wrap justify-end gap-6 border-t pt-4 text-sm">
-            <p>
-              Total recepcionado: <span className="font-medium">{formatNumero(totalGeneral.recepcionado)} kg</span>
-            </p>
-            <p>
-              Total aprovechable: <span className="font-medium">{formatNumero(totalGeneral.aprovechable)} kg</span>
-            </p>
-            <p>
-              Total nacional campo: <span className="font-medium">{formatNumero(totalGeneral.nacionalCampo)} kg</span>
-            </p>
-            <p className="text-base">
-              % Nacional: <span className="font-semibold text-primary">{formatPorcentaje(pctNacionalTotal)}</span>
-            </p>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <SummaryCard label="Total recepcionado" value={`${formatNumero(totalGeneral.recepcionado)} kg`} />
+            <SummaryCard label="Total aprovechable" value={`${formatNumero(totalGeneral.aprovechable)} kg`} />
+            <SummaryCard label="Total nacional campo" value={`${formatNumero(totalGeneral.nacionalCampo)} kg`} />
+            <SummaryCard label="% Nacional" value={formatPorcentaje(pctNacionalTotal)} />
           </div>
         </>
       )}
