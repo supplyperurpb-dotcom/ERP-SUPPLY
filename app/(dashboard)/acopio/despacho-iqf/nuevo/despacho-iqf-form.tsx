@@ -40,7 +40,6 @@ export function DespachoIQFForm({
       conductor: "",
       fechaDespacho: fechaLocalHoy() as unknown as Date,
       horaDespacho: horaLocalAhora(),
-      numeroGuiaRemision: "",
       tarjaIds: [],
     },
   });
@@ -108,16 +107,16 @@ export function DespachoIQFForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="horaDespacho">Hora de despacho</Label>
-            <Input id="horaDespacho" type="time" {...form.register("horaDespacho")} />
+            <Input
+              id="horaDespacho"
+              type="time"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("horaDespacho")}
+            />
+            <p className="text-xs text-muted-foreground">Se registra con la hora actual, no se puede modificar.</p>
             {form.formState.errors.horaDespacho && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaDespacho.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="numeroGuiaRemision">N.º de guía de remisión (opcional)</Label>
-            <Input id="numeroGuiaRemision" placeholder="Ej. EG07 - 00000941" {...form.register("numeroGuiaRemision")} />
-            {form.formState.errors.numeroGuiaRemision && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.numeroGuiaRemision.message}</p>
             )}
           </div>
         </CardContent>

@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
 import { PackageX } from "lucide-react";
 import { fechaLocalHoy, horaLocalAhora, formatKg, formatCantidad } from "@/lib/utils";
+import { TIPOS_CAMION } from "@/lib/validations/transporte";
 import { despachoSchema, type DespachoInput } from "@/lib/validations/despacho";
 import { crearDespachoAction } from "@/lib/actions/despacho-actions";
 
@@ -23,15 +24,22 @@ type TarjaDisponible = {
   cantidadBandejas: number;
   pesoNetoKg: number;
 };
+type CamionOption = { id: string; placa: string; tipo: string };
+type ConductorOption = { id: string; nombre: string };
+
+const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
 
 export function DespachoForm({
   tarjasDisponibles,
-  vehiculos,
+  camiones,
+  conductores,
 }: {
   tarjasDisponibles: TarjaDisponible[];
-  vehiculos: VehiculoTransporteOption[];
+  camiones: CamionOption[];
+  conductores: ConductorOption[];
 }) {
   const router = useRouter();
+  const fechaRegistro = fechaLocalHoy();
 
   const form = useForm<DespachoInput>({
     resolver: zodResolver(despachoSchema),
@@ -40,7 +48,6 @@ export function DespachoForm({
       conductor: "",
       fechaDespacho: fechaLocalHoy() as unknown as Date,
       horaDespacho: horaLocalAhora(),
-      numeroGuiaRemision: "",
       tarjaIds: [],
     },
   });
@@ -68,8 +75,8 @@ export function DespachoForm({
       toast.error(resultado.error);
       return;
     }
-    toast.success("Despacho registrado");
-    router.push("/acopio/despacho");
+    toast.success("Carga finalizada");
+    router.push(resultado?.id ? `/acopio/despacho/${resultado.id}` : "/acopio/despacho");
   }
 
   return (
@@ -85,16 +92,54 @@ export function DespachoForm({
               control={form.control}
               name="placaCamion"
               render={({ field }) => (
-                <PlacaVehiculoField vehiculos={vehiculos} value={field.value} onChange={field.onChange} />
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="placaCamion">
+                    <SelectValue placeholder="Selecciona un camión" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camiones.map((c) => (
+                      <SelectItem key={c.id} value={c.placa}>
+                        {c.placa} — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             />
+            {camiones.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay camiones registrados. Créalos en Información Transporte.
+              </p>
+            )}
             {form.formState.errors.placaCamion && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.placaCamion.message}</p>
             )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="conductor">Conductor</Label>
-            <Input id="conductor" placeholder="Nombre completo" {...form.register("conductor")} />
+            <Controller
+              control={form.control}
+              name="conductor"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="conductor">
+                    <SelectValue placeholder="Selecciona un conductor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conductores.map((c) => (
+                      <SelectItem key={c.id} value={c.nombre}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {conductores.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay conductores registrados. Créalos en Información Transporte.
+              </p>
+            )}
             {form.formState.errors.conductor && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.conductor.message}</p>
             )}
@@ -108,17 +153,29 @@ export function DespachoForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="horaDespacho">Hora de despacho</Label>
-            <Input id="horaDespacho" type="time" {...form.register("horaDespacho")} />
+            <Input
+              id="horaDespacho"
+              type="time"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("horaDespacho")}
+            />
+            <p className="text-xs text-muted-foreground">Se registra con la hora actual, no se puede modificar.</p>
             {form.formState.errors.horaDespacho && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaDespacho.message}</p>
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="numeroGuiaRemision">N.º de guía de remisión (opcional)</Label>
-            <Input id="numeroGuiaRemision" placeholder="Ej. EG07 - 00000941" {...form.register("numeroGuiaRemision")} />
-            {form.formState.errors.numeroGuiaRemision && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.numeroGuiaRemision.message}</p>
-            )}
+            <Label htmlFor="fechaRegistro">Fecha de registro</Label>
+            <Input
+              id="fechaRegistro"
+              type="date"
+              readOnly
+              disabled
+              className="cursor-not-allowed bg-muted opacity-70"
+              value={fechaRegistro}
+            />
+            <p className="text-xs text-muted-foreground">Fecha en la que se registró este despacho, no se puede modificar.</p>
           </div>
         </CardContent>
       </Card>
@@ -195,7 +252,7 @@ export function DespachoForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting || tarjasDisponibles.length === 0}>
-          {form.formState.isSubmitting ? "Guardando..." : "Registrar despacho"}
+          {form.formState.isSubmitting ? "Guardando..." : "Finalizar carga"}
         </Button>
       </div>
     </form>

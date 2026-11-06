@@ -3,13 +3,14 @@ import { prisma } from "@/lib/db/prisma";
 import { DespachoForm } from "./despacho-form";
 
 export default async function NuevoDespachoPage() {
-  const [tarjasDb, vehiculosDb] = await Promise.all([
+  const [tarjasDb, camionesDb, conductoresDb] = await Promise.all([
     prisma.tarja.findMany({
       where: { despachoId: null },
       include: { pallet: true },
       orderBy: { numero: "asc" },
     }),
-    prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    prisma.camion.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    prisma.conductor.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
   ]);
 
   // Se mapea a un objeto plano: pesoNetoKg es Decimal y no se puede pasar
@@ -21,15 +22,16 @@ export default async function NuevoDespachoPage() {
     cantidadBandejas: t.pallet.cantidadBandejas,
     pesoNetoKg: Number(t.pallet.pesoNetoKg),
   }));
-  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
+  const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
+  const conductores = conductoresDb.map((c) => ({ id: c.id, nombre: c.nombre }));
 
   return (
     <div>
       <PageHeader
         titulo="Nuevo despacho"
-        descripcion="Selecciona las tarjas (pallets) que salen en este despacho. Una vez despachadas, ya no aparecerán disponibles para un despacho futuro."
+        descripcion="Selecciona las tarjas (pallets) que salen en este despacho. Al presionar Finalizar carga se genera el Packing List Acopio (código único), donde luego se adjunta la guía de remisión para culminar el proceso."
       />
-      <DespachoForm tarjasDisponibles={tarjasDisponibles} vehiculos={vehiculos} />
+      <DespachoForm tarjasDisponibles={tarjasDisponibles} camiones={camiones} conductores={conductores} />
     </div>
   );
 }

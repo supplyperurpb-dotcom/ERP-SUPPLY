@@ -247,6 +247,7 @@ model Proveedor {
   ingresosIQF         IngresoIQF[]
   ingresosAlmacen     IngresoAlmacen[]
   devolucionesAlmacen DevolucionAlmacen[]
+  conductores         Conductor[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@map("proveedores")
@@ -1259,21 +1260,80 @@ model Tarja {
 // planta de proceso o para preparar un embarque). Al despachar, las tarjas
 // seleccionadas quedan vinculadas a este registro y dejan de estar
 // disponibles para un despacho futuro.
+enum EstadoDespacho {
+  BORRADOR
+  CULMINADO
+}
+
+// El despacho (su Packing List Acopio, ver /acopio/despacho/[id]) nace en
+// BORRADOR: el camión ya salió con sus tarjas, pero falta la guía de
+// remisión real (número + foto/PDF) para "Culminar proceso" — mientras
+// esté en BORRADOR, el PDF del Packing List sale con marca de agua
+// "BORRADOR" (ver lib/pdf/packing-list-acopio-pdf.ts), igual que una
+// Orden de Compra sin aprobar.
 model Despacho {
-  id                 String   @id @default(cuid())
-  numero             String   @unique // ej. DESP-0001
-  placaCamion        String
-  conductor          String
-  fechaDespacho      DateTime
-  horaDespacho       String?
-  numeroGuiaRemision String? // guía de remisión física del transportista, no la de GuiaRemision (SUNAT)
-  creadoPorId        String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String         @id @default(cuid())
+  numero              String         @unique // ej. DESP-0001
+  placaCamion         String
+  conductor           String
+  fechaDespacho       DateTime
+  horaDespacho        String?
+  numeroGuiaRemision  String? // guía de remisión física del transportista, no la de GuiaRemision (SUNAT) — obligatoria recién para Culminar proceso
+  // Ruta (no URL pública) del archivo subido con la guía de remisión
+  // física (foto/escaneo/PDF), dentro del bucket privado de Supabase
+  // Storage (ver lib/storage.ts) — mismo criterio que
+  // IngresoAlmacen.guiaRemisionArchivo. Se descarga vía
+  // GET /api/despachos/[id]/guia.
+  guiaRemisionArchivo String?
+  estado              EstadoDespacho @default(BORRADOR)
+  culminadoEn         DateTime?
+  creadoPorId         String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   tarjas Tarja[]
 
   @@map("despachos")
+}
+
+enum TipoCamion {
+  TERMOKING
+  CAMION_KIA
+  CAMIONETA
+}
+
+// Submódulo "Información Transporte" de Acopio (ver /acopio/transporte):
+// catálogo propio de camiones, independiente de VehiculoTransporte (que
+// solo distingue Propio/Tercero para Ingreso de Materia Prima e Ingreso
+// IQF) — Despacho usa este catálogo en vez de aquel. Nunca se borra un
+// registro ya usado: se desactiva (activo=false).
+model Camion {
+  id        String     @id @default(cuid())
+  placa     String     @unique
+  tipo      TipoCamion
+  activo    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("camiones")
+}
+
+// Conductor registrado bajo un Proveedor de transporte (tipo TRANSPORTE),
+// para elegir en el desplegable de Despacho. Nunca se borra uno ya
+// usado: se desactiva (activo=false).
+model Conductor {
+  id               String   @id @default(cuid())
+  proveedorId      String
+  nombre           String
+  dni              String
+  licenciaConducir String
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  proveedor Proveedor @relation(fields: [proveedorId], references: [id])
+
+  @@map("conductores")
 }
 
 model GuiaRemision {
