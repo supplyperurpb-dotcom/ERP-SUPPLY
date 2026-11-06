@@ -547,20 +547,27 @@ export function IngresoFrutaForm({
                     <Controller
                       control={form.control}
                       name={`pallets.${index}.formato`}
-                      render={({ field: selectField }) => (
-                        <Select value={selectField.value} onValueChange={selectField.onChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {FORMATOS_LINEA_PESAJE.map((f) => (
-                              <SelectItem key={f} value={f}>
-                                {f}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      render={({ field: selectField }) =>
+                        pallets[index]?.tipoProducto === "Descarte Campo" ? (
+                          // El descarte no tiene formato de empaque: el
+                          // valor queda fijo en "INDUSTRIAL" (ver onChange de
+                          // Tipo de producto) y no se pide elegir uno.
+                          <Input disabled className="cursor-not-allowed bg-muted opacity-70" value="Industrial" />
+                        ) : (
+                          <Select value={selectField.value} onValueChange={selectField.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FORMATOS_LINEA_PESAJE.map((f) => (
+                                <SelectItem key={f} value={f}>
+                                  {f}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )
+                      }
                     />
                     {form.formState.errors.pallets?.[index]?.formato && (
                       <p className="text-xs font-medium text-destructive">
@@ -593,6 +600,15 @@ export function IngresoFrutaForm({
                             );
                             if (bandejaActual && !bandejaSigueValida) {
                               form.setValue(`pallets.${index}.tipoBandejaId`, "", { shouldValidate: true });
+                            }
+                            // El descarte no tiene formato de empaque: se
+                            // fija a "INDUSTRIAL" (ver el campo Formato más
+                            // arriba); al volver a Exportable se limpia para
+                            // que vuelva a pedirse.
+                            if (valor === "Descarte Campo") {
+                              form.setValue(`pallets.${index}.formato`, "INDUSTRIAL", { shouldValidate: true });
+                            } else if (pallets[index]?.formato === "INDUSTRIAL") {
+                              form.setValue(`pallets.${index}.formato`, "", { shouldValidate: true });
                             }
                             selectField.onChange(valor);
                           }}
