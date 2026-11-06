@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
 import { PackageX } from "lucide-react";
 import { fechaLocalHoy, horaLocalAhora, formatKg, formatCantidad } from "@/lib/utils";
+import { TIPOS_CAMION } from "@/lib/validations/transporte";
 import { despachoSchema, type DespachoInput } from "@/lib/validations/despacho";
 import { crearDespachoIQFAction } from "@/lib/actions/despacho-iqf-actions";
 
@@ -23,13 +24,19 @@ type TarjaDisponible = {
   cantidadBandejas: number;
   pesoNetoKg: number;
 };
+type CamionOption = { id: string; placa: string; tipo: string };
+type ConductorOption = { id: string; nombre: string };
+
+const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
 
 export function DespachoIQFForm({
   tarjasDisponibles,
-  vehiculos,
+  camiones,
+  conductores,
 }: {
   tarjasDisponibles: TarjaDisponible[];
-  vehiculos: VehiculoTransporteOption[];
+  camiones: CamionOption[];
+  conductores: ConductorOption[];
 }) {
   const router = useRouter();
 
@@ -84,16 +91,54 @@ export function DespachoIQFForm({
               control={form.control}
               name="placaCamion"
               render={({ field }) => (
-                <PlacaVehiculoField vehiculos={vehiculos} value={field.value} onChange={field.onChange} />
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="placaCamion">
+                    <SelectValue placeholder="Selecciona un camión" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camiones.map((c) => (
+                      <SelectItem key={c.id} value={c.placa}>
+                        {c.placa} — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             />
+            {camiones.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay camiones registrados. Créalos en Información Transporte.
+              </p>
+            )}
             {form.formState.errors.placaCamion && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.placaCamion.message}</p>
             )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="conductor">Conductor</Label>
-            <Input id="conductor" placeholder="Nombre completo" {...form.register("conductor")} />
+            <Controller
+              control={form.control}
+              name="conductor"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="conductor">
+                    <SelectValue placeholder="Selecciona un conductor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conductores.map((c) => (
+                      <SelectItem key={c.id} value={c.nombre}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {conductores.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay conductores registrados. Créalos en Información Transporte.
+              </p>
+            )}
             {form.formState.errors.conductor && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.conductor.message}</p>
             )}

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { DespachoIQFForm } from "./despacho-iqf-form";
 
 export default async function NuevoDespachoIQFPage() {
-  const [tarjasDb, vehiculosDb] = await Promise.all([
+  const [tarjasDb, camionesDb, conductoresDb] = await Promise.all([
     // Solo pallets CERRADOS pueden salir en un despacho (ver mismo
     // criterio en acopio/despacho/nuevo/page.tsx).
     prisma.tarjaIQF.findMany({
@@ -11,7 +11,8 @@ export default async function NuevoDespachoIQFPage() {
       include: { pallet: true },
       orderBy: { numero: "asc" },
     }),
-    prisma.vehiculoTransporte.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    prisma.camion.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    prisma.conductor.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
   ]);
 
   // Se mapea a un objeto plano: pesoNetoKg es Decimal y no se puede pasar
@@ -23,7 +24,8 @@ export default async function NuevoDespachoIQFPage() {
     cantidadBandejas: t.pallet.cantidadBandejas,
     pesoNetoKg: Number(t.pallet.pesoNetoKg),
   }));
-  const vehiculos = vehiculosDb.map((v) => ({ id: v.id, placa: v.placa, tipo: v.tipo }));
+  const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
+  const conductores = conductoresDb.map((c) => ({ id: c.id, nombre: c.nombre }));
 
   return (
     <div>
@@ -31,7 +33,7 @@ export default async function NuevoDespachoIQFPage() {
         titulo="Nuevo despacho IQF"
         descripcion="Selecciona las tarjas (pallets IQF) que salen en este despacho. Una vez despachadas, ya no aparecerán disponibles para un despacho futuro."
       />
-      <DespachoIQFForm tarjasDisponibles={tarjasDisponibles} vehiculos={vehiculos} />
+      <DespachoIQFForm tarjasDisponibles={tarjasDisponibles} camiones={camiones} conductores={conductores} />
     </div>
   );
 }
