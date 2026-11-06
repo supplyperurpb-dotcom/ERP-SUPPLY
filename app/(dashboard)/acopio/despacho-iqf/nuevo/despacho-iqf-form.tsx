@@ -39,6 +39,7 @@ export function DespachoIQFForm({
   conductores: ConductorOption[];
 }) {
   const router = useRouter();
+  const fechaRegistro = fechaLocalHoy();
 
   const form = useForm<DespachoInput>({
     resolver: zodResolver(despachoSchema),
@@ -163,6 +164,18 @@ export function DespachoIQFForm({
             {form.formState.errors.horaDespacho && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.horaDespacho.message}</p>
             )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="fechaRegistro">Fecha de registro</Label>
+            <Input
+              id="fechaRegistro"
+              type="date"
+              readOnly
+              disabled
+              className="cursor-not-allowed bg-muted opacity-70"
+              value={fechaRegistro}
+            />
+            <p className="text-xs text-muted-foreground">Fecha en la que se registró este despacho, no se puede modificar.</p>
           </div>
         </CardContent>
       </Card>
