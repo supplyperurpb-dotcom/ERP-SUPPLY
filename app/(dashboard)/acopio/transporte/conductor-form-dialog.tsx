@@ -5,7 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { Conductor } from "@prisma/client";
-import { Button } from "@/components/ui/button";
+import { PrimaryButton, IconButton } from "@/components/ui/buttons";
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormInput, FormSelect } from "@/components/ui/form-fields";
 import {
   crearConductorAction,
   actualizarConductorAction,
@@ -51,14 +49,14 @@ export function ConductorFormDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {esEdicion ? (
-          <Button variant="ghost" size="icon">
+          <IconButton>
             <Pencil className="h-4 w-4" />
-          </Button>
+          </IconButton>
         ) : (
-          <Button>
+          <PrimaryButton>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo conductor
-          </Button>
+          </PrimaryButton>
         )}
       </DialogTrigger>
       <DialogContent>
@@ -67,46 +65,41 @@ export function ConductorFormDialog({
         </DialogHeader>
 
         <form action={formAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="proveedorId">Proveedor (empresa de transporte)</Label>
-            <Select name="proveedorId" value={proveedorId} onValueChange={setProveedorId}>
-              <SelectTrigger id="proveedorId">
-                <SelectValue placeholder="Selecciona un proveedor" />
-              </SelectTrigger>
-              <SelectContent>
-                {proveedores.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.razonSocial}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {proveedores.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                No hay proveedores con tipo &quot;Transporte&quot;. Créalos en Logística &gt; Proveedores.
-              </p>
-            )}
-          </div>
+          <FormSelect
+            label="Proveedor (empresa de transporte)"
+            id="proveedorId"
+            name="proveedorId"
+            value={proveedorId}
+            onValueChange={setProveedorId}
+            placeholder="Selecciona un proveedor"
+            options={proveedores.map((p) => ({ value: p.id, label: p.razonSocial }))}
+            description={
+              proveedores.length === 0
+                ? 'No hay proveedores con tipo "Transporte". Créalos en Logística > Proveedores.'
+                : undefined
+            }
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="ruc">RUC</Label>
-            <Input id="ruc" value={ruc} disabled readOnly className="cursor-not-allowed bg-muted opacity-70" />
-          </div>
+          <FormInput
+            label="RUC"
+            id="ruc"
+            value={ruc}
+            disabled
+            readOnly
+            className="cursor-not-allowed bg-muted opacity-70"
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="nombre">Nombre del conductor</Label>
-            <Input id="nombre" name="nombre" defaultValue={conductor?.nombre} required />
-          </div>
+          <FormInput label="Nombre del conductor" id="nombre" name="nombre" defaultValue={conductor?.nombre} required />
 
-          <div className="space-y-2">
-            <Label htmlFor="dni">DNI</Label>
-            <Input id="dni" name="dni" defaultValue={conductor?.dni} required />
-          </div>
+          <FormInput label="DNI" id="dni" name="dni" defaultValue={conductor?.dni} required />
 
-          <div className="space-y-2">
-            <Label htmlFor="licenciaConducir">Licencia de conducir</Label>
-            <Input id="licenciaConducir" name="licenciaConducir" defaultValue={conductor?.licenciaConducir} required />
-          </div>
+          <FormInput
+            label="Licencia de conducir"
+            id="licenciaConducir"
+            name="licenciaConducir"
+            defaultValue={conductor?.licenciaConducir}
+            required
+          />
 
           {state?.error && <p className="text-sm font-medium text-destructive">{state.error}</p>}
 
@@ -122,8 +115,8 @@ export function ConductorFormDialog({
 function SubmitButton({ esEdicion }: { esEdicion: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <PrimaryButton type="submit" disabled={pending}>
       {pending ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear conductor"}
-    </Button>
+    </PrimaryButton>
   );
 }

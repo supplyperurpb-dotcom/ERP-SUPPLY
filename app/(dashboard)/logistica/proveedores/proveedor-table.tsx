@@ -1,13 +1,25 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Download, Search, Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Proveedor } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { IconButton } from "@/components/ui/buttons";
+import { ActivoBadge } from "@/components/ui/estado-badge";
+import {
+  DataTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableSearch,
+  TablePagination,
+  TableActions,
+  TableEmptyState,
+} from "@/components/ui/data-table";
 import { eliminarProveedorAction } from "@/lib/actions/proveedor-actions";
 import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { ProveedorFormDialog } from "./proveedor-form-dialog";
@@ -93,22 +105,18 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por razón social, RUC/DNI, rubro o lugar..."
-            value={busqueda}
-            onChange={(e) => cambiarBusqueda(e.target.value)}
-            className="pl-8"
-          />
-        </div>
+        <TableSearch
+          placeholder="Buscar por razón social, RUC/DNI, rubro o lugar..."
+          value={busqueda}
+          onChange={(e) => cambiarBusqueda(e.target.value)}
+        />
         <Button variant="outline" onClick={handleExportar} disabled={exportando}>
           <Download className="mr-2 h-4 w-4" />
           {exportando ? "Exportando..." : "Exportar"}
         </Button>
       </div>
 
-      <Table>
+      <DataTable>
         <TableHeader>
           <TableRow>
             <TableHead>Documento</TableHead>
@@ -140,50 +148,30 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
               <TableCell>{proveedor.lugar || "—"}</TableCell>
               <TableCell>{proveedor.telefono || proveedor.email || "—"}</TableCell>
               <TableCell>
-                <Badge variant={proveedor.activo ? "success" : "secondary"}>
-                  {proveedor.activo ? "Activo" : "Inactivo"}
-                </Badge>
+                <ActivoBadge activo={proveedor.activo} />
               </TableCell>
-              <TableCell className="flex justify-end gap-1">
-                <ProveedorFormDialog proveedor={proveedor} />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={() => handleEliminar(proveedor.id, proveedor.razonSocial)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+              <TableCell>
+                <TableActions>
+                  <ProveedorFormDialog proveedor={proveedor} />
+                  <IconButton disabled={isPending} onClick={() => handleEliminar(proveedor.id, proveedor.razonSocial)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </IconButton>
+                </TableActions>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </DataTable>
 
-      {proveedoresFiltrados.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">Ningún proveedor coincide con la búsqueda.</p>
-      )}
+      {proveedoresFiltrados.length === 0 && <TableEmptyState mensaje="Ningún proveedor coincide con la búsqueda." />}
 
-      {totalPaginas > 1 && (
-        <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
-          <p>
-            Página {paginaActual} de {totalPaginas} ({proveedoresFiltrados.length} proveedores)
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={paginaActual <= 1} onClick={() => setPagina(paginaActual - 1)}>
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={paginaActual >= totalPaginas}
-              onClick={() => setPagina(paginaActual + 1)}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        total={proveedoresFiltrados.length}
+        entidad="proveedores"
+        onCambiarPagina={setPagina}
+      />
     </div>
   );
 }

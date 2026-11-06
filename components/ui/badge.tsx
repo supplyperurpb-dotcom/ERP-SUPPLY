@@ -13,6 +13,10 @@ const badgeVariants = cva(
         outline: "text-foreground",
         success: "border-transparent bg-emerald-100 text-emerald-800",
         warning: "border-transparent bg-amber-100 text-amber-800",
+        // bg-blue-100 es exactamente el "Azul claro" (#DBEAFE) pedido para
+        // el design system — mismo criterio que success/warning (paleta de
+        // Tailwind, no un token CSS nuevo).
+        info: "border-transparent bg-blue-100 text-blue-800",
       },
     },
     defaultVariants: { variant: "default" },
