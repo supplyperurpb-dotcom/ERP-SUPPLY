@@ -25,7 +25,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PlacaVehiculoField, type VehiculoTransporteOption } from "@/components/shared/placa-vehiculo-field";
 import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoIQFSchema, type IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
-import { crearIngresoIQFAction, actualizarIngresoIQFAction } from "@/lib/actions/ingreso-iqf-actions";
+import {
+  crearIngresoIQFAction,
+  actualizarIngresoIQFAction,
+  subirGuiaRemisionIngresoIQFAction,
+} from "@/lib/actions/ingreso-iqf-actions";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
 import { VARIEDADES_IQF } from "@/lib/constants/iqf";
 
@@ -87,6 +91,9 @@ export function IngresoIQFForm({
   const [palletsNuevos, setPalletsNuevos] = useState<PalletNuevo[]>([]);
   const [lineaDialogoAbierto, setLineaDialogoAbierto] = useState<number | null>(null);
   const contadorPalletNuevo = useRef(0);
+  const [archivoFile, setArchivoFile] = useState<File | null>(null);
+  const [subiendoArchivo, setSubiendoArchivo] = useState(false);
+  const archivoActual = edicion?.valoresIniciales.guiaRemisionArchivo;
 
   const form = useForm<IngresoIQFInput>({
     resolver: zodResolver(ingresoIQFSchema),
@@ -94,6 +101,8 @@ export function IngresoIQFForm({
       proveedorId: "",
       horaIngreso: horaLocalAhora(),
       placaTransporte: "",
+      numeroGuiaRemision: "",
+      guiaRemisionArchivo: "",
       observaciones: "",
       pallets: [LINEA_VACIA],
     },
@@ -175,6 +184,32 @@ export function IngresoIQFForm({
     }
   }, [form.formState.errors.pallets]);
 
+  async function handleSubmitConArchivo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!archivoFile && !archivoActual) {
+      toast.error("Adjunta la guía de remisión (foto o PDF)");
+      return;
+    }
+
+    if (archivoFile) {
+      setSubiendoArchivo(true);
+      try {
+        const fd = new FormData();
+        fd.set("archivo", archivoFile);
+        const resultado = await subirGuiaRemisionIngresoIQFAction(fd);
+        if (resultado.error || !resultado.path) {
+          toast.error(resultado.error ?? "No se pudo subir la guía de remisión");
+          return;
+        }
+        form.setValue("guiaRemisionArchivo", resultado.path, { shouldValidate: true });
+      } finally {
+        setSubiendoArchivo(false);
+      }
+    }
+
+    await form.handleSubmit(onSubmit)();
+  }
+
   async function onSubmit(data: IngresoIQFInput) {
     let resultado;
     try {
@@ -228,7 +263,7 @@ export function IngresoIQFForm({
       };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmitConArchivo} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos del camión</CardTitle>
@@ -299,6 +334,40 @@ export function IngresoIQFForm({
               value={fechaRegistro}
             />
             <p className="text-xs text-muted-foreground">Fecha en la que se registró este ingreso, no se puede modificar.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="numeroGuiaRemision">N.º de guía de remisión</Label>
+            <Input id="numeroGuiaRemision" {...form.register("numeroGuiaRemision")} />
+            {form.formState.errors.numeroGuiaRemision && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.numeroGuiaRemision.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="archivoGuia">Guía de remisión (foto o PDF)</Label>
+            <div className="flex items-center gap-3">
+              {archivoActual && !archivoFile && edicion && (
+                <a
+                  href={`/api/ingreso-iqf/${edicion.ingresoId}/guia`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary underline underline-offset-2"
+                >
+                  Ver archivo actual
+                </a>
+              )}
+              <Input
+                id="archivoGuia"
+                type="file"
+                accept="application/pdf,image/*"
+                onChange={(e) => setArchivoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            {archivoFile && <p className="text-xs text-muted-foreground">Seleccionado: {archivoFile.name}</p>}
+            {form.formState.errors.guiaRemisionArchivo && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.guiaRemisionArchivo.message}</p>
+            )}
           </div>
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
@@ -599,8 +668,14 @@ export function IngresoIQFForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar ingreso IQF"}
+        <Button type="submit" disabled={form.formState.isSubmitting || subiendoArchivo}>
+          {subiendoArchivo
+            ? "Subiendo archivo..."
+            : form.formState.isSubmitting
+              ? "Guardando..."
+              : edicion
+                ? "Guardar cambios"
+                : "Registrar ingreso IQF"}
         </Button>
       </div>
     </form>

@@ -88,6 +88,22 @@ export default async function DetalleIngresoIQFPage({ params }: { params: Promis
           <Dato label="Placa del vehículo" valor={ingreso.placaTransporte ?? "—"} />
           <Dato label="Hora de recepción" valor={ingreso.horaIngreso ?? "—"} />
           <Dato label="Fecha de ingreso" valor={formatDateTime(ingreso.fechaIngreso)} />
+          <div>
+            <p className="text-xs text-muted-foreground">Guía de remisión</p>
+            <p className="font-medium">
+              {ingreso.numeroGuiaRemision ?? "—"}
+              {ingreso.guiaRemisionArchivo && (
+                <a
+                  href={`/api/ingreso-iqf/${ingreso.id}/guia`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-sm font-normal text-primary underline underline-offset-2"
+                >
+                  Ver archivo
+                </a>
+              )}
+            </p>
+          </div>
           <Dato label="Observaciones" valor={ingreso.observaciones ?? "—"} />
         </CardContent>
       </Card>

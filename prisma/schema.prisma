@@ -1341,6 +1341,13 @@ model IngresoIQF {
   horaIngreso     String?
   placaTransporte String?
   observaciones   String?
+  // Guía de remisión física del transportista (obligatoria, ver
+  // ingresoIQFSchema) — mismo criterio que IngresoAlmacen.guiaRemisionArchivo:
+  // guiaRemisionArchivo es la ruta (no URL pública) dentro del bucket
+  // privado de Supabase Storage (ver lib/storage.ts), descargada vía
+  // GET /api/ingreso-iqf/[id]/guia.
+  numeroGuiaRemision   String?
+  guiaRemisionArchivo  String?
   estado          EstadoDocumento @default(BORRADOR)
   creadoPorId     String?
   createdAt       DateTime        @default(now())

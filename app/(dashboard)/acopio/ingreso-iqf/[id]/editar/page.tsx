@@ -59,6 +59,8 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
     proveedorId: ingreso.proveedorId,
     horaIngreso: ingreso.horaIngreso ?? "",
     placaTransporte: ingreso.placaTransporte ?? "",
+    numeroGuiaRemision: ingreso.numeroGuiaRemision ?? "",
+    guiaRemisionArchivo: ingreso.guiaRemisionArchivo ?? "",
     observaciones: ingreso.observaciones ?? "",
     pallets: ingreso.pallets.map((linea) => ({
       variedad: linea.variedad,

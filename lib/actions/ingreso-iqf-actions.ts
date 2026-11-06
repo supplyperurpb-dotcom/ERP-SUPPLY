@@ -3,12 +3,46 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { subirArchivo } from "@/lib/storage";
 import { ingresoIQFSchema, type IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
 import { TIPO_PRODUCTO_DESCARTE_PLANTA } from "@/lib/constants/iqf";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import { maximoNumero, siguienteNumero } from "@/lib/utils";
 
 export type IngresoIQFActionState = { error?: string; success?: boolean; id?: string } | undefined;
+
+const TIPOS_GUIA_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic"];
+
+// Sube la foto/escaneo/PDF de la guía de remisión antes de registrar el
+// ingreso IQF (mismo criterio que subirGuiaRemisionIngresoAction en
+// lib/actions/ingreso-almacen-actions.ts) — nunca se confía en el nombre
+// de archivo del cliente para la ruta final.
+export async function subirGuiaRemisionIngresoIQFAction(formData: FormData): Promise<{ path?: string; error?: string }> {
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Selecciona un archivo." };
+  }
+  if (!TIPOS_GUIA_PERMITIDOS.includes(archivo.type)) {
+    return { error: "Formato no permitido. Sube una foto (JPG/PNG/HEIC) o un PDF." };
+  }
+  if (archivo.size > 10 * 1024 * 1024) {
+    return { error: "El archivo no puede superar 10 MB." };
+  }
+
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const extension = archivo.name.includes(".") ? archivo.name.split(".").pop() : "bin";
+  const ruta = `ingresos-iqf/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+
+  try {
+    const path = await subirArchivo(ruta, archivo);
+    return { path };
+  } catch (e) {
+    console.error("Error subiendo guía de remisión de Ingreso IQF:", e);
+    return { error: e instanceof Error ? e.message : "No se pudo subir el archivo." };
+  }
+}
 
 type LineaCalculada = {
   numeroPallet: number;
@@ -269,6 +303,8 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
           proveedorId: parsed.data.proveedorId,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
+          numeroGuiaRemision: parsed.data.numeroGuiaRemision,
+          guiaRemisionArchivo: parsed.data.guiaRemisionArchivo,
           observaciones: parsed.data.observaciones || null,
           creadoPorId: usuario?.id,
           pallets: {
@@ -416,6 +452,8 @@ export async function actualizarIngresoIQFAction(
           proveedorId: parsed.data.proveedorId,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
+          numeroGuiaRemision: parsed.data.numeroGuiaRemision,
+          guiaRemisionArchivo: parsed.data.guiaRemisionArchivo,
           observaciones: parsed.data.observaciones || null,
           pallets: {
             create: lineasCalculadas.map((linea) => {
