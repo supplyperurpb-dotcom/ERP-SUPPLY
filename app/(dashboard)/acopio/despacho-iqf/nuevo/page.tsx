@@ -4,8 +4,10 @@ import { DespachoIQFForm } from "./despacho-iqf-form";
 
 export default async function NuevoDespachoIQFPage() {
   const [tarjasDb, vehiculosDb] = await Promise.all([
+    // Solo pallets CERRADOS pueden salir en un despacho (ver mismo
+    // criterio en acopio/despacho/nuevo/page.tsx).
     prisma.tarjaIQF.findMany({
-      where: { despachoId: null },
+      where: { despachoId: null, pallet: { estado: "CERRADO" } },
       include: { pallet: true },
       orderBy: { numero: "asc" },
     }),

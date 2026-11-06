@@ -4,8 +4,12 @@ import { DespachoForm } from "./despacho-form";
 
 export default async function NuevoDespachoPage() {
   const [tarjasDb, camionesDb, conductoresDb] = await Promise.all([
+    // Solo pallets CERRADOS (no admiten más bandejas) pueden salir en un
+    // despacho — una tarja puede existir para un pallet todavía abierto
+    // (sale con marca de agua "BORRADOR", ver tarja-pdf.ts), pero ese no
+    // está listo para despachar.
     prisma.tarja.findMany({
-      where: { despachoId: null },
+      where: { despachoId: null, pallet: { estado: "CERRADO" } },
       include: { pallet: true },
       orderBy: { numero: "asc" },
     }),
