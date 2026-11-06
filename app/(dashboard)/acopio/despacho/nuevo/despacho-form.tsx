@@ -28,6 +28,9 @@ type CamionOption = { id: string; placa: string; tipo: string };
 type ConductorOption = { id: string; nombre: string };
 
 const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
+// Pedido explícito: el destino de todo despacho de materia prima
+// exportable es siempre el mismo, no hay nada que elegir por despacho.
+const DESTINO_FIJO = "Agrícola Andrea";
 
 export function DespachoForm({
   tarjasDisponibles,
@@ -176,6 +179,16 @@ export function DespachoForm({
               value={fechaRegistro}
             />
             <p className="text-xs text-muted-foreground">Fecha en la que se registró este despacho, no se puede modificar.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="destino">Destino</Label>
+            <Input
+              id="destino"
+              readOnly
+              disabled
+              className="cursor-not-allowed bg-muted opacity-70"
+              value={DESTINO_FIJO}
+            />
           </div>
         </CardContent>
       </Card>

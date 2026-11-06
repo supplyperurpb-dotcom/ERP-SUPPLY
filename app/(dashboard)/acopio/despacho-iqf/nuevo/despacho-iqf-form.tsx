@@ -75,8 +75,8 @@ export function DespachoIQFForm({
       toast.error(resultado.error);
       return;
     }
-    toast.success("Despacho IQF registrado");
-    router.push("/acopio/despacho-iqf");
+    toast.success("Carga finalizada");
+    router.push(resultado?.id ? `/acopio/despacho-iqf/${resultado.id}` : "/acopio/despacho-iqf");
   }
 
   return (
@@ -252,7 +252,7 @@ export function DespachoIQFForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting || tarjasDisponibles.length === 0}>
-          {form.formState.isSubmitting ? "Guardando..." : "Registrar despacho"}
+          {form.formState.isSubmitting ? "Guardando..." : "Finalizar carga"}
         </Button>
       </div>
     </form>

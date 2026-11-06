@@ -18,23 +18,29 @@ export type LineaPackingListAcopio = {
 };
 
 export async function generarPackingListAcopioPdf({
+  titulo = "PACKING LIST ACOPIO",
   numero,
   placaCamion,
   conductor,
   fechaDespacho,
   horaDespacho,
   numeroGuiaRemision,
+  destino,
   lineas,
   totalBandejas,
   pesoNetoTotalKg,
   borrador,
 }: {
+  /** "PACKING LIST ACOPIO" (fruta exportable) o "PACKING LIST INDUSTRIAL ACOPIO" (IQF/descarte). */
+  titulo?: string;
   numero: string;
   placaCamion: string;
   conductor: string;
   fechaDespacho: Date;
   horaDespacho: string | null;
   numeroGuiaRemision: string | null;
+  /** Solo el despacho de fruta exportable tiene un destino fijo (ver despacho-form.tsx). */
+  destino?: string;
   lineas: LineaPackingListAcopio[];
   totalBandejas: number;
   pesoNetoTotalKg: number;
@@ -57,7 +63,7 @@ export async function generarPackingListAcopioPdf({
   y -= 14;
   centrado("Ica, Perú", 9, regular, GRIS);
   y -= 22;
-  centrado("PACKING LIST ACOPIO", 18);
+  centrado(titulo, 18);
   y -= 24;
   centrado(numero, 16, bold, NEGRO);
   y -= 30;
@@ -78,6 +84,11 @@ export async function generarPackingListAcopioPdf({
   dato(colIzqX, y, "Fecha de despacho", `${fechaDespacho.toLocaleDateString("es-PE")}${horaDespacho ? ` ${horaDespacho}` : ""}`);
   dato(colDerX, y, "N.º de guía de remisión", numeroGuiaRemision || "— (pendiente)");
   y -= 36;
+
+  if (destino) {
+    dato(colIzqX, y, "Destino", destino);
+    y -= 36;
+  }
 
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO - MARGEN, y }, thickness: 0.5, color: GRIS });
   y -= 20;

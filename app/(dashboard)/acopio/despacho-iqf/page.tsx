@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/shared/page-header";
@@ -88,6 +89,7 @@ export default async function DespachoIQFPage({
                 <TableHead>Número</TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>Conductor</TableHead>
+                <TableHead>Estado</TableHead>
                 <TableHead>Guía de remisión</TableHead>
                 <TableHead>Fecha de despacho</TableHead>
                 <TableHead>N.º de tarjas</TableHead>
@@ -101,9 +103,18 @@ export default async function DespachoIQFPage({
                 const totalNeto = d.tarjas.reduce((acc, t) => acc + Number(t.pallet.pesoNetoKg), 0);
                 return (
                   <TableRow key={d.id}>
-                    <TableCell className="font-medium">{d.numero}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/acopio/despacho-iqf/${d.id}`} className="text-primary hover:underline">
+                        {d.numero}
+                      </Link>
+                    </TableCell>
                     <TableCell>{d.placaCamion}</TableCell>
                     <TableCell>{d.conductor}</TableCell>
+                    <TableCell>
+                      <Badge variant={d.estado === "CULMINADO" ? "success" : "secondary"}>
+                        {d.estado === "CULMINADO" ? "Culminado" : "Borrador"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{d.numeroGuiaRemision ?? "—"}</TableCell>
                     <TableCell>
                       {formatDate(d.fechaDespacho)}

@@ -1495,17 +1495,26 @@ model TarjaIQF {
   @@map("tarjas_iqf")
 }
 
+// Mismo criterio que Despacho (ver su comentario): nace en BORRADOR, su
+// Packing List Industrial Acopio sale con marca de agua "BORRADOR" hasta
+// "Culminar proceso" (exige número de guía + adjunto).
 model DespachoIQF {
-  id                 String   @id @default(cuid())
-  numero             String   @unique // ej. DESPIQF-0001
-  placaCamion        String
-  conductor          String
-  fechaDespacho      DateTime
-  horaDespacho       String?
-  numeroGuiaRemision String? // guía de remisión física del transportista
-  creadoPorId        String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String         @id @default(cuid())
+  numero              String         @unique // ej. DESPIQF-0001
+  placaCamion         String
+  conductor           String
+  fechaDespacho       DateTime
+  horaDespacho        String?
+  numeroGuiaRemision  String? // guía de remisión física del transportista
+  // Ruta (no URL pública) del archivo subido con la guía de remisión
+  // física (foto/escaneo/PDF) — mismo criterio que Despacho.guiaRemisionArchivo.
+  // Se descarga vía GET /api/despachos-iqf/[id]/guia.
+  guiaRemisionArchivo String?
+  estado              EstadoDespacho @default(BORRADOR)
+  culminadoEn         DateTime?
+  creadoPorId         String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   tarjas TarjaIQF[]
 

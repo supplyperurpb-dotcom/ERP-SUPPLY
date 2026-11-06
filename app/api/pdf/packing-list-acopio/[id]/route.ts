@@ -23,6 +23,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     fechaDespacho: despacho.fechaDespacho,
     horaDespacho: despacho.horaDespacho,
     numeroGuiaRemision: despacho.numeroGuiaRemision,
+    // Pedido explícito: todo despacho de materia prima exportable va al
+    // mismo destino fijo (ver DESTINO_FIJO en despacho-form.tsx).
+    destino: "Agrícola Andrea",
     lineas: despacho.tarjas.map((t) => ({
       tarjaNumero: t.numero,
       palletNumero: t.pallet.numero,

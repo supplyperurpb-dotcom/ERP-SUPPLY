@@ -111,6 +111,10 @@ export function PackingListAcopioView({
             <p className="text-xs text-muted-foreground">N.º de tarjas</p>
             <p className="font-medium">{tarjas.length}</p>
           </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Destino</p>
+            <p className="font-medium">Agrícola Andrea</p>
+          </div>
         </CardContent>
       </Card>
 
