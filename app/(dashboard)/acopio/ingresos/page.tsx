@@ -40,7 +40,7 @@ export default async function IngresosFrutaPage({
   const where: Prisma.IngresoFrutaWhereInput = {
     ...(fechaIngreso ? { fechaIngreso } : {}),
     ...(numero ? { numero: { contains: numero, mode: "insensitive" } } : {}),
-    ...(fundo ? { proveedor: { razonSocial: { contains: fundo, mode: "insensitive" } } } : {}),
+    ...(fundo ? { pallets: { some: { proveedor: { razonSocial: { contains: fundo, mode: "insensitive" } } } } } : {}),
     ...(variedad ? { pallets: { some: { variedad: { contains: variedad, mode: "insensitive" } } } } : {}),
   };
 
@@ -49,8 +49,9 @@ export default async function IngresosFrutaPage({
     prisma.ingresoFruta.findMany({
       where,
       include: {
-        proveedor: true,
-        pallets: { select: { modulo: true, variedad: true, cantidadBandejas: true, pesoNetoKg: true } },
+        pallets: {
+          select: { modulo: true, variedad: true, cantidadBandejas: true, pesoNetoKg: true, proveedor: { select: { razonSocial: true } } },
+        },
         _count: { select: { pallets: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -151,6 +152,7 @@ export default async function IngresosFrutaPage({
                 const pesoNetoTotal = ingreso.pallets.reduce((acc, p) => acc + Number(p.pesoNetoKg), 0);
                 const totalBandejas = ingreso.pallets.reduce((acc, p) => acc + p.cantidadBandejas, 0);
                 const modulos = Array.from(new Set(ingreso.pallets.map((p) => p.modulo))).join(", ");
+                const fundos = Array.from(new Set(ingreso.pallets.map((p) => p.proveedor.razonSocial))).join(", ");
                 return (
                   <TableRow key={ingreso.id} className="cursor-pointer">
                     <TableCell className="font-medium">
@@ -158,7 +160,7 @@ export default async function IngresosFrutaPage({
                         {ingreso.numero}
                       </Link>
                     </TableCell>
-                    <TableCell>{ingreso.proveedor.razonSocial}</TableCell>
+                    <TableCell>{fundos || "—"}</TableCell>
                     <TableCell>{ingreso.placaTransporte ?? "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate" title={modulos}>
                       {modulos || "—"}

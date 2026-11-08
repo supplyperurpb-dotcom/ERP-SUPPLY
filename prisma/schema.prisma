@@ -243,7 +243,7 @@ model Proveedor {
   updatedAt       DateTime               @updatedAt
 
   ordenesCompra       OrdenCompra[]
-  ingresosFruta       IngresoFruta[]
+  lineasIngresoFruta  IngresoFrutaPallet[]
   ingresosIndustrial         IngresoIndustrial[]
   ingresosAlmacen     IngresoAlmacen[]
   devolucionesAlmacen DevolucionAlmacen[]
@@ -1136,11 +1136,11 @@ model TipoPallet {
 // Representa la llegada de un camión con materia prima: se registra una
 // sola vez por camión (placa, hora de recepción) y agrupa una o más líneas
 // de pesaje (IngresoFrutaPallet), porque un mismo camión puede traer fruta
-// de varios módulos/turnos/variedades del fundo.
+// de varios módulos/turnos/variedades e incluso de más de un fundo — por
+// eso el fundo (proveedorId) vive en la línea, no acá (ver IngresoFrutaPallet).
 model IngresoFruta {
   id              String          @id @default(cuid())
   numero          String          @unique // ej. IF-0001
-  proveedorId     String
   fechaCosecha    DateTime
   fechaIngreso    DateTime        @default(now())
   horaIngreso     String?
@@ -1152,7 +1152,6 @@ model IngresoFruta {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  proveedor     Proveedor            @relation(fields: [proveedorId], references: [id])
   pallets       IngresoFrutaPallet[]
   guiasRemision GuiaRemision[]
 
@@ -1192,6 +1191,10 @@ model IngresoFrutaPallet {
   id               String   @id @default(cuid())
   ingresoFrutaId   String
   numeroPallet     Int // correlativo de la línea dentro de este ingreso (no es el número del Pallet físico)
+  // Fundo de origen de ESTA línea — vive acá y no en IngresoFruta porque un
+  // mismo camión puede traer fruta de dos fundos distintos en el mismo
+  // ingreso (una línea por fundo).
+  proveedorId      String
   // Exactamente uno de los dos está presente, según tipoProducto: las líneas
   // "Exportable" arman un Pallet normal; las líneas "Descarte Campo" arman
   // un PalletIndustrial (mismo pool físico que usa Ingreso Industrial Planta) para que su tarja
@@ -1213,6 +1216,7 @@ model IngresoFrutaPallet {
   updatedAt        DateTime @updatedAt
 
   ingresoFruta IngresoFruta              @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
+  proveedor    Proveedor                 @relation(fields: [proveedorId], references: [id])
   pallet       Pallet?                   @relation(fields: [palletId], references: [id])
   palletIndustrial    PalletIndustrial?                @relation(fields: [palletIndustrialId], references: [id])
   tipoPallet   TipoPallet?               @relation(fields: [tipoPalletId], references: [id])

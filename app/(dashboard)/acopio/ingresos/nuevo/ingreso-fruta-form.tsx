@@ -66,6 +66,7 @@ function tiposBandejaDisponibles(todos: TipoBandejaOption[], tipoProducto: strin
 }
 
 const LINEA_VACIA = {
+  proveedorId: "",
   modulo: "",
   turno: "",
   variedad: "",
@@ -117,7 +118,6 @@ export function IngresoFrutaForm({
   const form = useForm<IngresoFrutaInput>({
     resolver: zodResolver(ingresoFrutaSchema),
     defaultValues: edicion?.valoresIniciales ?? {
-      proveedorId: "",
       // El <input type="date"> trabaja con un string "YYYY-MM-DD" en la fecha
       // LOCAL del navegador (toISOString() da la fecha en UTC, que puede caer
       // un día antes o después según la hora); react-hook-form lo deja pasar
@@ -133,16 +133,15 @@ export function IngresoFrutaForm({
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "pallets" });
   const pallets = useWatch({ control: form.control, name: "pallets" }) ?? [];
-  const proveedorIdSeleccionado = useWatch({ control: form.control, name: "proveedorId" });
 
   // Cada fundo cosecha solo de ciertos módulos (ver MODULOS_POR_FUNDO). Si el
   // fundo elegido no está en ese catálogo (uno nuevo, sin configurar), se
-  // permiten todos los módulos.
-  const razonSocialSeleccionada = proveedores
-    .find((p) => p.id === proveedorIdSeleccionado)
-    ?.razonSocial.toUpperCase();
-  const modulosDisponibles: readonly string[] =
-    (razonSocialSeleccionada && MODULOS_POR_FUNDO[razonSocialSeleccionada]) || MODULOS_ACOPIO;
+  // permiten todos los módulos. Es por línea: un mismo camión puede traer
+  // fruta de dos fundos distintos, cada uno con su propio fundo.
+  function modulosDisponiblesParaFundo(proveedorId: string | undefined): readonly string[] {
+    const razonSocial = proveedores.find((p) => p.id === proveedorId)?.razonSocial.toUpperCase();
+    return (razonSocial && MODULOS_POR_FUNDO[razonSocial]) || MODULOS_ACOPIO;
+  }
 
   const filasCalculadas = pallets.map((pallet) => {
     const taraUnitaria = taraPorTipo.get(pallet?.tipoBandejaId ?? "") ?? 0;
@@ -294,50 +293,6 @@ export function IngresoFrutaForm({
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
-            <Label>Fundo</Label>
-            <Controller
-              control={form.control}
-              name="proveedorId"
-              render={({ field }) => (
-                <Select
-                  value={field.value}
-                  onValueChange={(valor) => {
-                    field.onChange(valor);
-                    // Si el módulo de alguna línea ya no es válido para el
-                    // nuevo fundo, se resetea junto con variedad y turno
-                    // (misma cascada que al cambiar el módulo de una línea).
-                    const nuevaRazonSocial = proveedores.find((p) => p.id === valor)?.razonSocial.toUpperCase();
-                    const nuevosModulos: readonly string[] =
-                      (nuevaRazonSocial && MODULOS_POR_FUNDO[nuevaRazonSocial]) || MODULOS_ACOPIO;
-                    pallets.forEach((_, i) => {
-                      const moduloActual = form.getValues(`pallets.${i}.modulo`);
-                      if (moduloActual && !nuevosModulos.includes(moduloActual)) {
-                        form.setValue(`pallets.${i}.modulo`, "", { shouldValidate: true });
-                        form.setValue(`pallets.${i}.variedad`, "", { shouldValidate: true });
-                        form.setValue(`pallets.${i}.turno`, "", { shouldValidate: true });
-                      }
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un fundo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {proveedores.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.razonSocial}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {form.formState.errors.proveedorId && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.proveedorId.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="placaTransporte">Placa del vehículo</Label>
             <Controller
               control={form.control}
@@ -469,7 +424,48 @@ export function IngresoFrutaForm({
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fundo</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.proveedorId`}
+                      render={({ field: selectField }) => (
+                        <Select
+                          value={selectField.value}
+                          onValueChange={(valor) => {
+                            selectField.onChange(valor);
+                            // Si el módulo de esta línea ya no es válido para
+                            // el nuevo fundo, se resetea junto con variedad y
+                            // turno (misma cascada que al cambiar el módulo).
+                            const nuevosModulos = modulosDisponiblesParaFundo(valor);
+                            const moduloActual = form.getValues(`pallets.${index}.modulo`);
+                            if (moduloActual && !nuevosModulos.includes(moduloActual)) {
+                              form.setValue(`pallets.${index}.modulo`, "", { shouldValidate: true });
+                              form.setValue(`pallets.${index}.variedad`, "", { shouldValidate: true });
+                              form.setValue(`pallets.${index}.turno`, "", { shouldValidate: true });
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un fundo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {proveedores.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.razonSocial}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.pallets?.[index]?.proveedorId && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.proveedorId?.message}
+                      </p>
+                    )}
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Módulo</Label>
                     <Controller
@@ -493,12 +489,15 @@ export function IngresoFrutaForm({
                               }
                             }
                           }}
+                          disabled={!pallets[index]?.proveedorId}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecciona..." />
+                            <SelectValue
+                              placeholder={pallets[index]?.proveedorId ? "Selecciona..." : "Elige un fundo primero"}
+                            />
                           </SelectTrigger>
                           <SelectContent>
-                            {modulosDisponibles.map((m) => (
+                            {modulosDisponiblesParaFundo(pallets[index]?.proveedorId).map((m) => (
                               <SelectItem key={m} value={m}>
                                 {m}
                               </SelectItem>

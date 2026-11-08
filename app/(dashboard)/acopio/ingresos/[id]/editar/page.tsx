@@ -73,7 +73,6 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
   }
 
   const valoresIniciales: IngresoFrutaInput = {
-    proveedorId: ingreso.proveedorId,
     // Igual que al crear: string "YYYY-MM-DD", no objeto Date (zod lo
     // convierte recién al validar). toISOString() aquí es seguro porque la
     // fecha se guardó a partir de ese mismo formato (medianoche UTC).
@@ -83,6 +82,7 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
     conductor: ingreso.conductor ?? "",
     observaciones: ingreso.observaciones ?? "",
     pallets: ingreso.pallets.map((linea) => ({
+      proveedorId: linea.proveedorId,
       modulo: linea.modulo,
       turno: linea.turno,
       variedad: linea.variedad,

@@ -36,9 +36,8 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
   const ingreso = await prisma.ingresoFruta.findUnique({
     where: { id },
     include: {
-      proveedor: true,
       pallets: {
-        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIndustrial: true },
+        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIndustrial: true, proveedor: true },
         orderBy: { numeroPallet: "asc" },
       },
     },
@@ -84,7 +83,6 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
           <CardTitle className="text-base">Datos del camión</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <Dato label="Fundo" valor={ingreso.proveedor.razonSocial} />
           <Dato label="Placa del vehículo" valor={ingreso.placaTransporte ?? "—"} />
           <Dato label="Conductor" valor={ingreso.conductor ?? "—"} />
           <Dato label="Hora de recepción" valor={ingreso.horaIngreso ?? "—"} />
@@ -108,6 +106,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Fundo</TableHead>
                     <TableHead>Módulo</TableHead>
                     <TableHead>Turno</TableHead>
                     <TableHead>Variedad</TableHead>
@@ -125,6 +124,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
                 <TableBody>
                   {ingreso.pallets.map((linea) => (
                     <TableRow key={linea.id}>
+                      <TableCell>{linea.proveedor.razonSocial}</TableCell>
                       <TableCell>{linea.modulo}</TableCell>
                       <TableCell>{linea.turno}</TableCell>
                       <TableCell>{linea.variedad}</TableCell>

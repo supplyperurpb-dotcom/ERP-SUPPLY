@@ -11,6 +11,7 @@ import { z } from "zod";
 // El id real del pallet nuevo se genera en el server action, no en el
 // cliente (para asegurar el correlativo).
 export const palletFormSchema = z.object({
+  proveedorId: z.string().min(1, "Selecciona el fundo"),
   modulo: z.string().min(1, "El módulo es obligatorio").max(50),
   turno: z.string().min(1, "El turno es obligatorio").max(50),
   variedad: z.string().min(1, "La variedad es obligatoria").max(50),
@@ -33,8 +34,9 @@ export const palletFormSchema = z.object({
 export type PalletFormInput = z.infer<typeof palletFormSchema>;
 
 // La cabecera representa la llegada del camión: se registra una sola vez.
+// El fundo ya no vive acá (ver palletFormSchema.proveedorId): un mismo
+// camión puede traer fruta de más de un fundo, una línea por cada uno.
 export const ingresoFrutaSchema = z.object({
-  proveedorId: z.string().min(1, "Selecciona el proveedor/fundo"),
   fechaCosecha: z.coerce.date({ invalid_type_error: "Ingresa la fecha de cosecha" }),
   horaIngreso: z.string().min(1, "La hora de recepción es obligatoria").max(10),
   placaTransporte: z.string().min(1, "La placa del vehículo es obligatoria").max(20),

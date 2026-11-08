@@ -30,9 +30,8 @@ export async function GET(request: Request) {
   const ingresos = await prisma.ingresoFruta.findMany({
     where: fechaIngreso ? { fechaIngreso } : undefined,
     include: {
-      proveedor: true,
       pallets: {
-        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIndustrial: true },
+        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIndustrial: true, proveedor: true },
         orderBy: { numeroPallet: "asc" },
       },
     },
@@ -72,7 +71,7 @@ export async function GET(request: Request) {
         "Número de ingreso": ingreso.numero,
         Productor: PRODUCTOR,
         RUC: RUC_PRODUCTOR,
-        Fundo: ingreso.proveedor.razonSocial,
+        Fundo: "",
         Placa: ingreso.placaTransporte ?? "",
         "Fecha de cosecha": formatDate(ingreso.fechaCosecha),
         "Fecha de ingreso": formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" }),
@@ -100,7 +99,7 @@ export async function GET(request: Request) {
         "Número de ingreso": ingreso.numero,
         Productor: PRODUCTOR,
         RUC: RUC_PRODUCTOR,
-        Fundo: ingreso.proveedor.razonSocial,
+        Fundo: linea.proveedor.razonSocial,
         Placa: ingreso.placaTransporte ?? "",
         "Fecha de cosecha": formatDate(ingreso.fechaCosecha),
         "Fecha de ingreso": formatDate(ingreso.fechaIngreso, { timeZone: "America/Lima" }),

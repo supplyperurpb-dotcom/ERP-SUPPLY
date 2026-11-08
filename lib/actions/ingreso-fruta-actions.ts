@@ -11,6 +11,7 @@ export type IngresoFrutaActionState = { error?: string; success?: boolean; id?: 
 
 type LineaCalculada = {
   numeroPallet: number;
+  proveedorId: string;
   modulo: string;
   turno: string;
   variedad: string;
@@ -88,6 +89,7 @@ async function calcularLineas(pallets: IngresoFrutaInput["pallets"]): Promise<Li
     const pesoTaraTotalKg = taraBandejas + taraPallet;
     return {
       numeroPallet: index + 1,
+      proveedorId: linea.proveedorId,
       modulo: linea.modulo,
       turno: linea.turno,
       variedad: linea.variedad,
@@ -162,6 +164,7 @@ function sumar(lineas: LineaCalculada[]) {
 function datosLineaCrear(linea: LineaCalculada, palletId: string, esDescarteCampo: boolean) {
   return {
     numeroPallet: linea.numeroPallet,
+    proveedorId: linea.proveedorId,
     palletId: esDescarteCampo ? null : palletId,
     palletIndustrialId: esDescarteCampo ? palletId : null,
     modulo: linea.modulo,
@@ -327,7 +330,6 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
       return tx.ingresoFruta.create({
         data: {
           numero,
-          proveedorId: parsed.data.proveedorId,
           fechaCosecha: parsed.data.fechaCosecha,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
@@ -562,7 +564,6 @@ export async function actualizarIngresoFrutaAction(
       await tx.ingresoFruta.update({
         where: { id: ingresoId },
         data: {
-          proveedorId: parsed.data.proveedorId,
           fechaCosecha: parsed.data.fechaCosecha,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,

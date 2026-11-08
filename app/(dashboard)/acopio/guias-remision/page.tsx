@@ -9,7 +9,7 @@ import { formatDate, formatCantidad } from "@/lib/utils";
 
 export default async function GuiasRemisionPage() {
   const guias = await prisma.guiaRemision.findMany({
-    include: { ingresoFruta: { include: { proveedor: true } } },
+    include: { detalles: { include: { pallet: { include: { proveedor: true } } } } },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -48,20 +48,25 @@ export default async function GuiasRemisionPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {guias.map((guia) => (
-              <TableRow key={guia.id}>
-                <TableCell className="font-medium">{guia.serie}-{guia.numero}</TableCell>
-                <TableCell>{guia.tipoGuia === "REMITENTE" ? "Remitente" : "Transportista"}</TableCell>
-                <TableCell>{guia.ingresoFruta.proveedor.razonSocial}</TableCell>
-                <TableCell>{formatDate(guia.fechaTraslado)}</TableCell>
-                <TableCell>{formatCantidad(Number(guia.pesoBrutoTotalKg))} kg</TableCell>
-                <TableCell>
-                  <Badge variant={guia.estado === "EMITIDA" ? "success" : "secondary"}>
-                    {guia.estado === "EMITIDA" ? "Emitida" : "Anulada"}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+            {guias.map((guia) => {
+              const fundos = Array.from(
+                new Set(guia.detalles.map((d) => d.pallet.proveedor.razonSocial))
+              ).join(", ");
+              return (
+                <TableRow key={guia.id}>
+                  <TableCell className="font-medium">{guia.serie}-{guia.numero}</TableCell>
+                  <TableCell>{guia.tipoGuia === "REMITENTE" ? "Remitente" : "Transportista"}</TableCell>
+                  <TableCell>{fundos || "—"}</TableCell>
+                  <TableCell>{formatDate(guia.fechaTraslado)}</TableCell>
+                  <TableCell>{formatCantidad(Number(guia.pesoBrutoTotalKg))} kg</TableCell>
+                  <TableCell>
+                    <Badge variant={guia.estado === "EMITIDA" ? "success" : "secondary"}>
+                      {guia.estado === "EMITIDA" ? "Emitida" : "Anulada"}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

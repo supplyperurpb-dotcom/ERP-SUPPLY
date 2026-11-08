@@ -86,7 +86,7 @@ export default async function TarjasIndustrialPage({
         tarja: { include: { despacho: true } },
         lineas: { select: { variedad: true } },
         lineasFruta: {
-          select: { variedad: true, ingresoFruta: { select: { proveedor: { select: { razonSocial: true } } } } },
+          select: { variedad: true, proveedor: { select: { razonSocial: true } } },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -178,7 +178,7 @@ export default async function TarjasIndustrialPage({
                 // fundo — solo el descarte de campo (lineasFruta / IngresoFruta)
                 // puede aportar uno acá.
                 const proveedores = Array.from(
-                  new Set(pallet.lineasFruta.map((l) => l.ingresoFruta.proveedor.razonSocial))
+                  new Set(pallet.lineasFruta.map((l) => l.proveedor.razonSocial))
                 ).join(", ");
                 const detalle = Array.from(
                   new Set([...pallet.lineas.map((l) => l.variedad), ...pallet.lineasFruta.map((l) => l.variedad)])

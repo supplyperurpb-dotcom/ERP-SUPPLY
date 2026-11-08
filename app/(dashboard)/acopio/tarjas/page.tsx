@@ -41,7 +41,6 @@ export default async function TarjasPage({
     : null;
 
   const filtroIngresoFruta: Prisma.IngresoFrutaWhereInput = {
-    ...(fundo ? { proveedor: { razonSocial: { contains: fundo, mode: "insensitive" } } } : {}),
     ...(fechaCosecha ? { fechaCosecha } : {}),
     ...(ingresoFiltrado ? { id: ingresoId } : {}),
   };
@@ -53,6 +52,7 @@ export default async function TarjasPage({
           lineas: {
             some: {
               ...(Object.keys(filtroIngresoFruta).length > 0 ? { ingresoFruta: filtroIngresoFruta } : {}),
+              ...(fundo ? { proveedor: { razonSocial: { contains: fundo, mode: "insensitive" } } } : {}),
               ...(variedad ? { variedad: { contains: variedad, mode: "insensitive" } } : {}),
             },
           },
@@ -66,7 +66,7 @@ export default async function TarjasPage({
       where,
       include: {
         tarja: { include: { despacho: true } },
-        lineas: { select: { modulo: true, variedad: true, ingresoFruta: { select: { proveedor: { select: { razonSocial: true } } } } } },
+        lineas: { select: { modulo: true, variedad: true, proveedor: { select: { razonSocial: true } } } },
       },
       orderBy: { createdAt: "desc" },
       skip: (pagina - 1) * REGISTROS_POR_PAGINA,
@@ -155,9 +155,7 @@ export default async function TarjasPage({
             </TableHeader>
             <TableBody>
               {pallets.map((pallet) => {
-                const proveedores = Array.from(
-                  new Set(pallet.lineas.map((l) => l.ingresoFruta.proveedor.razonSocial))
-                ).join(", ");
+                const proveedores = Array.from(new Set(pallet.lineas.map((l) => l.proveedor.razonSocial))).join(", ");
                 const detalle = Array.from(
                   new Set(pallet.lineas.map((l) => `${l.modulo} / ${l.variedad}`))
                 ).join(", ");

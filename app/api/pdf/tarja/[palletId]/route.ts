@@ -9,7 +9,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
     include: {
       tarja: true,
       lineas: {
-        include: { tipoBandeja: true, ingresoFruta: { include: { proveedor: true } } },
+        include: { tipoBandeja: true, proveedor: true },
         orderBy: { numeroPallet: "asc" },
       },
     },
@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
     return NextResponse.json({ error: "No se encontró la tarja de este pallet." }, { status: 404 });
   }
 
-  const proveedores = Array.from(new Set(pallet.lineas.map((l) => l.ingresoFruta.proveedor.razonSocial)));
+  const proveedores = Array.from(new Set(pallet.lineas.map((l) => l.proveedor.razonSocial)));
 
   const bytes = await generarTarjaPdf({
     tarjaNumero: pallet.tarja.numero,
