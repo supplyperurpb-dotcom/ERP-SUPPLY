@@ -84,7 +84,7 @@ export default async function TarjasIQFPage({
       where,
       include: {
         tarja: { include: { despacho: true } },
-        lineas: { select: { variedad: true, ingresoIQF: { select: { proveedor: { select: { razonSocial: true } } } } } },
+        lineas: { select: { variedad: true } },
         lineasFruta: {
           select: { variedad: true, ingresoFruta: { select: { proveedor: { select: { razonSocial: true } } } } },
         },
@@ -174,11 +174,11 @@ export default async function TarjasIQFPage({
             </TableHeader>
             <TableBody>
               {pallets.map((pallet) => {
+                // El descarte de planta (pallet.lineas / IngresoIQF) ya no tiene
+                // fundo — solo el descarte de campo (lineasFruta / IngresoFruta)
+                // puede aportar uno acá.
                 const proveedores = Array.from(
-                  new Set([
-                    ...pallet.lineas.map((l) => l.ingresoIQF.proveedor.razonSocial),
-                    ...pallet.lineasFruta.map((l) => l.ingresoFruta.proveedor.razonSocial),
-                  ])
+                  new Set(pallet.lineasFruta.map((l) => l.ingresoFruta.proveedor.razonSocial))
                 ).join(", ");
                 const detalle = Array.from(
                   new Set([...pallet.lineas.map((l) => l.variedad), ...pallet.lineasFruta.map((l) => l.variedad)])

@@ -43,7 +43,7 @@ export default async function NuevoIngresoPage() {
     <div>
       <PageHeader
         titulo="Nuevo ingreso de materia prima"
-        descripcion="Registra la llegada de un camión a planta: se ingresa una sola vez (placa, hora de recepción) y puede tener varias líneas de pesaje, cada una con su propio módulo, turno y variedad, asignada a un pallet físico (nuevo o existente, máximo 240 bandejas). Las líneas de Descarte Campo arman pallets IQF en vez de pallets normales."
+        descripcion="Registra la llegada de un camión a planta: se ingresa una sola vez (placa, hora de recepción) y puede tener varias líneas de pesaje, cada una con su propio módulo, turno y variedad, asignada a un pallet físico (nuevo o existente, máximo 256 bandejas). Las líneas de Descarte Campo arman pallets IQF en vez de pallets normales."
       />
       <IngresoFrutaForm
         proveedores={proveedores}

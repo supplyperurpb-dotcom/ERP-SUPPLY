@@ -32,7 +32,15 @@ export const TURNOS_POR_MODULO_VARIEDAD: Record<string, Record<string, string[]>
   },
 };
 
-export const FORMATOS_LINEA_PESAJE = ["DOTA SB", "DOTA PINTA", "DOTA 18 OZ YL", "DHK 4.4OZ", "DOC 4.4 OZ", "DHK S&C"] as const;
+export const FORMATOS_LINEA_PESAJE = [
+  "DOTA SB",
+  "DOTA PINTA",
+  "DOTA 18 OZ YL",
+  "DHK 4.4 OZ",
+  "DOC 4.4 OZ",
+  "DHK S&C",
+  "DEMEA 4.4 OZ",
+] as const;
 
 export const TIPOS_PRODUCTO_LINEA_PESAJE = ["Exportable", "Descarte Campo"] as const;
 

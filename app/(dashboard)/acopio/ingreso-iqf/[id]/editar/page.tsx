@@ -7,12 +7,8 @@ import type { IngresoIQFInput } from "@/lib/validations/ingreso-iqf";
 export default async function EditarIngresoIQFPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, camionesDb, conductoresDb] = await Promise.all([
+  const [ingreso, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, camionesDb, conductoresDb] = await Promise.all([
     prisma.ingresoIQF.findUnique({ where: { id }, include: { pallets: true } }),
-    prisma.proveedor.findMany({
-      where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
-      orderBy: { razonSocial: "asc" },
-    }),
     prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.tipoPallet.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.palletIQF.findMany({
@@ -36,7 +32,6 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
     ? await prisma.palletIQF.findMany({ where: { id: { in: idsPalletsPropios } } })
     : [];
 
-  const proveedores = proveedoresDb.map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
   const tiposBandeja = tiposBandejaDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const tiposPallet = tiposPalletDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
@@ -58,7 +53,6 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
   }
 
   const valoresIniciales: IngresoIQFInput = {
-    proveedorId: ingreso.proveedorId,
     horaIngreso: ingreso.horaIngreso ?? "",
     placaTransporte: ingreso.placaTransporte ?? "",
     conductor: ingreso.conductor ?? "",
@@ -85,7 +79,6 @@ export default async function EditarIngresoIQFPage({ params }: { params: Promise
         descripcion="Modifica los datos del camión y sus líneas de pesaje. Los totales de los pallets IQF afectados se recalculan automáticamente al guardar."
       />
       <IngresoIQFForm
-        proveedores={proveedores}
         tiposBandeja={tiposBandeja}
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}

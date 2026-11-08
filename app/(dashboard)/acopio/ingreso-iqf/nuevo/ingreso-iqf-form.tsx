@@ -33,7 +33,6 @@ import {
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
 import { VARIEDADES_IQF } from "@/lib/constants/iqf";
 
-type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
 type TipoPalletOption = { id: string; nombre: string; pesoTaraKg: string };
 type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
@@ -61,7 +60,6 @@ const LINEA_VACIA = {
 };
 
 export function IngresoIQFForm({
-  proveedores,
   tiposBandeja,
   tiposPallet,
   palletsAbiertos,
@@ -69,7 +67,6 @@ export function IngresoIQFForm({
   conductores,
   edicion,
 }: {
-  proveedores: ProveedorOption[];
   tiposBandeja: TipoBandejaOption[];
   tiposPallet: TipoPalletOption[];
   palletsAbiertos: PalletAbierto[];
@@ -104,7 +101,6 @@ export function IngresoIQFForm({
   const form = useForm<IngresoIQFInput>({
     resolver: zodResolver(ingresoIQFSchema),
     defaultValues: edicion?.valoresIniciales ?? {
-      proveedorId: "",
       horaIngreso: horaLocalAhora(),
       placaTransporte: "",
       conductor: "",
@@ -276,31 +272,6 @@ export function IngresoIQFForm({
           <CardTitle className="text-base">Datos del camión</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Fundo</Label>
-            <Controller
-              control={form.control}
-              name="proveedorId"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un fundo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {proveedores.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.razonSocial}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {form.formState.errors.proveedorId && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.proveedorId.message}</p>
-            )}
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="placaTransporte">Placa del vehículo</Label>
             <Controller
@@ -511,7 +482,6 @@ export function IngresoIQFForm({
                         {form.formState.errors.pallets[index]?.fechaCosecha?.message}
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground">Debe coincidir con una fecha en la que Ingreso de Materia Prima registró esta variedad.</p>
                   </div>
                 </div>
 

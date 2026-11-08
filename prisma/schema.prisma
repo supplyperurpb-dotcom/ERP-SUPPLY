@@ -1394,7 +1394,10 @@ model GuiaRemisionDetalle {
 model IngresoIQF {
   id              String          @id @default(cuid())
   numero          String          @unique // ej. IQF-0001
-  proveedorId     String
+  // Campo "Fundo" eliminado del flujo (descarte de planta no tiene un
+  // fundo de origen que elegir) — queda opcional en vez de borrarse, para
+  // no perder el dato en los ingresos ya registrados antes de este cambio.
+  proveedorId     String?
   // Ya no vive acá: cada línea tiene su propia fecha de cosecha (ver
   // IngresoIQFPallet.fechaCosecha), porque un mismo camión puede traer
   // descarte de variedades cosechadas en fechas distintas.
@@ -1415,7 +1418,7 @@ model IngresoIQF {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  proveedor Proveedor          @relation(fields: [proveedorId], references: [id])
+  proveedor Proveedor?         @relation(fields: [proveedorId], references: [id])
   pallets   IngresoIQFPallet[]
 
   @@map("ingresos_iqf")

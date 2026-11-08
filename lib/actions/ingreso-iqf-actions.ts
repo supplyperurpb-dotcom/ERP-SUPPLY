@@ -87,35 +87,9 @@ async function validarBandejaContraExistente(
   }
 }
 
-// Regla de negocio pedida por el usuario: el descarte de planta de una
-// variedad solo se puede registrar en una fecha de cosecha en la que esa
-// variedad SÍ llegó como materia prima (Ingreso de Materia Prima). Evita
-// registrar por error un descarte de una variedad que ese día no se cosechó.
-// Cada línea tiene su propia fecha de cosecha, así que se valida cada
-// combinación (fecha, variedad) por separado.
-async function validarVariedadesContraMateriaPrima(lineas: { variedad: string; fechaCosecha: Date }[]) {
-  const combinacionesUnicas = Array.from(
-    new Map(lineas.map((l) => [`${l.fechaCosecha.toISOString()}|${l.variedad}`, l])).values()
-  );
-
-  for (const { variedad, fechaCosecha } of combinacionesUnicas) {
-    const registro = await prisma.ingresoFrutaPallet.findFirst({
-      where: { variedad, ingresoFruta: { fechaCosecha } },
-      select: { id: true },
-    });
-    if (!registro) {
-      throw new ErrorValidacion(
-        `No se tuvo registro de la variedad "${variedad}" en la fecha de cosecha ingresada (${fechaCosecha.toLocaleDateString("es-PE")}). Verifica la fecha o la variedad.`
-      );
-    }
-  }
-}
-
 // Calcula tara/neto por línea y valida que los tipos de bandeja/pallet
 // referenciados sigan existiendo. Compartido por crear y actualizar.
 async function calcularLineas(pallets: IngresoIQFInput["pallets"]): Promise<LineaCalculada[]> {
-  await validarVariedadesContraMateriaPrima(pallets.map((p) => ({ variedad: p.variedad, fechaCosecha: p.fechaCosecha })));
-
   const tiposBandeja = await prisma.tipoBandeja.findMany({
     where: { id: { in: pallets.map((p) => p.tipoBandejaId) } },
   });
@@ -300,7 +274,6 @@ export async function crearIngresoIQFAction(data: IngresoIQFInput): Promise<Ingr
       return tx.ingresoIQF.create({
         data: {
           numero,
-          proveedorId: parsed.data.proveedorId,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
           conductor: parsed.data.conductor,
@@ -450,7 +423,6 @@ export async function actualizarIngresoIQFAction(
       await tx.ingresoIQF.update({
         where: { id: ingresoId },
         data: {
-          proveedorId: parsed.data.proveedorId,
           horaIngreso: parsed.data.horaIngreso,
           placaTransporte: parsed.data.placaTransporte,
           conductor: parsed.data.conductor,

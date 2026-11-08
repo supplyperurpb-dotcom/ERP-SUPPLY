@@ -48,7 +48,6 @@ export default async function IngresoIQFPage({
     prisma.ingresoIQF.findMany({
       where,
       include: {
-        proveedor: true,
         pallets: { select: { variedad: true, cantidadBandejas: true, pesoNetoKg: true } },
         _count: { select: { pallets: true } },
       },
@@ -118,7 +117,6 @@ export default async function IngresoIQFPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Número</TableHead>
-                <TableHead>Fundo</TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>Variedades</TableHead>
                 <TableHead>Fecha de ingreso</TableHead>
@@ -140,7 +138,6 @@ export default async function IngresoIQFPage({
                         {ingreso.numero}
                       </Link>
                     </TableCell>
-                    <TableCell>{ingreso.proveedor.razonSocial}</TableCell>
                     <TableCell>{ingreso.placaTransporte ?? "—"}</TableCell>
                     <TableCell className="max-w-[200px] truncate" title={variedades}>
                       {variedades || "—"}

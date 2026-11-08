@@ -9,7 +9,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
     include: {
       tarja: true,
       lineas: {
-        include: { tipoBandeja: true, ingresoIQF: { include: { proveedor: true } } },
+        include: { tipoBandeja: true },
         orderBy: { numeroPallet: "asc" },
       },
       lineasFruta: {
@@ -23,12 +23,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
     return NextResponse.json({ error: "No se encontró la tarja de este pallet." }, { status: 404 });
   }
 
-  const proveedores = Array.from(
-    new Set([
-      ...pallet.lineas.map((l) => l.ingresoIQF.proveedor.razonSocial),
-      ...pallet.lineasFruta.map((l) => l.ingresoFruta.proveedor.razonSocial),
-    ])
-  );
+  // El descarte de planta (pallet.lineas / IngresoIQF) ya no tiene fundo —
+  // solo el descarte de campo (lineasFruta / IngresoFruta) puede aportar uno.
+  const proveedores = Array.from(new Set(pallet.lineasFruta.map((l) => l.ingresoFruta.proveedor.razonSocial)));
 
   const bytes = await generarTarjaIQFPdf({
     tarjaNumero: pallet.tarja.numero,

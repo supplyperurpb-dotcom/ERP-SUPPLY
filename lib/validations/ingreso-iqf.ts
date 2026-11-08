@@ -22,7 +22,6 @@ export const palletIQFFormSchema = z.object({
 export type PalletIQFFormInput = z.infer<typeof palletIQFFormSchema>;
 
 export const ingresoIQFSchema = z.object({
-  proveedorId: z.string().min(1, "Selecciona el proveedor/fundo"),
   horaIngreso: z.string().min(1, "La hora de recepción es obligatoria").max(10),
   placaTransporte: z.string().min(1, "La placa del vehículo es obligatoria").max(20),
   conductor: z.string().min(1, "Selecciona el conductor").max(150),

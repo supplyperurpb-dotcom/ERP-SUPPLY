@@ -3,11 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { IngresoIQFForm } from "./ingreso-iqf-form";
 
 export default async function NuevoIngresoIQFPage() {
-  const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, camionesDb, conductoresDb] = await Promise.all([
-    prisma.proveedor.findMany({
-      where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
-      orderBy: { razonSocial: "asc" },
-    }),
+  const [tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, camionesDb, conductoresDb] = await Promise.all([
     prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.tipoPallet.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.palletIQF.findMany({
@@ -20,7 +16,6 @@ export default async function NuevoIngresoIQFPage() {
 
   // Se mapea explícitamente a objetos planos: el campo Decimal de Prisma no
   // se puede pasar tal cual a un Client Component (ver lib/utils.ts).
-  const proveedores = proveedoresDb.map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
   const tiposBandeja = tiposBandejaDb.map((t) => ({
     id: t.id,
     nombre: t.nombre,
@@ -39,10 +34,9 @@ export default async function NuevoIngresoIQFPage() {
     <div>
       <PageHeader
         titulo="Nuevo ingreso IQF"
-        descripcion="Registra el descarte de planta: se ingresa una sola vez por camión (placa, hora de recepción) y puede tener varias líneas de pesaje por variedad, asignadas a un pallet físico propio de IQF (nuevo o existente, máximo 240 bandejas). Se valida que la variedad ingresada sí se haya recibido en Ingreso de Materia Prima en la fecha de cosecha indicada."
+        descripcion="Registra el descarte de planta: se ingresa una sola vez por camión (placa, hora de recepción) y puede tener varias líneas de pesaje por variedad, asignadas a un pallet físico propio de IQF (nuevo o existente, máximo 256 bandejas)."
       />
       <IngresoIQFForm
-        proveedores={proveedores}
         tiposBandeja={tiposBandeja}
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}

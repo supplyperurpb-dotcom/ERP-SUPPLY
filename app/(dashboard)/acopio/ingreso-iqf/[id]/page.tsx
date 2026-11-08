@@ -36,7 +36,6 @@ export default async function DetalleIngresoIQFPage({ params }: { params: Promis
   const ingreso = await prisma.ingresoIQF.findUnique({
     where: { id },
     include: {
-      proveedor: true,
       pallets: {
         include: { tipoBandeja: true, tipoPallet: true, pallet: true },
         orderBy: { numeroPallet: "asc" },
@@ -84,7 +83,6 @@ export default async function DetalleIngresoIQFPage({ params }: { params: Promis
           <CardTitle className="text-base">Datos del camión</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <Dato label="Fundo" valor={ingreso.proveedor.razonSocial} />
           <Dato label="Placa del vehículo" valor={ingreso.placaTransporte ?? "—"} />
           <Dato label="Conductor" valor={ingreso.conductor ?? "—"} />
           <Dato label="Hora de recepción" valor={ingreso.horaIngreso ?? "—"} />
