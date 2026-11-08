@@ -38,7 +38,7 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
     include: {
       proveedor: true,
       pallets: {
-        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIQF: true },
+        include: { tipoBandeja: true, tipoPallet: true, pallet: true, palletIndustrial: true },
         orderBy: { numeroPallet: "asc" },
       },
     },
@@ -144,13 +144,13 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
                               {ESTADO_PALLET_LABEL[linea.pallet.estado]}
                             </Badge>
                           </div>
-                        ) : linea.palletIQF ? (
+                        ) : linea.palletIndustrial ? (
                           <div className="flex items-center gap-2">
-                            <span>{linea.palletIQF.numero}</span>
-                            <Badge variant={linea.palletIQF.estado === "CERRADO" ? "success" : "secondary"}>
-                              {ESTADO_PALLET_LABEL[linea.palletIQF.estado]}
+                            <span>{linea.palletIndustrial.numero}</span>
+                            <Badge variant={linea.palletIndustrial.estado === "CERRADO" ? "success" : "secondary"}>
+                              {ESTADO_PALLET_LABEL[linea.palletIndustrial.estado]}
                             </Badge>
-                            <Badge variant="outline">IQF</Badge>
+                            <Badge variant="outline">Industrial</Badge>
                           </div>
                         ) : (
                           "—"
@@ -184,9 +184,9 @@ export default async function DetalleIngresoPage({ params }: { params: Promise<{
         <Button variant="outline" asChild>
           <Link href={`/acopio/tarjas?ingresoId=${ingreso.id}`}>Ir a Tarjas para generar la etiqueta del pallet</Link>
         </Button>
-        {ingreso.pallets.some((p) => p.palletIQF) && (
+        {ingreso.pallets.some((p) => p.palletIndustrial) && (
           <Button variant="outline" asChild>
-            <Link href={`/acopio/tarjas-iqf?ingresoFrutaId=${ingreso.id}`}>Ir a Tarjas IQF (líneas de Descarte Campo)</Link>
+            <Link href={`/acopio/tarjas-industrial?ingresoFrutaId=${ingreso.id}`}>Ir a Tarjas Industrial (líneas de Descarte Campo)</Link>
           </Button>
         )}
       </div>

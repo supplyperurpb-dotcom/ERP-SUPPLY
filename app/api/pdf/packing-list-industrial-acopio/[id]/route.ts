@@ -4,7 +4,7 @@ import { generarPackingListAcopioPdf } from "@/lib/pdf/packing-list-acopio-pdf";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const despacho = await prisma.despachoIQF.findUnique({
+  const despacho = await prisma.despachoIndustrial.findUnique({
     where: { id },
     include: { tarjas: { include: { pallet: true }, orderBy: { numero: "asc" } } },
   });

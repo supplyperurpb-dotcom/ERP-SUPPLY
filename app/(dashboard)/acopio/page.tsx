@@ -29,21 +29,21 @@ const TILES = [
     icono: FileText,
   },
   {
-    titulo: "Ingreso IQF",
+    titulo: "Ingreso Industrial Planta",
     descripcion: "Registro de descarte de planta, independiente de la fruta.",
-    href: "/acopio/ingreso-iqf",
+    href: "/acopio/ingreso-industrial",
     icono: Snowflake,
   },
   {
-    titulo: "Tarjas IQF",
+    titulo: "Tarjas Industrial",
     descripcion: "Etiquetas de pallets de descarte, de campo o de planta.",
-    href: "/acopio/tarjas-iqf",
+    href: "/acopio/tarjas-industrial",
     icono: Tag,
   },
   {
-    titulo: "Despacho IQF",
-    descripcion: "Salida de pallets IQF despachados hacia su destino.",
-    href: "/acopio/despacho-iqf",
+    titulo: "Despacho Industrial",
+    descripcion: "Salida de pallets Industrial despachados hacia su destino.",
+    href: "/acopio/despacho-industrial",
     icono: Truck,
   },
   {

@@ -16,7 +16,7 @@ import { cn, rangoFechaCosecha, rangoSemanaISO, semanaISOConAnio } from "@/lib/u
 // "Aprovechable" es todo lo registrado como "Exportable" en Ingreso de
 // Materia Prima, tal cual (sin restarle nada). "Nacional Campo" es todo lo
 // que NO es exportable: las líneas "Descarte Campo" de Ingreso de Materia
-// Prima más todo lo registrado en Ingreso IQF (que en este fundo también es
+// Prima más todo lo registrado en Ingreso Industrial Planta (que en este fundo también es
 // descarte de campo, no de planta). Por eso:
 //   Total Recepcionado = Aprovechable + Nacional Campo
 // y nunca da negativo, porque ningún término se resta.
@@ -53,7 +53,7 @@ export default async function ReporteAcopioPage({
     };
   }
 
-  const [lineasFruta, lineasIQF, fechasFruta, fechasIQF] = await Promise.all([
+  const [lineasFruta, lineasIndustrial, fechasFruta, fechasIndustrial] = await Promise.all([
     prisma.ingresoFrutaPallet.findMany({
       where: fechaCosecha ? { ingresoFruta: { fechaCosecha } } : undefined,
       select: {
@@ -63,9 +63,9 @@ export default async function ReporteAcopioPage({
         ingresoFruta: { select: { fechaCosecha: true } },
       },
     }),
-    // Todo lo registrado en Ingreso IQF cuenta como Nacional Campo (ver
+    // Todo lo registrado en Ingreso Industrial Planta cuenta como Nacional Campo (ver
     // comentario arriba: acá no se distingue descarte de planta).
-    prisma.ingresoIQFPallet.findMany({
+    prisma.ingresoIndustrialPallet.findMany({
       where: fechaCosecha ? { fechaCosecha } : undefined,
       select: {
         variedad: true,
@@ -77,11 +77,11 @@ export default async function ReporteAcopioPage({
     // para que el desplegable de semanas siempre muestre todas las semanas
     // con datos, no solo las del filtro ya aplicado.
     prisma.ingresoFruta.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
-    prisma.ingresoIQFPallet.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
+    prisma.ingresoIndustrialPallet.findMany({ select: { fechaCosecha: true }, distinct: ["fechaCosecha"] }),
   ]);
 
   const semanasDisponiblesMap = new Map<string, { anio: number; semana: number }>();
-  for (const { fechaCosecha: f } of [...fechasFruta, ...fechasIQF]) {
+  for (const { fechaCosecha: f } of [...fechasFruta, ...fechasIndustrial]) {
     const { anio, semana } = semanaISOConAnio(f);
     semanasDisponiblesMap.set(`${anio}-${semana}`, { anio, semana });
   }
@@ -111,7 +111,7 @@ export default async function ReporteAcopioPage({
       fila.nacionalCampo += neto;
     }
   }
-  for (const linea of lineasIQF) {
+  for (const linea of lineasIndustrial) {
     const fila = obtenerFila(linea.fechaCosecha, linea.variedad);
     fila.nacionalCampo += Number(linea.pesoNetoKg);
   }
@@ -199,7 +199,7 @@ export default async function ReporteAcopioPage({
 
       <PageHeader
         titulo="Reporte de Acopio"
-        descripcion="Resumen de volumen aprovechable y nacional por variedad y semana de cosecha. Aprovechable = todo lo registrado como Exportable en Ingreso de Materia Prima. Nacional Campo = Descarte Campo de Materia Prima + todo lo registrado en Ingreso IQF. Recepcionado = Aprovechable + Nacional Campo."
+        descripcion="Resumen de volumen aprovechable y nacional por variedad y semana de cosecha. Aprovechable = todo lo registrado como Exportable en Ingreso de Materia Prima. Nacional Campo = Descarte Campo de Materia Prima + todo lo registrado en Ingreso Industrial Planta. Recepcionado = Aprovechable + Nacional Campo."
       />
 
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
@@ -245,7 +245,7 @@ export default async function ReporteAcopioPage({
         <EmptyState
           icono={BarChart3}
           titulo="Todavía no hay datos para mostrar"
-          descripcion="Registra ingresos en Ingreso de Materia Prima (y, si corresponde, en Ingreso IQF) para ver el resumen acá."
+          descripcion="Registra ingresos en Ingreso de Materia Prima (y, si corresponde, en Ingreso Industrial Planta) para ver el resumen acá."
         />
       ) : (
         <>

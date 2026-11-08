@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { IngresoFrutaForm } from "./ingreso-fruta-form";
 
 export default async function NuevoIngresoPage() {
-  const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIQFDb, camionesDb, conductoresDb] =
+  const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIndustrialDb, camionesDb, conductoresDb] =
     await Promise.all([
       prisma.proveedor.findMany({
         where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
@@ -12,7 +12,7 @@ export default async function NuevoIngresoPage() {
       prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
       prisma.tipoPallet.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
       prisma.pallet.findMany({ where: { estado: "ABIERTO" }, orderBy: { numero: "asc" } }),
-      prisma.palletIQF.findMany({
+      prisma.palletIndustrial.findMany({
         where: { estado: "ABIERTO", origen: "DESCARTE_CAMPO" },
         orderBy: { numero: "asc" },
       }),
@@ -35,7 +35,7 @@ export default async function NuevoIngresoPage() {
   }));
   // cantidadBandejas es Int (no Decimal), así que no necesita conversión.
   const palletsAbiertos = palletsAbiertosDb.map((p) => ({ id: p.id, numero: p.numero, cantidadBandejas: p.cantidadBandejas }));
-  const palletsAbiertosIQF = palletsAbiertosIQFDb.map((p) => ({ id: p.id, numero: p.numero, cantidadBandejas: p.cantidadBandejas }));
+  const palletsAbiertosIndustrial = palletsAbiertosIndustrialDb.map((p) => ({ id: p.id, numero: p.numero, cantidadBandejas: p.cantidadBandejas }));
   const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
   const conductores = conductoresDb.map((c) => ({ id: c.id, nombre: c.nombre }));
 
@@ -43,14 +43,14 @@ export default async function NuevoIngresoPage() {
     <div>
       <PageHeader
         titulo="Nuevo ingreso de materia prima"
-        descripcion="Registra la llegada de un camión a planta: se ingresa una sola vez (placa, hora de recepción) y puede tener varias líneas de pesaje, cada una con su propio módulo, turno y variedad, asignada a un pallet físico (nuevo o existente, máximo 256 bandejas). Las líneas de Descarte Campo arman pallets IQF en vez de pallets normales."
+        descripcion="Registra la llegada de un camión a planta: se ingresa una sola vez (placa, hora de recepción) y puede tener varias líneas de pesaje, cada una con su propio módulo, turno y variedad, asignada a un pallet físico (nuevo o existente, máximo 256 bandejas). Las líneas de Descarte Campo arman pallets Industrial en vez de pallets normales."
       />
       <IngresoFrutaForm
         proveedores={proveedores}
         tiposBandeja={tiposBandeja}
         tiposPallet={tiposPallet}
         palletsAbiertos={palletsAbiertos}
-        palletsAbiertosIQF={palletsAbiertosIQF}
+        palletsAbiertosIndustrial={palletsAbiertosIndustrial}
         camiones={camiones}
         conductores={conductores}
       />

@@ -1,0 +1,706 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { Package, PackagePlus, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TIPOS_CAMION } from "@/lib/validations/transporte";
+import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
+import { ingresoIndustrialSchema, type IngresoIndustrialInput } from "@/lib/validations/ingreso-industrial";
+import {
+  crearIngresoIndustrialAction,
+  actualizarIngresoIndustrialAction,
+  subirGuiaRemisionIngresoIndustrialAction,
+} from "@/lib/actions/ingreso-industrial-actions";
+import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET as CAPACIDAD_MAXIMA } from "@/lib/constants/pallet";
+import { VARIEDADES_INDUSTRIAL } from "@/lib/constants/industrial";
+
+type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
+type TipoPalletOption = { id: string; nombre: string; pesoTaraKg: string };
+type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
+type PalletNuevo = { tempId: string; etiqueta: string };
+type CamionOption = { id: string; placa: string; tipo: string };
+type ConductorOption = { id: string; nombre: string };
+
+const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
+
+// Radix Select no permite un SelectItem con value="" (lo reserva para el
+// placeholder), así que se usa este sentinel para representar "sin pallet".
+const SIN_PALLET = "__sin_pallet__";
+
+const LINEA_VACIA = {
+  variedad: "",
+  // Cada línea trae su propia fecha de cosecha (un camión puede traer
+  // descarte de variedades cosechadas en fechas distintas) — se parte de
+  // hoy por conveniencia, el usuario la cambia si corresponde.
+  fechaCosecha: fechaLocalHoy() as unknown as Date,
+  tipoBandejaId: "",
+  tipoPalletId: "",
+  cantidadBandejas: 0,
+  pesoBrutoTotalKg: 0,
+  palletAsignado: "",
+};
+
+export function IngresoIndustrialForm({
+  tiposBandeja,
+  tiposPallet,
+  palletsAbiertos,
+  camiones,
+  conductores,
+  edicion,
+}: {
+  tiposBandeja: TipoBandejaOption[];
+  tiposPallet: TipoPalletOption[];
+  palletsAbiertos: PalletAbierto[];
+  camiones: CamionOption[];
+  conductores: ConductorOption[];
+  /** Presente solo cuando el formulario edita un ingreso Industrial Planta ya existente. */
+  edicion?: {
+    ingresoId: string;
+    valoresIniciales: IngresoIndustrialInput;
+    /** bandejas que este mismo ingreso ya aportaba a cada pallet (para
+     * "liberar" ese espacio en el cálculo de capacidad mientras se edita). */
+    contribucionOriginalPorPallet: Record<string, number>;
+    /** Fecha real en la que se creó este ingreso (IngresoIndustrial.fechaIngreso), solo para mostrarla fija en "Fecha de registro". */
+    fechaRegistro: string;
+  };
+}) {
+  const router = useRouter();
+  const taraPorTipo = new Map(tiposBandeja.map((t) => [t.id, Number(t.pesoTaraKg)]));
+  const taraPorTipoPallet = new Map(tiposPallet.map((t) => [t.id, Number(t.pesoTaraKg)]));
+  const contribucionOriginal = edicion?.contribucionOriginalPorPallet ?? {};
+  // "Fecha de registro": fija, no editable. Al crear es hoy; al editar, la
+  // fecha real en la que se creó el ingreso (IngresoIndustrial.fechaIngreso).
+  const fechaRegistro = edicion?.fechaRegistro ?? fechaLocalHoy();
+
+  const [palletsNuevos, setPalletsNuevos] = useState<PalletNuevo[]>([]);
+  const [lineaDialogoAbierto, setLineaDialogoAbierto] = useState<number | null>(null);
+  const contadorPalletNuevo = useRef(0);
+  const [archivoFile, setArchivoFile] = useState<File | null>(null);
+  const [subiendoArchivo, setSubiendoArchivo] = useState(false);
+  const archivoActual = edicion?.valoresIniciales.guiaRemisionArchivo;
+
+  const form = useForm<IngresoIndustrialInput>({
+    resolver: zodResolver(ingresoIndustrialSchema),
+    defaultValues: edicion?.valoresIniciales ?? {
+      horaIngreso: horaLocalAhora(),
+      placaTransporte: "",
+      conductor: "",
+      numeroGuiaRemision: "",
+      guiaRemisionArchivo: "",
+      observaciones: "",
+      pallets: [LINEA_VACIA],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "pallets" });
+  const pallets = useWatch({ control: form.control, name: "pallets" }) ?? [];
+
+  const filasCalculadas = pallets.map((pallet) => {
+    const taraUnitaria = taraPorTipo.get(pallet?.tipoBandejaId ?? "") ?? 0;
+    const taraPallet = pallet?.tipoPalletId ? taraPorTipoPallet.get(pallet.tipoPalletId) ?? 0 : 0;
+    const cantidad = Number(pallet?.cantidadBandejas) || 0;
+    const pesoBruto = Number(pallet?.pesoBrutoTotalKg) || 0;
+    const pesoTara = cantidad * taraUnitaria + taraPallet;
+    const pesoNeto = pesoBruto - pesoTara;
+    return { pesoTara, pesoNeto };
+  });
+
+  const totales = filasCalculadas.reduce(
+    (acc, fila, i) => ({
+      cantidadBandejas: acc.cantidadBandejas + (Number(pallets[i]?.cantidadBandejas) || 0),
+      pesoBruto: acc.pesoBruto + (Number(pallets[i]?.pesoBrutoTotalKg) || 0),
+      pesoNeto: acc.pesoNeto + fila.pesoNeto,
+    }),
+    { cantidadBandejas: 0, pesoBruto: 0, pesoNeto: 0 }
+  );
+
+  // Bandejas ya asignadas a cada pallet abierto/nuevo *dentro de este mismo
+  // formulario* (para calcular cuánto espacio le queda a cada uno en vivo).
+  function bandejasAsignadasEnFormulario(destino: string, excluirIndex?: number) {
+    return pallets.reduce((acc, p, i) => {
+      if (i === excluirIndex) return acc;
+      return p?.palletAsignado === destino ? acc + (Number(p.cantidadBandejas) || 0) : acc;
+    }, 0);
+  }
+
+  function etiquetaAsignacion(valor: string | undefined): string | null {
+    if (!valor) return null;
+    const [tipo, id] = valor.split(":");
+    if (tipo === "nuevo") return palletsNuevos.find((p) => p.tempId === id)?.etiqueta ?? null;
+    if (tipo === "existente") return palletsAbiertos.find((p) => p.id === id)?.numero ?? null;
+    return null;
+  }
+
+  function crearPalletNuevo(index: number) {
+    contadorPalletNuevo.current += 1;
+    const tempId = `t${contadorPalletNuevo.current}`;
+    const etiqueta = `Pallet nuevo #${contadorPalletNuevo.current}`;
+    setPalletsNuevos((prev) => [...prev, { tempId, etiqueta }]);
+    form.setValue(`pallets.${index}.palletAsignado`, `nuevo:${tempId}`, { shouldValidate: true });
+  }
+
+  function asignarPalletExistente(index: number, destino: string) {
+    form.setValue(`pallets.${index}.palletAsignado`, destino, { shouldValidate: true });
+    setLineaDialogoAbierto(null);
+  }
+
+  // "Cambiar" quita la asignación de esta línea. Si esa línea era la única
+  // que apuntaba a un pallet nuevo (creado con "Crear pallet nuevo" pero
+  // recién) el pallet temporal se descarta en vez de quedar huérfano en la
+  // lista de "nuevos en este formulario".
+  function quitarAsignacion(index: number) {
+    const valorActual = pallets[index]?.palletAsignado;
+    form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true });
+
+    if (valorActual?.startsWith("nuevo:")) {
+      const tempId = valorActual.slice("nuevo:".length);
+      const otraLineaLoUsa = pallets.some((p, i) => i !== index && p?.palletAsignado === valorActual);
+      if (!otraLineaLoUsa) {
+        setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
+      }
+    }
+  }
+
+  useEffect(() => {
+    const errorPallets = form.formState.errors.pallets;
+    if (errorPallets && !Array.isArray(errorPallets)) {
+      toast.error(errorPallets.message ?? "Revisa las líneas de pesaje");
+    }
+  }, [form.formState.errors.pallets]);
+
+  async function handleSubmitConArchivo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!archivoFile && !archivoActual) {
+      toast.error("Adjunta la guía de remisión (foto o PDF)");
+      return;
+    }
+
+    if (archivoFile) {
+      setSubiendoArchivo(true);
+      try {
+        const fd = new FormData();
+        fd.set("archivo", archivoFile);
+        const resultado = await subirGuiaRemisionIngresoIndustrialAction(fd);
+        if (resultado.error || !resultado.path) {
+          toast.error(resultado.error ?? "No se pudo subir la guía de remisión");
+          return;
+        }
+        form.setValue("guiaRemisionArchivo", resultado.path, { shouldValidate: true });
+      } finally {
+        setSubiendoArchivo(false);
+      }
+    }
+
+    await form.handleSubmit(onSubmit)();
+  }
+
+  async function onSubmit(data: IngresoIndustrialInput) {
+    let resultado;
+    try {
+      resultado = edicion
+        ? await actualizarIngresoIndustrialAction(edicion.ingresoId, data)
+        : await crearIngresoIndustrialAction(data);
+    } catch (err) {
+      console.error("Error al guardar el ingreso Industrial Planta:", err);
+      const detalle = err instanceof Error ? err.message : String(err);
+      toast.error(`No se pudo guardar: ${detalle}`);
+      return;
+    }
+    if (resultado?.error) {
+      toast.error(resultado.error);
+      return;
+    }
+    if (edicion) {
+      toast.success("Ingreso Industrial Planta actualizado");
+      router.push(`/acopio/ingreso-industrial/${edicion.ingresoId}`);
+    } else {
+      toast.success("Ingreso Industrial Planta registrado");
+      router.push(resultado?.id ? `/acopio/ingreso-industrial/${resultado.id}` : "/acopio/ingreso-industrial");
+    }
+  }
+
+  // Opciones disponibles para el diálogo de "asignar a pallet existente":
+  // pallets abiertos en BD + pallets nuevos creados en este mismo formulario,
+  // con la capacidad restante calculada en vivo.
+  const opcionesDialogo = lineaDialogoAbierto === null
+    ? { abiertos: [], nuevos: [] }
+    : {
+        abiertos: palletsAbiertos
+          .map((p) => ({
+            ...p,
+            // Se suma de vuelta lo que este mismo ingreso ya le había
+            // aportado a este pallet: mientras se edita, ese espacio está
+            // "liberado" hasta que se guarde de nuevo.
+            restante:
+              CAPACIDAD_MAXIMA -
+              p.cantidadBandejas +
+              (contribucionOriginal[p.id] ?? 0) -
+              bandejasAsignadasEnFormulario(`existente:${p.id}`, lineaDialogoAbierto),
+          }))
+          .filter((p) => p.restante > 0),
+        nuevos: palletsNuevos
+          .map((p) => ({
+            ...p,
+            restante: CAPACIDAD_MAXIMA - bandejasAsignadasEnFormulario(`nuevo:${p.tempId}`, lineaDialogoAbierto),
+          }))
+          .filter((p) => p.restante > 0),
+      };
+
+  return (
+    <form onSubmit={handleSubmitConArchivo} className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Datos del camión</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="placaTransporte">Placa del vehículo</Label>
+            <Controller
+              control={form.control}
+              name="placaTransporte"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="placaTransporte">
+                    <SelectValue placeholder="Selecciona un camión" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camiones.map((c) => (
+                      <SelectItem key={c.id} value={c.placa}>
+                        {c.placa} — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {camiones.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay camiones registrados. Créalos en Información Transporte.
+              </p>
+            )}
+            {form.formState.errors.placaTransporte && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.placaTransporte.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="conductor">Conductor</Label>
+            <Controller
+              control={form.control}
+              name="conductor"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="conductor">
+                    <SelectValue placeholder="Selecciona un conductor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conductores.map((c) => (
+                      <SelectItem key={c.id} value={c.nombre}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {conductores.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay conductores registrados. Créalos en Información Transporte.
+              </p>
+            )}
+            {form.formState.errors.conductor && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.conductor.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="horaIngreso">Hora de recepción</Label>
+            <Input
+              id="horaIngreso"
+              type="time"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("horaIngreso")}
+            />
+            <p className="text-xs text-muted-foreground">Se registra con la hora actual, no se puede modificar.</p>
+            {form.formState.errors.horaIngreso && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.horaIngreso.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fechaRegistro">Fecha de registro</Label>
+            <Input
+              id="fechaRegistro"
+              type="date"
+              readOnly
+              disabled
+              className="cursor-not-allowed bg-muted opacity-70"
+              value={fechaRegistro}
+            />
+            <p className="text-xs text-muted-foreground">Fecha en la que se registró este ingreso, no se puede modificar.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="numeroGuiaRemision">N.º de guía de remisión</Label>
+            <Input id="numeroGuiaRemision" {...form.register("numeroGuiaRemision")} />
+            {form.formState.errors.numeroGuiaRemision && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.numeroGuiaRemision.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="archivoGuia">Guía de remisión (foto o PDF)</Label>
+            <div className="flex items-center gap-3">
+              {archivoActual && !archivoFile && edicion && (
+                <a
+                  href={`/api/ingreso-industrial/${edicion.ingresoId}/guia`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary underline underline-offset-2"
+                >
+                  Ver archivo actual
+                </a>
+              )}
+              <Input
+                id="archivoGuia"
+                type="file"
+                accept="application/pdf,image/*"
+                onChange={(e) => setArchivoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            {archivoFile && <p className="text-xs text-muted-foreground">Seleccionado: {archivoFile.name}</p>}
+            {form.formState.errors.guiaRemisionArchivo && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.guiaRemisionArchivo.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
+            <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">Líneas de pesaje</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Descarte de planta por variedad, asignado a un pallet físico propio de Industrial (máximo{" "}
+              {CAPACIDAD_MAXIMA} bandejas por pallet).
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => append(LINEA_VACIA)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Agregar línea
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {fields.map((field, index) => {
+            const asignacion = etiquetaAsignacion(pallets[index]?.palletAsignado);
+            return (
+              <div key={field.id} className="rounded-lg border p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Línea {index + 1}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={fields.length === 1}
+                    onClick={() => {
+                      const valorActual = pallets[index]?.palletAsignado;
+                      if (valorActual?.startsWith("nuevo:")) {
+                        const tempId = valorActual.slice("nuevo:".length);
+                        const otraLineaLoUsa = pallets.some((p, i) => i !== index && p?.palletAsignado === valorActual);
+                        if (!otraLineaLoUsa) {
+                          setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
+                        }
+                      }
+                      remove(index);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Variedad</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.variedad`}
+                      render={({ field: selectField }) => (
+                        <Select value={selectField.value} onValueChange={selectField.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VARIEDADES_INDUSTRIAL.map((v) => (
+                              <SelectItem key={v} value={v}>
+                                {v}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.pallets?.[index]?.variedad && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.variedad?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo de producto</Label>
+                    <Input value="Descarte Planta" disabled readOnly />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Fecha de cosecha</Label>
+                    <Input type="date" {...form.register(`pallets.${index}.fechaCosecha`)} />
+                    {form.formState.errors.pallets?.[index]?.fechaCosecha && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.fechaCosecha?.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <Separator className="my-3" />
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs">Tipo de bandeja</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.tipoBandejaId`}
+                      render={({ field: selectField }) => (
+                        <Select value={selectField.value} onValueChange={selectField.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tiposBandeja.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.pallets?.[index]?.tipoBandejaId && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.tipoBandejaId?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo de pallet (opcional)</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.tipoPalletId`}
+                      render={({ field: selectField }) => (
+                        <Select
+                          value={selectField.value || SIN_PALLET}
+                          onValueChange={(valor) => selectField.onChange(valor === SIN_PALLET ? "" : valor)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sin pallet" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SIN_PALLET}>Sin pallet</SelectItem>
+                            {tiposPallet.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Cant. bandejas</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.cantidadBandejas`}
+                      render={({ field }) => <NumberInput value={String(field.value ?? "")} onChange={field.onChange} />}
+                    />
+                    {form.formState.errors.pallets?.[index]?.cantidadBandejas && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.cantidadBandejas?.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Peso bruto (kg)</Label>
+                    <Controller
+                      control={form.control}
+                      name={`pallets.${index}.pesoBrutoTotalKg`}
+                      render={({ field }) => <NumberInput value={String(field.value ?? "")} onChange={field.onChange} />}
+                    />
+                    {form.formState.errors.pallets?.[index]?.pesoBrutoTotalKg && (
+                      <p className="text-xs font-medium text-destructive">
+                        {form.formState.errors.pallets[index]?.pesoBrutoTotalKg?.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span>Tara: {formatKg(filasCalculadas[index]?.pesoTara ?? 0)}</span>
+                  <span className="font-semibold text-primary">
+                    Peso neto: {formatKg(filasCalculadas[index]?.pesoNeto ?? 0)}
+                  </span>
+                </div>
+
+                <Separator className="my-3" />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label className="text-xs">Pallet asignado</Label>
+                  {asignacion ? (
+                    <>
+                      <Badge variant="outline" className="gap-1">
+                        <Package className="h-3 w-3" />
+                        {asignacion}
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => quitarAsignacion(index)}
+                      >
+                        Cambiar
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button type="button" variant="outline" size="sm" onClick={() => crearPalletNuevo(index)}>
+                        <PackagePlus className="mr-2 h-4 w-4" />
+                        Crear pallet nuevo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLineaDialogoAbierto(index)}
+                      >
+                        <Package className="mr-2 h-4 w-4" />
+                        Asignar a pallet existente
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {form.formState.errors.pallets?.[index]?.palletAsignado && (
+                  <p className="mt-1 text-xs font-medium text-destructive">
+                    {form.formState.errors.pallets[index]?.palletAsignado?.message}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+
+          <div className="flex flex-col items-end gap-1 border-t pt-4 text-sm">
+            <p>
+              Total de bandejas: <span className="font-medium">{formatCantidad(totales.cantidadBandejas)}</span>
+            </p>
+            <p>
+              Peso bruto total: <span className="font-medium">{formatKg(totales.pesoBruto)}</span>
+            </p>
+            <p className="text-base">
+              Peso neto total: <span className="font-semibold text-primary">{formatKg(totales.pesoNeto)}</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={lineaDialogoAbierto !== null} onOpenChange={(open) => !open && setLineaDialogoAbierto(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar a pallet existente</DialogTitle>
+            <DialogDescription>Solo se muestran pallets Industrial abiertos con espacio disponible.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {opcionesDialogo.nuevos.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                  Nuevos en este formulario
+                </p>
+                <div className="space-y-1">
+                  {opcionesDialogo.nuevos.map((p) => (
+                    <button
+                      key={p.tempId}
+                      type="button"
+                      onClick={() => lineaDialogoAbierto !== null && asignarPalletExistente(lineaDialogoAbierto, `nuevo:${p.tempId}`)}
+                      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span>{p.etiqueta}</span>
+                      <span className="text-muted-foreground">quedan {p.restante}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Pallets Industrial abiertos</p>
+              {opcionesDialogo.abiertos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay pallets Industrial abiertos con espacio disponible.</p>
+              ) : (
+                <div className="space-y-1">
+                  {opcionesDialogo.abiertos.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => lineaDialogoAbierto !== null && asignarPalletExistente(lineaDialogoAbierto, `existente:${p.id}`)}
+                      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span>{p.numero}</span>
+                      <span className="text-muted-foreground">quedan {p.restante}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => router.back()}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={form.formState.isSubmitting || subiendoArchivo}>
+          {subiendoArchivo
+            ? "Subiendo archivo..."
+            : form.formState.isSubmitting
+              ? "Guardando..."
+              : edicion
+                ? "Guardar cambios"
+                : "Registrar ingreso Industrial Planta"}
+        </Button>
+      </div>
+    </form>
+  );
+}

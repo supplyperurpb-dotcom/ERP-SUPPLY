@@ -31,7 +31,7 @@ export async function generarPackingListAcopioPdf({
   pesoNetoTotalKg,
   borrador,
 }: {
-  /** "PACKING LIST ACOPIO" (fruta exportable) o "PACKING LIST INDUSTRIAL ACOPIO" (IQF/descarte). */
+  /** "PACKING LIST ACOPIO" (fruta exportable) o "PACKING LIST INDUSTRIAL ACOPIO" (Industrial/descarte). */
   titulo?: string;
   numero: string;
   placaCamion: string;

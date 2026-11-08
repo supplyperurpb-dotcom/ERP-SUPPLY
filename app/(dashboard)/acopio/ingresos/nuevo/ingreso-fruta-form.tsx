@@ -44,10 +44,10 @@ type CamionOption = { id: string; placa: string; tipo: string };
 type ConductorOption = { id: string; nombre: string };
 
 const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
-// "fruta" arma un Pallet normal (líneas "Exportable"); "iqf" arma un
-// PalletIQF (líneas "Descarte Campo"), para que su tarja salga en Tarjas
-// IQF. Un mismo pallet nunca mezcla ambos tipos de producto.
-type PalletNuevo = { tempId: string; etiqueta: string; tipo: "fruta" | "iqf" };
+// "fruta" arma un Pallet normal (líneas "Exportable"); "industrial" arma un
+// PalletIndustrial (líneas "Descarte Campo"), para que su tarja salga en Tarjas
+// Industrial. Un mismo pallet nunca mezcla ambos tipos de producto.
+type PalletNuevo = { tempId: string; etiqueta: string; tipo: "fruta" | "industrial" };
 
 // Radix Select no permite un SelectItem con value="" (lo reserva para el
 // placeholder), así que se usa este sentinel para representar "sin pallet".
@@ -83,7 +83,7 @@ export function IngresoFrutaForm({
   tiposBandeja,
   tiposPallet,
   palletsAbiertos,
-  palletsAbiertosIQF,
+  palletsAbiertosIndustrial,
   camiones,
   conductores,
   edicion,
@@ -92,8 +92,8 @@ export function IngresoFrutaForm({
   tiposBandeja: TipoBandejaOption[];
   tiposPallet: TipoPalletOption[];
   palletsAbiertos: PalletAbierto[];
-  /** Pallets IQF abiertos de origen "Descarte Campo" (ver PalletIQF.origen). */
-  palletsAbiertosIQF: PalletAbierto[];
+  /** Pallets Industrial abiertos de origen "Descarte Campo" (ver PalletIndustrial.origen). */
+  palletsAbiertosIndustrial: PalletAbierto[];
   camiones: CamionOption[];
   conductores: ConductorOption[];
   /** Presente solo cuando el formulario edita un ingreso ya existente. */
@@ -179,7 +179,7 @@ export function IngresoFrutaForm({
     if (tipo === "existente")
       return (
         palletsAbiertos.find((p) => p.id === id)?.numero ??
-        palletsAbiertosIQF.find((p) => p.id === id)?.numero ??
+        palletsAbiertosIndustrial.find((p) => p.id === id)?.numero ??
         null
       );
     return null;
@@ -190,9 +190,9 @@ export function IngresoFrutaForm({
     contadorPalletNuevo.current += 1;
     const tempId = `t${contadorPalletNuevo.current}`;
     const etiqueta = esDescarteCampo
-      ? `Pallet IQF nuevo #${contadorPalletNuevo.current}`
+      ? `Pallet Industrial nuevo #${contadorPalletNuevo.current}`
       : `Pallet nuevo #${contadorPalletNuevo.current}`;
-    setPalletsNuevos((prev) => [...prev, { tempId, etiqueta, tipo: esDescarteCampo ? "iqf" : "fruta" }]);
+    setPalletsNuevos((prev) => [...prev, { tempId, etiqueta, tipo: esDescarteCampo ? "industrial" : "fruta" }]);
     form.setValue(`pallets.${index}.palletAsignado`, `nuevo:${tempId}`, { shouldValidate: true });
   }
 
@@ -255,16 +255,16 @@ export function IngresoFrutaForm({
 
   // Opciones disponibles para el diálogo de "asignar a pallet existente":
   // pallets abiertos en BD + pallets nuevos creados en este mismo formulario,
-  // con la capacidad restante calculada en vivo. El pool (fruta vs IQF)
+  // con la capacidad restante calculada en vivo. El pool (fruta vs Industrial)
   // depende del tipo de producto de la línea que abrió el diálogo.
-  const poolDialogo: "fruta" | "iqf" =
+  const poolDialogo: "fruta" | "industrial" =
     lineaDialogoAbierto !== null && pallets[lineaDialogoAbierto]?.tipoProducto === "Descarte Campo"
-      ? "iqf"
+      ? "industrial"
       : "fruta";
   const opcionesDialogo = lineaDialogoAbierto === null
     ? { abiertos: [], nuevos: [] }
     : {
-        abiertos: (poolDialogo === "iqf" ? palletsAbiertosIQF : palletsAbiertos)
+        abiertos: (poolDialogo === "industrial" ? palletsAbiertosIndustrial : palletsAbiertos)
           .map((p) => ({
             ...p,
             // Se suma de vuelta lo que este mismo ingreso ya le había
@@ -638,7 +638,7 @@ export function IngresoFrutaForm({
                           value={selectField.value}
                           onValueChange={(valor) => {
                             // Cambiar el tipo de producto cambia de pool de
-                            // pallet físico (fruta vs IQF), así que la
+                            // pallet físico (fruta vs Industrial), así que la
                             // asignación anterior deja de ser válida.
                             if (valor !== selectField.value) {
                               liberarPalletNuevoSiHuerfano(pallets[index]?.palletAsignado, index);
@@ -686,7 +686,7 @@ export function IngresoFrutaForm({
                     )}
                     {pallets[index]?.tipoProducto === "Descarte Campo" && (
                       <p className="text-xs text-muted-foreground">
-                        Esta línea arma un pallet IQF: su tarja saldrá en Tarjas IQF.
+                        Esta línea arma un pallet Industrial: su tarja saldrá en Tarjas Industrial.
                       </p>
                     )}
                   </div>
@@ -854,10 +854,10 @@ export function IngresoFrutaForm({
       <Dialog open={lineaDialogoAbierto !== null} onOpenChange={(open) => !open && setLineaDialogoAbierto(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Asignar a pallet existente{poolDialogo === "iqf" ? " (IQF)" : ""}</DialogTitle>
+            <DialogTitle>Asignar a pallet existente{poolDialogo === "industrial" ? " (Industrial)" : ""}</DialogTitle>
             <DialogDescription>
-              {poolDialogo === "iqf"
-                ? "Solo se muestran pallets IQF de Descarte Campo abiertos con espacio disponible."
+              {poolDialogo === "industrial"
+                ? "Solo se muestran pallets Industrial de Descarte Campo abiertos con espacio disponible."
                 : "Solo se muestran pallets abiertos con espacio disponible."}
             </DialogDescription>
           </DialogHeader>
@@ -886,7 +886,7 @@ export function IngresoFrutaForm({
 
             <div>
               <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
-                {poolDialogo === "iqf" ? "Pallets IQF abiertos" : "Pallets abiertos"}
+                {poolDialogo === "industrial" ? "Pallets Industrial abiertos" : "Pallets abiertos"}
               </p>
               {opcionesDialogo.abiertos.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay pallets abiertos con espacio disponible.</p>

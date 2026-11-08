@@ -29,7 +29,7 @@ type LineaCalculada = {
 // amigable (Prisma hace rollback automático si el callback lanza).
 class ErrorValidacion extends Error {}
 
-// Regla de negocio: un pallet físico (de fruta o IQF) nunca mezcla bandejas
+// Regla de negocio: un pallet físico (de fruta o Industrial) nunca mezcla bandejas
 // de distinto tipo (p. ej. bandejas y jabas). Se valida tanto entre las
 // líneas nuevas que apuntan al mismo destino como contra el tipo de bandeja
 // que ese pallet ya tenga en la base de datos.
@@ -140,10 +140,10 @@ function agruparPorDestino(lineasCalculadas: LineaCalculada[]) {
 }
 
 // Separa las líneas ya calculadas según a qué pool de pallet físico van:
-// "Exportable" arma un Pallet normal; "Descarte Campo" arma un PalletIQF
-// (el mismo tipo físico que usa Ingreso IQF), para que su tarja salga en
-// Tarjas IQF en vez de en Tarjas. Un mismo pallet nunca mezcla ambos
-// orígenes (ver PalletIQF.origen en el schema).
+// "Exportable" arma un Pallet normal; "Descarte Campo" arma un PalletIndustrial
+// (el mismo tipo físico que usa Ingreso Industrial Planta), para que su tarja salga en
+// Tarjas Industrial en vez de en Tarjas. Un mismo pallet nunca mezcla ambos
+// orígenes (ver PalletIndustrial.origen en el schema).
 function separarPorTipoProducto(lineasCalculadas: LineaCalculada[]) {
   const exportable = lineasCalculadas.filter((l) => l.tipoProducto !== "Descarte Campo");
   const descarteCampo = lineasCalculadas.filter((l) => l.tipoProducto === "Descarte Campo");
@@ -163,7 +163,7 @@ function datosLineaCrear(linea: LineaCalculada, palletId: string, esDescarteCamp
   return {
     numeroPallet: linea.numeroPallet,
     palletId: esDescarteCampo ? null : palletId,
-    palletIQFId: esDescarteCampo ? palletId : null,
+    palletIndustrialId: esDescarteCampo ? palletId : null,
     modulo: linea.modulo,
     turno: linea.turno,
     variedad: linea.variedad,
@@ -188,7 +188,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     const lineasCalculadas = await calcularLineas(parsed.data.pallets);
     const { exportable, descarteCampo } = separarPorTipoProducto(lineasCalculadas);
     const { gruposNuevo, gruposExistente } = agruparPorDestino(exportable);
-    const { gruposNuevo: gruposNuevoIQF, gruposExistente: gruposExistenteIQF } = agruparPorDestino(descarteCampo);
+    const { gruposNuevo: gruposNuevoIndustrial, gruposExistente: gruposExistenteIndustrial } = agruparPorDestino(descarteCampo);
 
     const idsExistentes = Array.from(gruposExistente.keys());
     const palletsExistentes = idsExistentes.length
@@ -218,17 +218,17 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
       await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
     }
 
-    const idsExistentesIQF = Array.from(gruposExistenteIQF.keys());
-    const palletsExistentesIQF = idsExistentesIQF.length
-      ? await prisma.palletIQF.findMany({ where: { id: { in: idsExistentesIQF } } })
+    const idsExistentesIndustrial = Array.from(gruposExistenteIndustrial.keys());
+    const palletsExistentesIndustrial = idsExistentesIndustrial.length
+      ? await prisma.palletIndustrial.findMany({ where: { id: { in: idsExistentesIndustrial } } })
       : [];
-    const palletIQFPorId = new Map(palletsExistentesIQF.map((p) => [p.id, p]));
+    const palletIndustrialPorId = new Map(palletsExistentesIndustrial.map((p) => [p.id, p]));
 
-    for (const [palletId, lineas] of gruposExistenteIQF) {
-      const pallet = palletIQFPorId.get(palletId);
+    for (const [palletId, lineas] of gruposExistenteIndustrial) {
+      const pallet = palletIndustrialPorId.get(palletId);
       if (!pallet || pallet.estado !== "ABIERTO" || pallet.origen !== "DESCARTE_CAMPO") {
         return {
-          error: "Uno de los pallets IQF existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo.",
+          error: "Uno de los pallets Industrial existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo.",
         };
       }
       const { bandejas } = sumar(lineas);
@@ -240,7 +240,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
         };
       }
       const lineaExistente = await prisma.ingresoFrutaPallet.findFirst({
-        where: { palletIQFId: palletId },
+        where: { palletIndustrialId: palletId },
         select: { tipoBandejaId: true },
       });
       await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
@@ -253,9 +253,9 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     const nuevoIngreso = await prisma.$transaction(async (tx) => {
       const tempIdAPalletId = new Map<string, string>();
       const palletsExistentesNumeros = await tx.pallet.findMany({ select: { numero: true } });
-      const palletsIQFExistentesNumeros = await tx.palletIQF.findMany({ select: { numero: true } });
+      const palletsIndustrialExistentesNumeros = await tx.palletIndustrial.findMany({ select: { numero: true } });
       let contador = maximoNumero(palletsExistentesNumeros.map((p) => p.numero), "PAL-");
-      let contadorIQF = maximoNumero(palletsIQFExistentesNumeros.map((p) => p.numero), "PIQF-");
+      let contadorIndustrial = maximoNumero(palletsIndustrialExistentesNumeros.map((p) => p.numero), "PINDUSTRIAL-");
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;
@@ -274,12 +274,12 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
         tempIdAPalletId.set(tempId, nuevoPallet.id);
       }
 
-      for (const [tempId, lineas] of gruposNuevoIQF) {
-        contadorIQF += 1;
+      for (const [tempId, lineas] of gruposNuevoIndustrial) {
+        contadorIndustrial += 1;
         const { bandejas, bruto, tara, neto } = sumar(lineas);
-        const nuevoPallet = await tx.palletIQF.create({
+        const nuevoPallet = await tx.palletIndustrial.create({
           data: {
-            numero: `PIQF-${String(contadorIQF).padStart(4, "0")}`,
+            numero: `PINDUSTRIAL-${String(contadorIndustrial).padStart(4, "0")}`,
             origen: "DESCARTE_CAMPO",
             cantidadBandejas: bandejas,
             pesoBrutoTotalKg: bruto,
@@ -308,11 +308,11 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
         });
       }
 
-      for (const [palletId, lineas] of gruposExistenteIQF) {
-        const pallet = palletIQFPorId.get(palletId)!;
+      for (const [palletId, lineas] of gruposExistenteIndustrial) {
+        const pallet = palletIndustrialPorId.get(palletId)!;
         const { bandejas, bruto, tara, neto } = sumar(lineas);
         const nuevaCantidad = pallet.cantidadBandejas + bandejas;
-        await tx.palletIQF.update({
+        await tx.palletIndustrial.update({
           where: { id: palletId },
           data: {
             cantidadBandejas: { increment: bandejas },
@@ -348,7 +348,7 @@ export async function crearIngresoFrutaAction(data: IngresoFrutaInput): Promise<
     });
 
     revalidatePath("/acopio/ingresos");
-    revalidatePath("/acopio/tarjas-iqf");
+    revalidatePath("/acopio/tarjas-industrial");
     return { success: true, id: nuevoIngreso.id };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };
@@ -378,13 +378,13 @@ export async function actualizarIngresoFrutaAction(
     const lineasCalculadas = await calcularLineas(parsed.data.pallets);
     const { exportable, descarteCampo } = separarPorTipoProducto(lineasCalculadas);
     const { gruposNuevo, gruposExistente } = agruparPorDestino(exportable);
-    const { gruposNuevo: gruposNuevoIQF, gruposExistente: gruposExistenteIQF } = agruparPorDestino(descarteCampo);
+    const { gruposNuevo: gruposNuevoIndustrial, gruposExistente: gruposExistenteIndustrial } = agruparPorDestino(descarteCampo);
     const usuario = await getUsuarioActual();
 
     await prisma.$transaction(async (tx) => {
       // 1. Revertir la contribución de las líneas ANTERIORES de este
       //    ingreso en sus pallets (para no arrastrar datos viejos). Cada
-      //    línea vieja pudo haber ido a un Pallet normal o a un PalletIQF
+      //    línea vieja pudo haber ido a un Pallet normal o a un PalletIndustrial
       //    (Descarte Campo), según su tipoProducto de ese momento.
       for (const lineaVieja of ingresoExistente.pallets) {
         if (lineaVieja.palletId) {
@@ -402,9 +402,9 @@ export async function actualizarIngresoFrutaAction(
             where: { id: lineaVieja.palletId },
             data: { estado: nuevaCantidad >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO" },
           });
-        } else if (lineaVieja.palletIQFId) {
-          const pallet = await tx.palletIQF.update({
-            where: { id: lineaVieja.palletIQFId },
+        } else if (lineaVieja.palletIndustrialId) {
+          const pallet = await tx.palletIndustrial.update({
+            where: { id: lineaVieja.palletIndustrialId },
             data: {
               cantidadBandejas: { decrement: lineaVieja.cantidadBandejas },
               pesoBrutoTotalKg: { decrement: lineaVieja.pesoBrutoTotalKg },
@@ -413,8 +413,8 @@ export async function actualizarIngresoFrutaAction(
             },
           });
           const nuevaCantidad = Math.max(0, pallet.cantidadBandejas);
-          await tx.palletIQF.update({
-            where: { id: lineaVieja.palletIQFId },
+          await tx.palletIndustrial.update({
+            where: { id: lineaVieja.palletIndustrialId },
             data: { estado: nuevaCantidad >= CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET ? "CERRADO" : "ABIERTO" },
           });
         }
@@ -455,17 +455,17 @@ export async function actualizarIngresoFrutaAction(
         await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
       }
 
-      const idsExistentesIQF = Array.from(gruposExistenteIQF.keys());
-      const palletsExistentesIQFDb = idsExistentesIQF.length
-        ? await tx.palletIQF.findMany({ where: { id: { in: idsExistentesIQF } } })
+      const idsExistentesIndustrial = Array.from(gruposExistenteIndustrial.keys());
+      const palletsExistentesIndustrialDb = idsExistentesIndustrial.length
+        ? await tx.palletIndustrial.findMany({ where: { id: { in: idsExistentesIndustrial } } })
         : [];
-      const palletIQFPorId = new Map(palletsExistentesIQFDb.map((p) => [p.id, p]));
+      const palletIndustrialPorId = new Map(palletsExistentesIndustrialDb.map((p) => [p.id, p]));
 
-      for (const [palletId, lineas] of gruposExistenteIQF) {
-        const pallet = palletIQFPorId.get(palletId);
+      for (const [palletId, lineas] of gruposExistenteIndustrial) {
+        const pallet = palletIndustrialPorId.get(palletId);
         if (!pallet || pallet.origen !== "DESCARTE_CAMPO") {
           throw new ErrorValidacion(
-            "Uno de los pallets IQF existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo."
+            "Uno de los pallets Industrial existentes seleccionados ya no está disponible. Actualiza la página e intenta de nuevo."
           );
         }
         const { bandejas } = sumar(lineas);
@@ -477,7 +477,7 @@ export async function actualizarIngresoFrutaAction(
           );
         }
         const lineaExistente = await tx.ingresoFrutaPallet.findFirst({
-          where: { palletIQFId: palletId },
+          where: { palletIndustrialId: palletId },
           select: { tipoBandejaId: true },
         });
         await validarBandejaContraExistente(lineas, pallet.numero, lineaExistente);
@@ -487,9 +487,9 @@ export async function actualizarIngresoFrutaAction(
       //    crear un ingreso).
       const tempIdAPalletId = new Map<string, string>();
       const palletsExistentesNumeros = await tx.pallet.findMany({ select: { numero: true } });
-      const palletsIQFExistentesNumeros = await tx.palletIQF.findMany({ select: { numero: true } });
+      const palletsIndustrialExistentesNumeros = await tx.palletIndustrial.findMany({ select: { numero: true } });
       let contador = maximoNumero(palletsExistentesNumeros.map((p) => p.numero), "PAL-");
-      let contadorIQF = maximoNumero(palletsIQFExistentesNumeros.map((p) => p.numero), "PIQF-");
+      let contadorIndustrial = maximoNumero(palletsIndustrialExistentesNumeros.map((p) => p.numero), "PINDUSTRIAL-");
 
       for (const [tempId, lineas] of gruposNuevo) {
         contador += 1;
@@ -508,12 +508,12 @@ export async function actualizarIngresoFrutaAction(
         tempIdAPalletId.set(tempId, nuevoPallet.id);
       }
 
-      for (const [tempId, lineas] of gruposNuevoIQF) {
-        contadorIQF += 1;
+      for (const [tempId, lineas] of gruposNuevoIndustrial) {
+        contadorIndustrial += 1;
         const { bandejas, bruto, tara, neto } = sumar(lineas);
-        const nuevoPallet = await tx.palletIQF.create({
+        const nuevoPallet = await tx.palletIndustrial.create({
           data: {
-            numero: `PIQF-${String(contadorIQF).padStart(4, "0")}`,
+            numero: `PINDUSTRIAL-${String(contadorIndustrial).padStart(4, "0")}`,
             origen: "DESCARTE_CAMPO",
             cantidadBandejas: bandejas,
             pesoBrutoTotalKg: bruto,
@@ -542,11 +542,11 @@ export async function actualizarIngresoFrutaAction(
         });
       }
 
-      for (const [palletId, lineas] of gruposExistenteIQF) {
-        const pallet = palletIQFPorId.get(palletId)!;
+      for (const [palletId, lineas] of gruposExistenteIndustrial) {
+        const pallet = palletIndustrialPorId.get(palletId)!;
         const { bandejas, bruto, tara, neto } = sumar(lineas);
         const nuevaCantidad = pallet.cantidadBandejas + bandejas;
-        await tx.palletIQF.update({
+        await tx.palletIndustrial.update({
           where: { id: palletId },
           data: {
             cantidadBandejas: { increment: bandejas },
@@ -584,7 +584,7 @@ export async function actualizarIngresoFrutaAction(
     revalidatePath("/acopio/ingresos");
     revalidatePath(`/acopio/ingresos/${ingresoId}`);
     revalidatePath("/acopio/tarjas");
-    revalidatePath("/acopio/tarjas-iqf");
+    revalidatePath("/acopio/tarjas-industrial");
     return { success: true };
   } catch (e) {
     if (e instanceof ErrorValidacion) return { error: e.message };

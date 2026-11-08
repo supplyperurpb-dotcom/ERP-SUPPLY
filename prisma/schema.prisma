@@ -50,7 +50,7 @@ enum Procedencia {
 }
 
 // Se usa para filtrar qué proveedores aparecen en cada flujo: Acopio solo
-// ofrece FUNDO/AMBOS en "Nuevo ingreso" de fruta/IQF (ver esas páginas en
+// ofrece FUNDO/AMBOS en "Nuevo ingreso" de fruta/Industrial (ver esas páginas en
 // app/(dashboard)/acopio/ingreso*/), el resto del sistema usa proveedores
 // en general. No quitar sin revisar esos usos primero.
 enum TipoProveedor {
@@ -125,10 +125,10 @@ enum EstadoPackingList {
   ANULADO
 }
 
-// Origen de un pallet IQF: de qué lado del proceso vino el descarte. Un
-// mismo pallet físico nunca mezcla ambos orígenes (ver PalletIQF), pero
-// ambos aparecen juntos en la pantalla de Tarjas IQF.
-enum OrigenPalletIQF {
+// Origen de un pallet Industrial: de qué lado del proceso vino el descarte. Un
+// mismo pallet físico nunca mezcla ambos orígenes (ver PalletIndustrial), pero
+// ambos aparecen juntos en la pantalla de Tarjas Industrial.
+enum OrigenPalletIndustrial {
   DESCARTE_CAMPO
   DESCARTE_PLANTA
 }
@@ -244,7 +244,7 @@ model Proveedor {
 
   ordenesCompra       OrdenCompra[]
   ingresosFruta       IngresoFruta[]
-  ingresosIQF         IngresoIQF[]
+  ingresosIndustrial         IngresoIndustrial[]
   ingresosAlmacen     IngresoAlmacen[]
   devolucionesAlmacen DevolucionAlmacen[]
   conductores         Conductor[]
@@ -466,7 +466,7 @@ enum TipoPropiedadVehiculoTransporte {
 }
 
 // Catálogo de placas de camiones que entregan o recogen fruta en planta
-// (ver IngresoFruta/IngresoIQF.placaTransporte, DespachoTarja/DespachoIQF.
+// (ver IngresoFruta/IngresoIndustrial.placaTransporte, DespachoTarja/DespachoIndustrial.
 // placaCamion) — se arma sobre la marcha con "Registrar vehículo" desde
 // esos formularios, sin requerir rol ADMIN (a diferencia de Vehiculo, que
 // es el catálogo de activos propios para despacho de combustible). Nunca
@@ -1114,7 +1114,7 @@ model TipoBandeja {
   updatedAt  DateTime @updatedAt
 
   pallets   IngresoFrutaPallet[]
-  lineasIQF IngresoIQFPallet[]
+  lineasIndustrial IngresoIndustrialPallet[]
 
   @@map("tipos_bandeja")
 }
@@ -1128,7 +1128,7 @@ model TipoPallet {
   updatedAt  DateTime @updatedAt
 
   pallets   IngresoFrutaPallet[]
-  lineasIQF IngresoIQFPallet[]
+  lineasIndustrial IngresoIndustrialPallet[]
 
   @@map("tipos_pallet")
 }
@@ -1194,10 +1194,10 @@ model IngresoFrutaPallet {
   numeroPallet     Int // correlativo de la línea dentro de este ingreso (no es el número del Pallet físico)
   // Exactamente uno de los dos está presente, según tipoProducto: las líneas
   // "Exportable" arman un Pallet normal; las líneas "Descarte Campo" arman
-  // un PalletIQF (mismo pool físico que usa Ingreso IQF) para que su tarja
-  // salga en Tarjas IQF en vez de en Tarjas. Ver PalletIQF.origen.
+  // un PalletIndustrial (mismo pool físico que usa Ingreso Industrial Planta) para que su tarja
+  // salga en Tarjas Industrial en vez de en Tarjas. Ver PalletIndustrial.origen.
   palletId         String?
-  palletIQFId      String?
+  palletIndustrialId      String?
   modulo           String // bloque/sector del fundo de origen de esta línea
   turno            String // sub-división del módulo (no es turno de trabajo)
   variedad         String
@@ -1214,7 +1214,7 @@ model IngresoFrutaPallet {
 
   ingresoFruta IngresoFruta              @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
   pallet       Pallet?                   @relation(fields: [palletId], references: [id])
-  palletIQF    PalletIQF?                @relation(fields: [palletIQFId], references: [id])
+  palletIndustrial    PalletIndustrial?                @relation(fields: [palletIndustrialId], references: [id])
   tipoPallet   TipoPallet?               @relation(fields: [tipoPalletId], references: [id])
   tipoBandeja  TipoBandeja               @relation(fields: [tipoBandejaId], references: [id])
   bandejas     IngresoFrutaBandejaPeso[]
@@ -1306,7 +1306,7 @@ enum TipoCamion {
 // Submódulo "Información Transporte" de Acopio (ver /acopio/transporte):
 // catálogo propio de camiones, independiente de VehiculoTransporte (que
 // solo distingue Propio/Tercero para Ingreso de Materia Prima e Ingreso
-// IQF) — Despacho usa este catálogo en vez de aquel. Nunca se borra un
+// Industrial) — Despacho usa este catálogo en vez de aquel. Nunca se borra un
 // registro ya usado: se desactiva (activo=false).
 model Camion {
   id        String     @id @default(cuid())
@@ -1383,7 +1383,7 @@ model GuiaRemisionDetalle {
 }
 
 // =========================================================================
-// ACOPIO — INGRESO IQF (descarte de planta)
+// ACOPIO — INGRESO Industrial (descarte de planta)
 // =========================================================================
 // Flujo paralelo e independiente al de Ingreso de Materia Prima: mismos
 // datos generales de camión, pero sin módulo/turno/formato por línea (el
@@ -1391,15 +1391,15 @@ model GuiaRemisionDetalle {
 // producto fijo en "Descarte Planta". Usa sus propios Pallet/Tarja/Despacho
 // para no mezclar sus números ni sus listados con los de fruta.
 
-model IngresoIQF {
+model IngresoIndustrial {
   id              String          @id @default(cuid())
-  numero          String          @unique // ej. IQF-0001
+  numero          String          @unique // ej. INDUSTRIAL-0001
   // Campo "Fundo" eliminado del flujo (descarte de planta no tiene un
   // fundo de origen que elegir) — queda opcional en vez de borrarse, para
   // no perder el dato en los ingresos ya registrados antes de este cambio.
   proveedorId     String?
   // Ya no vive acá: cada línea tiene su propia fecha de cosecha (ver
-  // IngresoIQFPallet.fechaCosecha), porque un mismo camión puede traer
+  // IngresoIndustrialPallet.fechaCosecha), porque un mismo camión puede traer
   // descarte de variedades cosechadas en fechas distintas.
   fechaIngreso    DateTime        @default(now())
   horaIngreso     String?
@@ -1407,10 +1407,10 @@ model IngresoIQF {
   conductor       String?
   observaciones   String?
   // Guía de remisión física del transportista (obligatoria, ver
-  // ingresoIQFSchema) — mismo criterio que IngresoAlmacen.guiaRemisionArchivo:
+  // ingresoIndustrialSchema) — mismo criterio que IngresoAlmacen.guiaRemisionArchivo:
   // guiaRemisionArchivo es la ruta (no URL pública) dentro del bucket
   // privado de Supabase Storage (ver lib/storage.ts), descargada vía
-  // GET /api/ingreso-iqf/[id]/guia.
+  // GET /api/ingreso-industrial/[id]/guia.
   numeroGuiaRemision   String?
   guiaRemisionArchivo  String?
   estado          EstadoDocumento @default(BORRADOR)
@@ -1419,19 +1419,19 @@ model IngresoIQF {
   updatedAt       DateTime        @updatedAt
 
   proveedor Proveedor?         @relation(fields: [proveedorId], references: [id])
-  pallets   IngresoIQFPallet[]
+  pallets   IngresoIndustrialPallet[]
 
-  @@map("ingresos_iqf")
+  @@map("ingresos_industrial")
 }
 
-model PalletIQF {
+model PalletIndustrial {
   id               String          @id @default(cuid())
-  numero           String          @unique // ej. PIQF-0001
+  numero           String          @unique // ej. PINDUSTRIAL-0001
   // De qué lado vino el descarte que arma este pallet: nunca se mezclan (un
   // pallet es 100% Descarte Campo -líneas de Ingreso de Materia Prima- o
-  // 100% Descarte Planta -líneas de Ingreso IQF-), aunque ambos orígenes
-  // comparten la misma numeración y aparecen juntos en Tarjas IQF.
-  origen           OrigenPalletIQF
+  // 100% Descarte Planta -líneas de Ingreso INDUSTRIAL-), aunque ambos orígenes
+  // comparten la misma numeración y aparecen juntos en Tarjas Industrial.
+  origen           OrigenPalletIndustrial
   cantidadBandejas Int             @default(0)
   pesoBrutoTotalKg Decimal         @default(0) @db.Decimal(10, 3)
   pesoTaraTotalKg  Decimal         @default(0) @db.Decimal(10, 3)
@@ -1441,27 +1441,27 @@ model PalletIQF {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  lineas      IngresoIQFPallet[]
+  lineas      IngresoIndustrialPallet[]
   lineasFruta IngresoFrutaPallet[]
-  tarja       TarjaIQF?
+  tarja       TarjaIndustrial?
 
-  @@map("pallets_iqf")
+  @@map("pallets_industrial")
 }
 
-// Línea de pesaje de Ingreso IQF: sin modulo/turno/formato (a diferencia de
+// Línea de pesaje de Ingreso Industrial Planta: sin modulo/turno/formato (a diferencia de
 // IngresoFrutaPallet); tipoProducto queda fijo en "Descarte Planta" desde el
 // server action, no es elegible en el formulario.
-model IngresoIQFPallet {
+model IngresoIndustrialPallet {
   id               String   @id @default(cuid())
-  ingresoIQFId     String
+  ingresoIndustrialId     String
   numeroPallet     Int // correlativo de la línea dentro de este ingreso
   palletId         String
   variedad         String
   // Un camión puede traer descarte de variedades cosechadas en fechas
   // distintas, así que cada línea tiene su propia fecha de cosecha (ya
-  // no es un solo valor por ingreso, ver IngresoIQF). Se valida contra
+  // no es un solo valor por ingreso, ver IngresoIndustrial). Se valida contra
   // Ingreso de Materia Prima (ver validarVariedadesContraMateriaPrima en
-  // lib/actions/ingreso-iqf-actions.ts).
+  // lib/actions/ingreso-industrial-actions.ts).
   fechaCosecha     DateTime
   tipoProducto     String // fijo: "Descarte Planta"
   tipoPalletId     String?
@@ -1473,18 +1473,18 @@ model IngresoIQFPallet {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  ingresoIQF  IngresoIQF  @relation(fields: [ingresoIQFId], references: [id], onDelete: Cascade)
-  pallet      PalletIQF   @relation(fields: [palletId], references: [id])
+  ingresoIndustrial  IngresoIndustrial  @relation(fields: [ingresoIndustrialId], references: [id], onDelete: Cascade)
+  pallet      PalletIndustrial   @relation(fields: [palletId], references: [id])
   tipoPallet  TipoPallet? @relation(fields: [tipoPalletId], references: [id])
   tipoBandeja TipoBandeja @relation(fields: [tipoBandejaId], references: [id])
 
-  @@unique([ingresoIQFId, numeroPallet])
-  @@map("ingreso_iqf_pallets")
+  @@unique([ingresoIndustrialId, numeroPallet])
+  @@map("ingreso_industrial_pallets")
 }
 
-model TarjaIQF {
+model TarjaIndustrial {
   id           String   @id @default(cuid())
-  numero       String   @unique // ej. IQF26-0001
+  numero       String   @unique // ej. INDUSTRIAL26-0001
   palletId     String   @unique
   fechaEmision DateTime @default(now())
   pdfUrl       String?
@@ -1492,18 +1492,18 @@ model TarjaIQF {
   createdAt    DateTime @default(now())
   despachoId   String?
 
-  pallet   PalletIQF    @relation(fields: [palletId], references: [id])
-  despacho DespachoIQF? @relation(fields: [despachoId], references: [id])
+  pallet   PalletIndustrial    @relation(fields: [palletId], references: [id])
+  despacho DespachoIndustrial? @relation(fields: [despachoId], references: [id])
 
-  @@map("tarjas_iqf")
+  @@map("tarjas_industrial")
 }
 
 // Mismo criterio que Despacho (ver su comentario): nace en BORRADOR, su
 // Packing List Industrial Acopio sale con marca de agua "BORRADOR" hasta
 // "Culminar proceso" (exige número de guía + adjunto).
-model DespachoIQF {
+model DespachoIndustrial {
   id                  String         @id @default(cuid())
-  numero              String         @unique // ej. DESPIQF-0001
+  numero              String         @unique // ej. DESPINDUSTRIAL-0001
   placaCamion         String
   conductor           String
   fechaDespacho       DateTime
@@ -1511,7 +1511,7 @@ model DespachoIQF {
   numeroGuiaRemision  String? // guía de remisión física del transportista
   // Ruta (no URL pública) del archivo subido con la guía de remisión
   // física (foto/escaneo/PDF) — mismo criterio que Despacho.guiaRemisionArchivo.
-  // Se descarga vía GET /api/despachos-iqf/[id]/guia.
+  // Se descarga vía GET /api/despachos-industrial/[id]/guia.
   guiaRemisionArchivo String?
   estado              EstadoDespacho @default(BORRADOR)
   culminadoEn         DateTime?
@@ -1519,9 +1519,9 @@ model DespachoIQF {
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
 
-  tarjas TarjaIQF[]
+  tarjas TarjaIndustrial[]
 
-  @@map("despachos_iqf")
+  @@map("despachos_industrial")
 }
 
 // =========================================================================

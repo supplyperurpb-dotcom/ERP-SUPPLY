@@ -8,9 +8,9 @@ export type VehiculoTransporteActionState = { error?: string; id?: string; placa
 
 const RUTAS_FORMULARIOS = [
   "/acopio/ingresos/nuevo",
-  "/acopio/ingreso-iqf/nuevo",
+  "/acopio/ingreso-industrial/nuevo",
   "/acopio/despacho/nuevo",
-  "/acopio/despacho-iqf/nuevo",
+  "/acopio/despacho-industrial/nuevo",
 ];
 
 // Se usa desde "Registrar vehículo" en los formularios de Ingreso/Despacho

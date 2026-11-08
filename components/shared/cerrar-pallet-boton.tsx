@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import type { PalletActionState } from "@/lib/actions/pallet-actions";
 
-/** Botón de cierre manual, usado en Tarjas y Tarjas IQF (ver lib/actions/pallet-actions.ts). */
+/** Botón de cierre manual, usado en Tarjas y Tarjas Industrial (ver lib/actions/pallet-actions.ts). */
 export function CerrarPalletBoton({
   palletId,
   estado,

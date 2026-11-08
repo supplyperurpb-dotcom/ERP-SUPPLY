@@ -25,8 +25,8 @@ export async function cerrarPalletAction(palletId: string): Promise<PalletAction
   return { success: true };
 }
 
-export async function cerrarPalletIQFAction(palletId: string): Promise<PalletActionState> {
-  const pallet = await prisma.palletIQF.findUnique({ where: { id: palletId }, select: { estado: true } });
+export async function cerrarPalletIndustrialAction(palletId: string): Promise<PalletActionState> {
+  const pallet = await prisma.palletIndustrial.findUnique({ where: { id: palletId }, select: { estado: true } });
   if (!pallet) {
     return { error: "El pallet ya no existe. Actualiza la página e intenta de nuevo." };
   }
@@ -34,10 +34,10 @@ export async function cerrarPalletIQFAction(palletId: string): Promise<PalletAct
     return { success: true };
   }
 
-  await prisma.palletIQF.update({ where: { id: palletId }, data: { estado: "CERRADO" } });
+  await prisma.palletIndustrial.update({ where: { id: palletId }, data: { estado: "CERRADO" } });
 
-  revalidatePath("/acopio/tarjas-iqf");
+  revalidatePath("/acopio/tarjas-industrial");
   revalidatePath("/acopio/ingresos/nuevo");
-  revalidatePath("/acopio/ingreso-iqf/nuevo");
+  revalidatePath("/acopio/ingreso-industrial/nuevo");
   return { success: true };
 }
