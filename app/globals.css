@@ -71,6 +71,15 @@
   * {
     @apply border-border;
   }
+  html,
+  body {
+    /* Sin esto, al llegar al final del scroll con trackpad el navegador
+       hace un "rebote" elástico de toda la página que deja ver, por un
+       instante, el fondo blanco de <body> detrás del layout (sidebar
+       navy + contenido gris) — el scroll real vive dentro de <main>
+       (ver dashboard-shell.tsx), nunca en html/body. */
+    overscroll-behavior-y: none;
+  }
   body {
     @apply bg-background text-foreground;
   }

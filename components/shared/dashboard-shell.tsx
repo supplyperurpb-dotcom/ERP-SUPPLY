@@ -69,7 +69,7 @@ export function DashboardShell({
           sidebarColapsado={sidebarColapsado}
           onMostrarSidebar={alternarSidebar}
         />
-        <main className="flex-1 overflow-y-auto bg-canvas p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto overscroll-contain bg-canvas p-4 md:p-6">{children}</main>
       </div>
     </div>
   );
