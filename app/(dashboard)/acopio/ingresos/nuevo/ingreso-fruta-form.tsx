@@ -65,7 +65,23 @@ function tiposBandejaDisponibles(todos: TipoBandejaOption[], tipoProducto: strin
   return todos.filter((t) => esBandejaDeExportacion(t.nombre));
 }
 
-const LINEA_VACIA = {
+// Pedido explícito: por default toda línea nueva sale en "Exportable" con
+// "BANDEJA PLÁSTICA BLANCA"; si se cambia a "Descarte Campo", la bandeja
+// salta sola a "JABA PLASTICA AZUL" (y vuelve a la de exportación si se
+// regresa a "Exportable"). Nombres exactos del catálogo (ver TipoBandeja).
+const BANDEJA_EXPORTABLE_DEFAULT = "BANDEJA PLÁSTICA BLANCA";
+const BANDEJA_DESCARTE_DEFAULT = "JABA PLASTICA AZUL";
+
+function idTipoBandejaPorNombre(tiposBandeja: TipoBandejaOption[], nombre: string): string {
+  return tiposBandeja.find((t) => t.nombre.toUpperCase() === nombre.toUpperCase())?.id ?? "";
+}
+
+function idTipoBandejaDefaultParaProducto(tiposBandeja: TipoBandejaOption[], tipoProducto: string): string {
+  const nombre = tipoProducto === "Descarte Campo" ? BANDEJA_DESCARTE_DEFAULT : BANDEJA_EXPORTABLE_DEFAULT;
+  return idTipoBandejaPorNombre(tiposBandeja, nombre);
+}
+
+const LINEA_VACIA_BASE = {
   proveedorId: "",
   modulo: "",
   turno: "",
@@ -115,6 +131,17 @@ export function IngresoFrutaForm({
   const [lineaDialogoAbierto, setLineaDialogoAbierto] = useState<number | null>(null);
   const contadorPalletNuevo = useRef(0);
 
+  // Línea nueva: "Exportable" + "BANDEJA PLÁSTICA BLANCA" por default (ver
+  // idTipoBandejaDefaultParaProducto) — depende de tiposBandeja (prop), por
+  // eso es una función y no una constante de módulo.
+  function lineaVacia() {
+    return {
+      ...LINEA_VACIA_BASE,
+      tipoProducto: "Exportable",
+      tipoBandejaId: idTipoBandejaDefaultParaProducto(tiposBandeja, "Exportable"),
+    };
+  }
+
   const form = useForm<IngresoFrutaInput>({
     resolver: zodResolver(ingresoFrutaSchema),
     defaultValues: edicion?.valoresIniciales ?? {
@@ -127,7 +154,7 @@ export function IngresoFrutaForm({
       placaTransporte: "",
       conductor: "",
       observaciones: "",
-      pallets: [LINEA_VACIA],
+      pallets: [lineaVacia()],
     },
   });
 
@@ -398,7 +425,7 @@ export function IngresoFrutaForm({
               un pallet físico (máximo {CAPACIDAD_MAXIMA} bandejas por pallet).
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => append(LINEA_VACIA)}>
+          <Button type="button" variant="outline" size="sm" onClick={() => append(lineaVacia())}>
             <Plus className="mr-2 h-4 w-4" />
             Agregar línea
           </Button>
@@ -636,33 +663,44 @@ export function IngresoFrutaForm({
                         <Select
                           value={selectField.value}
                           onValueChange={(valor) => {
-                            // Cambiar el tipo de producto cambia de pool de
-                            // pallet físico (fruta vs Industrial), así que la
-                            // asignación anterior deja de ser válida.
-                            if (valor !== selectField.value) {
+                            const cambio = valor !== selectField.value;
+                            // Primero el cambio del propio campo controlado
+                            // por este Controller.
+                            selectField.onChange(valor);
+                            if (!cambio) return;
+                            // El resto de ajustes en cascada (bandeja,
+                            // formato, asignación de pallet) se difieren un
+                            // tick: llamar varios form.setValue de OTROS
+                            // campos en el mismo evento que el propio
+                            // selectField.onChange termina pisando el valor
+                            // de "tipoBandejaId" con el que tenía antes del
+                            // render (carrera interna de react-hook-form).
+                            setTimeout(() => {
                               liberarPalletNuevoSiHuerfano(pallets[index]?.palletAsignado, index);
                               form.setValue(`pallets.${index}.palletAsignado`, "", { shouldValidate: true });
-                            }
-                            // Si pasa a "Exportable" y la bandeja elegida ya
-                            // no es válida para ese tipo (p. ej. era una
-                            // jaba), se limpia para no dejar un valor oculto.
-                            const bandejaActual = pallets[index]?.tipoBandejaId;
-                            const bandejaSigueValida = tiposBandejaDisponibles(tiposBandeja, valor).some(
-                              (t) => t.id === bandejaActual
-                            );
-                            if (bandejaActual && !bandejaSigueValida) {
-                              form.setValue(`pallets.${index}.tipoBandejaId`, "", { shouldValidate: true });
-                            }
-                            // El descarte no tiene formato de empaque: se
-                            // fija a "INDUSTRIAL" (ver el campo Formato más
-                            // arriba); al volver a Exportable se limpia para
-                            // que vuelva a pedirse.
-                            if (valor === "Descarte Campo") {
-                              form.setValue(`pallets.${index}.formato`, "INDUSTRIAL", { shouldValidate: true });
-                            } else if (pallets[index]?.formato === "INDUSTRIAL") {
-                              form.setValue(`pallets.${index}.formato`, "", { shouldValidate: true });
-                            }
-                            selectField.onChange(valor);
+                              // Pedido explícito: al cambiar el tipo de
+                              // producto, la bandeja salta sola a su default
+                              // (BANDEJA PLÁSTICA BLANCA en Exportable, JABA
+                              // PLASTICA AZUL en Descarte Campo) — Descarte
+                              // Campo técnicamente admite cualquier bandeja
+                              // (ver tiposBandejaDisponibles), así que no
+                              // basta con resetear solo cuando la actual ya
+                              // no es válida.
+                              form.setValue(
+                                `pallets.${index}.tipoBandejaId`,
+                                idTipoBandejaDefaultParaProducto(tiposBandeja, valor),
+                                { shouldValidate: true }
+                              );
+                              // El descarte no tiene formato de empaque: se
+                              // fija a "INDUSTRIAL" (ver el campo Formato más
+                              // arriba); al volver a Exportable se limpia
+                              // para que vuelva a pedirse.
+                              if (valor === "Descarte Campo") {
+                                form.setValue(`pallets.${index}.formato`, "INDUSTRIAL", { shouldValidate: true });
+                              } else if (pallets[index]?.formato === "INDUSTRIAL") {
+                                form.setValue(`pallets.${index}.formato`, "", { shouldValidate: true });
+                              }
+                            }, 0);
                           }}
                         >
                           <SelectTrigger>
@@ -702,7 +740,13 @@ export function IngresoFrutaForm({
                       render={({ field: selectField }) => (
                         <Select value={selectField.value} onValueChange={selectField.onChange}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecciona..." />
+                            {/* Texto explícito (no solo el placeholder): cuando el valor lo
+                                pone el default de "Tipo de producto" en vez de un clic del
+                                usuario, Radix todavía no "vio" renderizarse ese SelectItem y
+                                podría no resolver el label solo. */}
+                            <SelectValue placeholder="Selecciona...">
+                              {tiposBandeja.find((t) => t.id === selectField.value)?.nombre}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {tiposBandejaDisponibles(tiposBandeja, pallets[index]?.tipoProducto).map((t) => (
