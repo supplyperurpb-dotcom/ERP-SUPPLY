@@ -76,7 +76,18 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
               <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
               <Legend wrapperStyle={ESTILO_LEYENDA} />
               {series.map((mercado, i) => (
-                <Bar key={mercado} dataKey={mercado} stackId="a" fill={colorPara(mercado, i)} maxBarSize={GROSOR_MAX_BARRA}>
+                <Bar
+                  key={mercado}
+                  dataKey={mercado}
+                  stackId="a"
+                  fill={colorPara(mercado, i)}
+                  maxBarSize={GROSOR_MAX_BARRA}
+                  radius={[8, 8, 0, 0]}
+                  activeBar={{ fillOpacity: 0.85 }}
+                  isAnimationActive
+                  animationDuration={700}
+                  animationEasing="ease-out"
+                >
                   <LabelList
                     dataKey={mercado}
                     position="center"
