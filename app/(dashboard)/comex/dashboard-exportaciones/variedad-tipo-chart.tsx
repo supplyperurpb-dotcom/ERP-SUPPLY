@@ -44,12 +44,6 @@ function EtiquetaKg(props: {
   if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
   const kg = Number(value);
   if (!Number.isFinite(kg) || kg <= 0) return null;
-  // Barra más baja que el clearance: su anchorY quedaría "clavado" en el
-  // mismo piso que cualquier otra barra corta del gráfico, y los textos
-  // (bastante más anchos que la barra) de varias barras cortas vecinas
-  // terminan superpuestos entre sí. Mejor no mostrar el texto (el dato
-  // sigue en el tooltip) que mostrarlo ilegible.
-  if (Number(height) < CLEARANCE_MIN_PX) return null;
   const cx = Number(x) + Number(width) / 2;
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
@@ -70,12 +64,10 @@ function EtiquetaPU(props: {
   if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
   const pu = Number(value);
   if (!Number.isFinite(pu) || pu <= 0) return null;
-  // Mismo criterio que EtiquetaKg — ver comentario ahí.
-  if (Number(height) < CLEARANCE_MIN_PX) return null;
   const cx = Number(x) + Number(width) / 2;
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
-    <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={16} fill={COLOR_EJE}>
+    <text x={cx} y={anchorY - 6} textAnchor="middle" fontSize={13} fill={COLOR_EJE}>
       {formatMoneda(pu, "USD")}
     </text>
   );
@@ -168,7 +160,7 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
       ) : (
         <div className="h-[420px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={puntos} margin={{ top: 48, left: 8, right: 8 }}>
+            <BarChart data={puntos} margin={{ top: 48, left: 8, right: 8 }} barGap={16}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_GRILLA} vertical={false} />
               <XAxis dataKey="variedad" fontSize={16} stroke={COLOR_EJE} tickLine={false} />
               <YAxis domain={[0, (max: number) => max * 1.25]} tick={false} axisLine={false} tickLine={false} />
