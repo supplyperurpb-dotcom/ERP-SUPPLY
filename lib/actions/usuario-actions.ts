@@ -4,8 +4,35 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/auth/supabase-admin";
-import { ROLES, ROL_LABELS } from "@/lib/auth/constants";
+import { ROLES, ROL_LABELS, MODULOS, type Modulo, type RolNombre } from "@/lib/auth/constants";
+import { NAV_GRUPOS } from "@/lib/nav-config";
 import { crearUsuarioSchema, type CrearUsuarioInput } from "@/lib/validations/usuarios";
+
+// Rol de módulo (ver ACCESO_MODULO_POR_ROL) que corresponde a cada módulo
+// del sidebar — "usuarios" queda fuera a propósito: ese acceso sigue
+// siendo exclusivo de ADMIN, nunca se otorga por el árbol de casillas.
+const ROL_POR_MODULO: Partial<Record<Modulo, keyof typeof ROLES>> = {
+  [MODULOS.LOGISTICA]: "LOGISTICA_COMPRAS",
+  [MODULOS.ACOPIO]: "ACOPIO",
+  [MODULOS.COMEX]: "COMEX",
+};
+
+// A partir de los hrefs marcados en el árbol de casillas, calcula los
+// módulos tocados (buscando en qué grupo de NAV_GRUPOS vive cada href) y
+// de ahí qué roles de módulo hay que asignarle al usuario.
+function rolesDeModuloPorHrefs(hrefs: string[]): RolNombre[] {
+  const modulos = new Set<Modulo>();
+  for (const href of hrefs) {
+    const grupo = NAV_GRUPOS.find((g) => g.items.some((i) => i.href === href));
+    if (grupo) modulos.add(grupo.modulo);
+  }
+  const nombres: RolNombre[] = [];
+  for (const modulo of modulos) {
+    const nombreRol = ROL_POR_MODULO[modulo];
+    if (nombreRol) nombres.push(ROLES[nombreRol]);
+  }
+  return nombres;
+}
 
 export type CrearUsuarioActionState = { error?: string; id?: string } | undefined;
 
@@ -22,7 +49,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, telefono, cargo, password, tipoRol, area, rolEspecial } = parsed.data;
+  const { nombres, apellidos, email, telefono, cargo, password, tipoRol, area, rolEspecial, accesoHrefs } = parsed.data;
 
   const quienCrea = await getUsuarioActual();
   if (!quienCrea || !quienCrea.roles.includes("ADMIN")) {
@@ -57,12 +84,29 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
       },
     });
 
-    const nombreRol =
-      tipoRol === "APROBADOR" ? "APROBADOR" : tipoRol === "APROBADOR_GENERAL" ? "APROBADOR_GENERAL" : "LOGISTICA_COMPRAS";
-    const rol = await obtenerORol(nombreRol);
-    await prisma.asignacionRol.create({
-      data: { usuarioId: nuevoUsuario.id, rolId: rol.id, asignadoPorId: quienCrea.id },
-    });
+    // Roles de módulo (ACOPIO/LOGISTICA_COMPRAS/COMEX) según qué hrefs se
+    // marcaron en el árbol de casillas, más el rol de aprobador si
+    // corresponde — son ejes independientes, un mismo usuario puede tener
+    // varios roles de módulo a la vez (p. ej. Acopio + Comex).
+    const nombresRolModulo = rolesDeModuloPorHrefs(accesoHrefs);
+    const nombresRolAprobador: RolNombre[] =
+      tipoRol === "APROBADOR" ? [ROLES.APROBADOR] : tipoRol === "APROBADOR_GENERAL" ? [ROLES.APROBADOR_GENERAL] : [];
+    const nombresRolAAsignar = Array.from(new Set([...nombresRolModulo, ...nombresRolAprobador]));
+
+    for (const nombreRol of nombresRolAAsignar) {
+      // Las claves de ROLES coinciden textualmente con sus valores
+      // (ej. ROLES.ACOPIO === "ACOPIO"), así que nombreRol ya sirve como clave.
+      const rol = await obtenerORol(nombreRol as keyof typeof ROLES);
+      await prisma.asignacionRol.create({
+        data: { usuarioId: nuevoUsuario.id, rolId: rol.id, asignadoPorId: quienCrea.id },
+      });
+    }
+
+    if (accesoHrefs.length > 0) {
+      await prisma.usuarioAccesoItem.createMany({
+        data: accesoHrefs.map((href) => ({ usuarioId: nuevoUsuario.id, href })),
+      });
+    }
 
     if (tipoRol === "APROBADOR") {
       await prisma.aprobadorArea.upsert({

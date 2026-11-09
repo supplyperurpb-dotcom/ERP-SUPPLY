@@ -7,8 +7,9 @@ import { usePathname } from "next/navigation";
 import { PanelLeftClose, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { NAV_GRUPOS, NAV_INICIO, type NavGrupo } from "@/lib/nav-config";
-import { tienePermiso, type Modulo, type RolNombre } from "@/lib/auth/constants";
+import { NAV_INICIO, type NavGrupo } from "@/lib/nav-config";
+import type { RolNombre } from "@/lib/auth/constants";
+import { gruposVisiblesParaUsuario } from "@/lib/auth/acceso-modulos";
 
 // Recibe solo los roles (datos planos, serializables) y calcula acá los
 // grupos visibles. NAV_GRUPOS incluye componentes de ícono de lucide-react,
@@ -16,12 +17,15 @@ import { tienePermiso, type Modulo, type RolNombre } from "@/lib/auth/constants"
 // Component (React solo permite objetos planos a través de esa frontera).
 export function SidebarNav({
   roles,
+  accesoHrefs,
   abierto = false,
   onNavegar,
   colapsado = false,
   onColapsar,
 }: {
   roles: RolNombre[];
+  /** Allowlist de hrefs del usuario (ver UsuarioAccesoItem) — null = sin restricción, acceso normal por rol. */
+  accesoHrefs: string[] | null;
   abierto?: boolean;
   onNavegar?: () => void;
   /** Solo aplica en escritorio — en mobile el menú siempre es el overlay controlado por "abierto". */
@@ -30,7 +34,7 @@ export function SidebarNav({
 }) {
   const pathname = usePathname();
   const [logoError, setLogoError] = useState(false);
-  const gruposVisibles = NAV_GRUPOS.filter((grupo) => tienePermiso(roles, grupo.modulo as Modulo));
+  const gruposVisibles = gruposVisiblesParaUsuario(roles, accesoHrefs);
 
   return (
     <aside

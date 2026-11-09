@@ -25,6 +25,11 @@ export const crearUsuarioSchema = z
     // de Supply, District Controller o Gerente General), usado para las
     // firmas de OC/OS por monto.
     rolEspecial: z.enum(ROLES_ESPECIALES_EN_ALTA).optional(),
+    // Hrefs exactos del sidebar (ver lib/nav-config.ts) a los que este
+    // usuario tendrá acceso — ver UsuarioAccesoItem. Determina tanto el
+    // acceso fino por submódulo como, indirectamente, qué roles de módulo
+    // (ACOPIO/LOGISTICA_COMPRAS/COMEX) se le asignan (ver crearUsuarioAction).
+    accesoHrefs: z.array(z.string()).min(1, "Selecciona al menos un módulo/submódulo al que tendrá acceso"),
   })
   .superRefine((data, ctx) => {
     if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {

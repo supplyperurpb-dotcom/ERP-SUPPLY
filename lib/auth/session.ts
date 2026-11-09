@@ -14,6 +14,12 @@ export type UsuarioActual = {
   // Órdenes de compra/servicio puede ver, sea o no aprobador.
   area: string | null;
   roles: RolNombre[];
+  // Allowlist de hrefs del sidebar (ver UsuarioAccesoItem). null = el
+  // usuario no tiene ninguna fila configurada, así que no está acotado por
+  // esto — conserva el acceso normal por rol (todos los usuarios creados
+  // antes de este campo). Ver gruposVisiblesParaUsuario en
+  // lib/auth/acceso-modulos.ts.
+  accesoHrefs: string[] | null;
 };
 
 // cache() evita duplicar la consulta a Supabase/Prisma cuando varios
@@ -28,7 +34,7 @@ export const getUsuarioActual = cache(async (): Promise<UsuarioActual | null> =>
 
   const usuario = await prisma.usuario.findUnique({
     where: { supabaseAuthId: user.id },
-    include: { asignacionesRol: { include: { rol: true } } },
+    include: { asignacionesRol: { include: { rol: true } }, accesoItems: { select: { href: true } } },
   });
 
   if (!usuario) return null;
@@ -41,5 +47,6 @@ export const getUsuarioActual = cache(async (): Promise<UsuarioActual | null> =>
     email: usuario.email,
     area: usuario.area,
     roles: usuario.asignacionesRol.map((a) => a.rol.nombre as RolNombre),
+    accesoHrefs: usuario.accesoItems.length > 0 ? usuario.accesoItems.map((a) => a.href) : null,
   };
 });

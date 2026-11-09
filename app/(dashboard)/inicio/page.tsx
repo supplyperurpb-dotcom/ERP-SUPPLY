@@ -2,13 +2,12 @@ import Link from "next/link";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/page-header";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { tienePermiso, type Modulo } from "@/lib/auth/constants";
-import { NAV_GRUPOS } from "@/lib/nav-config";
+import { gruposVisiblesParaUsuario } from "@/lib/auth/acceso-modulos";
 
 export default async function InicioPage() {
   const usuario = await getUsuarioActual();
   const roles = usuario?.roles ?? [];
-  const gruposVisibles = NAV_GRUPOS.filter((grupo) => tienePermiso(roles, grupo.modulo as Modulo));
+  const gruposVisibles = gruposVisiblesParaUsuario(roles, usuario?.accesoHrefs ?? null);
 
   return (
     <div>

@@ -56,6 +56,7 @@ export function DashboardShell({
 
       <SidebarNav
         roles={roles}
+        accesoHrefs={usuario.accesoHrefs}
         abierto={menuAbierto}
         onNavegar={() => setMenuAbierto(false)}
         colapsado={sidebarColapsado}

@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AREAS_EMPRESA, ROLES_APROBADOR_ESPECIAL } from "@/lib/constants/compras";
+import { GRUPOS_ACCESO_ASIGNABLE } from "@/lib/auth/acceso-modulos";
 import { crearUsuarioSchema, type CrearUsuarioInput } from "@/lib/validations/usuarios";
 import { crearUsuarioAction } from "@/lib/actions/usuario-actions";
 
@@ -37,11 +39,28 @@ export function UsuarioForm() {
       tipoRol: "REGULAR",
       area: "PRODUCCION",
       rolEspecial: undefined,
+      accesoHrefs: [],
     },
   });
 
   const tipoRol = form.watch("tipoRol");
   const rolesEspecialesAsignables = ROLES_APROBADOR_ESPECIAL.filter((r) => r.valor !== "GERENTE_RRHH");
+  const accesoHrefs = form.watch("accesoHrefs");
+
+  function alternarItem(href: string, marcado: boolean) {
+    const actual = form.getValues("accesoHrefs");
+    form.setValue(
+      "accesoHrefs",
+      marcado ? Array.from(new Set([...actual, href])) : actual.filter((h) => h !== href),
+      { shouldValidate: true }
+    );
+  }
+
+  function alternarGrupo(hrefsGrupo: string[], marcarTodo: boolean) {
+    const actual = form.getValues("accesoHrefs");
+    const sinGrupo = actual.filter((h) => !hrefsGrupo.includes(h));
+    form.setValue("accesoHrefs", marcarTodo ? [...sinGrupo, ...hrefsGrupo] : sinGrupo, { shouldValidate: true });
+  }
 
   async function onSubmit(data: CrearUsuarioInput) {
     let resultado;
@@ -215,6 +234,48 @@ export function UsuarioForm() {
               <p className="text-sm font-medium text-destructive">{form.formState.errors.area.message}</p>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Acceso a módulos</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Marca exactamente qué módulos y submódulos del menú lateral podrá ver y usar este usuario. Si marcas
+            solo algunos submódulos de un módulo, solo esos quedan disponibles — no hace falta marcarlos todos.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {GRUPOS_ACCESO_ASIGNABLE.map((grupo) => {
+            const hrefsGrupo = grupo.items.map((item) => item.href);
+            const marcadosDelGrupo = hrefsGrupo.filter((h) => accesoHrefs.includes(h));
+            const todoMarcado = marcadosDelGrupo.length === hrefsGrupo.length;
+            return (
+              <div key={grupo.modulo} className="rounded-lg border p-4">
+                <label className="flex items-center gap-2 text-sm font-semibold">
+                  <Checkbox checked={todoMarcado} onCheckedChange={(v) => alternarGrupo(hrefsGrupo, v === true)} />
+                  {grupo.titulo}
+                  <span className="font-normal text-muted-foreground">
+                    ({marcadosDelGrupo.length}/{hrefsGrupo.length})
+                  </span>
+                </label>
+                <div className="mt-3 grid grid-cols-1 gap-2 pl-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {grupo.items.map((item) => (
+                    <label key={item.href} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={accesoHrefs.includes(item.href)}
+                        onCheckedChange={(v) => alternarItem(item.href, v === true)}
+                      />
+                      {item.titulo}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {form.formState.errors.accesoHrefs && (
+            <p className="text-sm font-medium text-destructive">{form.formState.errors.accesoHrefs.message}</p>
+          )}
         </CardContent>
       </Card>
 

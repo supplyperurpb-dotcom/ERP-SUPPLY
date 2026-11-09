@@ -159,8 +159,30 @@ model Usuario {
 
   asignacionesRol AsignacionRol[]
   logsAuditoria   LogAuditoria[]
+  accesoItems     UsuarioAccesoItem[]
 
   @@map("usuarios")
+}
+
+// Acceso fino por submódulo (ver lib/nav-config.ts): "href" es el link
+// exacto del ítem del sidebar (ej. "/acopio/ingresos"). Un usuario SIN
+// filas acá no está restringido por esto — conserva el acceso normal por
+// rol/módulo (ACCESO_MODULO_POR_ROL en lib/auth/constants.ts), que es el
+// caso de todos los usuarios creados antes de este modelo. En cuanto un
+// usuario tiene al menos una fila, su sidebar queda acotado exactamente a
+// esos ítems (dentro de los módulos que su rol ya le permitía) — ver
+// gruposVisiblesParaUsuario en lib/auth/acceso-modulos.ts. ADMIN nunca se
+// restringe por esto.
+model UsuarioAccesoItem {
+  id        String   @id @default(cuid())
+  usuarioId String
+  href      String
+  createdAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, href])
+  @@map("usuario_acceso_items")
 }
 
 model Rol {
