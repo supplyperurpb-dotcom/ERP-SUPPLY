@@ -123,6 +123,19 @@ export function formatCantidad(value: number | string) {
   return n.toLocaleString("es-PE", { maximumFractionDigits: 3 });
 }
 
+// Kg a toneladas, para las etiquetas que van encima de las barras en el
+// dashboard de Exportaciones (el tooltip, en cambio, sigue mostrando el
+// kg real vía formatCantidad). Entero cuando llega a 1 TN o más; con un
+// decimal cuando es menos de 1 TN, porque redondear ahí a entero perdería
+// casi toda la cifra (ej. 0.8 TN se volvería "1 TN").
+export function formatToneladas(kg: number): string {
+  const tn = kg / 1000;
+  if (tn < 1) {
+    return `${tn.toLocaleString("es-PE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} TN`;
+  }
+  return `${Math.round(tn).toLocaleString("es-PE")} TN`;
+}
+
 export function formatMoneda(value: number | string, moneda: string = "PEN") {
   const n = typeof value === "string" ? Number(value) : value;
   return new Intl.NumberFormat("es-PE", { style: "currency", currency: moneda }).format(n);

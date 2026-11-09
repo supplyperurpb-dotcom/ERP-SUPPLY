@@ -3,7 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { SectionCard } from "@/components/ui/cards/section-card";
-import { formatCantidad, formatMoneda } from "@/lib/utils";
+import { formatCantidad, formatMoneda, formatToneladas } from "@/lib/utils";
 import { colorPara, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { FilaVariedadEtiqueta } from "@/lib/facturacion-exportacion";
 
@@ -52,7 +52,7 @@ function EtiquetaKg(props: {
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
     <text x={cx} y={anchorY - 28} textAnchor="middle" fontSize={16} fontWeight={600} fill={COLOR_EJE}>
-      {formatCantidad(kg)} Kg
+      {formatToneladas(kg)}
     </text>
   );
 }

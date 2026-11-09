@@ -3,7 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { SectionCard } from "@/components/ui/cards/section-card";
-import { formatCantidad, formatMoneda } from "@/lib/utils";
+import { formatMoneda, formatToneladas } from "@/lib/utils";
 import { colorPara, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { FilaVariedadMercado } from "@/lib/facturacion-exportacion";
 
@@ -88,7 +88,7 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
                     <LabelList
                       dataKey="totalKg"
                       position="top"
-                      formatter={(v) => (typeof v === "number" ? `${formatCantidad(v)} Kg` : "")}
+                      formatter={(v) => (typeof v === "number" ? formatToneladas(v) : "")}
                       fontSize={16}
                       fill={COLOR_EJE}
                     />
