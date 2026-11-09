@@ -6,7 +6,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/auth/supabase-admin";
 import { ROLES, ROL_LABELS, MODULOS, type Modulo, type RolNombre } from "@/lib/auth/constants";
 import { NAV_GRUPOS } from "@/lib/nav-config";
-import { crearUsuarioSchema, type CrearUsuarioInput } from "@/lib/validations/usuarios";
+import { crearUsuarioSchema, editarUsuarioSchema, type CrearUsuarioInput, type EditarUsuarioInput } from "@/lib/validations/usuarios";
 
 // Rol de módulo (ver ACCESO_MODULO_POR_ROL) que corresponde a cada módulo
 // del sidebar — "usuarios" queda fuera a propósito: ese acceso sigue
@@ -16,6 +16,18 @@ const ROL_POR_MODULO: Partial<Record<Modulo, keyof typeof ROLES>> = {
   [MODULOS.ACOPIO]: "ACOPIO",
   [MODULOS.COMEX]: "COMEX",
 };
+
+// Roles que este formulario (alta y edición) administra por completo: se
+// reemplazan enteros en cada guardado. ADMIN, ANULADOR y SOLO_LECTURA quedan
+// fuera a propósito — no se otorgan ni se revocan desde acá, así que
+// editarUsuarioAction nunca les toca esos roles a quienes ya los tienen.
+const ROLES_GESTIONADOS_POR_FORM: RolNombre[] = [
+  ROLES.LOGISTICA_COMPRAS,
+  ROLES.ACOPIO,
+  ROLES.COMEX,
+  ROLES.APROBADOR,
+  ROLES.APROBADOR_GENERAL,
+];
 
 // A partir de los hrefs marcados en el árbol de casillas, calcula los
 // módulos tocados (buscando en qué grupo de NAV_GRUPOS vive cada href) y
@@ -133,5 +145,112 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
     await admin.auth.admin.deleteUser(authData.user.id).catch(() => {});
     console.error("Error inesperado en crearUsuarioAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al crear el usuario." };
+  }
+}
+
+export type EditarUsuarioActionState = { error?: string; ok?: true } | undefined;
+
+export async function editarUsuarioAction(
+  usuarioId: string,
+  data: EditarUsuarioInput
+): Promise<EditarUsuarioActionState> {
+  const parsed = editarUsuarioSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const { nombres, apellidos, email, telefono, cargo, nuevaPassword, tipoRol, area, rolEspecial, accesoHrefs, activo } =
+    parsed.data;
+
+  const quienEdita = await getUsuarioActual();
+  if (!quienEdita || !quienEdita.roles.includes("ADMIN")) {
+    return { error: "Solo un administrador puede editar usuarios." };
+  }
+
+  const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+  if (!usuario) {
+    return { error: "El usuario no existe." };
+  }
+
+  if (usuario.id === quienEdita.id && !activo) {
+    return { error: "No puedes desactivar tu propia cuenta." };
+  }
+
+  if (email !== usuario.email) {
+    const existente = await prisma.usuario.findUnique({ where: { email } });
+    if (existente && existente.id !== usuario.id) {
+      return { error: "Ya existe un usuario con ese correo." };
+    }
+  }
+
+  const admin = createSupabaseAdminClient();
+  if (email !== usuario.email || nuevaPassword) {
+    const { error: authError } = await admin.auth.admin.updateUserById(usuario.supabaseAuthId, {
+      ...(email !== usuario.email ? { email, email_confirm: true } : {}),
+      ...(nuevaPassword ? { password: nuevaPassword } : {}),
+    });
+    if (authError) {
+      return { error: authError.message };
+    }
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.usuario.update({
+        where: { id: usuario.id },
+        data: { nombres, apellidos, email, telefono: telefono || null, cargo: cargo || null, area, activo },
+      });
+
+      // Reemplaza solo los roles que este formulario administra (ver
+      // ROLES_GESTIONADOS_POR_FORM) — ADMIN/ANULADOR/SOLO_LECTURA, si los
+      // tenía, quedan intactos.
+      await tx.asignacionRol.deleteMany({
+        where: { usuarioId: usuario.id, rol: { nombre: { in: ROLES_GESTIONADOS_POR_FORM } } },
+      });
+      const nombresRolModulo = rolesDeModuloPorHrefs(accesoHrefs);
+      const nombresRolAprobador: RolNombre[] =
+        tipoRol === "APROBADOR" ? [ROLES.APROBADOR] : tipoRol === "APROBADOR_GENERAL" ? [ROLES.APROBADOR_GENERAL] : [];
+      const nombresRolAAsignar = Array.from(new Set([...nombresRolModulo, ...nombresRolAprobador]));
+      for (const nombreRol of nombresRolAAsignar) {
+        const rol = await obtenerORol(nombreRol as keyof typeof ROLES);
+        await tx.asignacionRol.create({
+          data: { usuarioId: usuario.id, rolId: rol.id, asignadoPorId: quienEdita.id },
+        });
+      }
+
+      await tx.usuarioAccesoItem.deleteMany({ where: { usuarioId: usuario.id } });
+      if (accesoHrefs.length > 0) {
+        await tx.usuarioAccesoItem.createMany({
+          data: accesoHrefs.map((href) => ({ usuarioId: usuario.id, href })),
+        });
+      }
+
+      // El cupo de aprobador de área/rol especial es 1 usuario a la vez —
+      // se limpia lo que tenía y se vuelve a asignar según el estado nuevo.
+      await tx.aprobadorArea.deleteMany({ where: { usuarioId: usuario.id } });
+      if (tipoRol === "APROBADOR") {
+        await tx.aprobadorArea.upsert({
+          where: { area },
+          create: { area, usuarioId: usuario.id },
+          update: { usuarioId: usuario.id },
+        });
+      }
+
+      await tx.aprobadorEspecial.deleteMany({ where: { usuarioId: usuario.id } });
+      if (tipoRol === "APROBADOR_GENERAL" && rolEspecial) {
+        await tx.aprobadorEspecial.upsert({
+          where: { rol: rolEspecial },
+          create: { rol: rolEspecial, usuarioId: usuario.id },
+          update: { usuarioId: usuario.id },
+        });
+      }
+    });
+
+    revalidatePath("/usuarios/lista");
+    revalidatePath("/usuarios/roles");
+    revalidatePath(`/usuarios/${usuario.id}/editar`);
+    return { ok: true };
+  } catch (e) {
+    console.error("Error inesperado en editarUsuarioAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al editar el usuario." };
   }
 }

@@ -42,3 +42,33 @@ export const crearUsuarioSchema = z
   });
 
 export type CrearUsuarioInput = z.infer<typeof crearUsuarioSchema>;
+
+export const editarUsuarioSchema = z
+  .object({
+    nombres: z.string().min(1, "Los nombres son obligatorios"),
+    apellidos: z.string().min(1, "Los apellidos son obligatorios"),
+    email: z.string().email("Correo inválido"),
+    telefono: z.string().optional().or(z.literal("")),
+    cargo: z.string().optional().or(z.literal("")),
+    // Vacío = no cambiar la contraseña actual.
+    nuevaPassword: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").optional().or(z.literal("")),
+    tipoRol: z.enum(["REGULAR", "APROBADOR", "APROBADOR_GENERAL"], { required_error: "Selecciona el rol" }),
+    area: z.enum(AREAS, { required_error: "Selecciona el área del usuario" }),
+    rolEspecial: z.enum(ROLES_ESPECIALES_EN_ALTA).optional(),
+    // Sin mínimo (a diferencia de crearUsuarioSchema): un ADMIN ve todos los
+    // módulos sin importar esto, y un admin puede querer dejar a alguien sin
+    // ningún acceso temporalmente sin tener que desactivar la cuenta.
+    accesoHrefs: z.array(z.string()),
+    activo: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona qué rol especial ocupa",
+        path: ["rolEspecial"],
+      });
+    }
+  });
+
+export type EditarUsuarioInput = z.infer<typeof editarUsuarioSchema>;

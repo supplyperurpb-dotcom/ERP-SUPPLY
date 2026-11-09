@@ -37,7 +37,9 @@ export const getUsuarioActual = cache(async (): Promise<UsuarioActual | null> =>
     include: { asignacionesRol: { include: { rol: true } }, accesoItems: { select: { href: true } } },
   });
 
-  if (!usuario) return null;
+  // Un usuario desactivado conserva su cuenta en Supabase Auth pero deja de
+  // poder usar la app — se trata como "no logueado" en todo el dashboard.
+  if (!usuario || !usuario.activo) return null;
 
   return {
     id: usuario.id,

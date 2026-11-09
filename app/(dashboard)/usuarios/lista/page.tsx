@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Users, Plus } from "lucide-react";
+import { Users, Plus, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +55,7 @@ export default async function UsuariosPage() {
               <TableHead>Rol</TableHead>
               <TableHead>Área que aprueba</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -86,6 +87,13 @@ export default async function UsuariosPage() {
                     <Badge variant={usuario.activo ? "success" : "destructive"}>
                       {usuario.activo ? "Activo" : "Inactivo"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/usuarios/${usuario.id}/editar`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               );
