@@ -42,6 +42,12 @@ function EtiquetaKg(props: {
   if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
   const kg = Number(value);
   if (!Number.isFinite(kg) || kg <= 0) return null;
+  // Barra más baja que el clearance: su anchorY quedaría "clavado" en el
+  // mismo piso que cualquier otra barra corta del gráfico, y los textos
+  // (bastante más anchos que la barra) de varias barras cortas vecinas
+  // terminan superpuestos entre sí. Mejor no mostrar el texto (el dato
+  // sigue en el tooltip) que mostrarlo ilegible.
+  if (Number(height) < CLEARANCE_MIN_PX) return null;
   const cx = Number(x) + Number(width) / 2;
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
@@ -62,6 +68,8 @@ function EtiquetaPU(props: {
   if (x === undefined || y === undefined || width === undefined || height === undefined) return null;
   const pu = Number(value);
   if (!Number.isFinite(pu) || pu <= 0) return null;
+  // Mismo criterio que EtiquetaKg — ver comentario ahí.
+  if (Number(height) < CLEARANCE_MIN_PX) return null;
   const cx = Number(x) + Number(width) / 2;
   const anchorY = anchorYDesdeBarra(Number(y), Number(height));
   return (
