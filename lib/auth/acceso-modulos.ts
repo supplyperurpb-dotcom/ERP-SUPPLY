@@ -26,3 +26,38 @@ export function gruposVisiblesParaUsuario(roles: RolNombre[], accesoHrefs: strin
     })
     .filter((grupo) => grupo.items.length > 0);
 }
+
+// El href del ítem de NAV_GRUPOS que "contiene" esta ruta: el más
+// específico cuyo href sea la ruta exacta o un prefijo de segmento de
+// ella. Las subrutas (detalle, nuevo, editar) no tienen su propia entrada
+// en NAV_GRUPOS, así que heredan el permiso de su ítem padre — p. ej.
+// "/logistica/ordenes-compra" para "/logistica/ordenes-compra/123/editar".
+function hrefContenedor(pathname: string): string | null {
+  let mejor: string | null = null;
+  for (const grupo of NAV_GRUPOS) {
+    for (const item of grupo.items) {
+      const coincide = pathname === item.href || pathname.startsWith(`${item.href}/`);
+      if (coincide && (!mejor || item.href.length > mejor.length)) {
+        mejor = item.href;
+      }
+    }
+  }
+  return mejor;
+}
+
+/**
+ * Enforcement real (no solo visual) de a qué rutas del dashboard puede
+ * entrar un usuario: una ruta queda permitida si no corresponde a ningún
+ * ítem de NAV_GRUPOS (p. ej. /inicio, fuera de este sistema de
+ * módulos/submódulos) o si ese ítem está entre los que
+ * gruposVisiblesParaUsuario ya considera visibles para él. Pensado para
+ * app/(dashboard)/layout.tsx — hasta ahora esto solo se aplicaba al
+ * sidebar/Inicio, así que una URL directa a un módulo no marcado igual
+ * funcionaba.
+ */
+export function rutaPermitida(roles: RolNombre[], accesoHrefs: string[] | null, pathname: string): boolean {
+  const href = hrefContenedor(pathname);
+  if (!href) return true;
+  const hrefsVisibles = new Set(gruposVisiblesParaUsuario(roles, accesoHrefs).flatMap((g) => g.items.map((i) => i.href)));
+  return hrefsVisibles.has(href);
+}

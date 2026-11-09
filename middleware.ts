@@ -4,7 +4,14 @@ import { NextResponse, type NextRequest } from "next/server";
 const RUTAS_PUBLICAS = ["/login", "/recuperar-password"];
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request: { headers: request.headers } });
+  // Reenvía la ruta actual como header — es la forma de que un Server
+  // Component (el layout del dashboard) sepa qué ruta se está pidiendo,
+  // para el control de acceso real por módulo/submódulo (ver rutaPermitida
+  // en lib/auth/acceso-modulos.ts).
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,11 +22,11 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: Record<string, unknown>) {
-          response = NextResponse.next({ request: { headers: request.headers } });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           response.cookies.set(name, value, options);
         },
         remove(name: string, options: Record<string, unknown>) {
-          response = NextResponse.next({ request: { headers: request.headers } });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           response.cookies.set(name, "", options);
         },
       },
