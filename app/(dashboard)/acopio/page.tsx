@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { BarChart3, Boxes, FileText, Receipt, Ruler, Snowflake, Tag, Truck } from "lucide-react";
+import { BarChart3, Boxes, FileText, Layers, Receipt, Ruler, Snowflake, Tag, Truck } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { gruposVisiblesParaUsuario } from "@/lib/auth/acceso-modulos";
+import { MODULOS } from "@/lib/auth/constants";
 
 const TILES = [
   {
@@ -60,23 +64,38 @@ const TILES = [
   },
 ];
 
-export default function AcopioInicioPage() {
+export default async function AcopioInicioPage() {
+  const usuario = await getUsuarioActual();
+  const grupo = gruposVisiblesParaUsuario(usuario?.roles ?? [], usuario?.accesoHrefs ?? null).find(
+    (g) => g.modulo === MODULOS.ACOPIO
+  );
+  const hrefsVisibles = new Set(grupo?.items.map((i) => i.href) ?? []);
+  const tiles = TILES.filter((tile) => hrefsVisibles.has(tile.href));
+
   return (
     <div>
       <PageHeader titulo="Acopio" descripcion="Elige un submódulo para continuar." />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TILES.map((tile) => (
-          <Link key={tile.href} href={tile.href}>
-            <Card className="h-full transition-colors hover:border-primary hover:bg-accent/40">
-              <CardHeader>
-                <tile.icono className="mb-2 h-6 w-6 text-primary" />
-                <CardTitle className="text-base">{tile.titulo}</CardTitle>
-                <CardDescription>{tile.descripcion}</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {tiles.length === 0 ? (
+        <EmptyState
+          icono={Layers}
+          titulo="Sin submódulos disponibles"
+          descripcion="No tienes acceso a ningún submódulo de Acopio."
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {tiles.map((tile) => (
+            <Link key={tile.href} href={tile.href}>
+              <Card className="h-full transition-colors hover:border-primary hover:bg-accent/40">
+                <CardHeader>
+                  <tile.icono className="mb-2 h-6 w-6 text-primary" />
+                  <CardTitle className="text-base">{tile.titulo}</CardTitle>
+                  <CardDescription>{tile.descripcion}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
