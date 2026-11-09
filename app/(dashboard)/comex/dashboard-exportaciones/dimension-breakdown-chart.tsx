@@ -50,7 +50,16 @@ export function DimensionBreakdownChart({
                     : [formatMoneda(Number(value), "USD"), "Facturado"];
                 }}
               />
-              <Bar dataKey="netWeight" fill={PALETA_SOBRIA[0]} radius={[0, 4, 4, 0]} maxBarSize={GROSOR_MAX_BARRA}>
+              <Bar
+                dataKey="netWeight"
+                fill={PALETA_SOBRIA[0]}
+                radius={999}
+                maxBarSize={GROSOR_MAX_BARRA}
+                activeBar={{ fillOpacity: 0.85 }}
+                isAnimationActive
+                animationDuration={700}
+                animationEasing="ease-out"
+              >
                 <LabelList
                   dataKey="participacionPct"
                   position="right"

@@ -17,6 +17,9 @@ export const COLOR_SEMANTICO: Record<string, string> = {
   SB: "#1F3A5F", // azul marino
   JB: "#4A6FA5", // azul marino, tono más claro
   "S&C": "#7A8699", // tono neutro — no se pidió un color específico para esta etiqueta
+  // Hex exactos pedidos para "Estatus de Embarques por Semana" (refinamiento visual 2026-11-09).
+  ARRIBADO: "#172F50",
+  "EN TRANSITO": "#6685A9",
 };
 
 export const PALETA_SOBRIA = [

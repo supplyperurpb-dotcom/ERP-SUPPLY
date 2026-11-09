@@ -84,3 +84,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Transición suave al pasar el cursor sobre una barra de los gráficos
+   (Recharts) — el cambio de opacidad del "activeBar" es instantáneo por
+   defecto; esto lo anima. Afecta solo las barras que ya declaran
+   `activeBar` (dashboard de Exportaciones), nada más. */
+.recharts-bar-rectangle path {
+  transition: fill-opacity 250ms ease;
+}

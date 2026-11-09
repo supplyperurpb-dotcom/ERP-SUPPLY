@@ -74,6 +74,7 @@ export function StackedBarChart({
   etiquetaSerie,
   ocultarPorcentaje = false,
   formatearCategoria,
+  bordeSuperiorPx,
 }: {
   titulo: string;
   descripcion?: string;
@@ -86,6 +87,16 @@ export function StackedBarChart({
   ocultarPorcentaje?: boolean;
   /** Texto más amigable para la categoría del eje X en el tooltip (ej. "37" -> "W37"). Por defecto se muestra tal cual. */
   formatearCategoria?: (categoria: string) => string;
+  /**
+   * Redondea solo las esquinas superiores de cada columna (base recta).
+   * Opt-in: solo lo pide "Estatus de Embarques por Semana" — en una pila de
+   * 2 series, aplicar el mismo radio arriba a AMBAS series es seguro (no
+   * un "si es la de más arriba" caso por caso): la de abajo, si hay una
+   * encima, queda tapada por el rectángulo recto de esa de arriba; si no
+   * hay nada encima esa semana, su propio redondeo superior es el que se
+   * ve. "Kg Por Semana..." no pasa esto — sigue con esquinas rectas.
+   */
+  bordeSuperiorPx?: number;
 }) {
   const fmt = formatearValor ?? ((v: number) => formatCantidad(v));
   const mostrarSerie = etiquetaSerie ?? ((s: string) => s);
@@ -115,7 +126,18 @@ export function StackedBarChart({
               />
               <Legend formatter={mostrarSerie} wrapperStyle={ESTILO_LEYENDA} />
               {series.map((s, i) => (
-                <Bar key={s} dataKey={s} stackId="a" fill={colorPara(s, i)} maxBarSize={GROSOR_MAX_BARRA} />
+                <Bar
+                  key={s}
+                  dataKey={s}
+                  stackId="a"
+                  fill={colorPara(s, i)}
+                  maxBarSize={GROSOR_MAX_BARRA}
+                  radius={bordeSuperiorPx ? [bordeSuperiorPx, bordeSuperiorPx, 0, 0] : undefined}
+                  activeBar={{ fillOpacity: 0.85 }}
+                  isAnimationActive
+                  animationDuration={700}
+                  animationEasing="ease-out"
+                />
               ))}
             </BarChart>
           </ResponsiveContainer>
