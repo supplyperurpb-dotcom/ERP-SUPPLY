@@ -210,10 +210,24 @@ export async function editarUsuarioAction(
       const nombresRolAprobador: RolNombre[] =
         tipoRol === "APROBADOR" ? [ROLES.APROBADOR] : tipoRol === "APROBADOR_GENERAL" ? [ROLES.APROBADOR_GENERAL] : [];
       const nombresRolAAsignar = Array.from(new Set([...nombresRolModulo, ...nombresRolAprobador]));
-      for (const nombreRol of nombresRolAAsignar) {
-        const rol = await obtenerORol(nombreRol as keyof typeof ROLES);
-        await tx.asignacionRol.create({
-          data: { usuarioId: usuario.id, rolId: rol.id, asignadoPorId: quienEdita.id },
+      if (nombresRolAAsignar.length > 0) {
+        // Busca todos los Rol de una sola vez (reusando la conexión de la
+        // transacción) en vez de un upsert por rol en una conexión aparte —
+        // eso era lo que más alargaba la transacción en producción.
+        const rolesExistentes = await tx.rol.findMany({ where: { nombre: { in: nombresRolAAsignar } } });
+        const rolIdPorNombre = new Map(rolesExistentes.map((r) => [r.nombre, r.id]));
+        for (const nombreRol of nombresRolAAsignar) {
+          if (!rolIdPorNombre.has(nombreRol)) {
+            const rol = await tx.rol.create({ data: { nombre: nombreRol, descripcion: ROL_LABELS[nombreRol] } });
+            rolIdPorNombre.set(nombreRol, rol.id);
+          }
+        }
+        await tx.asignacionRol.createMany({
+          data: nombresRolAAsignar.map((nombreRol) => ({
+            usuarioId: usuario.id,
+            rolId: rolIdPorNombre.get(nombreRol)!,
+            asignadoPorId: quienEdita.id,
+          })),
         });
       }
 
