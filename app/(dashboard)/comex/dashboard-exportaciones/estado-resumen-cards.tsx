@@ -1,4 +1,4 @@
-import { PackageCheck, Truck } from "lucide-react";
+import { PackageCheck, Truck, Ship } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
 import { PALETA_ARRIBADOS, PALETA_EN_TRANSITO, type PaletaTarjeta } from "./colores";
@@ -43,9 +43,12 @@ export function EstadoResumenCards({ resumen }: { resumen: ResumenEstadoContened
           <Card key={r.estado} style={paleta ? { backgroundColor: paleta.fondo, borderColor: paleta.borde } : undefined}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle
-                className={paleta ? "text-sm font-medium" : "text-sm font-medium text-muted-foreground"}
+                className={
+                  paleta ? "flex items-center gap-2 text-sm font-medium" : "flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                }
                 style={paleta ? { color: paleta.titulo } : undefined}
               >
+                <Ship className="h-4 w-4 shrink-0" />
                 {ETIQUETA_ESTADO[r.estado] ?? r.estado}
               </CardTitle>
               {Icono && <Icono className="h-4 w-4 shrink-0" style={paleta ? { color: paleta.titulo } : undefined} />}
