@@ -1,12 +1,16 @@
 import { Package, DollarSign } from "lucide-react";
 import { KPICard } from "@/components/ui/cards/kpi-card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
-import { PALETA_SOBRIA } from "./colores";
+import { PALETA_SOBRIA, COLOR_SEMANTICO } from "./colores";
 import type { KpisFacturacion } from "@/lib/facturacion-exportacion";
 
 // Azul claro pedido para resaltar el par Kg Facturados / PU CIF Facturado
 // (distinto de la paleta sobria genérica — color puntual para estas tarjetas).
 const AZUL_CLARO = "#8dcfec";
+// El número en sí va en el mismo azul que el "Premium" de la tarjeta de
+// abajo (pedido explícito) — el AZUL_CLARO de arriba queda solo como
+// tinte de fondo, se ve muy pálido para el texto grande.
+const AZUL_NUMERO = COLOR_SEMANTICO.PREMIUM;
 // Plomo claro (PALETA_SOBRIA[2], "gris azulado"), para el par Kg
 // Liquidados / PU CIF Liquidado.
 const PLOMO_CLARO = PALETA_SOBRIA[2];
@@ -29,12 +33,14 @@ export function KpiCards({ kpis }: { kpis: KpisFacturacion }) {
           value={`${formatCantidad(kpis.netWeight)} Kg`}
           secondaryLine={formatMoneda(kpis.invoicedAmount, "USD")}
           color={AZUL_CLARO}
+          valueColor={AZUL_NUMERO}
           icon={Package}
         />
         <KPICard
           label="PU CIF Facturado"
           value={formatMoneda(cifPorKgFacturado, "USD")}
           color={AZUL_CLARO}
+          valueColor={AZUL_NUMERO}
           icon={DollarSign}
         />
       </div>

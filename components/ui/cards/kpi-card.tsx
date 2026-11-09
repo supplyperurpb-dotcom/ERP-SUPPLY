@@ -11,18 +11,22 @@ export function KPICard({
   value,
   secondaryLine,
   color,
+  valueColor,
   icon: Icon,
   className,
 }: {
   label: string;
   value: string;
   secondaryLine?: string;
-  /** Hex, ej. "#1F3A5F" — si no se pasa, usa el estilo default de Card (sin tinte). */
+  /** Hex, ej. "#1F3A5F" — si no se pasa, usa el estilo default de Card (sin tinte). Tiñe el fondo/borde de la tarjeta. */
   color?: string;
-  /** Ícono opcional junto al label, teñido con `color` si se pasa. */
+  /** Color del valor y el ícono, si debe ser distinto del tinte de fondo (`color`). Por defecto usa `color`. */
+  valueColor?: string;
+  /** Ícono opcional junto al label, teñido con `valueColor` (o `color`) si se pasa. */
   icon?: LucideIcon;
   className?: string;
 }) {
+  const colorValor = valueColor ?? color;
   return (
     <Card
       className={className}
@@ -30,10 +34,10 @@ export function KPICard({
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        {Icon && <Icon className="h-4 w-4 shrink-0" style={color ? { color } : undefined} />}
+        {Icon && <Icon className="h-4 w-4 shrink-0" style={colorValor ? { color: colorValor } : undefined} />}
       </CardHeader>
       <CardContent className="space-y-1">
-        <p className="text-2xl font-semibold" style={color ? { color } : undefined}>
+        <p className="text-2xl font-semibold" style={colorValor ? { color: colorValor } : undefined}>
           {value}
         </p>
         {secondaryLine && <p className="text-sm text-muted-foreground">{secondaryLine}</p>}
