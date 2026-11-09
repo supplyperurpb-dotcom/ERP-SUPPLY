@@ -167,7 +167,17 @@ export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: Fi
               <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
               <Legend formatter={(value) => ETIQUETA_TIPO[value] ?? value} wrapperStyle={ESTILO_LEYENDA} />
               {TIPOS.map((tipo, i) => (
-                <Bar key={tipo} dataKey={tipo} fill={colorPara(tipo, i)} maxBarSize={GROSOR_MAX_BARRA}>
+                <Bar
+                  key={tipo}
+                  dataKey={tipo}
+                  fill={colorPara(tipo, i)}
+                  maxBarSize={GROSOR_MAX_BARRA}
+                  radius={[8, 8, 0, 0]}
+                  activeBar={{ fillOpacity: 0.85 }}
+                  isAnimationActive
+                  animationDuration={700}
+                  animationEasing="ease-out"
+                >
                   <LabelList dataKey={tipo} content={(props) => <EtiquetaKg {...props} />} />
                   <LabelList dataKey={`${tipo}__pu`} content={(props) => <EtiquetaPU {...props} />} />
                   <LabelList

@@ -161,7 +161,17 @@ export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string
               <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
               <Legend wrapperStyle={ESTILO_LEYENDA} />
               {series.map((etiqueta, i) => (
-                <Bar key={etiqueta} dataKey={etiqueta} fill={colorPara(etiqueta, i)} maxBarSize={GROSOR_MAX_BARRA}>
+                <Bar
+                  key={etiqueta}
+                  dataKey={etiqueta}
+                  fill={colorPara(etiqueta, i)}
+                  maxBarSize={GROSOR_MAX_BARRA}
+                  radius={[8, 8, 0, 0]}
+                  activeBar={{ fillOpacity: 0.85 }}
+                  isAnimationActive
+                  animationDuration={700}
+                  animationEasing="ease-out"
+                >
                   <LabelList dataKey={etiqueta} content={(props) => <EtiquetaKg {...props} />} />
                   <LabelList dataKey={`${etiqueta}__pu`} content={(props) => <EtiquetaPU {...props} />} />
                   <LabelList

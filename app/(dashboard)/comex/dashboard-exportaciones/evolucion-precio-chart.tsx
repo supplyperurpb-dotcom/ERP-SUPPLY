@@ -81,8 +81,12 @@ export function EvolucionPrecioChart({
                 dataKey="kgLiquidado"
                 fill={VERDE}
                 fillOpacity={0.55}
-                radius={[4, 4, 0, 0]}
+                radius={[8, 8, 0, 0]}
                 maxBarSize={GROSOR_MAX_BARRA}
+                activeBar={{ fillOpacity: 0.8 }}
+                isAnimationActive
+                animationDuration={700}
+                animationEasing="ease-out"
               />
               <Line
                 yAxisId="precio"

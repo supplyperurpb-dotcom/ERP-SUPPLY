@@ -120,6 +120,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         titulo="Kg Por Semana De Despacho Según Tipo De Producto"
         puntos={kgPorSemanaTipo.puntos}
         series={kgPorSemanaTipo.series}
+        bordeSuperiorPx={8}
       />
 
       <VariedadTipoChart titulo="Kg Exportados Por Variedad, Según Tipo" datos={exportacionesPorVariedadYTipo} />
