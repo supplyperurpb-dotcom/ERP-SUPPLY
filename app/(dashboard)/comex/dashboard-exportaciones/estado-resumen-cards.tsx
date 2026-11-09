@@ -1,7 +1,7 @@
 import { PackageCheck, Truck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
-import { colorPara } from "./colores";
+import { PALETA_ARRIBADOS, PALETA_EN_TRANSITO, type PaletaTarjeta } from "./colores";
 import type { ResumenEstadoContenedores } from "@/lib/facturacion-exportacion";
 
 // Ícono por estado, para "iconografía consistente" (Fase 3) — completado
@@ -20,10 +20,12 @@ const ETIQUETA_ESTADO: Record<string, string> = {
   "EN TRANSITO": "Embarques En Tránsito",
 };
 
-// Fondo puntual pedido para "Arribados" (mismo tono que las tarjetas de
-// facturación) — el resto de estados sigue con colorPara más abajo.
-const COLOR_FONDO_OVERRIDE: Record<string, string> = {
-  ARRIBADO: "#8dcfec",
+// Identidad propia por estado (turquesa/lavanda), independiente de
+// Facturado/Liquidado — si apareciera un estado nuevo sin mapear, la
+// tarjeta queda sin tinte en vez de inventarle un color.
+const PALETA_ESTADO: Record<string, PaletaTarjeta> = {
+  ARRIBADO: PALETA_ARRIBADOS,
+  "EN TRANSITO": PALETA_EN_TRANSITO,
 };
 
 // Resumen visual rápido: cuántos embarques (PO) hay arribados vs. en
@@ -34,24 +36,36 @@ export function EstadoResumenCards({ resumen }: { resumen: ResumenEstadoContened
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {resumen.map((r, i) => {
-        const color = colorPara(r.estado, i);
-        const colorFondo = COLOR_FONDO_OVERRIDE[r.estado] ?? color;
+      {resumen.map((r) => {
+        const paleta = PALETA_ESTADO[r.estado];
         const Icono = ICONO_ESTADO[r.estado];
         return (
-          <Card key={r.estado} style={{ backgroundColor: `${colorFondo}1A`, borderColor: `${colorFondo}66` }}>
+          <Card key={r.estado} style={paleta ? { backgroundColor: paleta.fondo, borderColor: paleta.borde } : undefined}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle
+                className={paleta ? "text-sm font-medium" : "text-sm font-medium text-muted-foreground"}
+                style={paleta ? { color: paleta.titulo } : undefined}
+              >
                 {ETIQUETA_ESTADO[r.estado] ?? r.estado}
               </CardTitle>
-              {Icono && <Icono className="h-4 w-4 shrink-0" style={{ color }} />}
+              {Icono && <Icono className="h-4 w-4 shrink-0" style={paleta ? { color: paleta.titulo } : undefined} />}
             </CardHeader>
             <CardContent className="space-y-1">
-              <p className="text-2xl font-semibold" style={{ color }}>
+              <p className="text-2xl font-semibold" style={paleta ? { color: paleta.valor } : undefined}>
                 {r.n} Embarques
               </p>
-              <p className="text-base font-medium text-foreground">{formatCantidad(r.netWeight)} Kg</p>
-              <p className="text-sm text-muted-foreground">{formatMoneda(r.invoicedAmount, "USD")}</p>
+              <p
+                className={paleta ? "text-base font-medium" : "text-base font-medium text-foreground"}
+                style={paleta ? { color: paleta.valorSecundario } : undefined}
+              >
+                {formatCantidad(r.netWeight)} Kg
+              </p>
+              <p
+                className={paleta ? "text-sm" : "text-sm text-muted-foreground"}
+                style={paleta ? { color: paleta.valorSecundario } : undefined}
+              >
+                {formatMoneda(r.invoicedAmount, "USD")}
+              </p>
             </CardContent>
           </Card>
         );

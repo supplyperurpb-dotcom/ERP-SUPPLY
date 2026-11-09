@@ -47,3 +47,64 @@ export const ESTILO_LEYENDA = { fontSize: 13, paddingTop: 8 } as const;
 // Fase 3: ancho máximo de barra, para que las columnas se vean "un poco
 // más delgadas" en pantallas anchas en vez de ensancharse sin límite.
 export const GROSOR_MAX_BARRA = 56;
+
+// ---------------------------------------------------------------------
+// Paleta de tarjetas KPI (pedido explícito, 2026-11-09): 5 identidades
+// visuales — Facturado, Liquidado, Pendiente de liquidar, Embarques
+// Arribados, Embarques En Tránsito — cada una con su propio fondo, borde,
+// color de título/ícono, valor principal y valor secundario. Separada de
+// COLOR_SEMANTICO/PALETA_SOBRIA a propósito: esas son para los gráficos
+// (barras/tortas por variedad, mercado, etc.), no para estas tarjetas —
+// cambiarlas ahí habría afectado gráficos que esta ronda no tocaba.
+export type PaletaTarjeta = {
+  fondo: string;
+  borde: string;
+  /** También usado para el ícono y, en Premium/Convencional, la etiqueta (no el %). */
+  titulo: string;
+  valor: string;
+  valorSecundario: string;
+};
+
+export const PALETA_FACTURADO: PaletaTarjeta = {
+  fondo: "#E5F1F8",
+  borde: "#B8DCEC",
+  titulo: "#376F96",
+  valor: "#183B5B",
+  valorSecundario: "#527D9E",
+};
+
+export const PALETA_LIQUIDADO: PaletaTarjeta = {
+  fondo: "#E4F0E9",
+  borde: "#B9D9C5",
+  titulo: "#397653",
+  valor: "#24563D",
+  valorSecundario: "#548368",
+};
+
+export const PALETA_PENDIENTE: PaletaTarjeta = {
+  fondo: "#F0F1F3",
+  borde: "#D9DDE2",
+  titulo: "#606B78",
+  valor: "#263445",
+  valorSecundario: "#606B78",
+};
+
+export const PALETA_ARRIBADOS: PaletaTarjeta = {
+  fondo: "#E2F3F3",
+  borde: "#A8DCDD",
+  titulo: "#16788A",
+  valor: "#164F65",
+  valorSecundario: "#397F8C",
+};
+
+export const PALETA_EN_TRANSITO: PaletaTarjeta = {
+  fondo: "#EEEAF7",
+  borde: "#C9BDE5",
+  titulo: "#65558F",
+  valor: "#37365F",
+  valorSecundario: "#77719A",
+};
+
+// Único tono dorado para "Convencional" en las tarjetas KPI (distinto del
+// COLOR_SEMANTICO.CONVENCIONAL de los gráficos, que no se tocó).
+export const COLOR_CONVENCIONAL_TARJETA = "#D69B19";

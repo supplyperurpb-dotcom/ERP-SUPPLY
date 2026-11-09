@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
+import { PALETA_PENDIENTE } from "./colores";
 import type { PorLiquidarResumen } from "@/lib/facturacion-exportacion";
 
 // Kg ya facturados que todavía no se liquidan, con su valor facturado
@@ -9,21 +10,29 @@ import type { PorLiquidarResumen } from "@/lib/facturacion-exportacion";
 // las 2 tarjetas apiladas de al lado (Kg Liquidados + $/Kg CIF Liquidado).
 export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="flex h-full flex-col" style={{ backgroundColor: PALETA_PENDIENTE.fondo, borderColor: PALETA_PENDIENTE.borde }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">Kg Facturados por Liquidar</CardTitle>
+        <CardTitle className="text-sm font-medium" style={{ color: PALETA_PENDIENTE.titulo }}>
+          Kg Facturados por Liquidar
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col space-y-3">
         <div className="space-y-1">
-          <p className="text-2xl font-semibold">{formatCantidad(datos.kg)} Kg</p>
-          <p className="text-base font-medium text-foreground">– {formatMoneda(datos.valor, "USD")}</p>
+          <p className="text-2xl font-semibold" style={{ color: PALETA_PENDIENTE.valor }}>
+            {formatCantidad(datos.kg)} Kg
+          </p>
+          <p className="text-base font-medium" style={{ color: PALETA_PENDIENTE.valorSecundario }}>
+            – {formatMoneda(datos.valor, "USD")}
+          </p>
         </div>
         {datos.porMercado.length > 0 && (
-          <div className="space-y-1.5 border-t pt-2">
+          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: PALETA_PENDIENTE.borde }}>
             {datos.porMercado.map((m) => (
               <div key={m.mercado} className="flex items-baseline gap-2 text-sm">
-                <span className="font-medium text-muted-foreground">{m.mercado}:</span>
-                <span className="text-foreground">
+                <span className="font-medium" style={{ color: PALETA_PENDIENTE.titulo }}>
+                  {m.mercado}:
+                </span>
+                <span style={{ color: PALETA_PENDIENTE.valorSecundario }}>
                   {formatCantidad(m.kg)} Kg – {formatMoneda(m.valor, "USD")}
                 </span>
               </div>

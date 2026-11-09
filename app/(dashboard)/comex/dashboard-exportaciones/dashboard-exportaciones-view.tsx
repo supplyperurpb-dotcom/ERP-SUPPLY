@@ -81,8 +81,8 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Premium vs Convencional</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <PremiumConvencionalCard titulo="Kg Facturados" datos={participacionTipo} colorFondo="#8dcfec" />
-          <PremiumConvencionalCard titulo="Kg Liquidados" datos={participacionTipoLiquidado} />
+          <PremiumConvencionalCard titulo="Kg Facturados" datos={participacionTipo} variante="facturado" />
+          <PremiumConvencionalCard titulo="Kg Liquidados" datos={participacionTipoLiquidado} variante="liquidado" />
         </div>
       </div>
 
