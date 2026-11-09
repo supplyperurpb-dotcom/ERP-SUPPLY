@@ -7,6 +7,30 @@ import { formatCantidad, formatMoneda } from "@/lib/utils";
 import { colorPara, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { PuntoApilado } from "@/lib/facturacion-exportacion";
 
+// Forma de barra para una pila: SOLO el segmento que de verdad queda
+// arriba en ESA categoría (el último de `series`, en orden de apilado,
+// que tenga valor > 0 ahí) se dibuja con esquinas superiores
+// redondeadas; todos los demás van 100% rectos, sin radio — no "tapados
+// por el de arriba" (eso rompía en el hover: al bajar la opacidad del
+// segmento de abajo, se veía su propia esquina redondeada "escondida",
+// como si la barra estuviera partida en dos). Reemplaza tanto `shape`
+// (estado normal) como `activeBar` (hover) con la misma lógica, solo
+// cambiando la opacidad.
+function formaSuperiorSegunTope(series: string[], dataKeyActual: string, radioPx: number, fillOpacity = 1) {
+  function FormaSuperior(props: { x?: number; y?: number; width?: number; height?: number; fill?: string; payload?: Record<string, unknown> }) {
+    const { x = 0, y = 0, width = 0, height = 0, fill, payload } = props;
+    if (width <= 0 || height <= 0) return <g />;
+    const serieTope = [...series].reverse().find((s) => Number(payload?.[s] ?? 0) > 0);
+    const r = serieTope === dataKeyActual ? Math.max(0, Math.min(radioPx, width / 2, height)) : 0;
+    if (r <= 0) {
+      return <rect x={x} y={y} width={width} height={height} fill={fill} fillOpacity={fillOpacity} />;
+    }
+    const d = `M${x},${y + r} A${r},${r} 0 0 1 ${x + r},${y} L${x + width - r},${y} A${r},${r} 0 0 1 ${x + width},${y + r} L${x + width},${y + height} L${x},${y + height} Z`;
+    return <path d={d} fill={fill} fillOpacity={fillOpacity} />;
+  }
+  return FormaSuperior;
+}
+
 // Tooltip a medida: a diferencia del "formatter" por defecto de recharts,
 // que muestra una fila por cada serie declarada aunque valga 0 (ej. "En
 // tránsito: 0" en una semana donde todo arribó), este arma la lista de
@@ -88,13 +112,10 @@ export function StackedBarChart({
   /** Texto más amigable para la categoría del eje X en el tooltip (ej. "37" -> "W37"). Por defecto se muestra tal cual. */
   formatearCategoria?: (categoria: string) => string;
   /**
-   * Redondea solo las esquinas superiores de cada columna (base recta).
-   * Opt-in: solo lo pide "Estatus de Embarques por Semana" — en una pila de
-   * 2 series, aplicar el mismo radio arriba a AMBAS series es seguro (no
-   * un "si es la de más arriba" caso por caso): la de abajo, si hay una
-   * encima, queda tapada por el rectángulo recto de esa de arriba; si no
-   * hay nada encima esa semana, su propio redondeo superior es el que se
-   * ve. "Kg Por Semana..." no pasa esto — sigue con esquinas rectas.
+   * Redondea solo las esquinas superiores del segmento que de verdad
+   * queda arriba en cada categoría (ver formaSuperiorSegunTope) — el
+   * resto de la pila va recta, incluso en hover. Opt-in: por defecto el
+   * gráfico queda con esquinas rectas en todos sus segmentos.
    */
   bordeSuperiorPx?: number;
 }) {
@@ -132,8 +153,8 @@ export function StackedBarChart({
                   stackId="a"
                   fill={colorPara(s, i)}
                   maxBarSize={GROSOR_MAX_BARRA}
-                  radius={bordeSuperiorPx ? [bordeSuperiorPx, bordeSuperiorPx, 0, 0] : undefined}
-                  activeBar={{ fillOpacity: 0.85 }}
+                  shape={bordeSuperiorPx ? formaSuperiorSegunTope(series, s, bordeSuperiorPx) : undefined}
+                  activeBar={bordeSuperiorPx ? formaSuperiorSegunTope(series, s, bordeSuperiorPx, 0.85) : { fillOpacity: 0.85 }}
                   isAnimationActive
                   animationDuration={700}
                   animationEasing="ease-out"

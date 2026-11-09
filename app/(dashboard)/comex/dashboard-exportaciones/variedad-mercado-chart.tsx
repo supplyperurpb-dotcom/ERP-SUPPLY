@@ -9,6 +9,26 @@ import type { FilaVariedadMercado } from "@/lib/facturacion-exportacion";
 
 type Punto = { variedad: string; totalKg: number; [clave: string]: string | number };
 
+// Forma de barra para una pila: SOLO el segmento que de verdad queda
+// arriba en ESA variedad (el último de `series`, en orden de apilado,
+// con valor > 0 ahí) se dibuja con esquinas superiores redondeadas; el
+// resto va 100% recto, sin radio — ni siquiera en hover, para que no se
+// vea una esquina redondeada "escondida" detrás del segmento de arriba.
+function formaSuperiorSegunTope(series: string[], dataKeyActual: string, radioPx: number, fillOpacity = 1) {
+  function FormaSuperior(props: { x?: number; y?: number; width?: number; height?: number; fill?: string; payload?: Record<string, unknown> }) {
+    const { x = 0, y = 0, width = 0, height = 0, fill, payload } = props;
+    if (width <= 0 || height <= 0) return <g />;
+    const serieTope = [...series].reverse().find((s) => Number(payload?.[s] ?? 0) > 0);
+    const r = serieTope === dataKeyActual ? Math.max(0, Math.min(radioPx, width / 2, height)) : 0;
+    if (r <= 0) {
+      return <rect x={x} y={y} width={width} height={height} fill={fill} fillOpacity={fillOpacity} />;
+    }
+    const d = `M${x},${y + r} A${r},${r} 0 0 1 ${x + r},${y} L${x + width - r},${y} A${r},${r} 0 0 1 ${x + width},${y + r} L${x + width},${y + height} L${x},${y + height} Z`;
+    return <path d={d} fill={fill} fillOpacity={fillOpacity} />;
+  }
+  return FormaSuperior;
+}
+
 // Tooltip a medida: el valor que dibuja la barra es el % (para que todas
 // las barras lleguen a 100 y se puedan comparar) — el kg real no se
 // muestra acá, solo el %. El PU CIF viaja junto a cada punto como
@@ -82,8 +102,8 @@ export function VariedadMercadoChart({ titulo, datos }: { titulo: string; datos:
                   stackId="a"
                   fill={colorPara(mercado, i)}
                   maxBarSize={GROSOR_MAX_BARRA}
-                  radius={[8, 8, 0, 0]}
-                  activeBar={{ fillOpacity: 0.85 }}
+                  shape={formaSuperiorSegunTope(series, mercado, 8)}
+                  activeBar={formaSuperiorSegunTope(series, mercado, 8, 0.85)}
                   isAnimationActive
                   animationDuration={700}
                   animationEasing="ease-out"
