@@ -243,7 +243,10 @@ export async function editarUsuarioAction(
           update: { usuarioId: usuario.id },
         });
       }
-    });
+      // La transacción encadena varios round-trips (roles, acceso, aprobador
+      // de área/especial) — el timeout default de Prisma (5s) se queda corto
+      // bajo la latencia real de producción.
+    }, { timeout: 15000 });
 
     revalidatePath("/usuarios/lista");
     revalidatePath("/usuarios/roles");
