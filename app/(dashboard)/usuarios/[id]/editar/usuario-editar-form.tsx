@@ -36,6 +36,7 @@ export function UsuarioEditarForm({
 }) {
   const router = useRouter();
   const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [cambiarPassword, setCambiarPassword] = useState(false);
 
   const form = useForm<EditarUsuarioInput>({
     resolver: zodResolver(editarUsuarioSchema),
@@ -125,26 +126,49 @@ export function UsuarioEditarForm({
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="nuevaPassword">Nueva contraseña (opcional)</Label>
-            <div className="flex gap-2">
-              <Input
-                id="nuevaPassword"
-                type={mostrarPassword ? "text" : "password"}
-                placeholder="Dejar en blanco para no cambiarla"
-                {...form.register("nuevaPassword")}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="cambiarPassword"
+                checked={cambiarPassword}
+                onCheckedChange={(v) => {
+                  const marcado = v === true;
+                  setCambiarPassword(marcado);
+                  if (!marcado) form.setValue("nuevaPassword", "");
+                }}
               />
-              <Button type="button" variant="outline" onClick={() => setMostrarPassword((v) => !v)}>
-                {mostrarPassword ? "Ocultar" : "Mostrar"}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => form.setValue("nuevaPassword", generarPassword())}>
-                Generar
-              </Button>
+              <Label htmlFor="cambiarPassword" className="font-normal">
+                Cambiar contraseña
+              </Label>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Solo se actualiza si escribes algo acá; compártela tú mismo con el usuario por un canal seguro.
-            </p>
-            {form.formState.errors.nuevaPassword && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.nuevaPassword.message}</p>
+            {!cambiarPassword && (
+              <p className="text-xs text-muted-foreground">
+                Por seguridad, la contraseña actual no se puede mostrar (ni este sistema ni Supabase la guardan en
+                texto plano). Marca la casilla para asignarle una nueva.
+              </p>
+            )}
+            {cambiarPassword && (
+              <>
+                <Label htmlFor="nuevaPassword">Nueva contraseña</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="nuevaPassword"
+                    type={mostrarPassword ? "text" : "password"}
+                    {...form.register("nuevaPassword")}
+                  />
+                  <Button type="button" variant="outline" onClick={() => setMostrarPassword((v) => !v)}>
+                    {mostrarPassword ? "Ocultar" : "Mostrar"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => form.setValue("nuevaPassword", generarPassword())}>
+                    Generar
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Compártela tú mismo con el usuario por un canal seguro.
+                </p>
+                {form.formState.errors.nuevaPassword && (
+                  <p className="text-sm font-medium text-destructive">{form.formState.errors.nuevaPassword.message}</p>
+                )}
+              </>
             )}
           </div>
 
