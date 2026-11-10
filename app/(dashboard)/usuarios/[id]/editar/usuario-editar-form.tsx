@@ -115,7 +115,10 @@ export function UsuarioEditarForm({
           <div className="space-y-2">
             <Label htmlFor="dni">DNI</Label>
             <Input id="dni" inputMode="numeric" maxLength={8} placeholder="12345678" {...form.register("dni")} />
-            <p className="text-xs text-muted-foreground">Es con lo que inicia sesión.</p>
+            <p className="text-xs text-muted-foreground">
+              Es con lo que inicia sesión. Si todavía no tiene uno asignado, puede dejarlo en blanco — sigue
+              entrando con su correo.
+            </p>
             {form.formState.errors.dni && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.dni.message}</p>
             )}

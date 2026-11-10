@@ -205,8 +205,11 @@ export async function editarUsuarioAction(
     }
   }
 
-  if (dni !== usuario.dni) {
-    const dniExistente = await prisma.usuario.findUnique({ where: { dni } });
+  // dni vacío = "todavía sin asignar", se guarda como null (no como "" —
+  // dos cuentas con dni="" chocarían contra el índice único).
+  const dniNormalizado = dni || null;
+  if (dniNormalizado && dniNormalizado !== usuario.dni) {
+    const dniExistente = await prisma.usuario.findUnique({ where: { dni: dniNormalizado } });
     if (dniExistente && dniExistente.id !== usuario.id) {
       return { error: "Ya existe un usuario con ese DNI." };
     }
@@ -231,7 +234,7 @@ export async function editarUsuarioAction(
           nombres,
           apellidos,
           email,
-          dni,
+          dni: dniNormalizado,
           telefono: telefono || null,
           cargo: cargo || null,
           area,
