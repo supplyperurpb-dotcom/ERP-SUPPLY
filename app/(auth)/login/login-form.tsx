@@ -14,13 +14,16 @@ export function LoginForm() {
     <Card>
       <CardHeader>
         <CardTitle>Iniciar sesión</CardTitle>
-        <CardDescription>Ingresa con tu correo corporativo.</CardDescription>
+        <CardDescription>Ingresa con tu DNI.</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Correo electrónico</Label>
-            <Input id="email" name="email" type="email" placeholder="nombre@empresa.com" required />
+            <Label htmlFor="identificador">DNI</Label>
+            <Input id="identificador" name="identificador" type="text" placeholder="12345678" required />
+            <p className="text-xs text-muted-foreground">
+              Si todavía no tienes un DNI asignado, ingresa con tu correo.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>
@@ -31,11 +34,9 @@ export function LoginForm() {
 
           <SubmitButton />
 
-          <div className="text-center text-sm">
-            <a href="/recuperar-password" className="text-muted-foreground hover:text-primary hover:underline">
-              ¿Olvidaste tu contraseña?
-            </a>
-          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            ¿Olvidaste tu contraseña? Pídele a un administrador que te la restablezca.
+          </p>
         </form>
       </CardContent>
     </Card>

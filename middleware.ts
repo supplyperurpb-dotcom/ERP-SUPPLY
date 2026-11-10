@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const RUTAS_PUBLICAS = ["/login", "/recuperar-password"];
+const RUTAS_PUBLICAS = ["/login"];
 
 export async function middleware(request: NextRequest) {
   // Reenvía la ruta actual como header — es la forma de que un Server

@@ -144,6 +144,12 @@ model Usuario {
   apellidos      String
   email          String       @unique
   telefono       String?
+  // DNI — identificador de login (ver loginAction en auth-actions.ts: si
+  // lo que se escribe en el campo de inicio de sesión no tiene "@", se
+  // busca acá). Nulo en cuentas creadas antes de este campo, hasta que un
+  // admin se lo asigne — mientras tanto esa cuenta sigue entrando con su
+  // correo (ver mismo loginAction).
+  dni            String?      @unique
   // Cargo/puesto (p. ej. "Gerente de Producción"), mostrado junto al
   // nombre en el PDF de Solped/OC/OS cuando este usuario aprueba una.
   cargo          String?
@@ -154,6 +160,14 @@ model Usuario {
   // documentos de su propia área, sea o no aprobador.
   area           AreaEmpresa?
   activo         Boolean      @default(true)
+  // true = debe elegir una contraseña nueva antes de poder usar el resto
+  // de la app (ver app/(dashboard)/layout.tsx y /cambiar-password) — se
+  // pone en true al crear la cuenta y cada vez que un admin le resetea la
+  // contraseña (editarUsuarioAction), y en false apenas la cambia desde
+  // /cambiar-password. Las cuentas que ya existían antes de este campo
+  // quedan en false por la propia migración (no se les fuerza el cambio
+  // retroactivamente).
+  debeCambiarPassword Boolean @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

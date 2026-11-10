@@ -113,6 +113,15 @@ export function UsuarioEditarForm({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="dni">DNI</Label>
+            <Input id="dni" inputMode="numeric" maxLength={8} placeholder="12345678" {...form.register("dni")} />
+            <p className="text-xs text-muted-foreground">Es con lo que inicia sesión.</p>
+            {form.formState.errors.dni && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.dni.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="telefono">Teléfono (opcional)</Label>
             <Input id="telefono" {...form.register("telefono")} />
           </div>
@@ -163,7 +172,8 @@ export function UsuarioEditarForm({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Compártela tú mismo con el usuario por un canal seguro.
+                  Compártela tú mismo con el usuario por un canal seguro — al ingresar, le va a pedir elegir una
+                  contraseña nueva (no podrá volver a cambiarla por su cuenta después).
                 </p>
                 {form.formState.errors.nuevaPassword && (
                   <p className="text-sm font-medium text-destructive">{form.formState.errors.nuevaPassword.message}</p>

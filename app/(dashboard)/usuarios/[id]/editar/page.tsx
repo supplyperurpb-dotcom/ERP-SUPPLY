@@ -44,6 +44,7 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
           nombres: usuario.nombres,
           apellidos: usuario.apellidos,
           email: usuario.email,
+          dni: usuario.dni ?? "",
           telefono: usuario.telefono ?? "",
           cargo: usuario.cargo ?? "",
           nuevaPassword: "",

@@ -15,6 +15,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/login");
   }
 
+  // Cambio de contraseña obligatorio (primer ingreso o reseteo de un
+  // admin) — nada del dashboard se ve hasta que lo haga.
+  if (usuario.debeCambiarPassword) {
+    redirect("/cambiar-password");
+  }
+
   // Hasta acá, el acceso por módulo/submódulo (ver UsuarioAccesoItem) solo
   // se aplicaba al sidebar/Inicio — entrar por URL directa a un módulo no
   // marcado igual funcionaba. Esto lo bloquea de verdad.

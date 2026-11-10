@@ -33,6 +33,7 @@ export function UsuarioForm() {
       nombres: "",
       apellidos: "",
       email: "",
+      dni: "",
       telefono: "",
       cargo: "",
       password: generarPassword(),
@@ -76,7 +77,9 @@ export function UsuarioForm() {
       toast.error(resultado.error);
       return;
     }
-    toast.success(`Usuario creado. Comparte la contraseña "${data.password}" con ${data.nombres} por un canal seguro.`);
+    toast.success(
+      `Usuario creado. Comparte su DNI (${data.dni}) y la contraseña "${data.password}" con ${data.nombres} por un canal seguro — le va a pedir cambiarla al ingresar.`
+    );
     router.push("/usuarios/lista");
   }
 
@@ -108,6 +111,15 @@ export function UsuarioForm() {
             <Input id="email" type="email" {...form.register("email")} />
             {form.formState.errors.email && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.email.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dni">DNI</Label>
+            <Input id="dni" inputMode="numeric" maxLength={8} placeholder="12345678" {...form.register("dni")} />
+            <p className="text-xs text-muted-foreground">Es con lo que va a iniciar sesión.</p>
+            {form.formState.errors.dni && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.dni.message}</p>
             )}
           </div>
 

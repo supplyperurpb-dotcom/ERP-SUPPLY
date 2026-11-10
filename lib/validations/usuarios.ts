@@ -5,12 +5,17 @@ const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SE
 // aquí: se asigna aparte, junto con el aprobador de área RRHH, en
 // /logistica/solicitudes-pedido/aprobadores).
 const ROLES_ESPECIALES_EN_ALTA = ["GERENTE_SUPPLY", "DISTRICT_CONTROLLER", "GERENTE_GENERAL"] as const;
+// DNI peruano: 8 dígitos. Es el identificador con el que el usuario
+// inicia sesión (ver loginAction) — por eso es obligatorio al crear o
+// editar, aunque la cuenta pueda quedar sin uno hasta que se guarde.
+const DNI_REGEX = /^\d{8}$/;
 
 export const crearUsuarioSchema = z
   .object({
     nombres: z.string().min(1, "Los nombres son obligatorios"),
     apellidos: z.string().min(1, "Los apellidos son obligatorios"),
     email: z.string().email("Correo inválido"),
+    dni: z.string().regex(DNI_REGEX, "El DNI debe tener 8 dígitos"),
     telefono: z.string().optional().or(z.literal("")),
     // Cargo/puesto (p. ej. "Gerente de Producción"). Se muestra en el PDF de
     // Solped/OC/OS cuando este usuario la aprueba.
@@ -48,6 +53,7 @@ export const editarUsuarioSchema = z
     nombres: z.string().min(1, "Los nombres son obligatorios"),
     apellidos: z.string().min(1, "Los apellidos son obligatorios"),
     email: z.string().email("Correo inválido"),
+    dni: z.string().regex(DNI_REGEX, "El DNI debe tener 8 dígitos"),
     telefono: z.string().optional().or(z.literal("")),
     cargo: z.string().optional().or(z.literal("")),
     // Vacío = no cambiar la contraseña actual.

@@ -20,6 +20,12 @@ export type UsuarioActual = {
   // antes de este campo). Ver gruposVisiblesParaUsuario en
   // lib/auth/acceso-modulos.ts.
   accesoHrefs: string[] | null;
+  // DNI con el que inicia sesión — null en cuentas creadas antes de este
+  // campo, hasta que un admin se lo asigne.
+  dni: string | null;
+  // true = debe pasar por /cambiar-password antes de usar el resto de la
+  // app (ver app/(dashboard)/layout.tsx).
+  debeCambiarPassword: boolean;
 };
 
 // cache() evita duplicar la consulta a Supabase/Prisma cuando varios
@@ -50,5 +56,7 @@ export const getUsuarioActual = cache(async (): Promise<UsuarioActual | null> =>
     area: usuario.area,
     roles: usuario.asignacionesRol.map((a) => a.rol.nombre as RolNombre),
     accesoHrefs: usuario.accesoItems.length > 0 ? usuario.accesoItems.map((a) => a.href) : null,
+    dni: usuario.dni,
+    debeCambiarPassword: usuario.debeCambiarPassword,
   };
 });

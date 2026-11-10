@@ -61,7 +61,8 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, telefono, cargo, password, tipoRol, area, rolEspecial, accesoHrefs } = parsed.data;
+  const { nombres, apellidos, email, dni, telefono, cargo, password, tipoRol, area, rolEspecial, accesoHrefs } =
+    parsed.data;
 
   const quienCrea = await getUsuarioActual();
   if (!quienCrea || !quienCrea.roles.includes("ADMIN")) {
@@ -71,6 +72,11 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   const existente = await prisma.usuario.findUnique({ where: { email } });
   if (existente) {
     return { error: "Ya existe un usuario con ese correo." };
+  }
+
+  const dniExistente = await prisma.usuario.findUnique({ where: { dni } });
+  if (dniExistente) {
+    return { error: "Ya existe un usuario con ese DNI." };
   }
 
   const admin = createSupabaseAdminClient();
@@ -90,9 +96,14 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
         nombres,
         apellidos,
         email,
+        dni,
         telefono: telefono || null,
         cargo: cargo || null,
         area,
+        // Toda cuenta nueva debe elegir su propia contraseña en el primer
+        // ingreso (ver /cambiar-password) — la que se generó/escribió acá
+        // es solo para que pueda entrar esa primera vez.
+        debeCambiarPassword: true,
       },
     });
 
@@ -158,8 +169,20 @@ export async function editarUsuarioAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, telefono, cargo, nuevaPassword, tipoRol, area, rolEspecial, accesoHrefs, activo } =
-    parsed.data;
+  const {
+    nombres,
+    apellidos,
+    email,
+    dni,
+    telefono,
+    cargo,
+    nuevaPassword,
+    tipoRol,
+    area,
+    rolEspecial,
+    accesoHrefs,
+    activo,
+  } = parsed.data;
 
   const quienEdita = await getUsuarioActual();
   if (!quienEdita || !quienEdita.roles.includes("ADMIN")) {
@@ -182,6 +205,13 @@ export async function editarUsuarioAction(
     }
   }
 
+  if (dni !== usuario.dni) {
+    const dniExistente = await prisma.usuario.findUnique({ where: { dni } });
+    if (dniExistente && dniExistente.id !== usuario.id) {
+      return { error: "Ya existe un usuario con ese DNI." };
+    }
+  }
+
   const admin = createSupabaseAdminClient();
   if (email !== usuario.email || nuevaPassword) {
     const { error: authError } = await admin.auth.admin.updateUserById(usuario.supabaseAuthId, {
@@ -197,7 +227,19 @@ export async function editarUsuarioAction(
     await prisma.$transaction(async (tx) => {
       await tx.usuario.update({
         where: { id: usuario.id },
-        data: { nombres, apellidos, email, telefono: telefono || null, cargo: cargo || null, area, activo },
+        data: {
+          nombres,
+          apellidos,
+          email,
+          dni,
+          telefono: telefono || null,
+          cargo: cargo || null,
+          area,
+          activo,
+          // Si se le asignó una contraseña nueva acá, debe volver a
+          // elegir la suya propia en el próximo ingreso (/cambiar-password).
+          ...(nuevaPassword ? { debeCambiarPassword: true } : {}),
+        },
       });
 
       // Reemplaza solo los roles que este formulario administra (ver

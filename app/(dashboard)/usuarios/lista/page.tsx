@@ -50,6 +50,7 @@ export default async function UsuariosPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
+              <TableHead>DNI</TableHead>
               <TableHead>Cargo</TableHead>
               <TableHead>Correo</TableHead>
               <TableHead>Rol</TableHead>
@@ -66,6 +67,13 @@ export default async function UsuariosPage() {
                 <TableRow key={usuario.id}>
                   <TableCell className="font-medium">
                     {usuario.nombres} {usuario.apellidos}
+                  </TableCell>
+                  <TableCell>
+                    {usuario.dni ?? (
+                      <Badge variant="destructive" className="font-normal">
+                        Falta asignar
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>{usuario.cargo ?? "—"}</TableCell>
                   <TableCell>{usuario.email}</TableCell>
