@@ -10,6 +10,13 @@ import {
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
+// Único permiso habilitado para "cerrar posición" (Solped y OC/OS) y para
+// crear/editar Órdenes de compra y servicio (ver RolNombre.COMPRADORES).
+// ADMIN siempre lo cumple, como con cualquier otro permiso del sistema.
+export function esComprador(usuario: { roles: RolNombre[] }): boolean {
+  return usuario.roles.includes(ROLES.ADMIN) || usuario.roles.includes(ROLES.COMPRADORES);
+}
+
 export type ItemPendiente = {
   id: string; // SolicitudPedidoItem.id
   skuId: string;
@@ -76,9 +83,10 @@ export async function calcularSolicitudesConPendientes(
   for (const solicitud of solicitudes) {
     const items: ItemPendiente[] = [];
     for (const item of solicitud.items) {
-      // Una línea RECHAZADA (ver EstadoItemSolicitud) nunca está disponible
-      // para jalar a una OC, sin importar cuánto quede sin jalar.
-      if (item.estado === "RECHAZADO") continue;
+      // Una línea RECHAZADA (ver EstadoItemSolicitud) o con la posición
+      // cerrada (ver esComprador) nunca está disponible para jalar a una
+      // OC, sin importar cuánto quede sin jalar.
+      if (item.estado === "RECHAZADO" || item.cerrado) continue;
       const cantidad = Number(item.cantidad);
       const cantidadJalada = jaladoMap.get(item.id) ?? 0;
       const cantidadPendiente = Math.round((cantidad - cantidadJalada) * 1000) / 1000;
@@ -123,7 +131,7 @@ export async function cantidadPendiente(solicitudPedidoItemId: string, db: Db = 
     where: { id: solicitudPedidoItemId },
     include: { solicitudPedido: true },
   });
-  if (!item || item.solicitudPedido.estado !== "APROBADO" || item.estado === "RECHAZADO") return 0;
+  if (!item || item.solicitudPedido.estado !== "APROBADO" || item.estado === "RECHAZADO" || item.cerrado) return 0;
   const jalado = await db.ordenCompraItem.aggregate({
     where: { solicitudPedidoItemId, ordenCompra: { estado: { notIn: ["RECHAZADO", "ANULADO"] } } },
     _sum: { cantidad: true },

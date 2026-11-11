@@ -56,6 +56,7 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
             aprobadorEspecial?.rol && aprobadorEspecial.rol !== "GERENTE_RRHH" ? aprobadorEspecial.rol : undefined,
           accesoHrefs: usuario.accesoItems.map((a) => a.href),
           activo: usuario.activo,
+          esComprador: roles.includes("COMPRADORES"),
         }}
       />
     </div>

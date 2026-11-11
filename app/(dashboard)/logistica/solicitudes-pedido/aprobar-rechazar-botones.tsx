@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Ban, ClipboardCheck } from "lucide-react";
+import { Check, X, Ban, ClipboardCheck, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useConfirm, usePrompt } from "@/components/shared/confirm-dialog-provider";
@@ -10,6 +10,8 @@ import {
   decidirItemSolicitudAction,
   finalizarAprobacionSolicitudAction,
   anularSolicitudPedidoAction,
+  cerrarPosicionSolicitudPedidoItemAction,
+  reabrirPosicionSolicitudPedidoItemAction,
 } from "@/lib/actions/solicitud-pedido-actions";
 
 // Check/X por línea — la decisión queda guardada al toque, no hace falta
@@ -139,6 +141,71 @@ export function AnularSolicitudBoton({
     <Button variant="outline" size="sm" disabled={pending} onClick={handleAnular} className="text-destructive hover:text-destructive">
       <Ban className="mr-1 h-4 w-4" />
       Anular
+    </Button>
+  );
+}
+
+// Cierra una línea puntual de la solicitud que no se va a terminar de
+// comprar — deja de contar como pendiente de jalar a una OC/OS, sin tocar
+// el resto de la solicitud (ver cerrarPosicionSolicitudPedidoItemAction).
+export function CerrarPosicionSolicitudBoton({ itemId, codigo }: { itemId: string; codigo: string }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const confirmar = useConfirm();
+  const pedir = usePrompt();
+
+  async function handleCerrar() {
+    const motivo = await pedir(`Motivo del cierre de ${codigo} (opcional):`);
+    if (motivo === null) return;
+    if (!(await confirmar(`¿Cerrar la posición de ${codigo}? Dejará de aparecer como pendiente de comprar.`))) return;
+    startTransition(async () => {
+      const resultado = await cerrarPosicionSolicitudPedidoItemAction(itemId, motivo);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`Posición de ${codigo} cerrada`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      onClick={handleCerrar}
+      className="text-destructive hover:text-destructive"
+    >
+      <Lock className="mr-1 h-4 w-4" />
+      Cerrar posición
+    </Button>
+  );
+}
+
+// Reversa de CerrarPosicionSolicitudBoton.
+export function ReabrirPosicionSolicitudBoton({ itemId, codigo }: { itemId: string; codigo: string }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const confirmar = useConfirm();
+
+  async function handleReabrir() {
+    if (!(await confirmar(`¿Reabrir la posición de ${codigo}? Volverá a contar como pendiente de comprar.`))) return;
+    startTransition(async () => {
+      const resultado = await reabrirPosicionSolicitudPedidoItemAction(itemId);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`Posición de ${codigo} reabierta`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Button variant="ghost" size="sm" disabled={pending} onClick={handleReabrir}>
+      <LockOpen className="mr-1 h-4 w-4" />
+      Reabrir
     </Button>
   );
 }

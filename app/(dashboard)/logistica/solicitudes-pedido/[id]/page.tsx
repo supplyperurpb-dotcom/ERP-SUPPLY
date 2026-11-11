@@ -6,14 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ItemDecisionBotones, FinalizarAprobacionBoton, AnularSolicitudBoton } from "../aprobar-rechazar-botones";
+import {
+  ItemDecisionBotones,
+  FinalizarAprobacionBoton,
+  AnularSolicitudBoton,
+  CerrarPosicionSolicitudBoton,
+  ReabrirPosicionSolicitudBoton,
+} from "../aprobar-rechazar-botones";
 import { SeguimientoPedidoDialog, type ItemSeguimientoPedido } from "./seguimiento-pedido-dialog";
 import type { ResumenOrden } from "@/components/shared/resumen-orden-dialog";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatCantidad } from "@/lib/utils";
 import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
+import { esComprador, obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -91,8 +97,11 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     (usuario?.roles.includes("ANULADOR") ?? false) &&
     solicitud.estado !== "RECHAZADO" &&
     solicitud.estado !== "ANULADO";
-  // Los compradores de Supply Chain generan las OC/OS para toda la empresa.
-  const puedeGenerarOrden = (usuario?.roles.includes("ADMIN") ?? false) || usuario?.area === "SUPPLY_CHAIN";
+  // Los Compradores generan las OC/OS para toda la empresa, y son los
+  // únicos que pueden cerrar la posición de una línea pendiente (ver
+  // esComprador en lib/compras.ts).
+  const puedeGenerarOrden = !!usuario && esComprador(usuario);
+  const puedeCerrarPosicionesSolped = !!usuario && esComprador(usuario);
   // Editar: quien la creó, o Supply Chain/ADMIN (mismo criterio que
   // "areaEditable" al crear) — y solo si todavía no la jaló ninguna OC/OS
   // activa (si la única que la jaló está anulada/rechazada, se puede
@@ -107,7 +116,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     !fueJalada &&
     (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || solicitud.creadoPorId === usuario.id);
   const tienePendiente = solicitud.items.some((item) => {
-    if (item.estado === "RECHAZADO") return false;
+    if (item.estado === "RECHAZADO" || item.cerrado) return false;
     const jalado = item.ordenCompraItems
       .filter((oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO")
       .reduce((acc, oci) => acc + Number(oci.cantidad), 0);
@@ -311,6 +320,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                   <TableHead>Campo</TableHead>
                   <TableHead>Órdenes de compra</TableHead>
                   <TableHead>Decisión</TableHead>
+                  <TableHead>Posición</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -320,10 +330,11 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                     (oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO"
                   );
                   const jalado = ocsActivas.reduce((acc, oci) => acc + Number(oci.cantidad), 0);
-                  // Un ítem RECHAZADO nunca queda pendiente de jalar, sin
-                  // importar cuánto le falte (mismo criterio que
-                  // cantidadPendiente en lib/compras.ts).
-                  const pendiente = item.estado === "RECHAZADO" ? 0 : Math.round((cantidad - jalado) * 1000) / 1000;
+                  // Un ítem RECHAZADO o con la posición cerrada nunca queda
+                  // pendiente de jalar, sin importar cuánto le falte (mismo
+                  // criterio que cantidadPendiente en lib/compras.ts).
+                  const pendiente =
+                    item.estado === "RECHAZADO" || item.cerrado ? 0 : Math.round((cantidad - jalado) * 1000) / 1000;
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.sku.codigo}</TableCell>
@@ -364,6 +375,21 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                           <Badge variant={ESTADO_ITEM_VARIANT[item.estado]}>{ESTADO_ITEM_LABEL[item.estado]}</Badge>
                           {puedeAprobar && <ItemDecisionBotones itemId={item.id} />}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {item.cerrado && <Badge variant="destructive">Cerrado</Badge>}
+                          {puedeCerrarPosicionesSolped &&
+                            item.estado !== "RECHAZADO" &&
+                            (item.cerrado ? (
+                              <ReabrirPosicionSolicitudBoton itemId={item.id} codigo={item.sku.codigo} />
+                            ) : (
+                              pendiente > 0 && <CerrarPosicionSolicitudBoton itemId={item.id} codigo={item.sku.codigo} />
+                            ))}
+                        </div>
+                        {item.cerrado && item.motivoCierre && (
+                          <p className="mt-1 text-xs text-muted-foreground">&quot;{item.motivoCierre}&quot;</p>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

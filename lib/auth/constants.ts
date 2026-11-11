@@ -15,6 +15,11 @@ export const ROLES = {
   // dan por sí solos; es exclusivo de quien tenga este rol.
   ANULADOR: "ANULADOR",
   SOLO_LECTURA: "SOLO_LECTURA",
+  // Único rol habilitado para "cerrar posición" (Solped y OC/OS) y para
+  // crear/editar Órdenes de compra y servicio (ver esComprador en
+  // lib/compras.ts). Quien no lo tenga solo puede VER una OC/OS a la que
+  // llegue (p. ej. por "Seguimiento del pedido" de su propia Solped).
+  COMPRADORES: "COMPRADORES",
 } as const;
 
 export type RolNombre = (typeof ROLES)[keyof typeof ROLES];
@@ -28,6 +33,7 @@ export const ROL_LABELS: Record<RolNombre, string> = {
   APROBADOR_GENERAL: "Aprobador general",
   ANULADOR: "Anulador exclusivo",
   SOLO_LECTURA: "Solo lectura",
+  COMPRADORES: "Comprador",
 };
 
 // Módulos del sistema, usados tanto por la navegación como por el control
@@ -52,6 +58,11 @@ export const ACCESO_MODULO_POR_ROL: Record<RolNombre, Modulo[]> = {
   APROBADOR_GENERAL: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.COMEX],
   ANULADOR: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.COMEX],
   SOLO_LECTURA: [MODULOS.LOGISTICA, MODULOS.ACOPIO, MODULOS.USUARIOS, MODULOS.COMEX],
+  // No otorga visibilidad de módulo por sí solo -- eso sigue dependiendo
+  // de LOGISTICA_COMPRAS + la casilla de "Órdenes de compra" (ver
+  // GRUPOS_ACCESO_ASIGNABLE). Es un permiso de ESCRITURA exclusivo dentro
+  // de ese submódulo (ver esComprador en lib/compras.ts).
+  COMPRADORES: [],
 };
 
 export function tienePermiso(rolesUsuario: RolNombre[], modulo: Modulo): boolean {

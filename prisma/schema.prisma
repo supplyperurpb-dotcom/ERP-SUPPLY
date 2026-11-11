@@ -25,6 +25,12 @@ enum RolNombre {
   APROBADOR_GENERAL
   ANULADOR
   SOLO_LECTURA
+  // Único rol habilitado para "cerrar posición" (Solped y OC/OS) y para
+  // crear/editar Órdenes de compra y servicio — ver esComprador en
+  // lib/compras.ts. Quien no lo tenga solo puede VER una OC/OS a la que
+  // llegue (p. ej. por "Seguimiento del pedido" de su propia Solped), sin
+  // poder modificarla.
+  COMPRADORES
 }
 
 enum AccionPermiso {
@@ -653,6 +659,16 @@ model SolicitudPedidoItem {
   // sale en el PDF final (ver calcularSolicitudesConPendientes/
   // cantidadPendiente en lib/compras.ts y el route de PDF).
   estado            EstadoItemSolicitud @default(PENDIENTE)
+  // "Cerrar posición": mismo concepto que en OrdenCompraItem.cerrado -- una
+  // línea pendiente (todavía no jalada del todo a una OC/OS) que no se va
+  // a terminar de comprar se marca cerrada en vez de dejarla pendiente
+  // para siempre. Mientras esté cerrada, cantidadPendiente/
+  // calcularSolicitudesConPendientes (ver lib/compras.ts) la tratan como
+  // sin pendiente -- reversible.
+  cerrado           Boolean             @default(false)
+  motivoCierre      String?
+  cerradoPorId      String?
+  fechaCierre       DateTime?
 
   solicitudPedido  SolicitudPedido   @relation(fields: [solicitudPedidoId], references: [id], onDelete: Cascade)
   sku              Sku               @relation(fields: [skuId], references: [id])

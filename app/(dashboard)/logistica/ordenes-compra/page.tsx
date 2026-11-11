@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { esComprador } from "@/lib/compras";
 import { OrdenesCompraTable, type FilaOrdenCompra } from "./ordenes-compra-table";
 import { NuevaOrdenDialog } from "./nueva-orden-dialog";
 import type { AreaEmpresa } from "@prisma/client";
@@ -12,17 +13,16 @@ import type { AreaEmpresa } from "@prisma/client";
 export default async function OrdenesCompraPage() {
   const usuario = await getUsuarioActual();
 
-  const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
-  // Los compradores de Supply Chain gestionan las compras de toda la
-  // empresa, y los aprobadores generales (Gerente de Supply, District
-  // Controller, Gerencia General) pueden aprobar cualquier OC/OS, así que
-  // ambos ven todas, no solo las de su área.
-  const esSupplyChain = usuario?.area === "SUPPLY_CHAIN";
+  // Los Compradores gestionan las compras de toda la empresa, y los
+  // aprobadores generales (Gerente de Supply, District Controller,
+  // Gerencia General) pueden aprobar cualquier OC/OS, así que ambos ven
+  // todas, no solo las de su área.
+  const esCompradorUsuario = usuario ? esComprador(usuario) : false;
   const esAprobadorGeneral = usuario?.roles.includes("APROBADOR_GENERAL") ?? false;
   // Igual que en Solicitudes de pedido: todo usuario con área asignada
   // (sea o no aprobador) solo ve las OC/OS que tengan al menos una línea
-  // de su propia área; ADMIN, Supply Chain y aprobadores generales ven todas.
-  const areaUsuario = usuario && !esAdmin && !esSupplyChain && !esAprobadorGeneral ? usuario.area : null;
+  // de su propia área; ADMIN, Compradores y aprobadores generales ven todas.
+  const areaUsuario = usuario && !esCompradorUsuario && !esAprobadorGeneral ? usuario.area : null;
 
   const ordenes = await prisma.ordenCompra.findMany({
     where: areaUsuario ? { items: { some: { centroCosto: areaUsuario as AreaEmpresa } } } : undefined,
@@ -58,10 +58,12 @@ export default async function OrdenesCompraPage() {
         titulo="Órdenes de compra"
         descripcion="Órdenes de compra emitidas a proveedores de insumos, generadas a partir de solicitudes de pedido."
         acciones={
-          <div className="flex items-center gap-2">
-            <NuevaOrdenDialog etiqueta="Con Solped" basePath="/logistica/ordenes-compra/nuevo" variant="default" />
-            <NuevaOrdenDialog etiqueta="Directa" basePath="/logistica/ordenes-compra/nueva-directa" />
-          </div>
+          esCompradorUsuario && (
+            <div className="flex items-center gap-2">
+              <NuevaOrdenDialog etiqueta="Con Solped" basePath="/logistica/ordenes-compra/nuevo" variant="default" />
+              <NuevaOrdenDialog etiqueta="Directa" basePath="/logistica/ordenes-compra/nueva-directa" />
+            </div>
+          )
         }
       />
 

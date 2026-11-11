@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { calcularSolicitudesConPendientes } from "@/lib/compras";
+import { calcularSolicitudesConPendientes, esComprador } from "@/lib/compras";
 import { obtenerValoresActivos } from "@/lib/listas";
 import { fechaInputValue } from "@/lib/utils";
 import { NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -18,13 +18,10 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
   if (!orden) notFound();
 
   const usuario = await getUsuarioActual();
-  // Mismo criterio que editarOrdenCompraAction: quien la creó, o Supply
-  // Chain/ADMIN — y solo si está en BORRADOR (ver AnularFirmaBoton en el
-  // detalle para cómo se vuelve a ese estado una vez firmada).
-  const puedeEditar =
-    !!usuario &&
-    orden.estado === "BORRADOR" &&
-    (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || orden.creadoPorId === usuario.id);
+  // Mismo criterio que editarOrdenCompraAction: quien la creó, o
+  // Comprador/ADMIN — y solo si está en BORRADOR (ver AnularFirmaBoton en
+  // el detalle para cómo se vuelve a ese estado una vez firmada).
+  const puedeEditar = !!usuario && orden.estado === "BORRADOR" && (esComprador(usuario) || orden.creadoPorId === usuario.id);
   if (!puedeEditar) notFound();
 
   const categoria = orden.categoria as CategoriaCompraCodigo;

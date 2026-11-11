@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
-import { calcularSolicitudesConPendientes } from "@/lib/compras";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { calcularSolicitudesConPendientes, esComprador } from "@/lib/compras";
 import { obtenerValoresActivos } from "@/lib/listas";
 import { siguienteNumero } from "@/lib/utils";
 import { NOMBRE_ORDEN, PREFIJO_ORDEN, type CategoriaCompraCodigo, type TipoOrdenCodigo } from "@/lib/constants/compras";
@@ -11,6 +13,9 @@ export default async function NuevaOrdenCompraPage({
 }: {
   searchParams: Promise<{ categoria?: string; tipo?: string; solicitudId?: string }>;
 }) {
+  const usuario = await getUsuarioActual();
+  if (!usuario || !esComprador(usuario)) redirect("/logistica/ordenes-compra");
+
   const { categoria, tipo, solicitudId } = await searchParams;
   const categoriaSeleccionada: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
   const tipoOrden: TipoOrdenCodigo = tipo === "ABIERTA" ? "ABIERTA" : "ESTANDAR";

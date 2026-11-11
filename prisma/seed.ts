@@ -54,6 +54,7 @@ function descripcionRol(nombre: RolNombre): string {
     APROBADOR_GENERAL: "Aprobación de solicitudes y órdenes de cualquier área",
     ANULADOR: "Único permiso habilitado para anular solicitudes de pedido y órdenes de compra/servicio",
     SOLO_LECTURA: "Acceso de solo lectura a todos los módulos",
+    COMPRADORES: "Único permiso habilitado para cerrar posición y gestionar Órdenes de compra y servicio",
   };
   return descripciones[nombre];
 }

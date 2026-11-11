@@ -41,6 +41,7 @@ export function UsuarioForm() {
       area: "PRODUCCION",
       rolEspecial: undefined,
       accesoHrefs: [],
+      esComprador: false,
     },
   });
 
@@ -245,6 +246,26 @@ export function UsuarioForm() {
             {form.formState.errors.area && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.area.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <div className="flex items-center gap-2">
+              <Controller
+                control={form.control}
+                name="esComprador"
+                render={({ field }) => (
+                  <Checkbox id="esComprador" checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />
+                )}
+              />
+              <Label htmlFor="esComprador" className="font-normal">
+                Comprador
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Único rol que puede crear/editar Órdenes de compra y servicio y &quot;cerrar posición&quot; (Solped y OC/OS).
+              Sin esto, el usuario solo puede VER una orden a la que llegue (p. ej. por seguimiento de su Solped), sin
+              poder modificarla.
+            </p>
           </div>
         </CardContent>
       </Card>

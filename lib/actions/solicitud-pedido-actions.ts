@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
 import { PREFIJO_SOLICITUD } from "@/lib/constants/compras";
-import { obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
+import { esComprador, obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import {
   solicitudPedidoSchema,
   aprobadoresAreaSchema,
@@ -331,6 +331,63 @@ export async function anularSolicitudPedidoAction(id: string, comentario?: strin
   } catch (e) {
     console.error("Error inesperado en anularSolicitudPedidoAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al anular la solicitud." };
+  }
+}
+
+// "Cerrar posición": mismo concepto que cerrarPosicionOrdenCompraItemAction
+// en lib/actions/orden-compra-actions.ts, aplicado a una línea de Solped —
+// pedido explícito: una línea pendiente que no se va a terminar de comprar
+// deja de contar como pendiente (ver cantidadPendiente/
+// calcularSolicitudesConPendientes en lib/compras.ts), sin tocar el resto
+// de la solicitud. Exclusivo de Compradores/ADMIN (ver esComprador).
+export async function cerrarPosicionSolicitudPedidoItemAction(
+  itemId: string,
+  motivo?: string
+): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para cerrar una posición." };
+    if (!esComprador(usuario)) return { error: "Solo un Comprador puede cerrar posiciones." };
+
+    const item = await prisma.solicitudPedidoItem.findUnique({ where: { id: itemId } });
+    if (!item) return { error: "Ese ítem ya no existe." };
+    if (item.cerrado) return { error: "Esta posición ya estaba cerrada." };
+
+    await prisma.solicitudPedidoItem.update({
+      where: { id: itemId },
+      data: { cerrado: true, motivoCierre: motivo || null, cerradoPorId: usuario.id, fechaCierre: new Date() },
+    });
+
+    revalidatePath(`/logistica/solicitudes-pedido/${item.solicitudPedidoId}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en cerrarPosicionSolicitudPedidoItemAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al cerrar la posición." };
+  }
+}
+
+// Reversa de cerrarPosicionSolicitudPedidoItemAction: la línea vuelve a
+// contar como pendiente por lo que todavía le falte jalar a una OC/OS.
+export async function reabrirPosicionSolicitudPedidoItemAction(itemId: string): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para reabrir una posición." };
+    if (!esComprador(usuario)) return { error: "Solo un Comprador puede reabrir posiciones." };
+
+    const item = await prisma.solicitudPedidoItem.findUnique({ where: { id: itemId } });
+    if (!item) return { error: "Ese ítem ya no existe." };
+    if (!item.cerrado) return { error: "Esta posición no estaba cerrada." };
+
+    await prisma.solicitudPedidoItem.update({
+      where: { id: itemId },
+      data: { cerrado: false, motivoCierre: null, cerradoPorId: null, fechaCierre: null },
+    });
+
+    revalidatePath(`/logistica/solicitudes-pedido/${item.solicitudPedidoId}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en reabrirPosicionSolicitudPedidoItemAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al reabrir la posición." };
   }
 }
 

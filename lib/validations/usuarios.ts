@@ -35,6 +35,11 @@ export const crearUsuarioSchema = z
     // acceso fino por submódulo como, indirectamente, qué roles de módulo
     // (ACOPIO/LOGISTICA_COMPRAS/COMEX) se le asignan (ver crearUsuarioAction).
     accesoHrefs: z.array(z.string()).min(1, "Selecciona al menos un módulo/submódulo al que tendrá acceso"),
+    // Único permiso habilitado para "cerrar posición" (Solped y OC/OS) y
+    // para crear/editar Órdenes de compra y servicio — ver esComprador en
+    // lib/compras.ts. Independiente de accesoHrefs: la casilla de acceso
+    // controla si VE el submódulo, esta controla si puede modificarlo.
+    esComprador: z.boolean(),
   })
   .superRefine((data, ctx) => {
     if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {
@@ -70,6 +75,8 @@ export const editarUsuarioSchema = z
     // ningún acceso temporalmente sin tener que desactivar la cuenta.
     accesoHrefs: z.array(z.string()),
     activo: z.boolean(),
+    // Ver comentario en crearUsuarioSchema.
+    esComprador: z.boolean(),
   })
   .superRefine((data, ctx) => {
     if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {

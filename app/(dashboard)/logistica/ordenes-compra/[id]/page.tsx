@@ -26,7 +26,7 @@ import {
   type CategoriaCompraCodigo,
 } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { obtenerAprobadoresEspeciales } from "@/lib/compras";
+import { esComprador, obtenerAprobadoresEspeciales } from "@/lib/compras";
 import type { EstadoDocumento, EstadoFirma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -98,20 +98,15 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
   const usuarioFirmantePorId = new Map(usuariosFirmantes.map((u) => [u.id, u]));
 
-  // Editar: quien la creó, o Supply Chain/ADMIN (mismo criterio que al
+  // Editar: quien la creó, o Comprador/ADMIN (mismo criterio que al
   // crear) — y solo si está en BORRADOR (nadie la firmó aún, o todos
   // anularon su firma — ver AnularFirmaBoton más abajo).
-  const puedeEditar =
-    !!usuario &&
-    orden.estado === "BORRADOR" &&
-    (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || orden.creadoPorId === usuario.id);
+  const puedeEditar = !!usuario && orden.estado === "BORRADOR" && (esComprador(usuario) || orden.creadoPorId === usuario.id);
 
-  // Cerrar/reabrir una posición: mismo criterio de permiso que editar,
-  // pero sin la restricción de estado -- a diferencia de editar la orden
-  // completa, esto aplica justo cuando ya está APROBADA y en recepción
-  // (ver cerrarPosicionOrdenCompraItemAction).
-  const puedeCerrarPosiciones =
-    !!usuario && (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || orden.creadoPorId === usuario.id);
+  // Cerrar/reabrir una posición: exclusivo de Compradores/ADMIN, a
+  // diferencia de editar la orden completa (acá no basta con ser quien la
+  // creó) — ver cerrarPosicionOrdenCompraItemAction.
+  const puedeCerrarPosiciones = !!usuario && esComprador(usuario);
 
   // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
   // estado de la orden.

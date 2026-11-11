@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import type { RolNombre } from "@/lib/auth/constants";
 import { siguienteNumero } from "@/lib/utils";
 import { IGV_TASA, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import {
   cantidadPendiente,
   categoriaDeItem,
+  esComprador,
   montoEnUsd,
   obtenerAprobadoresEspeciales,
   rolesFirmaRequeridos,
@@ -31,6 +33,10 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   const { proveedorId, tipoOrden, vigenteHasta, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } =
     parsed.data;
 
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión para crear una orden." };
+  if (!esComprador(usuario)) return { error: "Solo un Comprador puede crear órdenes de compra/servicio." };
+
   const proveedor = await prisma.proveedor.findUnique({ where: { id: proveedorId } });
   if (!proveedor) {
     return { error: "El proveedor seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
@@ -49,8 +55,6 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   const montoTotal = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
   try {
-    const usuario = await getUsuarioActual();
-
     const nuevaOrden = await prisma.$transaction(async (tx) => {
       // Se valida dentro de la transacción (no antes) para que dos personas
       // no puedan jalar al mismo tiempo más de lo pendiente real, y para que
@@ -160,6 +164,10 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
   const { categoria, tipoOrden, vigenteHasta, proveedorId, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } =
     parsed.data;
 
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión para crear una orden." };
+  if (!esComprador(usuario)) return { error: "Solo un Comprador puede crear órdenes de compra/servicio." };
+
   const proveedor = await prisma.proveedor.findUnique({ where: { id: proveedorId } });
   if (!proveedor) {
     return { error: "El proveedor seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
@@ -172,8 +180,6 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
   const montoTotal = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
   try {
-    const usuario = await getUsuarioActual();
-
     const nuevaOrden = await prisma.$transaction(async (tx) => {
       const existentes = await tx.ordenCompra.findMany({ where: { categoria, tipoOrden }, select: { numero: true } });
       const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria][tipoOrden], 9);
@@ -372,12 +378,12 @@ export async function anularFirmaOrdenCompraAction(
   }
 }
 
-// Puede editar: quien la creó, o Supply Chain/ADMIN (mismo criterio que
+// Puede editar: quien la creó, o un Comprador/ADMIN (mismo criterio que
 // al crear, porque gestionan órdenes de cualquier área). Solo en BORRADOR
 // -- ver anularFirmaOrdenCompraAction para cómo se vuelve a ese estado
 // una vez que ya se firmó.
-function puedeEditarOrden(usuario: { id: string; area: string | null; roles: string[] }, orden: { creadoPorId: string | null }) {
-  return usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || orden.creadoPorId === usuario.id;
+function puedeEditarOrden(usuario: { id: string; roles: RolNombre[] }, orden: { creadoPorId: string | null }) {
+  return esComprador(usuario) || orden.creadoPorId === usuario.id;
 }
 
 // Edita los datos generales y las líneas YA EXISTENTES de una orden en
@@ -576,9 +582,8 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
 // no se quiere) — pedido explícito: deja de contar como pendiente en
 // cantidadPendienteIngresoOC/calcularOcPendientesIngreso (ver
 // lib/stock-almacen.ts), sin tocar el resto de la orden ni sus demás
-// líneas. Mismo criterio de permiso que editar la orden (creador o Supply
-// Chain/ADMIN) — no requiere el rol ANULADOR, porque no anula nada, solo
-// dice "esto ya no va a llegar".
+// líneas. Exclusivo de Compradores/ADMIN (ver esComprador) -- a
+// diferencia de editar la orden, acá no basta con ser quien la creó.
 export async function cerrarPosicionOrdenCompraItemAction(
   itemId: string,
   motivo?: string
@@ -589,8 +594,8 @@ export async function cerrarPosicionOrdenCompraItemAction(
 
     const item = await prisma.ordenCompraItem.findUnique({ where: { id: itemId }, include: { ordenCompra: true } });
     if (!item) return { error: "Ese ítem ya no existe." };
-    if (!puedeEditarOrden(usuario, item.ordenCompra)) {
-      return { error: "No tienes permiso para cerrar posiciones de esta orden." };
+    if (!esComprador(usuario)) {
+      return { error: "Solo un Comprador puede cerrar posiciones." };
     }
     if (item.cerrado) return { error: "Esta posición ya estaba cerrada." };
 
@@ -617,8 +622,8 @@ export async function reabrirPosicionOrdenCompraItemAction(itemId: string): Prom
 
     const item = await prisma.ordenCompraItem.findUnique({ where: { id: itemId }, include: { ordenCompra: true } });
     if (!item) return { error: "Ese ítem ya no existe." };
-    if (!puedeEditarOrden(usuario, item.ordenCompra)) {
-      return { error: "No tienes permiso para reabrir posiciones de esta orden." };
+    if (!esComprador(usuario)) {
+      return { error: "Solo un Comprador puede reabrir posiciones." };
     }
     if (!item.cerrado) return { error: "Esta posición no estaba cerrada." };
 
