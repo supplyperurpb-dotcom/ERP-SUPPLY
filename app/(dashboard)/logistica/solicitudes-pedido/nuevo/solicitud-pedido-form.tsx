@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFieldArray, useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -16,11 +16,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, fechaLocalEnDias } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
+import {
+  GERENCIAS_SOLPED,
+  TIPOS_NECESIDAD,
+  CATEGORIAS_COMPRA,
+  areasDeGerenciaSolped,
+  skuPermitidoParaAreaSolped,
+  type CategoriaCompraCodigo,
+  type GerenciaSolpedCodigo,
+  type AreaSolpedCodigo,
+} from "@/lib/constants/compras";
 import { solicitudPedidoSchema, type SolicitudPedidoInput } from "@/lib/validations/compras";
 import { crearSolicitudPedidoAction, editarSolicitudPedidoAction } from "@/lib/actions/solicitud-pedido-actions";
 
-type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida: string };
+type SkuOpcion = {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  categoria: string;
+  subfamilia: string;
+};
 
 type ItemInicial = {
   id?: string;
@@ -47,6 +63,7 @@ export function SolicitudPedidoForm({
   skus,
   categoriaInicial = "COMPRA",
   areaInicial = "PRODUCCION",
+  areaDetalleInicial,
   areaEditable = true,
   centrosCosto,
   campos,
@@ -62,7 +79,10 @@ export function SolicitudPedidoForm({
 }: {
   skus: SkuOpcion[];
   categoriaInicial?: CategoriaCompraCodigo;
-  areaInicial?: AreaEmpresaCodigo;
+  /** Gerencia (nivel 1 del selector de Área) */
+  areaInicial?: GerenciaSolpedCodigo;
+  /** Área puntual (nivel 2) dentro de areaInicial — ver AREAS_SOLPED. */
+  areaDetalleInicial?: AreaSolpedCodigo;
   areaEditable?: boolean;
   centrosCosto: string[];
   campos: string[];
@@ -82,6 +102,8 @@ export function SolicitudPedidoForm({
   const modoEdicion = !!solicitudId && !!valoresIniciales;
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
   const centroCostoInicial = centrosCosto[0] ?? "";
+  const areaDetalleInicialResuelta: AreaSolpedCodigo =
+    areaDetalleInicial ?? areasDeGerenciaSolped(areaInicial)[0]?.valor ?? "COMPRAS";
 
   const form = useForm<SolicitudPedidoInput>({
     resolver: zodResolver(solicitudPedidoSchema),
@@ -89,6 +111,7 @@ export function SolicitudPedidoForm({
       ? {
           categoria: categoriaInicial,
           area: areaInicial,
+          areaDetalle: areaDetalleInicialResuelta,
           fecha: valoresIniciales.fecha as unknown as Date,
           fechaNecesidad: valoresIniciales.fechaNecesidad as unknown as Date,
           tipoNecesidad: valoresIniciales.tipoNecesidad,
@@ -98,6 +121,7 @@ export function SolicitudPedidoForm({
       : {
           categoria: categoriaInicial,
           area: areaInicial,
+          areaDetalle: areaDetalleInicialResuelta,
           fecha: fechaLocalHoy() as unknown as Date,
           // Sugerida a una semana vista — el usuario debe hacer clic en el
           // campo (confirmarla o cambiarla) antes de poder guardar, ver
@@ -117,6 +141,18 @@ export function SolicitudPedidoForm({
   // editar, el valor ya es el real (no una sugerencia), así que no hace
   // falta forzar el reclic.
   const [fechaNecesidadConfirmada, setFechaNecesidadConfirmada] = useState(modoEdicion);
+
+  const gerenciaActual = form.watch("area") as GerenciaSolpedCodigo;
+  const areaDetalleActual = form.watch("areaDetalle") as AreaSolpedCodigo;
+  const areasDeGerenciaActual = areasDeGerenciaSolped(gerenciaActual);
+
+  // Qué códigos puede elegir esta solicitud según el Área (ver
+  // skuPermitidoParaAreaSolped) — solo aplica a Compra; en Servicio el
+  // catálogo (uno por subfamilia) ya sale sin restricción.
+  const skusDisponibles = useMemo(() => {
+    if (categoriaInicial !== "COMPRA") return skus;
+    return skus.filter((s) => skuPermitidoParaAreaSolped(s, areaDetalleActual));
+  }, [skus, categoriaInicial, areaDetalleActual]);
 
   async function onSubmit(data: SolicitudPedidoInput) {
     if (!fechaNecesidadConfirmada) {
@@ -182,17 +218,25 @@ export function SolicitudPedidoForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Área</Label>
+            <Label>Gerencia</Label>
             <Controller
               control={form.control}
               name="area"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={!areaEditable}>
+                <Select
+                  value={field.value}
+                  onValueChange={(v) => {
+                    field.onChange(v);
+                    const primeraArea = areasDeGerenciaSolped(v as GerenciaSolpedCodigo)[0]?.valor;
+                    if (primeraArea) form.setValue("areaDetalle", primeraArea);
+                  }}
+                  disabled={!areaEditable}
+                >
                   <SelectTrigger className={!areaEditable ? "cursor-not-allowed bg-muted opacity-70" : undefined}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {AREAS_EMPRESA.map((a) => (
+                    {GERENCIAS_SOLPED.map((a) => (
                       <SelectItem key={a.valor} value={a.valor}>
                         {a.nombre}
                       </SelectItem>
@@ -205,6 +249,33 @@ export function SolicitudPedidoForm({
               <p className="text-xs text-muted-foreground">Fijada según tu área asignada.</p>
             )}
           </div>
+
+          {areasDeGerenciaActual.length > 1 && (
+            <div className="space-y-2">
+              <Label>Área</Label>
+              <Controller
+                control={form.control}
+                name="areaDetalle"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areasDeGerenciaActual.map((a) => (
+                        <SelectItem key={a.valor} value={a.valor}>
+                          {a.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.areaDetalle && (
+                <p className="text-sm font-medium text-destructive">{form.formState.errors.areaDetalle.message}</p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de pedido</Label>
@@ -322,7 +393,7 @@ export function SolicitudPedidoForm({
                           name={`items.${index}.skuId`}
                           render={({ field: selectField }) => (
                             <SkuCombobox
-                              skus={skus}
+                              skus={skusDisponibles}
                               value={selectField.value}
                               onSelect={(sku) => {
                                 selectField.onChange(sku.id);

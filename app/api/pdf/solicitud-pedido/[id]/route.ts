@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, GERENCIAS_SOLPED, AREAS_SOLPED, TIPOS_NECESIDAD, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { generarSolicitudPedidoPdf } from "@/lib/pdf/solicitud-pedido-pdf";
 import { codigoAprobador } from "@/lib/utils";
 
@@ -23,7 +23,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const bytes = await generarSolicitudPedidoPdf({
     nombreDocumento: NOMBRE_SOLICITUD[solicitud.categoria as CategoriaCompraCodigo],
     numero: solicitud.numero,
-    area: AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
+    area: (() => {
+      const gerencia = GERENCIAS_SOLPED.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area;
+      const detalle = AREAS_SOLPED.find((a) => a.valor === solicitud.areaDetalle)?.nombre ?? solicitud.areaDetalle;
+      return detalle === gerencia ? gerencia : `${gerencia} — ${detalle}`;
+    })(),
     fecha: solicitud.fecha,
     fechaNecesidad: solicitud.fechaNecesidad,
     tipoNecesidad: TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad,

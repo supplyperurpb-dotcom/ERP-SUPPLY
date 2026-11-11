@@ -1,7 +1,30 @@
 import { z } from "zod";
-import { CONDICIONES_PAGO, LUGARES_ENTREGA } from "@/lib/constants/compras";
+import { CONDICIONES_PAGO, LUGARES_ENTREGA, areasDeGerenciaSolped, type GerenciaSolpedCodigo, type AreaSolpedCodigo } from "@/lib/constants/compras";
 
-const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SERVICIOS_GENERALES", "RRHH"] as const;
+const AREAS = [
+  "PRODUCCION",
+  "SUPPLY_CHAIN",
+  "FINANZAS",
+  "GERENCIA_GENERAL",
+  "SERVICIOS_GENERALES",
+  "RRHH",
+  "CALIDAD_E_INOCUIDAD",
+] as const;
+// Áreas (nivel 2, dentro de cada Gerencia) — ver AREAS_SOLPED en
+// lib/constants/compras.ts, única fuente de la relación Gerencia->Área.
+const AREAS_DETALLE = [
+  "SANIDAD",
+  "RIEGO",
+  "PRODUCCION_1",
+  "COMPRAS",
+  "COMEX",
+  "ALMACEN",
+  "FINANZAS",
+  "GERENCIA_GENERAL",
+  "SERVICIOS_GENERALES",
+  "RRHH",
+  "CALIDAD_E_INOCUIDAD",
+] as const;
 const CATEGORIAS = ["COMPRA", "SERVICIO"] as const;
 const TIPOS_ORDEN = ["ABIERTA", "ESTANDAR"] as const;
 
@@ -27,7 +50,8 @@ const itemSolicitudPedidoSchema = z.object({
 export const solicitudPedidoSchema = z
   .object({
     categoria: z.enum(CATEGORIAS, { required_error: "Selecciona si es una solicitud de compra o de servicio" }),
-    area: z.enum(AREAS, { required_error: "Selecciona el área" }),
+    area: z.enum(AREAS, { required_error: "Selecciona la gerencia" }),
+    areaDetalle: z.enum(AREAS_DETALLE, { required_error: "Selecciona el área" }),
     fecha: z.coerce.date({ required_error: "La fecha de pedido es obligatoria" }),
     fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),
     tipoNecesidad: z.enum(["URGENTE", "ESTANDAR"], { required_error: "Selecciona el tipo de necesidad" }),
@@ -40,6 +64,14 @@ export const solicitudPedidoSchema = z
         code: z.ZodIssueCode.custom,
         message: "La fecha estimada de necesidad no puede ser anterior a la fecha de pedido",
         path: ["fechaNecesidad"],
+      });
+    }
+    const areasValidas = areasDeGerenciaSolped(data.area as GerenciaSolpedCodigo).map((a) => a.valor as string);
+    if (!areasValidas.includes(data.areaDetalle)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El área elegida no corresponde a la gerencia elegida",
+        path: ["areaDetalle"],
       });
     }
     if (data.categoria !== "SERVICIO") return;
@@ -55,6 +87,7 @@ export const solicitudPedidoSchema = z
   });
 
 export type SolicitudPedidoInput = z.infer<typeof solicitudPedidoSchema>;
+export type { AreaSolpedCodigo };
 
 const itemOrdenCompraSchema = z.object({
   solicitudPedidoItemId: z.string().min(1, "Falta el origen de esta línea"),

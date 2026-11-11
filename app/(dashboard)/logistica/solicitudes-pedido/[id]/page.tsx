@@ -17,7 +17,7 @@ import { SeguimientoPedidoDialog, type ItemSeguimientoPedido } from "./seguimien
 import type { ResumenOrden } from "@/components/shared/resumen-orden-dialog";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatCantidad } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { GERENCIAS_SOLPED, AREAS_SOLPED, TIPOS_NECESIDAD, CATEGORIAS_COMPRA, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { esComprador, obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import type { EstadoDocumento } from "@prisma/client";
@@ -54,7 +54,19 @@ const ESTADO_ITEM_VARIANT: Record<string, "success" | "destructive" | "secondary
 };
 
 function nombreArea(valor: string) {
-  return AREAS_EMPRESA.find((a) => a.valor === valor)?.nombre ?? valor;
+  return GERENCIAS_SOLPED.find((a) => a.valor === valor)?.nombre ?? valor;
+}
+
+function nombreAreaDetalle(valor: string) {
+  return AREAS_SOLPED.find((a) => a.valor === valor)?.nombre ?? valor;
+}
+
+// Donde la Gerencia no se subdivide (ver AREAS_SOLPED), el Área lleva el
+// mismo nombre que la Gerencia — no tiene sentido repetirlo dos veces.
+function etiquetaAreaCompleta(area: string, areaDetalle: string) {
+  const gerencia = nombreArea(area);
+  const detalle = nombreAreaDetalle(areaDetalle);
+  return detalle === gerencia ? gerencia : `${gerencia} — ${detalle}`;
 }
 
 export default async function SolicitudPedidoDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -187,7 +199,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     <div className="space-y-6 uppercase">
       <PageHeader
         titulo={`${NOMBRE_SOLICITUD[solicitud.categoria as CategoriaCompraCodigo]} ${solicitud.numero}`}
-        descripcion={`${nombreArea(solicitud.area)} · ${formatDate(solicitud.fecha)}`}
+        descripcion={`${etiquetaAreaCompleta(solicitud.area, solicitud.areaDetalle)} · ${formatDate(solicitud.fecha)}`}
         acciones={
           <div className="flex gap-2">
             {puedeEditar && (
@@ -259,7 +271,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
           </div>
           <div>
             <p className="text-muted-foreground">Área</p>
-            <p className="font-medium">{nombreArea(solicitud.area)}</p>
+            <p className="font-medium">{etiquetaAreaCompleta(solicitud.area, solicitud.areaDetalle)}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Fecha de pedido</p>

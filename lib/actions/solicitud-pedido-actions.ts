@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { PREFIJO_SOLICITUD } from "@/lib/constants/compras";
+import {
+  PREFIJO_SOLICITUD,
+  skuPermitidoParaAreaSolped,
+  areasDeGerenciaSolped,
+  type AreaSolpedCodigo,
+  type GerenciaSolpedCodigo,
+} from "@/lib/constants/compras";
 import { esComprador, obtenerAprobadoresArea, puedeAprobarSolicitud } from "@/lib/compras";
 import {
   solicitudPedidoSchema,
@@ -18,6 +24,51 @@ import {
 
 export type SolicitudPedidoActionState = { error?: string; id?: string } | undefined;
 
+// El área (Gerencia) solo es editable para Supply Chain y ADMIN (ver
+// solicitud-pedido-form.tsx); para cualquier otro usuario se fuerza la
+// suya propia, sin confiar en el valor que llegó del cliente. El
+// areaDetalle (Área puntual) sí lo elige cualquiera, pero debe pertenecer
+// a la Gerencia ya forzada — si no, se rechaza en vez de adivinar cuál de
+// sus Áreas quiso decir.
+function resolverAreaForzada(
+  usuario: { area: string | null; roles: string[] } | null,
+  solicitado: { area: GerenciaSolpedCodigo; areaDetalle: AreaSolpedCodigo }
+): { area: GerenciaSolpedCodigo; areaDetalle: AreaSolpedCodigo } | { error: string } {
+  const areaPuedeElegir = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
+  if (areaPuedeElegir) return solicitado;
+
+  const area = usuario!.area as GerenciaSolpedCodigo;
+  const perteneceAGerencia = areasDeGerenciaSolped(area).some((a) => a.valor === solicitado.areaDetalle);
+  if (!perteneceAGerencia) {
+    return { error: "El área elegida no corresponde a tu gerencia." };
+  }
+  return { area, areaDetalle: solicitado.areaDetalle };
+}
+
+// No confía en el valor que llegó del cliente: vuelve a mirar, por cada
+// línea, si el SKU elegido está permitido para el área (solo aplica a
+// categoría COMPRA — ver skuPermitidoParaAreaSolped, "sin restricción"
+// para Servicios es el comportamiento ya existente).
+async function validarSkusPermitidosParaArea(
+  categoria: string,
+  areaDetalle: AreaSolpedCodigo,
+  items: { skuId: string }[]
+): Promise<string | undefined> {
+  if (categoria === "SERVICIO") return undefined;
+  const skus = await prisma.sku.findMany({
+    where: { id: { in: items.map((i) => i.skuId) } },
+    select: { id: true, codigo: true, categoria: true, subfamilia: true },
+  });
+  const skuPorId = new Map(skus.map((s) => [s.id, s]));
+  for (const item of items) {
+    const sku = skuPorId.get(item.skuId);
+    if (sku && !skuPermitidoParaAreaSolped(sku, areaDetalle)) {
+      return `El código ${sku.codigo} no está permitido para el área elegida.`;
+    }
+  }
+  return undefined;
+}
+
 export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Promise<SolicitudPedidoActionState> {
   const parsed = solicitudPedidoSchema.safeParse(data);
   if (!parsed.success) {
@@ -27,11 +78,12 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
 
   try {
     const usuario = await getUsuarioActual();
-    // El área solo es editable para Supply Chain y ADMIN (ver
-    // solicitud-pedido-form.tsx); para cualquier otro usuario se fuerza la
-    // suya propia aquí, sin confiar en el valor que llegó del cliente.
-    const areaPuedeElegir = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
-    const area = areaPuedeElegir ? parsed.data.area : (usuario!.area as typeof parsed.data.area);
+    const resuelto = resolverAreaForzada(usuario, { area: parsed.data.area, areaDetalle: parsed.data.areaDetalle });
+    if ("error" in resuelto) return resuelto;
+    const { area, areaDetalle } = resuelto;
+
+    const errorSkus = await validarSkusPermitidosParaArea(categoria, areaDetalle as AreaSolpedCodigo, items);
+    if (errorSkus) return { error: errorSkus };
 
     const nuevaSolicitud = await prisma.$transaction(async (tx) => {
       const existentes = await tx.solicitudPedido.findMany({ where: { categoria }, select: { numero: true } });
@@ -42,6 +94,7 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
           numero,
           categoria,
           area,
+          areaDetalle,
           estado: "PENDIENTE",
           fecha,
           fechaNecesidad,
@@ -138,8 +191,12 @@ export async function editarSolicitudPedidoAction(
     }
 
     const { categoria, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
-    const areaPuedeElegir = !usuario.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
-    const area = areaPuedeElegir ? parsed.data.area : (usuario.area as typeof parsed.data.area);
+    const resuelto = resolverAreaForzada(usuario, { area: parsed.data.area, areaDetalle: parsed.data.areaDetalle });
+    if ("error" in resuelto) return resuelto;
+    const { area, areaDetalle } = resuelto;
+
+    const errorSkus = await validarSkusPermitidosParaArea(categoria, areaDetalle as AreaSolpedCodigo, items);
+    if (errorSkus) return { error: errorSkus };
 
     await prisma.$transaction(async (tx) => {
       await tx.solicitudPedido.update({
@@ -147,6 +204,7 @@ export async function editarSolicitudPedidoAction(
         data: {
           categoria,
           area,
+          areaDetalle,
           estado: "PENDIENTE",
           fecha,
           fechaNecesidad,

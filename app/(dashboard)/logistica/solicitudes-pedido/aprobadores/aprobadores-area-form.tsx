@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { AREAS_EMPRESA, type AreaEmpresaCodigo } from "@/lib/constants/compras";
+import { GERENCIAS_SOLPED, type GerenciaSolpedCodigo } from "@/lib/constants/compras";
 import { configurarAprobadoresAreaAction } from "@/lib/actions/solicitud-pedido-actions";
 
 type UsuarioOpcion = { id: string; nombre: string };
@@ -17,10 +17,10 @@ export function AprobadoresAreaForm({
   asignacionesIniciales,
 }: {
   usuarios: UsuarioOpcion[];
-  asignacionesIniciales: Record<AreaEmpresaCodigo, string>;
+  asignacionesIniciales: Record<GerenciaSolpedCodigo, string>;
 }) {
   const router = useRouter();
-  const [asignaciones, setAsignaciones] = useState<Record<AreaEmpresaCodigo, string>>(asignacionesIniciales);
+  const [asignaciones, setAsignaciones] = useState<Record<GerenciaSolpedCodigo, string>>(asignacionesIniciales);
   const [guardando, setGuardando] = useState(false);
 
   async function handleGuardar() {
@@ -29,7 +29,7 @@ export function AprobadoresAreaForm({
       const resultado = await configurarAprobadoresAreaAction({
         asignaciones: Object.entries(asignaciones)
           .filter(([, usuarioId]) => usuarioId)
-          .map(([area, usuarioId]) => ({ area: area as AreaEmpresaCodigo, usuarioId })),
+          .map(([area, usuarioId]) => ({ area: area as GerenciaSolpedCodigo, usuarioId })),
       });
       if (resultado?.error) {
         toast.error(resultado.error);
@@ -56,7 +56,7 @@ export function AprobadoresAreaForm({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {AREAS_EMPRESA.map((area) => (
+        {GERENCIAS_SOLPED.map((area) => (
           <div key={area.valor} className="grid grid-cols-1 gap-2 sm:grid-cols-[200px_1fr] sm:items-center">
             <Label>{area.nombre}</Label>
             <Select

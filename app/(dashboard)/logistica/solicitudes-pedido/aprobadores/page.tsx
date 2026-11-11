@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerAprobadoresArea, obtenerAprobadoresEspeciales } from "@/lib/compras";
-import { AREAS_EMPRESA, ROLES_APROBADOR_ESPECIAL, type AreaEmpresaCodigo, type RolAprobadorEspecialCodigo } from "@/lib/constants/compras";
+import { GERENCIAS_SOLPED, ROLES_APROBADOR_ESPECIAL, type GerenciaSolpedCodigo, type RolAprobadorEspecialCodigo } from "@/lib/constants/compras";
 import { AprobadoresAreaForm } from "./aprobadores-area-form";
 import { AprobadoresEspecialesForm } from "./aprobadores-especiales-form";
 
@@ -19,10 +19,10 @@ export default async function AprobadoresAreaPage() {
     obtenerAprobadoresEspeciales(),
   ]);
 
-  const asignacionesIniciales = AREAS_EMPRESA.reduce((acc, a) => {
+  const asignacionesIniciales = GERENCIAS_SOLPED.reduce((acc, a) => {
     acc[a.valor] = aprobadores.find((ap) => ap.area === a.valor)?.usuarioId ?? "";
     return acc;
-  }, {} as Record<AreaEmpresaCodigo, string>);
+  }, {} as Record<GerenciaSolpedCodigo, string>);
 
   const asignacionesEspecialesIniciales = ROLES_APROBADOR_ESPECIAL.reduce((acc, r) => {
     acc[r.valor] = aprobadoresEspeciales.find((ap) => ap.rol === r.valor)?.usuarioId ?? "";

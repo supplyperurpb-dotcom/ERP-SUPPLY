@@ -17,7 +17,8 @@ export default async function EditarRetiradorAutorizadoPage({ params }: { params
     nombres: retirador.nombres,
     apellidos: retirador.apellidos,
     dni: retirador.dni,
-    area: retirador.area,
+    // Ver nota equivalente en devoluciones/[id]/editar/page.tsx.
+    area: retirador.area as RetiradorAutorizadoInput["area"],
     almacenesPermitidosIds: retirador.almacenesPermitidos.map((p) => p.almacenId),
   };
 

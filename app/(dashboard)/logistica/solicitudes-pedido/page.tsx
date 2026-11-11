@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
+import { GERENCIAS_SOLPED, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { SolicitudesPedidoTable, type FilaSolicitudPedido } from "./solicitudes-pedido-table";
 import type { AreaEmpresa } from "@prisma/client";
@@ -41,7 +41,7 @@ export default async function SolicitudesPedidoPage() {
     numero: solicitud.numero,
     categoria: solicitud.categoria as "COMPRA" | "SERVICIO",
     categoriaLabel: CATEGORIAS_COMPRA.find((c) => c.valor === solicitud.categoria)?.nombre ?? solicitud.categoria,
-    area: AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
+    area: GERENCIAS_SOLPED.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
     tipoNecesidad: TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad,
     fecha: formatDate(solicitud.fecha),
     fechaNecesidad: formatDate(solicitud.fechaNecesidad),

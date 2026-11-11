@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, fechaLocalHoy } from "@/lib/utils";
-import { AREAS_EMPRESA, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, GERENCIAS_SOLPED, AREAS_SOLPED, TIPOS_NECESIDAD, CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -20,6 +20,16 @@ const ESTADO_ITEM_LABEL: Record<string, string> = {
 };
 
 function nombreArea(valor: string): string {
+  return GERENCIAS_SOLPED.find((a) => a.valor === valor)?.nombre ?? valor;
+}
+
+function nombreAreaDetalle(valor: string): string {
+  return AREAS_SOLPED.find((a) => a.valor === valor)?.nombre ?? valor;
+}
+
+// Centro de costo sigue el catálogo aparte (ListaValor); se mantiene
+// AREAS_EMPRESA solo para no romper el fallback que ya tenía esta columna.
+function nombreCentroCosto(valor: string): string {
   return AREAS_EMPRESA.find((a) => a.valor === valor)?.nombre ?? valor;
 }
 
@@ -40,6 +50,7 @@ export async function GET() {
     "Número de solicitud": string;
     Categoría: string;
     Área: string;
+    "Área (detalle)": string;
     "Estado de la solicitud": string;
     "Fecha de pedido": string;
     "Fecha de necesidad": string;
@@ -64,6 +75,7 @@ export async function GET() {
       "Número de solicitud": solicitud.numero,
       Categoría: CATEGORIAS_COMPRA.find((c) => c.valor === solicitud.categoria)?.nombre ?? solicitud.categoria,
       Área: nombreArea(solicitud.area),
+      "Área (detalle)": nombreAreaDetalle(solicitud.areaDetalle),
       "Estado de la solicitud": ESTADO_LABEL[solicitud.estado],
       "Fecha de pedido": formatDate(solicitud.fecha),
       "Fecha de necesidad": formatDate(solicitud.fechaNecesidad),
@@ -101,7 +113,7 @@ export async function GET() {
         Unidad: item.unidadMedida,
         "Cantidad con OC": jalado,
         "Cantidad pendiente": pendiente,
-        "Centro de costo": nombreArea(item.centroCosto),
+        "Centro de costo": nombreCentroCosto(item.centroCosto),
         Campo: item.campo ?? "",
         "Estado del producto": ESTADO_ITEM_LABEL[item.estado] ?? item.estado,
       });
@@ -113,6 +125,7 @@ export async function GET() {
     { wch: 18 }, // Número de solicitud
     { wch: 12 }, // Categoría
     { wch: 20 }, // Área
+    { wch: 20 }, // Área (detalle)
     { wch: 16 }, // Estado de la solicitud
     { wch: 14 }, // Fecha de pedido
     { wch: 14 }, // Fecha de necesidad

@@ -413,6 +413,10 @@ enum AreaEmpresa {
   GERENCIA_GENERAL
   SERVICIOS_GENERALES
   RRHH
+  // Gerencia nueva, solo seleccionable como Gerencia de una Solped (ver
+  // GERENCIAS_SOLPED en lib/constants/compras.ts) — Usuario, Devolución de
+  // almacén y Solicitud de despacho siguen con las 6 originales.
+  CALIDAD_E_INOCUIDAD
 }
 
 // Listas editables desde el submódulo Logística > Listas (ver
@@ -543,7 +547,16 @@ model SolicitudPedido {
   numero            String          @unique // serie-número interno, ej. SP-000000001 / SS-000000001
   categoria         CategoriaCompra @default(COMPRA)
   solicitanteId     String?
+  // Gerencia (6 originales + Calidad e Inocuidad) — decide quién aprueba
+  // (ver AprobadorArea). No confundir con areaDetalle, más abajo.
   area              AreaEmpresa
+  // Área puntual dentro de la Gerencia elegida (p. ej. "Riego" dentro de
+  // Producción, "Almacén" dentro de Supply Chain) — ver AREAS_SOLPED en
+  // lib/constants/compras.ts. Decide qué códigos de Suministros puede
+  // elegir esta solicitud (ver skuPermitidoParaArea, misma constante);
+  // no afecta la aprobación, que sigue siendo por Gerencia. Donde la
+  // Gerencia no se subdivide, el valor es el mismo texto que `area`.
+  areaDetalle       String
   estado            EstadoDocumento @default(BORRADOR)
   fecha             DateTime        @default(now())
   fechaNecesidad    DateTime

@@ -3,7 +3,13 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { obtenerValoresActivos } from "@/lib/listas";
 import { siguienteNumero } from "@/lib/utils";
-import { NOMBRE_SOLICITUD, PREFIJO_SOLICITUD, type CategoriaCompraCodigo, type AreaEmpresaCodigo } from "@/lib/constants/compras";
+import {
+  NOMBRE_SOLICITUD,
+  PREFIJO_SOLICITUD,
+  areasDeGerenciaSolped,
+  type CategoriaCompraCodigo,
+  type GerenciaSolpedCodigo,
+} from "@/lib/constants/compras";
 import { SolicitudPedidoForm } from "./solicitud-pedido-form";
 
 export default async function NuevaSolicitudPedidoPage({
@@ -15,7 +21,12 @@ export default async function NuevaSolicitudPedidoPage({
   const categoriaInicial: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
 
   const usuario = await getUsuarioActual();
-  const areaInicial: AreaEmpresaCodigo = (usuario?.area as AreaEmpresaCodigo | null) ?? "PRODUCCION";
+  const areaInicial: GerenciaSolpedCodigo = (usuario?.area as GerenciaSolpedCodigo | null) ?? "PRODUCCION";
+  // No se guarda el Área puntual del usuario (solo su Gerencia, ver
+  // Usuario.area): se arranca con la primera Área de su Gerencia y puede
+  // cambiarla libremente dentro de ella (ver areaEditable más abajo, que
+  // solo controla si puede cambiar de Gerencia).
+  const areaDetalleInicial = areasDeGerenciaSolped(areaInicial)[0]?.valor ?? "COMPRAS";
   // Supply Chain gestiona pedidos de cualquier área en nombre de otros, así
   // que a ellos (y a un ADMIN) se les deja elegir; el resto queda fijo en
   // la suya propia (ver también crearSolicitudPedidoAction, que la vuelve a
@@ -23,7 +34,9 @@ export default async function NuevaSolicitudPedidoPage({
   const areaEditable = !usuario?.area || usuario.area === "SUPPLY_CHAIN" || usuario.roles.includes("ADMIN");
 
   // En SERVICIO, el catálogo son solo los SKU de Servicios (uno por
-  // subfamilia, p. ej. "Apicultura"); en COMPRA se excluyen esos SKU.
+  // subfamilia, p. ej. "Apicultura"); en COMPRA se excluyen esos SKU. El
+  // Área puede acotar más ese catálogo de Compra (ver skuPermitidoParaAreaSolped
+  // en solicitud-pedido-form.tsx) — por eso se trae categoria/subfamilia.
   const [skus, existentes, centrosCosto, campos] = await Promise.all([
     prisma.sku.findMany({
       where: {
@@ -46,9 +59,17 @@ export default async function NuevaSolicitudPedidoPage({
         descripcion="Registra la necesidad de un área: productos, cantidades y centro de costo. Luego podrá convertirse en una o varias órdenes."
       />
       <SolicitudPedidoForm
-        skus={skus.map((s) => ({ id: s.id, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida }))}
+        skus={skus.map((s) => ({
+          id: s.id,
+          codigo: s.codigo,
+          descripcion: s.descripcion,
+          unidadMedida: s.unidadMedida,
+          categoria: s.categoria,
+          subfamilia: s.subfamilia,
+        }))}
         categoriaInicial={categoriaInicial}
         areaInicial={areaInicial}
+        areaDetalleInicial={areaDetalleInicial}
         areaEditable={areaEditable}
         centrosCosto={centrosCosto}
         campos={campos}

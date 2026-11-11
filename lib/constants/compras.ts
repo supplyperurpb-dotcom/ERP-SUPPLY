@@ -1,3 +1,5 @@
+import { tipoAgroquimicoDeCodigo } from "@/lib/constants/sku";
+
 // Tasa de IGV fija (Perú). Si alguna vez cambia, este es el único lugar que
 // hay que tocar.
 export const IGV_TASA = 0.18;
@@ -15,6 +17,118 @@ export const AREAS_EMPRESA = [
 ] as const;
 
 export type AreaEmpresaCodigo = (typeof AREAS_EMPRESA)[number]["valor"];
+
+// Gerencias seleccionables como "Área" (nivel 1) de una Solped: las mismas
+// 6 de AREAS_EMPRESA más "Calidad e Inocuidad" (ver AreaEmpresa en el
+// schema). Solo se usa en el selector de Solped y en sus aprobadores —
+// Usuario, Devolución de almacén y Solicitud de despacho siguen usando
+// AREAS_EMPRESA tal cual, no se les agregó esta gerencia.
+export const GERENCIAS_SOLPED = [...AREAS_EMPRESA, { valor: "CALIDAD_E_INOCUIDAD", nombre: "Calidad e Inocuidad" }] as const;
+
+export type GerenciaSolpedCodigo = (typeof GERENCIAS_SOLPED)[number]["valor"];
+
+// Nivel 2 del selector de Solped: el "Área" puntual dentro de cada
+// Gerencia (organigrama compartido por el usuario). Donde la Gerencia no
+// se subdivide (Finanzas, Gerencia General, Servicios Generales, RRHH,
+// Calidad e Inocuidad) el Área es ella misma — el formulario no muestra un
+// segundo selector en ese caso (ver AREAS_DE_GERENCIA_SOLPED más abajo).
+export const AREAS_SOLPED = [
+  { valor: "SANIDAD", nombre: "Sanidad", gerencia: "PRODUCCION" },
+  { valor: "RIEGO", nombre: "Riego", gerencia: "PRODUCCION" },
+  { valor: "PRODUCCION_1", nombre: "Producción 1", gerencia: "PRODUCCION" },
+  { valor: "COMPRAS", nombre: "Compras", gerencia: "SUPPLY_CHAIN" },
+  { valor: "COMEX", nombre: "Comex", gerencia: "SUPPLY_CHAIN" },
+  { valor: "ALMACEN", nombre: "Almacén", gerencia: "SUPPLY_CHAIN" },
+  { valor: "FINANZAS", nombre: "Finanzas", gerencia: "FINANZAS" },
+  { valor: "GERENCIA_GENERAL", nombre: "Gerencia General", gerencia: "GERENCIA_GENERAL" },
+  { valor: "SERVICIOS_GENERALES", nombre: "Servicios Generales", gerencia: "SERVICIOS_GENERALES" },
+  { valor: "RRHH", nombre: "RRHH", gerencia: "RRHH" },
+  { valor: "CALIDAD_E_INOCUIDAD", nombre: "Calidad e Inocuidad", gerencia: "CALIDAD_E_INOCUIDAD" },
+] as const satisfies readonly { valor: string; nombre: string; gerencia: GerenciaSolpedCodigo }[];
+
+export type AreaSolpedCodigo = (typeof AREAS_SOLPED)[number]["valor"];
+
+export function areasDeGerenciaSolped(gerencia: GerenciaSolpedCodigo) {
+  return AREAS_SOLPED.filter((a) => a.gerencia === gerencia);
+}
+
+// Qué códigos puede elegir cada Área al crear/editar una Solped de
+// categoría COMPRA (pedido explícito del usuario, 2026-11-11/2026-11-12):
+// las de categoría SERVICIO no se restringen por área en ningún caso. No
+// existe una categoría de SKU "Materiales de Empaque" aparte: en el
+// catálogo real son los Suministros de subfamilia "Embalaje" (ver
+// SUBFAMILIA_MATERIALES_EMPAQUE_SKU). El tipo Agroquímico/Fertilizante/
+// Ósmosis tampoco es un campo aparte: está en el prefijo del código (ver
+// tipoAgroquimicoDeCodigo).
+export const SUBFAMILIA_MATERIALES_EMPAQUE_SKU = "Embalaje";
+
+type ReglaSkuArea = {
+  suministros: boolean;
+  /** Solo importa si `suministros` es true. */
+  materialesEmpaque: boolean;
+  agroquimico: boolean;
+  fertilizante: boolean;
+  osmosis: boolean;
+};
+
+const TODO: ReglaSkuArea = { suministros: true, materialesEmpaque: true, agroquimico: true, fertilizante: true, osmosis: true };
+const SOLO_SUMINISTROS_SIN_EMPAQUE: ReglaSkuArea = {
+  suministros: true,
+  materialesEmpaque: false,
+  agroquimico: false,
+  fertilizante: false,
+  osmosis: false,
+};
+const SOLO_SUMINISTROS_CON_EMPAQUE: ReglaSkuArea = {
+  suministros: true,
+  materialesEmpaque: true,
+  agroquimico: false,
+  fertilizante: false,
+  osmosis: false,
+};
+const SUMINISTROS_SIN_EMPAQUE_MAS_AGROQUIMICO_FERTILIZANTE: ReglaSkuArea = {
+  suministros: true,
+  materialesEmpaque: false,
+  agroquimico: true,
+  fertilizante: true,
+  osmosis: false,
+};
+
+const REGLA_SKU_POR_AREA_SOLPED: Record<AreaSolpedCodigo, ReglaSkuArea> = {
+  // Sanidad y Riego: Suministros (sin empaque) + Agroquímicos y
+  // Fertilizantes, sin Ósmosis.
+  SANIDAD: SUMINISTROS_SIN_EMPAQUE_MAS_AGROQUIMICO_FERTILIZANTE,
+  RIEGO: SUMINISTROS_SIN_EMPAQUE_MAS_AGROQUIMICO_FERTILIZANTE,
+  PRODUCCION_1: SOLO_SUMINISTROS_SIN_EMPAQUE,
+  COMPRAS: TODO,
+  COMEX: TODO,
+  ALMACEN: SOLO_SUMINISTROS_SIN_EMPAQUE,
+  FINANZAS: SOLO_SUMINISTROS_SIN_EMPAQUE,
+  GERENCIA_GENERAL: SOLO_SUMINISTROS_SIN_EMPAQUE,
+  SERVICIOS_GENERALES: SOLO_SUMINISTROS_SIN_EMPAQUE,
+  RRHH: SOLO_SUMINISTROS_SIN_EMPAQUE,
+  CALIDAD_E_INOCUIDAD: SOLO_SUMINISTROS_CON_EMPAQUE,
+};
+
+export function skuPermitidoParaAreaSolped(
+  sku: { codigo: string; categoria: string; subfamilia: string },
+  areaDetalle: AreaSolpedCodigo
+): boolean {
+  const regla = REGLA_SKU_POR_AREA_SOLPED[areaDetalle];
+  if (sku.categoria === "Suministros") {
+    if (!regla.suministros) return false;
+    if (sku.subfamilia === SUBFAMILIA_MATERIALES_EMPAQUE_SKU) return regla.materialesEmpaque;
+    return true;
+  }
+  if (sku.categoria === "Agroquímicos, Fertilizantes y Ósmosis") {
+    const tipo = tipoAgroquimicoDeCodigo(sku.codigo);
+    if (tipo === "AGROQUIMICO") return regla.agroquimico;
+    if (tipo === "FERTILIZANTE") return regla.fertilizante;
+    if (tipo === "OSMOSIS") return regla.osmosis;
+    return false; // código no reconocible: por seguridad no se muestra
+  }
+  return true; // Servicios (u otra categoría futura): sin restricción acá
+}
 
 export const TIPOS_NECESIDAD = [
   { valor: "URGENTE", nombre: "Urgente" },

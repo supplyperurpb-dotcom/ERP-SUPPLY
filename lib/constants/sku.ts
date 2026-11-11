@@ -90,6 +90,17 @@ export const TIPOS_AGROQUIMICO = [
 
 export type TipoAgroquimicoCodigo = (typeof TIPOS_AGROQUIMICO)[number]["valor"];
 
+// No es un campo aparte en el modelo Sku: para un SKU de categoría
+// "Agroquímicos, Fertilizantes y Ósmosis", el tipo está codificado en el
+// prefijo de su código (ver TIPOS_AGROQUIMICO) — se usa p. ej. para la
+// restricción por Área en Solped (ver skuPermitidoParaAreaSolped en
+// lib/constants/compras.ts).
+export function tipoAgroquimicoDeCodigo(codigo: string): TipoAgroquimicoCodigo | null {
+  const c = codigo.startsWith("NV") ? codigo.slice(2) : codigo;
+  const encontrado = TIPOS_AGROQUIMICO.find((t) => c.startsWith(t.prefijo));
+  return encontrado?.valor ?? null;
+}
+
 // Lista abierta (se irán agregando más subfamilias con el tiempo). Cada una
 // tiene una abreviatura de 2 letras que sí entra en el código — ver
 // PREFIJO_SUBFAMILIA_AGROQUIMICO más abajo.

@@ -30,7 +30,10 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
   const valoresIniciales: DevolucionAlmacenInput = {
     fecha: devolucion.fecha.toISOString().slice(0, 10) as unknown as Date,
     almacenId: devolucion.almacenId,
-    area: devolucion.area,
+    // El enum AreaEmpresa ahora también incluye CALIDAD_E_INOCUIDAD (solo
+    // seleccionable como Gerencia de una Solped — ver GERENCIAS_SOLPED); el
+    // formulario de Devolución de almacén sigue sin ofrecerla.
+    area: devolucion.area as DevolucionAlmacenInput["area"],
     personaQueTrae: devolucion.personaQueTrae,
     personaQueTraeDni: devolucion.personaQueTraeDni,
     tieneProveedor: devolucion.proveedorId !== null,
