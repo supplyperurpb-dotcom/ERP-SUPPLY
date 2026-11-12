@@ -30,7 +30,7 @@ export default async function DevolucionAlmacenDetallePage({ params }: { params:
     <div className="space-y-6">
       <PageHeader
         titulo={`Devolución ${devolucion.numero}`}
-        descripcion={`${devolucion.almacen.nombre} · ${formatDateTime(devolucion.fecha)}`}
+        descripcion={formatDateTime(devolucion.fecha)}
         acciones={
           <>
             <Button variant="outline" size="sm" asChild>
@@ -51,6 +51,20 @@ export default async function DevolucionAlmacenDetallePage({ params }: { params:
       />
 
       <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className="text-muted-foreground">Tipo de movimiento</p>
+          <p className="font-medium">Devolución</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Código del movimiento</p>
+          <p className="font-medium">{devolucion.numero}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Almacén</p>
+          <p className="font-medium">
+            {devolucion.almacen.nombre} <span className="font-mono text-muted-foreground">({devolucion.almacen.codigo})</span>
+          </p>
+        </div>
         <div>
           <p className="text-muted-foreground">Área</p>
           <p className="font-medium">{AREAS_EMPRESA.find((a) => a.valor === devolucion.area)?.nombre ?? devolucion.area}</p>

@@ -99,7 +99,7 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
         descripcion="Modifica los datos de este traslado. El stock de ambos almacenes se recalcula al guardar."
       />
       <TrasladoAlmacenForm
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
         edicion={{ id: traslado.id, fechaRegistro: traslado.createdAt.toISOString().slice(0, 10), valoresIniciales }}

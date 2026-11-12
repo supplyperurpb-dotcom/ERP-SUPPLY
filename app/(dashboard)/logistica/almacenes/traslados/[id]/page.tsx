@@ -24,7 +24,9 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
     <div className="space-y-6">
       <PageHeader
         titulo={`Traslado ${traslado.numero}`}
-        descripcion={`${traslado.almacenOrigen.nombre} → ${traslado.almacenDestino.nombre} · ${formatDateTime(traslado.fecha)}`}
+        descripcion={`${traslado.almacenOrigen.nombre} → ${traslado.almacenDestino.nombre} · ${formatDateTime(
+          traslado.fecha
+        )}`}
         acciones={
           <>
             <Button variant="outline" asChild>
@@ -51,6 +53,28 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
       />
 
       <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className="text-muted-foreground">Tipo de movimiento</p>
+          <p className="font-medium">Traslado</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Código del movimiento</p>
+          <p className="font-medium">{traslado.numero}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Almacén de origen</p>
+          <p className="font-medium">
+            {traslado.almacenOrigen.nombre}{" "}
+            <span className="font-mono text-muted-foreground">({traslado.almacenOrigen.codigo})</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Almacén de destino</p>
+          <p className="font-medium">
+            {traslado.almacenDestino.nombre}{" "}
+            <span className="font-mono text-muted-foreground">({traslado.almacenDestino.codigo})</span>
+          </p>
+        </div>
         <div>
           <p className="text-muted-foreground">Guía de remisión</p>
           <p className="font-medium">{traslado.guiaRemision ?? "—"}</p>

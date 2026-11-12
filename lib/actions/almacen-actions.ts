@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { siguienteNumero } from "@/lib/utils";
+import { PREFIJO_CODIGO_ALMACEN_POR_CATEGORIA } from "@/lib/constants/sku";
 import { almacenSchema, type AlmacenInput } from "@/lib/validations/almacen";
 
 export type AlmacenActionState = { error?: string; success?: boolean } | undefined;
@@ -27,11 +28,24 @@ export async function crearAlmacenAction(_prevState: AlmacenActionState, formDat
   }
 
   try {
-    // Código único generado por el servidor (ALM- + correlativo de 4
-    // dígitos): nunca lo elige el usuario, igual que el número de un
-    // ingreso/traslado/consumo.
+    // Código único generado por el servidor: nunca lo elige el usuario,
+    // igual que el número de un ingreso/traslado/consumo. Ya no es un
+    // correlativo global "ALM-0001" — cada categoría tiene su propio
+    // correlativo sin ceros a la izquierda (APES1, APES2... AEMP1,
+    // AEMP2...), pedido explícito del usuario (2026-11-12). Un sub-almacén
+    // (esGeneral=false) no tiene categoría propia: hereda la de su
+    // almacén general (almacenPadreId).
+    let categoria = parsed.data.categoriaGeneral || null;
+    if (!parsed.data.esGeneral && parsed.data.almacenPadreId) {
+      const padre = await prisma.almacen.findUnique({
+        where: { id: parsed.data.almacenPadreId },
+        select: { categoriaGeneral: true },
+      });
+      categoria = padre?.categoriaGeneral ?? null;
+    }
+    const prefijo = (categoria && PREFIJO_CODIGO_ALMACEN_POR_CATEGORIA[categoria]) || "ALM-";
     const existentes = await prisma.almacen.findMany({ select: { codigo: true } });
-    const codigo = siguienteNumero(existentes.map((a) => a.codigo), "ALM-");
+    const codigo = siguienteNumero(existentes.map((a) => a.codigo), prefijo, 1);
     await prisma.almacen.create({ data: { codigo, ...datosAlmacen(parsed.data) } });
   } catch (e) {
     return { error: e instanceof Error ? `Error inesperado: ${e.message}` : "Error inesperado al crear el almacén." };

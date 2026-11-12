@@ -493,7 +493,7 @@ export function IngresoAlmacenWizard({
                   <SelectContent>
                     {almacenes.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.nombre}
+                        <span className="font-mono text-muted-foreground">{a.codigo}</span> — {a.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>

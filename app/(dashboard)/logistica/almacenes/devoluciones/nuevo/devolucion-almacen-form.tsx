@@ -28,7 +28,7 @@ import {
   obtenerPrecioPonderadoAction,
 } from "@/lib/actions/devolucion-almacen-actions";
 
-type AlmacenOpcion = { id: string; nombre: string; categoriaGeneral: string | null };
+type AlmacenOpcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
 type ProveedorOpcion = { id: string; razonSocial: string; ruc: string };
 type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
 type SkuOpcion = { id: string; codigo: string; descripcion: string; subfamilia: string; unidadMedida: string; requiereLote: boolean };
@@ -200,7 +200,7 @@ export function DevolucionAlmacenForm({
                   <SelectContent>
                     {almacenes.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.nombre}
+                        <span className="font-mono text-muted-foreground">{a.codigo}</span> — {a.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>

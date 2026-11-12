@@ -6,6 +6,8 @@ import { ArrowLeftRight, ChevronLeft, PackageMinus, PackagePlus, Plus, Undo2 } f
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PREFIJO_CODIGO_ALMACEN_POR_CATEGORIA } from "@/lib/constants/sku";
+import { almacenPermitidoParaConsumo } from "@/lib/stock-almacen";
 import type { AlmacenCategoriaGeneral } from "@prisma/client";
 
 type TipoMovimiento = "INGRESO" | "TRASLADO" | "CONSUMO" | "DEVOLUCION";
@@ -25,7 +27,13 @@ const RUTA_BASE: Record<TipoMovimiento, string> = {
   DEVOLUCION: "/logistica/almacenes/devoluciones/nuevo",
 };
 
-type AlmacenOpcion = { id: string; nombre: string; categoriaGeneral: AlmacenCategoriaGeneral | null; esGeneral: boolean };
+type AlmacenOpcion = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  categoriaGeneral: AlmacenCategoriaGeneral | null;
+  esGeneral: boolean;
+};
 
 // Selector en 3 pasos: tipo de movimiento -> categoría de almacén -> almacén
 // puntual dentro de esa categoría. El Ingreso solo puede registrarse en un
@@ -53,7 +61,14 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
   }
 
   const almacenesDeCategoria = categoria
-    ? almacenes.filter((a) => a.categoriaGeneral === categoria && (tipo === "TRASLADO" || tipo === "CONSUMO" || a.esGeneral))
+    ? almacenes.filter(
+        (a) =>
+          a.categoriaGeneral === categoria &&
+          (tipo === "TRASLADO" || tipo === "CONSUMO" || a.esGeneral) &&
+          // Entre los almacenes de Empaques, los consumos solo se pueden
+          // registrar desde Producción — ver almacenPermitidoParaConsumo.
+          (tipo !== "CONSUMO" || almacenPermitidoParaConsumo(a))
+      )
     : [];
 
   return (
@@ -142,6 +157,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
                   className="w-full justify-start"
                   onClick={() => setCategoria(c.valor)}
                 >
+                  <span className="mr-2 font-mono text-muted-foreground">{PREFIJO_CODIGO_ALMACEN_POR_CATEGORIA[c.valor]}</span>
                   {c.etiqueta}
                 </Button>
               ))}
@@ -165,6 +181,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
               )}
               {almacenesDeCategoria.map((a) => (
                 <Button key={a.id} variant="outline" className="w-full justify-start" onClick={() => irA(a.id)}>
+                  <span className="mr-2 font-mono text-muted-foreground">{a.codigo}</span>
                   {a.nombre}
                 </Button>
               ))}

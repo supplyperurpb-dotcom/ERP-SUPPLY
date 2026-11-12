@@ -31,7 +31,7 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
     <div className="space-y-6">
       <PageHeader
         titulo={`Ingreso ${ingreso.numero}`}
-        descripcion={`${ingreso.almacen.nombre} · ${formatDateTime(ingreso.fecha)}`}
+        descripcion={formatDateTime(ingreso.fecha)}
         acciones={
           <>
             {ingreso.guiaRemisionArchivo && (
@@ -62,6 +62,20 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
       />
 
       <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className="text-muted-foreground">Tipo de movimiento</p>
+          <p className="font-medium">Ingreso</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Código del movimiento</p>
+          <p className="font-medium">{ingreso.numero}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Almacén</p>
+          <p className="font-medium">
+            {ingreso.almacen.nombre} <span className="font-mono text-muted-foreground">({ingreso.almacen.codigo})</span>
+          </p>
+        </div>
         <div>
           <p className="text-muted-foreground">Proveedor</p>
           <p className="font-medium">{ingreso.proveedor?.razonSocial ?? "—"}</p>

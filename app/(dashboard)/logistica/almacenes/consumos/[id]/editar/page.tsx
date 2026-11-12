@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
-import { calcularStockAlmacen, calcularStockPorLote, type FilaStockAlmacen } from "@/lib/stock-almacen";
+import { calcularStockAlmacen, calcularStockPorLote, almacenPermitidoParaConsumo, type FilaStockAlmacen } from "@/lib/stock-almacen";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "../../nuevo/consumo-almacen-form";
 import type { ConsumoAlmacenInput } from "@/lib/validations/almacen";
@@ -9,7 +9,7 @@ import type { ConsumoAlmacenInput } from "@/lib/validations/almacen";
 export default async function EditarConsumoAlmacenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [consumo, almacenes, retiradores, vehiculos] = await Promise.all([
+  const [consumo, almacenesActivos, retiradores, vehiculos] = await Promise.all([
     prisma.consumoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true } } } }),
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
@@ -20,6 +20,9 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
     prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
   ]);
   if (!consumo) notFound();
+  // Entre los almacenes de Empaques, solo Producción se puede usar para
+  // consumos — ver almacenPermitidoParaConsumo.
+  const almacenes = almacenesActivos.filter(almacenPermitidoParaConsumo);
 
   const stocks = await Promise.all(almacenes.map((a) => calcularStockAlmacen(a.id)));
   const stockPorAlmacen: Record<string, FilaStockAlmacen[]> = {};
@@ -113,7 +116,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
         descripcion="Modifica los datos de este consumo. El stock del almacén se recalcula al guardar."
       />
       <ConsumoAlmacenForm
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
         retiradores={retiradores.map((r) => ({

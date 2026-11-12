@@ -226,6 +226,21 @@ export async function categoriaEfectivaAlmacen(
   return padre?.categoriaGeneral ?? null;
 }
 
+// Entre los almacenes de categoría Empaques (hoy: Producción, Planta,
+// Achirana, Tercero — ver PREFIJO_CODIGO_ALMACEN_POR_CATEGORIA en
+// lib/constants/sku.ts), solo "ALMACÉN PRODUCCIÓN" puede usarse para
+// CONSUMOS — pedido explícito del usuario (2026-11-12); los demás quedan
+// solo para ingreso/traslado. Se identifica por su código (AEMP1), no por
+// el nombre: el código es inmutable una vez creado (ver
+// almacen-form-dialog.tsx, donde el campo "Código" es readOnly al editar),
+// el nombre no.
+export const CODIGO_ALMACEN_PRODUCCION_EMPAQUES = "AEMP1";
+
+export function almacenPermitidoParaConsumo(almacen: { codigo: string; categoriaGeneral: string | null }): boolean {
+  if (almacen.categoriaGeneral !== "EMPAQUES") return true;
+  return almacen.codigo === CODIGO_ALMACEN_PRODUCCION_EMPAQUES;
+}
+
 // ---------------------------------------------------------------------
 // Ingreso a almacén desde Orden de Compra: la cantidad pendiente de
 // recibir de un OrdenCompraItem es su cantidad menos la suma de

@@ -39,7 +39,7 @@ export default async function NuevaDevolucionAlmacenPage({
       />
       <DevolucionAlmacenForm
         usuario={{ nombres: usuario.nombres, apellidos: usuario.apellidos }}
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         proveedores={proveedores.map((p) => ({ id: p.id, razonSocial: p.razonSocial, ruc: p.numeroDocumento }))}
         retiradores={retiradores.map((r) => ({
           id: r.id,

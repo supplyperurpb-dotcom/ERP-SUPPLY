@@ -28,7 +28,7 @@ import {
 } from "@/lib/actions/consumo-almacen-actions";
 import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
 
-type Opcion = { id: string; nombre: string; categoriaGeneral: string | null };
+type Opcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
 type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
 
 const ITEM_VACIO = {
@@ -296,7 +296,7 @@ export function ConsumoAlmacenForm({
                   <SelectContent>
                     {almacenes.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.nombre}
+                        <span className="font-mono text-muted-foreground">{a.codigo}</span> — {a.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>

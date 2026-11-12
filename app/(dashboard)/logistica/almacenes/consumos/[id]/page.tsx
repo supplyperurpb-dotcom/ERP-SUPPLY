@@ -28,7 +28,7 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
     <div className="space-y-6">
       <PageHeader
         titulo={`Consumo ${consumo.numero}`}
-        descripcion={`${consumo.almacen.nombre} · ${formatDateTime(consumo.fecha)}${consumo.horaRetiro ? ` ${consumo.horaRetiro}` : ""}`}
+        descripcion={`${formatDateTime(consumo.fecha)}${consumo.horaRetiro ? ` ${consumo.horaRetiro}` : ""}`}
         acciones={
           <>
             <Button variant="outline" asChild>
@@ -55,6 +55,20 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
       />
 
       <div className="grid grid-cols-1 gap-4 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className="text-muted-foreground">Tipo de movimiento</p>
+          <p className="font-medium">Consumo</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Código del movimiento</p>
+          <p className="font-medium">{consumo.numero}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Almacén</p>
+          <p className="font-medium">
+            {consumo.almacen.nombre} <span className="font-mono text-muted-foreground">({consumo.almacen.codigo})</span>
+          </p>
+        </div>
         <div>
           <p className="text-muted-foreground">Retirado por</p>
           <p className="font-medium">{consumo.retiradoPor ?? "—"}</p>

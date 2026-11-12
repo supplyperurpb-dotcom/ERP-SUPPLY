@@ -24,7 +24,7 @@ import {
 } from "@/lib/actions/traslado-almacen-actions";
 import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
 
-type Opcion = { id: string; nombre: string; categoriaGeneral: string | null };
+type Opcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
 
 const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "", lote: "", fechaProduccion: undefined, fechaVencimiento: undefined };
 
@@ -216,7 +216,7 @@ export function TrasladoAlmacenForm({
                   <SelectContent>
                     {almacenes.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.nombre}
+                        <span className="font-mono text-muted-foreground">{a.codigo}</span> — {a.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -248,7 +248,7 @@ export function TrasladoAlmacenForm({
                     ) : (
                       almacenesDestino.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
-                          {a.nombre}
+                          <span className="font-mono text-muted-foreground">{a.codigo}</span> — {a.nombre}
                         </SelectItem>
                       ))
                     )}

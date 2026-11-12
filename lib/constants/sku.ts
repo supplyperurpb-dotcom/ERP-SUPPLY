@@ -201,7 +201,8 @@ export const SUBFAMILIAS_SERVICIOS = [
 //     sea un filtro o cartucho (no tienen subfamilia propia, se
 //     reconocen por la descripción) -> esos van a Suministros
 //   - Suministros (SU/NVSU)                        -> Suministros, salvo
-//     subfamilia Combustibles -> esos van a Combustible
+//     subfamilia Combustibles -> Combustible, subfamilia Embalaje (ver
+//     SUBFAMILIA_MATERIALES_EMPAQUE_SKU) -> Empaques
 // null = sin restricción (Servicios).
 // ---------------------------------------------------------------------
 export const ETIQUETA_CATEGORIA_ALMACEN: Record<string, string> = {
@@ -212,6 +213,22 @@ export const ETIQUETA_CATEGORIA_ALMACEN: Record<string, string> = {
   EMPAQUES: "Empaques",
 };
 
+// Prefijo del código de cada almacén según su categoría (pedido explícito
+// del usuario, 2026-11-12) — ver siguienteNumero en crearAlmacenAction:
+// cada categoría lleva su propio correlativo (APES1, APES2... AEMP1,
+// AEMP2...), ya no un correlativo único "ALM-0001" compartido por todos.
+export const PREFIJO_CODIGO_ALMACEN_POR_CATEGORIA: Record<string, string> = {
+  PESTICIDAS: "APES",
+  FERTILIZANTES: "AFER",
+  COMBUSTIBLE: "ACOM",
+  SUMINISTROS: "ASUM",
+  EMPAQUES: "AEMP",
+};
+
+// Subfamilia de Suministros que agrupa los materiales de empaque — no es
+// una categoría de SKU aparte (ver SUBFAMILIAS_SUMINISTROS más arriba).
+export const SUBFAMILIA_MATERIALES_EMPAQUE_SKU = "Embalaje";
+
 function esFiltroOCartuchoOsmosis(descripcion: string): boolean {
   return /FILTRO|CARTUCHO/i.test(descripcion);
 }
@@ -221,6 +238,10 @@ export function categoriaAlmacenExigidaPorSku(sku: { codigo: string; descripcion
   if (codigo.startsWith("AG")) return "PESTICIDAS";
   if (codigo.startsWith("FE")) return "FERTILIZANTES";
   if (codigo.startsWith("OS")) return esFiltroOCartuchoOsmosis(sku.descripcion) ? "SUMINISTROS" : "PESTICIDAS";
-  if (codigo.startsWith("SU")) return sku.subfamilia === "Combustibles" ? "COMBUSTIBLE" : "SUMINISTROS";
+  if (codigo.startsWith("SU")) {
+    if (sku.subfamilia === "Combustibles") return "COMBUSTIBLE";
+    if (sku.subfamilia === SUBFAMILIA_MATERIALES_EMPAQUE_SKU) return "EMPAQUES";
+    return "SUMINISTROS";
+  }
   return null;
 }

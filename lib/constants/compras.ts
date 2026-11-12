@@ -1,4 +1,4 @@
-import { tipoAgroquimicoDeCodigo } from "@/lib/constants/sku";
+import { tipoAgroquimicoDeCodigo, SUBFAMILIA_MATERIALES_EMPAQUE_SKU } from "@/lib/constants/sku";
 
 // Tasa de IGV fija (Perú). Si alguna vez cambia, este es el único lugar que
 // hay que tocar.
@@ -57,11 +57,9 @@ export function areasDeGerenciaSolped(gerencia: GerenciaSolpedCodigo) {
 // las de categoría SERVICIO no se restringen por área en ningún caso. No
 // existe una categoría de SKU "Materiales de Empaque" aparte: en el
 // catálogo real son los Suministros de subfamilia "Embalaje" (ver
-// SUBFAMILIA_MATERIALES_EMPAQUE_SKU). El tipo Agroquímico/Fertilizante/
-// Ósmosis tampoco es un campo aparte: está en el prefijo del código (ver
-// tipoAgroquimicoDeCodigo).
-export const SUBFAMILIA_MATERIALES_EMPAQUE_SKU = "Embalaje";
-
+// SUBFAMILIA_MATERIALES_EMPAQUE_SKU, en lib/constants/sku.ts). El tipo
+// Agroquímico/Fertilizante/Ósmosis tampoco es un campo aparte: está en el
+// prefijo del código (ver tipoAgroquimicoDeCodigo).
 type ReglaSkuArea = {
   suministros: boolean;
   /** Solo importa si `suministros` es true. */

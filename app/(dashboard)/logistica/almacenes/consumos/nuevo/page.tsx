@@ -1,6 +1,11 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
-import { calcularStockAlmacen, calcularStockPorLote, calcularSolicitudesDespachoPendientes } from "@/lib/stock-almacen";
+import {
+  calcularStockAlmacen,
+  calcularStockPorLote,
+  calcularSolicitudesDespachoPendientes,
+  almacenPermitidoParaConsumo,
+} from "@/lib/stock-almacen";
 import { siguienteNumero } from "@/lib/utils";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "./consumo-almacen-form";
@@ -12,7 +17,7 @@ export default async function NuevoConsumoAlmacenPage({
 }) {
   const { almacenId, solicitudDespachoId } = await searchParams;
 
-  const [almacenes, retiradores, vehiculos, existentes] = await Promise.all([
+  const [almacenesActivos, retiradores, vehiculos, existentes] = await Promise.all([
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
@@ -22,6 +27,9 @@ export default async function NuevoConsumoAlmacenPage({
     prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
     prisma.consumoAlmacen.findMany({ select: { numero: true } }),
   ]);
+  // Entre los almacenes de Empaques, solo Producción se puede usar para
+  // consumos — ver almacenPermitidoParaConsumo.
+  const almacenes = almacenesActivos.filter(almacenPermitidoParaConsumo);
   // Solo un adelanto: el número real se asigna recién al guardar (ver
   // crearConsumoAlmacenAction) — mismo criterio que OC/Solped.
   const numeroTentativo = siguienteNumero(existentes.map((c) => c.numero), "CA-");
@@ -75,7 +83,7 @@ export default async function NuevoConsumoAlmacenPage({
         }
       />
       <ConsumoAlmacenForm
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
         retiradores={retiradores.map((r) => ({

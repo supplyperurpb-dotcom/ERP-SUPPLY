@@ -15,7 +15,7 @@ import { convertirAUsd, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
 import { actualizarIngresoAlmacenAction, subirGuiaRemisionIngresoAction } from "@/lib/actions/ingreso-almacen-actions";
 import type { IngresoAlmacenInput } from "@/lib/validations/almacen";
 
-export type AlmacenOpcion = { id: string; nombre: string; categoriaGeneral: string | null };
+export type AlmacenOpcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
 export type ItemOc = {
   id: string; // OrdenCompraItem.id
   skuId: string;
@@ -191,7 +191,7 @@ export function IngresoAlmacenForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <Label>Almacén</Label>
-            <Input disabled value={almacen.nombre} />
+            <Input disabled value={`${almacen.codigo} — ${almacen.nombre}`} />
           </div>
 
           <div className="space-y-2 sm:col-span-2">

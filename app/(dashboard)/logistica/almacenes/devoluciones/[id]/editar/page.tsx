@@ -60,7 +60,7 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
         usuario={
           registradoPor ? { nombres: registradoPor.nombres, apellidos: registradoPor.apellidos } : { nombres: "—", apellidos: "" }
         }
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         proveedores={proveedores.map((p) => ({ id: p.id, razonSocial: p.razonSocial, ruc: p.numeroDocumento }))}
         retiradores={retiradores.map((r) => ({
           id: r.id,

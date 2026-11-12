@@ -31,7 +31,7 @@ export default async function NuevoIngresoAlmacenPage({
         titulo={`Nuevo ingreso a almacén — ${numeroTentativo}`}
         descripcion="Elige la orden de compra de origen y los ítems a recibir: el proveedor, el SKU y el precio se jalan de la OC."
         usuario={{ nombres: usuario.nombres, apellidos: usuario.apellidos }}
-        almacenes={almacenesGenerales.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        almacenes={almacenesGenerales.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         ordenesCompra={ordenesConPendientes.map((o) => ({
           id: o.id,
           numero: o.numero,

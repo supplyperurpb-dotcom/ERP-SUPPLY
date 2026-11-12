@@ -43,7 +43,7 @@ export default async function NuevoTrasladoAlmacenPage({
         descripcion="Mueve stock propio de un almacén a otro. Solo se pueden trasladar productos con stock disponible en el almacén de origen elegido; se valoriza con su precio unitario ponderado del día del traslado."
       />
       <TrasladoAlmacenForm
-        almacenes={almacenes.map((a) => ({ id: a.id, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
+        almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
         almacenOrigenIdInicial={almacenId}

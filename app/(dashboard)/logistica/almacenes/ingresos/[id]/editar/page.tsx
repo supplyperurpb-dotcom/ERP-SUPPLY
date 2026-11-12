@@ -59,7 +59,12 @@ export default async function EditarIngresoAlmacenPage({ params }: { params: Pro
         descripcion="Modifica la cantidad recibida, el lote/fechas, la guía de remisión o la fecha de contabilización. El stock y el costeo del almacén se recalculan al guardar."
       />
       <IngresoAlmacenForm
-        almacen={{ id: ingreso.almacen.id, nombre: ingreso.almacen.nombre, categoriaGeneral: ingreso.almacen.categoriaGeneral }}
+        almacen={{
+          id: ingreso.almacen.id,
+          codigo: ingreso.almacen.codigo,
+          nombre: ingreso.almacen.nombre,
+          categoriaGeneral: ingreso.almacen.categoriaGeneral,
+        }}
         edicion={{
           id: ingreso.id,
           ordenCompra: {

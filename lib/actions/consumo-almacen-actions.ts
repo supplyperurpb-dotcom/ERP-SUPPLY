@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { costosParaValidacion, costosAFecha, calcularStockPorLote, categoriaEfectivaAlmacen } from "@/lib/stock-almacen";
+import {
+  costosParaValidacion,
+  costosAFecha,
+  calcularStockPorLote,
+  categoriaEfectivaAlmacen,
+  almacenPermitidoParaConsumo,
+} from "@/lib/stock-almacen";
 import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { subirArchivo } from "@/lib/storage";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
@@ -70,6 +76,17 @@ async function validarSubfamiliaCombustibleSiAplica(
   const noCombustible = skus.find((s) => s.subfamilia !== "Combustibles");
   if (noCombustible) {
     return { error: `${noCombustible.codigo}: en ${almacen.nombre} solo se pueden despachar productos de subfamilia Combustibles.` };
+  }
+  return {};
+}
+
+// Entre los almacenes de categoría Empaques, los consumos solo se pueden
+// registrar desde "ALMACÉN PRODUCCIÓN" — ver almacenPermitidoParaConsumo.
+function validarAlmacenEmpaquesSiAplica(almacen: { nombre: string; codigo: string; categoriaGeneral: string | null }): {
+  error?: string;
+} {
+  if (!almacenPermitidoParaConsumo(almacen)) {
+    return { error: `Los consumos de materiales de empaque solo se pueden registrar desde Almacén Producción, no desde ${almacen.nombre}.` };
   }
   return {};
 }
@@ -225,6 +242,9 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
   const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
   if (permiso.error) return permiso;
 
+  const permisoEmpaques = validarAlmacenEmpaquesSiAplica(almacen);
+  if (permisoEmpaques.error) return permisoEmpaques;
+
   const permisoCategoria = await validarCategoriaExclusivaSiAplica(almacen, items, prisma);
   if (permisoCategoria.error) return permisoCategoria;
 
@@ -368,6 +388,9 @@ export async function actualizarConsumoAlmacenAction(
 
   const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
   if (permiso.error) return permiso;
+
+  const permisoEmpaques = validarAlmacenEmpaquesSiAplica(almacen);
+  if (permisoEmpaques.error) return permisoEmpaques;
 
   const permisoCategoria = await validarCategoriaExclusivaSiAplica(almacen, items, prisma);
   if (permisoCategoria.error) return permisoCategoria;

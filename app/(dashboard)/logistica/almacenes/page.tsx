@@ -46,6 +46,7 @@ export default async function AlmacenesPage() {
           <NuevoMovimientoDialog
             almacenes={almacenesActivos.map((a) => ({
               id: a.id,
+              codigo: a.codigo,
               nombre: a.nombre,
               categoriaGeneral: a.categoriaGeneral,
               esGeneral: a.esGeneral,
