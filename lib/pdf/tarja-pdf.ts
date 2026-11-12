@@ -62,9 +62,12 @@ export async function generarTarjaPdf({
   // usuario (2026-11-12). El título y el código van centrados
   // verticalmente respecto al logo, con letra más grande (pedido
   // explícito, 2026-11-12, tras una primera vuelta en la que habían
-  // quedado chicos y desalineados).
-  const logoBytes = await readFile(path.join(process.cwd(), "public", "logo-rpb.jpg"));
-  const logo = await pdfDoc.embedJpg(logoBytes);
+  // quedado chicos y desalineados). Usa logo-rpb-hd.png (recortado del
+  // ícono de la PWA, sin compresión JPEG) en vez de logo-rpb.jpg: en una
+  // etiqueta tan chica, los artefactos de compresión del JPEG se notaban
+  // en la impresora de cinta ribbon — pedido explícito, 2026-11-12.
+  const logoBytes = await readFile(path.join(process.cwd(), "public", "logo-rpb-hd.png"));
+  const logo = await pdfDoc.embedPng(logoBytes);
   const logoAltura = 34;
   const logoAncho = (logo.width / logo.height) * logoAltura;
   page.drawImage(logo, { x: margen, y: y - logoAltura, width: logoAncho, height: logoAltura });
