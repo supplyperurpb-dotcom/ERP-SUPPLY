@@ -27,6 +27,16 @@ const RUTA_BASE: Record<TipoMovimiento, string> = {
   DEVOLUCION: "/logistica/almacenes/devoluciones/nuevo",
 };
 
+// Mismo prefijo con el que se numera cada documento al crearlo (ver
+// siguienteNumero en crear*AlmacenAction) — acá solo se muestra, de
+// adorno, debajo del nombre del movimiento.
+const PREFIJO_CODIGO_MOVIMIENTO: Record<TipoMovimiento, string> = {
+  INGRESO: "IA-",
+  TRASLADO: "TA-",
+  CONSUMO: "CA-",
+  DEVOLUCION: "DA-",
+};
+
 type AlmacenOpcion = {
   id: string;
   codigo: string;
@@ -106,6 +116,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
                 <CardHeader className="items-center text-center">
                   <PackagePlus className="mb-2 h-6 w-6 text-primary" />
                   <CardTitle className="text-sm">Ingreso</CardTitle>
+                  <p className="font-mono text-xs text-muted-foreground">{PREFIJO_CODIGO_MOVIMIENTO.INGRESO}</p>
                 </CardHeader>
               </Card>
               <Card
@@ -115,6 +126,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
                 <CardHeader className="items-center text-center">
                   <ArrowLeftRight className="mb-2 h-6 w-6 text-primary" />
                   <CardTitle className="text-sm">Traslado</CardTitle>
+                  <p className="font-mono text-xs text-muted-foreground">{PREFIJO_CODIGO_MOVIMIENTO.TRASLADO}</p>
                 </CardHeader>
               </Card>
               <Card
@@ -124,6 +136,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
                 <CardHeader className="items-center text-center">
                   <PackageMinus className="mb-2 h-6 w-6 text-primary" />
                   <CardTitle className="text-sm">Consumo</CardTitle>
+                  <p className="font-mono text-xs text-muted-foreground">{PREFIJO_CODIGO_MOVIMIENTO.CONSUMO}</p>
                 </CardHeader>
               </Card>
               <Card
@@ -133,6 +146,7 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
                 <CardHeader className="items-center text-center">
                   <Undo2 className="mb-2 h-6 w-6 text-primary" />
                   <CardTitle className="text-sm">Devolución</CardTitle>
+                  <p className="font-mono text-xs text-muted-foreground">{PREFIJO_CODIGO_MOVIMIENTO.DEVOLUCION}</p>
                 </CardHeader>
               </Card>
             </div>
