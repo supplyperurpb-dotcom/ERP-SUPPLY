@@ -1,14 +1,16 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { dibujarMarcaDeAgua } from "./marca-agua";
 
-// 1 cm = 28.3465 pt. Etiqueta de 10 x 15 cm (para imprimir y pegar en el pallet).
+// 1 cm = 28.3465 pt. Etiqueta cuadrada de 10.16 x 10.16 cm (4x4 pulgadas,
+// tamaño estándar de etiquetadora térmica) — antes era 10 x 15 cm.
 const CM = 28.3465;
-const ANCHO = 10 * CM;
-const ALTO = 15 * CM;
+const ANCHO = 10.16 * CM;
+const ALTO = 10.16 * CM;
 
-const AZUL = rgb(0.11, 0.29, 0.63);
-const GRIS = rgb(0.4, 0.4, 0.4);
-const NEGRO = rgb(0.1, 0.1, 0.1);
+// Todo el texto en negro puro: impreso con cinta ribbon, cualquier color
+// (incluido el gris que tenía antes) sale borroso/tenue — pedido explícito
+// del usuario, 2026-11-12.
+const NEGRO = rgb(0, 0, 0);
 
 export type LineaTarja = {
   modulo: string;
@@ -48,85 +50,90 @@ export async function generarTarjaPdf({
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  const margen = 14;
-  let y = ALTO - 20;
+  // Margen más generoso que antes (pedido explícito: que no salga "al
+  // ras" del borde de la etiqueta) — mismo valor a los 4 lados.
+  const margen = 20;
+  let y = ALTO - margen;
 
   const centrado = (texto: string, tam: number, font = bold) => {
     const ancho = font.widthOfTextAtSize(texto, tam);
-    page.drawText(texto, { x: (ANCHO - ancho) / 2, y, size: tam, font, color: AZUL });
+    page.drawText(texto, { x: (ANCHO - ancho) / 2, y, size: tam, font, color: NEGRO });
   };
 
-  centrado("REITER PERUVIAN BERRY SA", 7, regular);
-  y -= 10;
-  centrado("Ica, Perú", 6, regular);
+  centrado("REITER PERUVIAN BERRY SA", 6.5, regular);
+  y -= 9;
+  centrado("Ica, Perú", 5.5, regular);
+  y -= 11;
+  page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 1, color: NEGRO });
   y -= 14;
-  page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 1, color: AZUL });
-  y -= 20;
 
-  centrado("TARJA DE PALLET", 13);
-  y -= 20;
-  centrado(tarjaNumero, 20);
-  y -= 26;
+  centrado("TARJA DE PALLET", 11);
+  y -= 15;
+  centrado(tarjaNumero, 16);
+  y -= 18;
 
-  page.drawText(`Pallet: ${palletNumero}`, { x: margen, y, size: 9, font: bold, color: NEGRO });
-  y -= 13;
+  page.drawText(`Pallet: ${palletNumero}`, { x: margen, y, size: 8, font: bold, color: NEGRO });
+  y -= 11;
   page.drawText(`Fecha: ${fechaEmision.toLocaleDateString("es-PE")}`, {
     x: margen,
     y,
-    size: 8,
+    size: 7,
     font: regular,
-    color: GRIS,
+    color: NEGRO,
   });
+  y -= 10;
+  page.drawText(`Proveedor / Fundo: ${proveedor}`, { x: margen, y, size: 7, font: regular, color: NEGRO });
   y -= 12;
-  page.drawText(`Proveedor / Fundo: ${proveedor}`, { x: margen, y, size: 8, font: regular, color: GRIS });
-  y -= 16;
 
-  page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 0.5, color: GRIS });
-  y -= 14;
+  page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 0.5, color: NEGRO });
+  y -= 11;
 
-  page.drawText("Módulo / Turno / Variedad", { x: margen, y, size: 7, font: bold, color: NEGRO });
-  page.drawText("Band.", { x: ANCHO - margen - 90, y, size: 7, font: bold, color: NEGRO });
-  page.drawText("Neto (kg)", { x: ANCHO - margen - 50, y, size: 7, font: bold, color: NEGRO });
-  y -= 12;
+  page.drawText("Módulo / Turno / Variedad", { x: margen, y, size: 6.5, font: bold, color: NEGRO });
+  page.drawText("Band.", { x: ANCHO - margen - 85, y, size: 6.5, font: bold, color: NEGRO });
+  page.drawText("Neto (kg)", { x: ANCHO - margen - 47, y, size: 6.5, font: bold, color: NEGRO });
+  y -= 10;
 
   for (const linea of lineas) {
-    if (y < 90) break; // seguridad: no desbordar la etiqueta si hay muchas líneas
+    if (y < 95) break; // seguridad: no desbordar la etiqueta si hay muchas líneas
     page.drawText(`${linea.modulo} / ${linea.turno} / ${linea.variedad}`, {
       x: margen,
       y,
-      size: 7,
+      size: 6.5,
       font: regular,
       color: NEGRO,
     });
-    page.drawText(String(linea.cantidadBandejas), { x: ANCHO - margen - 90, y, size: 7, font: regular, color: NEGRO });
-    page.drawText(linea.pesoNetoKg.toFixed(2), { x: ANCHO - margen - 50, y, size: 7, font: regular, color: NEGRO });
-    y -= 11;
-    page.drawText(`  Bandeja: ${linea.tipoBandeja}`, { x: margen, y, size: 6, font: regular, color: GRIS });
-    y -= 13;
+    page.drawText(String(linea.cantidadBandejas), { x: ANCHO - margen - 85, y, size: 6.5, font: regular, color: NEGRO });
+    page.drawText(linea.pesoNetoKg.toFixed(2), { x: ANCHO - margen - 47, y, size: 6.5, font: regular, color: NEGRO });
+    y -= 9;
+    page.drawText(`  Bandeja: ${linea.tipoBandeja}`, { x: margen, y, size: 5.5, font: regular, color: NEGRO });
+    y -= 10;
   }
 
-  y -= 4;
-  page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 0.5, color: GRIS });
-  y -= 16;
-
-  page.drawText("Total bandejas:", { x: margen, y, size: 8, font: regular, color: GRIS });
-  page.drawText(String(totalBandejas), { x: ANCHO - margen - 40, y, size: 9, font: bold, color: NEGRO });
+  y -= 3;
+  page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 0.5, color: NEGRO });
   y -= 13;
-  page.drawText("Peso bruto:", { x: margen, y, size: 8, font: regular, color: GRIS });
-  page.drawText(`${pesoBrutoTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 60, y, size: 9, font: bold, color: NEGRO });
+
+  page.drawText("Total bandejas:", { x: margen, y, size: 7, font: regular, color: NEGRO });
+  page.drawText(String(totalBandejas), { x: ANCHO - margen - 38, y, size: 8, font: bold, color: NEGRO });
+  y -= 11;
+  page.drawText("Peso bruto:", { x: margen, y, size: 7, font: regular, color: NEGRO });
+  page.drawText(`${pesoBrutoTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 55, y, size: 8, font: bold, color: NEGRO });
+  y -= 11;
+  page.drawText("Tara:", { x: margen, y, size: 7, font: regular, color: NEGRO });
+  page.drawText(`${pesoTaraTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 55, y, size: 8, font: bold, color: NEGRO });
   y -= 13;
-  page.drawText("Tara:", { x: margen, y, size: 8, font: regular, color: GRIS });
-  page.drawText(`${pesoTaraTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 60, y, size: 9, font: bold, color: NEGRO });
-  y -= 15;
-  page.drawText("PESO NETO:", { x: margen, y, size: 10, font: bold, color: AZUL });
-  page.drawText(`${pesoNetoTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 65, y, size: 12, font: bold, color: AZUL });
+  page.drawText("PESO NETO:", { x: margen, y, size: 9, font: bold, color: NEGRO });
+  page.drawText(`${pesoNetoTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 58, y, size: 11, font: bold, color: NEGRO });
 
-  page.drawText(
-    "Documento interno — no válido como comprobante SUNAT.",
-    { x: margen, y: 16, size: 5.5, font: regular, color: GRIS }
-  );
+  page.drawText("Documento interno — no válido como comprobante SUNAT.", {
+    x: margen,
+    y: 10,
+    size: 5,
+    font: regular,
+    color: NEGRO,
+  });
 
-  if (palletAbierto) dibujarMarcaDeAgua(pdfDoc, bold, "BORRADOR", 36);
+  if (palletAbierto) dibujarMarcaDeAgua(pdfDoc, bold, "BORRADOR", 30);
 
   return pdfDoc.save();
 }
