@@ -60,17 +60,22 @@ export async function generarTarjaIndustrialPdf({
 
   // Logo a la izquierda de "TARJA DE PALLET" (reemplaza el encabezado de
   // texto "REITER PERUVIAN BERRY SA / Ica, Perú") — pedido explícito del
-  // usuario (2026-11-12), que también pidió el título y el código de la
-  // tarja un poco más chicos.
+  // usuario (2026-11-12). El título y el código van centrados
+  // verticalmente respecto al logo, con letra más grande (pedido
+  // explícito, 2026-11-12, tras una primera vuelta en la que habían
+  // quedado chicos y desalineados). El título lleva un tamaño menor que en
+  // la tarja normal porque "— Industrial" lo hace más largo.
   const logoBytes = await readFile(path.join(process.cwd(), "public", "logo-rpb.jpg"));
   const logo = await pdfDoc.embedJpg(logoBytes);
-  const logoAltura = 26;
+  const logoAltura = 34;
   const logoAncho = (logo.width / logo.height) * logoAltura;
   page.drawImage(logo, { x: margen, y: y - logoAltura, width: logoAncho, height: logoAltura });
 
   const xTitulo = margen + logoAncho + 10;
-  page.drawText("TARJA DE PALLET — Industrial", { x: xTitulo, y: y - 9, size: 8.5, font: bold, color: NEGRO });
-  page.drawText(tarjaNumero, { x: xTitulo, y: y - 24, size: 13, font: bold, color: NEGRO });
+  const tamTitulo = 9;
+  const tamCodigo = 17;
+  page.drawText("TARJA DE PALLET — Industrial", { x: xTitulo, y: y - 13, size: tamTitulo, font: bold, color: NEGRO });
+  page.drawText(tarjaNumero, { x: xTitulo, y: y - 30, size: tamCodigo, font: bold, color: NEGRO });
 
   y -= logoAltura + 8;
   page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 1, color: NEGRO });
