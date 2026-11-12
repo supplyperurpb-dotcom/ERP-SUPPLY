@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { dibujarMarcaDeAgua } from "./marca-agua";
 
 // 1 cm = 28.3465 pt. Etiqueta cuadrada de 10.16 x 10.16 cm (4x4 pulgadas,
@@ -95,9 +95,19 @@ export async function generarTarjaPdf({
   page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 0.5, color: NEGRO });
   y -= 11;
 
+  // Todo valor numérico (cantidad, pesos, totales) va con 2 decimales y
+  // alineado a la derecha de su columna — pedido explícito del usuario,
+  // 2026-11-12.
+  const colBandDerecha = ANCHO - margen - 50;
+  const colNetoDerecha = ANCHO - margen;
+  const derecho = (texto: string, tam: number, xDerecha: number, font: PDFFont, y: number) => {
+    const ancho = font.widthOfTextAtSize(texto, tam);
+    page.drawText(texto, { x: xDerecha - ancho, y, size: tam, font, color: NEGRO });
+  };
+
   page.drawText("Módulo / Turno / Variedad", { x: margen, y, size: 6.5, font: bold, color: NEGRO });
-  page.drawText("Band.", { x: ANCHO - margen - 85, y, size: 6.5, font: bold, color: NEGRO });
-  page.drawText("Neto (kg)", { x: ANCHO - margen - 47, y, size: 6.5, font: bold, color: NEGRO });
+  derecho("Band.", 6.5, colBandDerecha, bold, y);
+  derecho("Neto (kg)", 6.5, colNetoDerecha, bold, y);
   y -= 10;
 
   for (const linea of lineas) {
@@ -109,8 +119,8 @@ export async function generarTarjaPdf({
       font: regular,
       color: NEGRO,
     });
-    page.drawText(String(linea.cantidadBandejas), { x: ANCHO - margen - 85, y, size: 6.5, font: regular, color: NEGRO });
-    page.drawText(linea.pesoNetoKg.toFixed(2), { x: ANCHO - margen - 47, y, size: 6.5, font: regular, color: NEGRO });
+    derecho(linea.cantidadBandejas.toFixed(2), 6.5, colBandDerecha, regular, y);
+    derecho(linea.pesoNetoKg.toFixed(2), 6.5, colNetoDerecha, regular, y);
     y -= 9;
     page.drawText(`  Bandeja: ${linea.tipoBandeja}`, { x: margen, y, size: 5.5, font: regular, color: NEGRO });
     y -= 10;
@@ -121,16 +131,16 @@ export async function generarTarjaPdf({
   y -= 13;
 
   page.drawText("Total bandejas:", { x: margen, y, size: 7, font: regular, color: NEGRO });
-  page.drawText(String(totalBandejas), { x: ANCHO - margen - 38, y, size: 8, font: bold, color: NEGRO });
+  derecho(totalBandejas.toFixed(2), 8, ANCHO - margen, bold, y);
   y -= 11;
   page.drawText("Peso bruto:", { x: margen, y, size: 7, font: regular, color: NEGRO });
-  page.drawText(`${pesoBrutoTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 55, y, size: 8, font: bold, color: NEGRO });
+  derecho(`${pesoBrutoTotalKg.toFixed(2)} kg`, 8, ANCHO - margen, bold, y);
   y -= 11;
   page.drawText("Tara:", { x: margen, y, size: 7, font: regular, color: NEGRO });
-  page.drawText(`${pesoTaraTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 55, y, size: 8, font: bold, color: NEGRO });
+  derecho(`${pesoTaraTotalKg.toFixed(2)} kg`, 8, ANCHO - margen, bold, y);
   y -= 13;
   page.drawText("PESO NETO:", { x: margen, y, size: 9, font: bold, color: NEGRO });
-  page.drawText(`${pesoNetoTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 58, y, size: 11, font: bold, color: NEGRO });
+  derecho(`${pesoNetoTotalKg.toFixed(2)} kg`, 11, ANCHO - margen, bold, y);
 
   if (palletAbierto) dibujarMarcaDeAgua(pdfDoc, bold, "BORRADOR", 30);
 
