@@ -1,3 +1,5 @@
+import { readFile } from "fs/promises";
+import path from "path";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { dibujarMarcaDeAgua } from "./marca-agua";
 
@@ -56,22 +58,23 @@ export async function generarTarjaIndustrialPdf({
   const margen = 20;
   let y = ALTO - margen;
 
-  const centrado = (texto: string, tam: number, font = bold) => {
-    const ancho = font.widthOfTextAtSize(texto, tam);
-    page.drawText(texto, { x: (ANCHO - ancho) / 2, y, size: tam, font, color: NEGRO });
-  };
+  // Logo a la izquierda de "TARJA DE PALLET" (reemplaza el encabezado de
+  // texto "REITER PERUVIAN BERRY SA / Ica, Perú") — pedido explícito del
+  // usuario (2026-11-12), que también pidió el título y el código de la
+  // tarja un poco más chicos.
+  const logoBytes = await readFile(path.join(process.cwd(), "public", "logo-rpb.jpg"));
+  const logo = await pdfDoc.embedJpg(logoBytes);
+  const logoAltura = 26;
+  const logoAncho = (logo.width / logo.height) * logoAltura;
+  page.drawImage(logo, { x: margen, y: y - logoAltura, width: logoAncho, height: logoAltura });
 
-  centrado("REITER PERUVIAN BERRY SA", 6.5, regular);
-  y -= 9;
-  centrado("Ica, Perú", 5.5, regular);
-  y -= 11;
+  const xTitulo = margen + logoAncho + 10;
+  page.drawText("TARJA DE PALLET — Industrial", { x: xTitulo, y: y - 9, size: 8.5, font: bold, color: NEGRO });
+  page.drawText(tarjaNumero, { x: xTitulo, y: y - 24, size: 13, font: bold, color: NEGRO });
+
+  y -= logoAltura + 8;
   page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 1, color: NEGRO });
   y -= 14;
-
-  centrado("TARJA DE PALLET — Industrial", 10);
-  y -= 15;
-  centrado(tarjaNumero, 16);
-  y -= 18;
 
   page.drawText(`Pallet: ${palletNumero}`, { x: margen, y, size: 8, font: bold, color: NEGRO });
   y -= 11;
@@ -121,14 +124,6 @@ export async function generarTarjaIndustrialPdf({
   y -= 13;
   page.drawText("PESO NETO:", { x: margen, y, size: 9, font: bold, color: NEGRO });
   page.drawText(`${pesoNetoTotalKg.toFixed(2)} kg`, { x: ANCHO - margen - 58, y, size: 11, font: bold, color: NEGRO });
-
-  page.drawText("Documento interno — no válido como comprobante SUNAT.", {
-    x: margen,
-    y: 10,
-    size: 5,
-    font: regular,
-    color: NEGRO,
-  });
 
   if (palletAbierto) dibujarMarcaDeAgua(pdfDoc, bold, "BORRADOR", 30);
 
