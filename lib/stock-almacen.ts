@@ -2,13 +2,14 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ROLES, type RolNombre } from "@/lib/auth/constants";
 
-// Tiene el rol ALMACEN en sí mismo (sin el atajo de ADMIN) — se usa donde
-// el permiso de Almacén debe bloquear incluso a quien lo tenga, como
-// "no puede eliminar una Solicitud de Despacho" (ver
-// solicitudes-despacho-table.tsx), algo que ADMIN sí puede seguir
-// haciendo.
-export function tieneRolAlmacen(usuario: { roles: RolNombre[] }): boolean {
-  return usuario.roles.includes(ROLES.ALMACEN);
+// Pertenece al área Almacén en sí misma (sin el atajo de ADMIN) — no es
+// un rol, es la Gerencia/Área del usuario (mismo organigrama que Solped,
+// ver AREAS_SOLPED en lib/constants/compras.ts). Se usa donde el permiso
+// de Almacén debe bloquear incluso a quien lo tenga, como "no puede
+// eliminar una Solicitud de Despacho" (ver solicitudes-despacho-table.tsx),
+// algo que ADMIN sí puede seguir haciendo.
+export function esDeAreaAlmacen(usuario: { area: string | null; areaDetalle: string | null }): boolean {
+  return usuario.area === "SUPPLY_CHAIN" && usuario.areaDetalle === "ALMACEN";
 }
 
 // Quien atiende Solicitudes de Despacho: ve la bandeja completa (en vez
@@ -16,8 +17,8 @@ export function tieneRolAlmacen(usuario: { roles: RolNombre[] }): boolean {
 // solicitudes-despacho/page.tsx. ADMIN siempre lo cumple, como con
 // cualquier otro permiso del sistema (igual que esComprador en
 // lib/compras.ts).
-export function esAlmacen(usuario: { roles: RolNombre[] }): boolean {
-  return usuario.roles.includes(ROLES.ADMIN) || tieneRolAlmacen(usuario);
+export function esAlmacen(usuario: { roles: RolNombre[]; area: string | null; areaDetalle: string | null }): boolean {
+  return usuario.roles.includes(ROLES.ADMIN) || esDeAreaAlmacen(usuario);
 }
 
 // Todas las funciones aceptan opcionalmente un cliente de Prisma distinto

@@ -20,11 +20,6 @@ export const ROLES = {
   // lib/compras.ts). Quien no lo tenga solo puede VER una OC/OS a la que
   // llegue (p. ej. por "Seguimiento del pedido" de su propia Solped).
   COMPRADORES: "COMPRADORES",
-  // Quien atiende Solicitudes de Despacho (ver esAlmacen en
-  // lib/stock-almacen.ts): solo quien tenga este rol (o ADMIN) ve la
-  // bandeja completa y los controles para atenderlas. El resto solo ve
-  // las solicitudes que generó, y nunca puede eliminar una.
-  ALMACEN: "ALMACEN",
 } as const;
 
 export type RolNombre = (typeof ROLES)[keyof typeof ROLES];
@@ -39,7 +34,6 @@ export const ROL_LABELS: Record<RolNombre, string> = {
   ANULADOR: "Anulador exclusivo",
   SOLO_LECTURA: "Solo lectura",
   COMPRADORES: "Comprador",
-  ALMACEN: "Almacén",
 };
 
 // Módulos del sistema, usados tanto por la navegación como por el control
@@ -69,11 +63,6 @@ export const ACCESO_MODULO_POR_ROL: Record<RolNombre, Modulo[]> = {
   // GRUPOS_ACCESO_ASIGNABLE). Es un permiso de ESCRITURA exclusivo dentro
   // de ese submódulo (ver esComprador en lib/compras.ts).
   COMPRADORES: [],
-  // Ídem: no otorga visibilidad de módulo por sí solo (ese acceso sigue
-  // viniendo de LOGISTICA_COMPRAS). Es el permiso de ESCRITURA exclusivo
-  // para atender Solicitudes de Despacho — ver esAlmacen en
-  // lib/stock-almacen.ts.
-  ALMACEN: [],
 };
 
 export function tienePermiso(rolesUsuario: RolNombre[], modulo: Modulo): boolean {

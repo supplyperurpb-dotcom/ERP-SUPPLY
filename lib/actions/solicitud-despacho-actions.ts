@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { calcularStockDisponibleDespacho } from "@/lib/stock-almacen";
+import { calcularStockDisponibleDespacho, esDeAreaAlmacen } from "@/lib/stock-almacen";
 import { puedeVerCampoPacking } from "@/lib/compras";
 import { solicitudDespachoSchema, type SolicitudDespachoInput } from "@/lib/validations/solicitud-despacho";
 
@@ -99,14 +99,17 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
 // que proteja el borrado, solo que ningún consumo ya haya atendido alguna
 // de sus líneas.
 // Puede eliminar: un ADMIN siempre, o quien la generó — pero nunca quien
-// tenga el rol Almacén (ni siquiera la que él mismo generó): es quien la
-// atiende, no debería poder esquivarla borrándola. Mismo criterio que la
-// bandeja y el detalle (ver solicitudes-despacho/page.tsx), revalidado
-// acá porque nunca se confía solo en que el botón esté oculto del lado
-// del cliente.
-function puedeEliminarSolicitud(usuario: { id: string; roles: string[] }, solicitud: { solicitanteId: string | null }) {
+// pertenezca al área Almacén (ni siquiera la que él mismo generó): es
+// quien la atiende, no debería poder esquivarla borrándola. Mismo
+// criterio que la bandeja y el detalle (ver
+// solicitudes-despacho/page.tsx), revalidado acá porque nunca se confía
+// solo en que el botón esté oculto del lado del cliente.
+function puedeEliminarSolicitud(
+  usuario: { id: string; roles: string[]; area: string | null; areaDetalle: string | null },
+  solicitud: { solicitanteId: string | null }
+) {
   if (usuario.roles.includes("ADMIN")) return true;
-  if (usuario.roles.includes("ALMACEN")) return false;
+  if (esDeAreaAlmacen(usuario)) return false;
   return solicitud.solicitanteId === usuario.id;
 }
 

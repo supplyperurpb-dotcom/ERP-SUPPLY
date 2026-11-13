@@ -28,7 +28,6 @@ const ROLES_GESTIONADOS_POR_FORM: RolNombre[] = [
   ROLES.APROBADOR,
   ROLES.APROBADOR_GENERAL,
   ROLES.COMPRADORES,
-  ROLES.ALMACEN,
 ];
 
 // A partir de los hrefs marcados en el árbol de casillas, calcula los
@@ -63,7 +62,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, dni, telefono, cargo, password, tipoRol, area, rolEspecial, accesoHrefs, esComprador, esAlmacen } =
+  const { nombres, apellidos, email, dni, telefono, cargo, password, tipoRol, area, areaDetalle, rolEspecial, accesoHrefs, esComprador } =
     parsed.data;
 
   const quienCrea = await getUsuarioActual();
@@ -102,6 +101,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
         telefono: telefono || null,
         cargo: cargo || null,
         area,
+        areaDetalle,
         // Toda cuenta nueva debe elegir su propia contraseña en el primer
         // ingreso (ver /cambiar-password) — la que se generó/escribió acá
         // es solo para que pueda entrar esa primera vez.
@@ -117,10 +117,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
     const nombresRolAprobador: RolNombre[] =
       tipoRol === "APROBADOR" ? [ROLES.APROBADOR] : tipoRol === "APROBADOR_GENERAL" ? [ROLES.APROBADOR_GENERAL] : [];
     const nombresRolComprador: RolNombre[] = esComprador ? [ROLES.COMPRADORES] : [];
-    const nombresRolAlmacen: RolNombre[] = esAlmacen ? [ROLES.ALMACEN] : [];
-    const nombresRolAAsignar = Array.from(
-      new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador, ...nombresRolAlmacen])
-    );
+    const nombresRolAAsignar = Array.from(new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador]));
 
     for (const nombreRol of nombresRolAAsignar) {
       // Las claves de ROLES coinciden textualmente con sus valores
@@ -185,11 +182,11 @@ export async function editarUsuarioAction(
     nuevaPassword,
     tipoRol,
     area,
+    areaDetalle,
     rolEspecial,
     accesoHrefs,
     activo,
     esComprador,
-    esAlmacen,
   } = parsed.data;
 
   const quienEdita = await getUsuarioActual();
@@ -246,6 +243,7 @@ export async function editarUsuarioAction(
           telefono: telefono || null,
           cargo: cargo || null,
           area,
+          areaDetalle,
           activo,
           // Si se le asignó una contraseña nueva acá, debe volver a
           // elegir la suya propia en el próximo ingreso (/cambiar-password).
@@ -263,10 +261,7 @@ export async function editarUsuarioAction(
       const nombresRolAprobador: RolNombre[] =
         tipoRol === "APROBADOR" ? [ROLES.APROBADOR] : tipoRol === "APROBADOR_GENERAL" ? [ROLES.APROBADOR_GENERAL] : [];
       const nombresRolComprador: RolNombre[] = esComprador ? [ROLES.COMPRADORES] : [];
-      const nombresRolAlmacen: RolNombre[] = esAlmacen ? [ROLES.ALMACEN] : [];
-      const nombresRolAAsignar = Array.from(
-        new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador, ...nombresRolAlmacen])
-      );
+      const nombresRolAAsignar = Array.from(new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador]));
       if (nombresRolAAsignar.length > 0) {
         // Busca todos los Rol de una sola vez (reusando la conexión de la
         // transacción) en vez de un upsert por rol en una conexión aparte —

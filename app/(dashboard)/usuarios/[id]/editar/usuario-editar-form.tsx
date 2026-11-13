@@ -11,7 +11,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AREAS_EMPRESA, ROLES_APROBADOR_ESPECIAL } from "@/lib/constants/compras";
+import {
+  GERENCIAS_SOLPED,
+  areasDeGerenciaSolped,
+  ROLES_APROBADOR_ESPECIAL,
+  type GerenciaSolpedCodigo,
+} from "@/lib/constants/compras";
 import { GRUPOS_ACCESO_ASIGNABLE } from "@/lib/auth/acceso-modulos";
 import { editarUsuarioSchema, type EditarUsuarioInput } from "@/lib/validations/usuarios";
 import { editarUsuarioAction } from "@/lib/actions/usuario-actions";
@@ -44,6 +49,8 @@ export function UsuarioEditarForm({
   });
 
   const tipoRol = form.watch("tipoRol");
+  const gerenciaActual = form.watch("area") as GerenciaSolpedCodigo;
+  const areasDeGerenciaActual = areasDeGerenciaSolped(gerenciaActual);
   const rolesEspecialesAsignables = ROLES_APROBADOR_ESPECIAL.filter((r) => r.valor !== "GERENTE_RRHH");
   const accesoHrefs = form.watch("accesoHrefs");
 
@@ -273,17 +280,24 @@ export function UsuarioEditarForm({
           )}
 
           <div className="space-y-2">
-            <Label>Área</Label>
+            <Label>Gerencia</Label>
             <Controller
               control={form.control}
               name="area"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  onValueChange={(v) => {
+                    field.onChange(v);
+                    const primeraArea = areasDeGerenciaSolped(v as GerenciaSolpedCodigo)[0]?.valor;
+                    if (primeraArea) form.setValue("areaDetalle", primeraArea);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {AREAS_EMPRESA.map((a) => (
+                    {GERENCIAS_SOLPED.map((a) => (
                       <SelectItem key={a.valor} value={a.valor}>
                         {a.nombre}
                       </SelectItem>
@@ -299,6 +313,33 @@ export function UsuarioEditarForm({
               <p className="text-sm font-medium text-destructive">{form.formState.errors.area.message}</p>
             )}
           </div>
+
+          {areasDeGerenciaActual.length > 1 && (
+            <div className="space-y-2">
+              <Label>Área</Label>
+              <Controller
+                control={form.control}
+                name="areaDetalle"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areasDeGerenciaActual.map((a) => (
+                        <SelectItem key={a.valor} value={a.valor}>
+                          {a.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.areaDetalle && (
+                <p className="text-sm font-medium text-destructive">{form.formState.errors.areaDetalle.message}</p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2 sm:col-span-2">
             <div className="flex items-center gap-2">
@@ -317,25 +358,6 @@ export function UsuarioEditarForm({
               Único rol que puede crear/editar Órdenes de compra y servicio y &quot;cerrar posición&quot; (Solped y OC/OS).
               Sin esto, el usuario solo puede VER una orden a la que llegue (p. ej. por seguimiento de su Solped), sin
               poder modificarla.
-            </p>
-          </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <div className="flex items-center gap-2">
-              <Controller
-                control={form.control}
-                name="esAlmacen"
-                render={({ field }) => (
-                  <Checkbox id="esAlmacen" checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />
-                )}
-              />
-              <Label htmlFor="esAlmacen" className="font-normal">
-                Almacén
-              </Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Único rol que ve la bandeja completa de Solicitudes de Despacho y los controles para atenderlas. Sin
-              esto, el usuario solo ve las solicitudes que él mismo generó, y nunca puede eliminar una.
             </p>
           </div>
         </CardContent>

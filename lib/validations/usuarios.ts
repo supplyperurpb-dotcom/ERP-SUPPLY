@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { GERENCIAS_SOLPED, AREAS_SOLPED, areasDeGerenciaSolped, type GerenciaSolpedCodigo } from "@/lib/constants/compras";
 
-const AREAS = ["PRODUCCION", "SUPPLY_CHAIN", "FINANZAS", "GERENCIA_GENERAL", "SERVICIOS_GENERALES", "RRHH"] as const;
+const GERENCIAS = GERENCIAS_SOLPED.map((g) => g.valor) as [GerenciaSolpedCodigo, ...GerenciaSolpedCodigo[]];
+const AREAS_DETALLE = AREAS_SOLPED.map((a) => a.valor) as [string, ...string[]];
 // Roles especiales asignables al crear un usuario (GERENTE_RRHH no entra
 // aquí: se asigna aparte, junto con el aprobador de área RRHH, en
 // /logistica/solicitudes-pedido/aprobadores).
@@ -9,6 +11,17 @@ const ROLES_ESPECIALES_EN_ALTA = ["GERENTE_SUPPLY", "DISTRICT_CONTROLLER", "GERE
 // inicia sesión (ver loginAction) — obligatorio al crear un usuario
 // nuevo; al editar uno existente es opcional (ver editarUsuarioSchema).
 const DNI_REGEX = /^\d{8}$/;
+
+function validarAreaDetalle(data: { area: GerenciaSolpedCodigo; areaDetalle: string }, ctx: z.RefinementCtx) {
+  const areasValidas = areasDeGerenciaSolped(data.area).map((a) => a.valor as string);
+  if (!areasValidas.includes(data.areaDetalle)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "El área elegida no corresponde a la gerencia elegida",
+      path: ["areaDetalle"],
+    });
+  }
+}
 
 export const crearUsuarioSchema = z
   .object({
@@ -22,10 +35,17 @@ export const crearUsuarioSchema = z
     cargo: z.string().optional().or(z.literal("")),
     password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
     tipoRol: z.enum(["REGULAR", "APROBADOR", "APROBADOR_GENERAL"], { required_error: "Selecciona el rol" }),
-    // Área del usuario: acota lo que ve en Solicitudes de pedido y Órdenes de
-    // compra/servicio sea o no aprobador; si además es aprobador de área, es
-    // también la que queda habilitado a aprobar/rechazar.
-    area: z.enum(AREAS, { required_error: "Selecciona el área del usuario" }),
+    // Gerencia del usuario: acota lo que ve en Solicitudes de pedido y
+    // Órdenes de compra/servicio sea o no aprobador; si además es
+    // aprobador de área, es también la que queda habilitado a
+    // aprobar/rechazar.
+    area: z.enum(GERENCIAS, { required_error: "Selecciona la gerencia del usuario" }),
+    // Área puntual (nivel 2) dentro de esa Gerencia — mismo organigrama
+    // que Solped (ver AREAS_SOLPED en lib/constants/compras.ts), p. ej.
+    // "Almacén" dentro de Supply Chain. Determina, entre otras cosas,
+    // quién atiende Solicitudes de Despacho — ver esAlmacen en
+    // lib/stock-almacen.ts.
+    areaDetalle: z.enum(AREAS_DETALLE, { required_error: "Selecciona el área del usuario" }),
     // Solo si tipoRol = APROBADOR_GENERAL: qué rol especial ocupa (Gerente
     // de Supply, District Controller o Gerente General), usado para las
     // firmas de OC/OS por monto.
@@ -40,10 +60,6 @@ export const crearUsuarioSchema = z
     // lib/compras.ts. Independiente de accesoHrefs: la casilla de acceso
     // controla si VE el submódulo, esta controla si puede modificarlo.
     esComprador: z.boolean(),
-    // Único permiso habilitado para atender Solicitudes de Despacho (ver
-    // esAlmacen en lib/stock-almacen.ts) — determina si ve la bandeja
-    // completa o solo lo que generó, y bloquea que pueda eliminar una.
-    esAlmacen: z.boolean(),
   })
   .superRefine((data, ctx) => {
     if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {
@@ -53,6 +69,7 @@ export const crearUsuarioSchema = z
         path: ["rolEspecial"],
       });
     }
+    validarAreaDetalle(data, ctx);
   });
 
 export type CrearUsuarioInput = z.infer<typeof crearUsuarioSchema>;
@@ -72,7 +89,8 @@ export const editarUsuarioSchema = z
     // Vacío = no cambiar la contraseña actual.
     nuevaPassword: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").optional().or(z.literal("")),
     tipoRol: z.enum(["REGULAR", "APROBADOR", "APROBADOR_GENERAL"], { required_error: "Selecciona el rol" }),
-    area: z.enum(AREAS, { required_error: "Selecciona el área del usuario" }),
+    area: z.enum(GERENCIAS, { required_error: "Selecciona la gerencia del usuario" }),
+    areaDetalle: z.enum(AREAS_DETALLE, { required_error: "Selecciona el área del usuario" }),
     rolEspecial: z.enum(ROLES_ESPECIALES_EN_ALTA).optional(),
     // Sin mínimo (a diferencia de crearUsuarioSchema): un ADMIN ve todos los
     // módulos sin importar esto, y un admin puede querer dejar a alguien sin
@@ -81,7 +99,6 @@ export const editarUsuarioSchema = z
     activo: z.boolean(),
     // Ver comentario en crearUsuarioSchema.
     esComprador: z.boolean(),
-    esAlmacen: z.boolean(),
   })
   .superRefine((data, ctx) => {
     if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {
@@ -91,6 +108,7 @@ export const editarUsuarioSchema = z
         path: ["rolEspecial"],
       });
     }
+    validarAreaDetalle(data, ctx);
   });
 
 export type EditarUsuarioInput = z.infer<typeof editarUsuarioSchema>;

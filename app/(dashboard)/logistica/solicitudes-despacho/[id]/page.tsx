@@ -11,7 +11,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { formatDate, formatCantidad } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
-import { esAlmacen, tieneRolAlmacen } from "@/lib/stock-almacen";
+import { esAlmacen, esDeAreaAlmacen } from "@/lib/stock-almacen";
 import { eliminarSolicitudDespachoAction } from "@/lib/actions/solicitud-despacho-actions";
 import type { EstadoSolicitudDespacho } from "../solicitudes-despacho-table";
 
@@ -57,9 +57,11 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
   const estado: EstadoSolicitudDespacho = totalAtendido <= 0 ? "PENDIENTE" : totalAtendido >= totalSolicitado ? "ATENDIDA" : "PARCIAL";
   const esAdmin = !!usuario?.roles.includes("ADMIN");
   const esCreador = !!usuario && solicitud.solicitanteId === usuario.id;
-  // El rol Almacén nunca puede eliminar, ni siquiera la que él mismo
-  // generó — ver el mismo criterio en solicitudes-despacho/page.tsx.
-  const puedeEliminar = totalAtendido <= 0 && (esAdmin || (esCreador && !tieneRolAlmacen(usuario ?? { roles: [] })));
+  // Quien pertenece al área Almacén nunca puede eliminar, ni siquiera la
+  // que él mismo generó — ver el mismo criterio en
+  // solicitudes-despacho/page.tsx.
+  const puedeEliminar =
+    totalAtendido <= 0 && (esAdmin || (esCreador && !esDeAreaAlmacen(usuario ?? { area: null, areaDetalle: null })));
   const areaNombre = AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area;
 
   return (

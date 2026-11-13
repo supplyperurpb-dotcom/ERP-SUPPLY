@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import type { RolNombre } from "@/lib/auth/constants";
-import type { AreaEmpresaCodigo } from "@/lib/constants/compras";
+import { areasDeGerenciaSolped, type GerenciaSolpedCodigo } from "@/lib/constants/compras";
 import { UsuarioEditarForm } from "./usuario-editar-form";
 
 export default async function EditarUsuarioPage({ params }: { params: Promise<{ id: string }> }) {
@@ -50,10 +50,11 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
           cargo: usuario.cargo ?? "",
           nuevaPassword: "",
           tipoRol,
-          // El enum AreaEmpresa ahora también incluye CALIDAD_E_INOCUIDAD
-          // (solo seleccionable como Gerencia de una Solped — ver
-          // GERENCIAS_SOLPED); este formulario sigue sin ofrecerla.
-          area: (usuario.area ?? "PRODUCCION") as AreaEmpresaCodigo,
+          area: (usuario.area ?? "PRODUCCION") as GerenciaSolpedCodigo,
+          areaDetalle:
+            usuario.areaDetalle ??
+            areasDeGerenciaSolped((usuario.area ?? "PRODUCCION") as GerenciaSolpedCodigo)[0]?.valor ??
+            "PRODUCCION_1",
           // GERENTE_RRHH se asigna aparte (ver nota en lib/validations/usuarios.ts)
           // y no es un valor válido en este formulario.
           rolEspecial:
@@ -61,7 +62,6 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
           accesoHrefs: usuario.accesoItems.map((a) => a.href),
           activo: usuario.activo,
           esComprador: roles.includes("COMPRADORES"),
-          esAlmacen: roles.includes("ALMACEN"),
         }}
       />
     </div>

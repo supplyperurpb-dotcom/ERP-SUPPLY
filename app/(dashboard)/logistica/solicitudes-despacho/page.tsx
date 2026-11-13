@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
-import { esAlmacen, tieneRolAlmacen } from "@/lib/stock-almacen";
+import { esAlmacen, esDeAreaAlmacen } from "@/lib/stock-almacen";
 import { SolicitudesDespachoTable, type FilaSolicitudDespacho, type EstadoSolicitudDespacho } from "./solicitudes-despacho-table";
 
 export default async function SolicitudesDespachoPage() {
@@ -35,10 +35,11 @@ export default async function SolicitudesDespachoPage() {
     : [];
   const solicitantePorId = new Map(solicitantes.map((u) => [u.id, `${u.nombres} ${u.apellidos}`]));
 
-  // El rol Almacén nunca puede eliminar una solicitud, ni siquiera la que
-  // él mismo generó — es quien la atiende, no debería poder esquivarla
-  // borrándola. Un ADMIN siempre puede, como con cualquier otro permiso.
-  const tieneRolAlmacenUsuario = !!usuario && tieneRolAlmacen(usuario);
+  // Quien pertenece al área Almacén nunca puede eliminar una solicitud,
+  // ni siquiera la que él mismo generó — es quien la atiende, no debería
+  // poder esquivarla borrándola. Un ADMIN siempre puede, como con
+  // cualquier otro permiso.
+  const esDeAlmacenUsuario = !!usuario && esDeAreaAlmacen(usuario);
 
   const filas: FilaSolicitudDespacho[] = solicitudes.map((solicitud) => {
     const totalSolicitado = solicitud.items.reduce((acc, item) => acc + Number(item.cantidad), 0);
@@ -57,7 +58,7 @@ export default async function SolicitudesDespachoPage() {
       solicitante: solicitud.solicitanteId ? solicitantePorId.get(solicitud.solicitanteId) ?? "—" : "—",
       numItems: solicitud._count.items,
       estado,
-      puedeEliminar: totalAtendido <= 0 && (esAdmin || (esCreador && !tieneRolAlmacenUsuario)),
+      puedeEliminar: totalAtendido <= 0 && (esAdmin || (esCreador && !esDeAlmacenUsuario)),
     };
   });
 

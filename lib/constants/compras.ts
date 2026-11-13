@@ -18,11 +18,12 @@ export const AREAS_EMPRESA = [
 
 export type AreaEmpresaCodigo = (typeof AREAS_EMPRESA)[number]["valor"];
 
-// Gerencias seleccionables como "Área" (nivel 1) de una Solped: las mismas
-// 6 de AREAS_EMPRESA más "Calidad e Inocuidad" (ver AreaEmpresa en el
-// schema). Solo se usa en el selector de Solped y en sus aprobadores —
-// Usuario, Devolución de almacén y Solicitud de despacho siguen usando
-// AREAS_EMPRESA tal cual, no se les agregó esta gerencia.
+// Gerencias (nivel 1): las mismas 6 de AREAS_EMPRESA más "Calidad e
+// Inocuidad" (ver AreaEmpresa en el schema). Lo usan tanto el selector de
+// Solped (y sus aprobadores) como el de Usuario (Usuario.area +
+// Usuario.areaDetalle, ver esAlmacen en lib/stock-almacen.ts) — Devolución
+// de almacén y Solicitud de despacho siguen usando AREAS_EMPRESA tal
+// cual, no se les agregó esta gerencia.
 export const GERENCIAS_SOLPED = [...AREAS_EMPRESA, { valor: "CALIDAD_E_INOCUIDAD", nombre: "Calidad e Inocuidad" }] as const;
 
 export type GerenciaSolpedCodigo = (typeof GERENCIAS_SOLPED)[number]["valor"];

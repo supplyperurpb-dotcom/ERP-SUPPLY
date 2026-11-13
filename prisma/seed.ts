@@ -55,7 +55,6 @@ function descripcionRol(nombre: RolNombre): string {
     ANULADOR: "Único permiso habilitado para anular solicitudes de pedido y órdenes de compra/servicio",
     SOLO_LECTURA: "Acceso de solo lectura a todos los módulos",
     COMPRADORES: "Único permiso habilitado para cerrar posición y gestionar Órdenes de compra y servicio",
-    ALMACEN: "Único permiso habilitado para atender Solicitudes de Despacho",
   };
   return descripciones[nombre];
 }

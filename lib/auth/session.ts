@@ -13,6 +13,11 @@ export type UsuarioActual = {
   // creadas antes de este campo). Acota qué Solicitudes de pedido y
   // Órdenes de compra/servicio puede ver, sea o no aprobador.
   area: string | null;
+  // Área puntual (nivel 2) dentro de esa Gerencia — mismo organigrama que
+  // Solped (ver AREAS_SOLPED en lib/constants/compras.ts). Null donde la
+  // Gerencia no se subdivide, o en cuentas de antes de este campo. Ver
+  // esAlmacen en lib/stock-almacen.ts.
+  areaDetalle: string | null;
   roles: RolNombre[];
   // Allowlist de hrefs del sidebar (ver UsuarioAccesoItem). null = el
   // usuario no tiene ninguna fila configurada, así que no está acotado por
@@ -54,6 +59,7 @@ export const getUsuarioActual = cache(async (): Promise<UsuarioActual | null> =>
     apellidos: usuario.apellidos,
     email: usuario.email,
     area: usuario.area,
+    areaDetalle: usuario.areaDetalle,
     roles: usuario.asignacionesRol.map((a) => a.rol.nombre as RolNombre),
     accesoHrefs: usuario.accesoItems.length > 0 ? usuario.accesoItems.map((a) => a.href) : null,
     dni: usuario.dni,

@@ -31,12 +31,6 @@ enum RolNombre {
   // llegue (p. ej. por "Seguimiento del pedido" de su propia Solped), sin
   // poder modificarla.
   COMPRADORES
-  // Quien atiende Solicitudes de Despacho — ver esAlmacen en
-  // lib/stock-almacen.ts. Solo quien tenga este rol (o ADMIN) ve la
-  // bandeja completa de solicitudes y los controles para atenderlas; el
-  // resto de los usuarios solo ve las que ellos mismos generaron, y nunca
-  // puede eliminar una aunque sea el solicitante.
-  ALMACEN
 }
 
 enum AccionPermiso {
@@ -165,12 +159,20 @@ model Usuario {
   // Cargo/puesto (p. ej. "Gerente de Producción"), mostrado junto al
   // nombre en el PDF de Solped/OC/OS cuando este usuario aprueba una.
   cargo          String?
-  // Área a la que pertenece (Producción, RRHH, etc.). Nulo = sin
-  // restricción de área (p. ej. un ADMIN, o el usuario creado manualmente
-  // antes de que existiera este campo). Se usa para que las listas de
-  // Solicitudes de pedido y Órdenes de compra/servicio solo muestren los
-  // documentos de su propia área, sea o no aprobador.
+  // Gerencia a la que pertenece (Producción, Supply Chain, etc.). Nulo =
+  // sin restricción de área (p. ej. un ADMIN, o el usuario creado
+  // manualmente antes de que existiera este campo). Se usa para que las
+  // listas de Solicitudes de pedido y Órdenes de compra/servicio solo
+  // muestren los documentos de su propia área, sea o no aprobador.
   area           AreaEmpresa?
+  // Área puntual (nivel 2) dentro de esa Gerencia — mismo organigrama que
+  // SolicitudPedido.areaDetalle (ver AREAS_SOLPED en
+  // lib/constants/compras.ts), p. ej. "Almacén" dentro de Supply Chain.
+  // Nulo donde la Gerencia no se subdivide, o en cuentas de antes de este
+  // campo. Hoy solo se usa para distinguir quién pertenece al área
+  // Almacén (atiende Solicitudes de Despacho — ver esAlmacen en
+  // lib/stock-almacen.ts), pero no es exclusivo de eso.
+  areaDetalle    String?
   activo         Boolean      @default(true)
   // true = debe elegir una contraseña nueva antes de poder usar el resto
   // de la app (ver app/(dashboard)/layout.tsx y /cambiar-password) — se
