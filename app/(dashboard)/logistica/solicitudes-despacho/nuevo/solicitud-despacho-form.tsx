@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -7,32 +8,57 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, formatCantidad, horaLocalAhora } from "@/lib/utils";
-import { AREAS_EMPRESA, type AreaEmpresaCodigo } from "@/lib/constants/compras";
+import { AREAS_EMPRESA, AREAS_SOLPED, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { solicitudDespachoSchema, type SolicitudDespachoInput } from "@/lib/validations/solicitud-despacho";
 import { crearSolicitudDespachoAction } from "@/lib/actions/solicitud-despacho-actions";
 
 type SkuOpcion = { id: string; codigo: string; descripcion: string; unidadMedida: string; disponible: number };
 
-function itemVacio(centroCostoInicial: string) {
-  return { skuId: "", cantidad: 0, unidadMedida: "", centroCosto: centroCostoInicial, campo: "" };
+// Una fila del stock disponible, repartida por el Área que la trajo (ver
+// calcularStockPorAreaParaDespacho) — ya viene filtrada por la página
+// según la regla de categoría-por-área (skuPermitidoParaAreaSolped).
+type FilaStockArea = {
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  areaDetalle: string | null;
+  cantidad: number;
+};
+
+function nombreArea(areaDetalle: string | null): string {
+  if (!areaDetalle) return "Sin área registrada";
+  return AREAS_SOLPED.find((a) => a.valor === areaDetalle)?.nombre ?? areaDetalle;
+}
+
+function claveFila(skuId: string, areaDetalle: string | null): string {
+  return `${skuId}::${areaDetalle ?? "__sin_area__"}`;
 }
 
 export function SolicitudDespachoForm({
   skus,
+  stockPorArea,
+  areaDetalleUsuario,
   areaInicial = "PRODUCCION",
   usuarioNombre,
   centrosCosto,
   campos,
 }: {
   skus: SkuOpcion[];
+  stockPorArea: FilaStockArea[];
+  /** Área puntual del usuario que pide (ver Usuario.areaDetalle) — se
+   * compara contra el área de cada fila de stock para decidir si hay que
+   * avisar "este stock no es de tu área". */
+  areaDetalleUsuario: string;
   areaInicial?: AreaEmpresaCodigo;
   usuarioNombre: string;
   centrosCosto: string[];
@@ -49,12 +75,98 @@ export function SolicitudDespachoForm({
       fecha: fechaLocalHoy() as unknown as Date,
       hora: horaLocalAhora(),
       observaciones: "",
-      items: [itemVacio(centroCostoInicial)],
+      items: [],
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
+
+  // Área de origen de cada línea ya agregada, en el mismo índice que
+  // `items` — solo para mostrarla en la tabla resumen; no se envía al
+  // servidor (SolicitudDespachoItem no guarda de qué área vino).
+  const [areaPorItem, setAreaPorItem] = useState<(string | null)[]>([]);
+
+  function removerItem(index: number) {
+    remove(index);
+    setAreaPorItem((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const cantidadAgregadaPorFila = useMemo(() => {
+    const mapa = new Map<string, number>();
+    items.forEach((item, i) => {
+      const clave = claveFila(item.skuId, areaPorItem[i] ?? null);
+      mapa.set(clave, (mapa.get(clave) ?? 0) + (Number(item.cantidad) || 0));
+    });
+    return mapa;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaPorItem]);
+
+  // Selector de "Agregar producto": lista de stock por área -> (si el área
+  // no es la del usuario) confirmación -> cantidad + centro de costo.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [filaCandidata, setFilaCandidata] = useState<FilaStockArea | null>(null);
+  const [filaElegida, setFilaElegida] = useState<FilaStockArea | null>(null);
+  const [cantidadNueva, setCantidadNueva] = useState("");
+  const [centroCostoNuevo, setCentroCostoNuevo] = useState(centroCostoInicial);
+
+  function abrirPicker() {
+    setPickerOpen(true);
+    setFilaCandidata(null);
+    setFilaElegida(null);
+  }
+
+  function cerrarPicker() {
+    setPickerOpen(false);
+    setFilaCandidata(null);
+    setFilaElegida(null);
+  }
+
+  function elegirFila(fila: FilaStockArea) {
+    if (fila.areaDetalle && fila.areaDetalle !== areaDetalleUsuario) {
+      setFilaCandidata(fila);
+      return;
+    }
+    setFilaElegida(fila);
+    setCantidadNueva("");
+    setCentroCostoNuevo(centroCostoInicial);
+  }
+
+  function restanteDeFila(fila: FilaStockArea): number {
+    const yaAgregado = cantidadAgregadaPorFila.get(claveFila(fila.skuId, fila.areaDetalle)) ?? 0;
+    return Math.round((fila.cantidad - yaAgregado) * 1000) / 1000;
+  }
+
+  const filasVisibles = stockPorArea.filter((fila) => restanteDeFila(fila) > 0.001);
+  const restanteElegida = filaElegida ? restanteDeFila(filaElegida) : 0;
+
+  function agregarLinea() {
+    if (!filaElegida) return;
+    const cantidad = Number(cantidadNueva) || 0;
+    if (cantidad <= 0) {
+      toast.error("Ingresa una cantidad mayor a 0.");
+      return;
+    }
+    if (cantidad > restanteElegida + 0.001) {
+      toast.error(`No puedes pedir más de lo disponible en esa fila (${formatCantidad(restanteElegida)}).`);
+      return;
+    }
+    if (!centroCostoNuevo) {
+      toast.error("Selecciona el centro de costo.");
+      return;
+    }
+    append({
+      skuId: filaElegida.skuId,
+      cantidad,
+      unidadMedida: filaElegida.unidadMedida,
+      centroCosto: centroCostoNuevo,
+      campo: "",
+    });
+    setAreaPorItem((prev) => [...prev, filaElegida.areaDetalle]);
+    toast.success("Producto agregado");
+    setFilaElegida(null);
+    setCantidadNueva("");
+  }
 
   async function onSubmit(data: SolicitudDespachoInput) {
     const excedeAlgunaLinea = data.items.some((item) => item.cantidad > (skuPorId.get(item.skuId)?.disponible ?? 0));
@@ -147,154 +259,59 @@ export function SolicitudDespachoForm({
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle className="text-base">Productos</CardTitle>
-            <p className="text-sm text-muted-foreground">Solo aparecen productos con stock disponible en algún almacén.</p>
+            <p className="text-sm text-muted-foreground">Solo aparecen productos con stock disponible que puedes pedir.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => append(itemVacio(centroCostoInicial))}>
+          <Button type="button" variant="outline" size="sm" onClick={abrirPicker}>
             <Plus className="mr-2 h-4 w-4" />
             Agregar producto
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-28">Código</TableHead>
-                  <TableHead className="min-w-[200px]">Producto</TableHead>
-                  <TableHead className="w-28">Cantidad</TableHead>
-                  <TableHead className="w-20">U.M.</TableHead>
-                  <TableHead className="w-28">Disponible</TableHead>
-                  <TableHead className="w-44">Centro de costo</TableHead>
-                  <TableHead className="w-40">Campo</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fields.map((field, index) => {
-                  const skuId = items[index]?.skuId ?? "";
-                  const disponible = skuPorId.get(skuId)?.disponible ?? 0;
-                  const cantidad = Number(items[index]?.cantidad) || 0;
-                  const excede = skuId !== "" && cantidad > disponible;
-                  return (
-                    <TableRow key={field.id}>
-                      <TableCell className="align-top">
-                        <Input disabled value={skuPorId.get(skuId)?.codigo ?? ""} />
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <Controller
-                          control={form.control}
-                          name={`items.${index}.skuId`}
-                          render={({ field: selectField }) => (
-                            <SkuCombobox
-                              skus={skus}
-                              value={selectField.value}
-                              emptyMessage="No hay productos con stock disponible."
-                              onSelect={(sku) => {
-                                selectField.onChange(sku.id);
-                                form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
-                              }}
-                            />
-                          )}
-                        />
-                        {form.formState.errors.items?.[index]?.skuId && (
-                          <p className="mt-1 text-xs font-medium text-destructive">
-                            {form.formState.errors.items[index]?.skuId?.message}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <Controller
-                          control={form.control}
-                          name={`items.${index}.cantidad`}
-                          render={({ field: cantidadField }) => (
-                            <NumberInput
-                              value={String(cantidadField.value ?? "")}
-                              onChange={cantidadField.onChange}
-                              className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
-                            />
-                          )}
-                        />
-                        {form.formState.errors.items?.[index]?.cantidad && (
-                          <p className="mt-1 text-xs font-medium text-destructive">
-                            {form.formState.errors.items[index]?.cantidad?.message}
-                          </p>
-                        )}
-                        {excede && (
-                          <p className="mt-1 text-xs font-medium text-destructive">
-                            Excede lo disponible ({formatCantidad(disponible)}).
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="align-top pt-4 text-sm text-muted-foreground">
-                        {items[index]?.unidadMedida || "—"}
-                      </TableCell>
-                      <TableCell className="align-top pt-4 text-sm">{skuId ? formatCantidad(disponible) : "—"}</TableCell>
-                      <TableCell className="align-top">
-                        <Controller
-                          control={form.control}
-                          name={`items.${index}.centroCosto`}
-                          render={({ field: selectField }) => (
-                            <Select value={selectField.value} onValueChange={selectField.onChange}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {centrosCosto.map((c) => (
-                                  <SelectItem key={c} value={c}>
-                                    {c}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                        {form.formState.errors.items?.[index]?.centroCosto && (
-                          <p className="mt-1 text-xs font-medium text-destructive">
-                            {form.formState.errors.items[index]?.centroCosto?.message}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <Controller
-                          control={form.control}
-                          name={`items.${index}.campo`}
-                          render={({ field: selectField }) => (
-                            <Select
-                              value={selectField.value || "__ninguno__"}
-                              onValueChange={(v) => selectField.onChange(v === "__ninguno__" ? "" : v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecciona..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__ninguno__">—</SelectItem>
-                                {campos.map((c) => (
-                                  <SelectItem key={c} value={c}>
-                                    {c}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={fields.length === 1}
-                          onClick={() => remove(index)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          {form.formState.errors.items?.root && (
+            <p className="text-sm font-medium text-destructive">{form.formState.errors.items.root.message}</p>
+          )}
+          {fields.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Todavía no agregaste ningún producto. Usa el botón &quot;Agregar producto&quot; de arriba.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-28">Código</TableHead>
+                    <TableHead className="min-w-[200px]">Producto</TableHead>
+                    <TableHead className="w-36">Área de origen</TableHead>
+                    <TableHead className="w-28 text-right">Cantidad</TableHead>
+                    <TableHead className="w-20">U.M.</TableHead>
+                    <TableHead className="w-44">Centro de costo</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fields.map((field, index) => {
+                    const skuId = items[index]?.skuId ?? "";
+                    const sku = skuPorId.get(skuId);
+                    return (
+                      <TableRow key={field.id}>
+                        <TableCell className="font-mono text-sm">{sku?.codigo ?? "—"}</TableCell>
+                        <TableCell>{sku?.descripcion ?? "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{nombreArea(areaPorItem[index] ?? null)}</TableCell>
+                        <TableCell className="text-right">{formatCantidad(Number(items[index]?.cantidad) || 0)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{items[index]?.unidadMedida || "—"}</TableCell>
+                        <TableCell className="text-sm">{items[index]?.centroCosto || "—"}</TableCell>
+                        <TableCell>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removerItem(index)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -306,6 +323,98 @@ export function SolicitudDespachoForm({
           {form.formState.isSubmitting ? "Guardando..." : "Registrar solicitud"}
         </Button>
       </div>
+
+      {/* Agregar producto: lista de stock por área -> cantidad + centro de costo. */}
+      <Dialog open={pickerOpen} onOpenChange={(v) => (v ? setPickerOpen(true) : cerrarPicker())}>
+        <DialogContent className="sm:max-w-lg">
+          {!filaElegida && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Stock disponible</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-[60vh] space-y-1 overflow-y-auto">
+                {filasVisibles.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No hay stock disponible de productos que puedas pedir.</p>
+                )}
+                {filasVisibles.map((fila) => (
+                  <button
+                    key={claveFila(fila.skuId, fila.areaDetalle)}
+                    type="button"
+                    onClick={() => elegirFila(fila)}
+                    className="w-full rounded-md border p-2 text-left text-sm transition-colors hover:border-primary hover:bg-accent/40"
+                  >
+                    <p className="font-medium">
+                      {fila.codigo} — {fila.descripcion}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Área: {nombreArea(fila.areaDetalle)} · Disponible: {formatCantidad(restanteDeFila(fila))} {fila.unidadMedida}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {filaElegida && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {filaElegida.codigo} — {filaElegida.descripcion}
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Área: {nombreArea(filaElegida.areaDetalle)} · Disponible: {formatCantidad(restanteElegida)} {filaElegida.unidadMedida}
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Cantidad</Label>
+                  <NumberInput value={cantidadNueva} onChange={setCantidadNueva} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Centro de costo</Label>
+                  <Select value={centroCostoNuevo} onValueChange={setCentroCostoNuevo}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {centrosCosto.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setFilaElegida(null)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" onClick={agregarLinea}>
+                    Añadir
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={filaCandidata !== null}
+        onOpenChange={(v) => {
+          if (!v) setFilaCandidata(null);
+        }}
+        title="El stock de este producto no es de su área, ¿desea continuar?"
+        confirmLabel="Sí"
+        cancelLabel="No"
+        onConfirm={() => {
+          if (!filaCandidata) return;
+          setFilaElegida(filaCandidata);
+          setCantidadNueva("");
+          setCentroCostoNuevo(centroCostoInicial);
+          setFilaCandidata(null);
+        }}
+      />
     </form>
   );
 }

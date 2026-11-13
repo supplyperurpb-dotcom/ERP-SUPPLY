@@ -577,3 +577,83 @@ export async function calcularStockDisponibleDespacho(db: Db = prisma): Promise<
     }))
     .filter((fila) => fila.cantidad > 0);
 }
+
+export type StockPorAreaDespacho = {
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  categoria: string;
+  subfamilia: string;
+  /** null = sin ingreso con área registrada (SKU de antes de ese campo, o
+   * stock que solo entró por traslado/devolución). */
+  areaDetalle: string | null;
+  cantidad: number;
+};
+
+// Reparto por Área de origen del mismo stock de calcularStockDisponibleDespacho,
+// para el selector de "Agregar producto" de Solicitud de Despacho — PROPORCIONAL
+// al histórico de ingresos de cada área para ese SKU (ver
+// IngresoAlmacenItem.areaDetalle), NO un rastreo exacto: los consumos no se
+// descuentan área por área (mismo límite ya documentado en
+// IngresoAlmacenItem.area). Sirve para que quien pide sepa de qué área es el
+// stock que está por solicitar, no para reservar ese stock de verdad.
+export async function calcularStockPorAreaParaDespacho(db: Db = prisma): Promise<StockPorAreaDespacho[]> {
+  const disponibleTotal = await calcularStockDisponibleDespacho(db);
+  if (disponibleTotal.length === 0) return [];
+
+  const skuIds = disponibleTotal.map((s) => s.skuId);
+  const [ingresosPorSkuArea, skusInfo] = await Promise.all([
+    db.ingresoAlmacenItem.groupBy({
+      by: ["skuId", "areaDetalle"],
+      where: { skuId: { in: skuIds } },
+      _sum: { cantidad: true },
+    }),
+    db.sku.findMany({ where: { id: { in: skuIds } }, select: { id: true, categoria: true, subfamilia: true } }),
+  ]);
+  const infoPorSku = new Map(skusInfo.map((s) => [s.id, s]));
+
+  const totalIngresadoPorSku = new Map<string, number>();
+  for (const fila of ingresosPorSkuArea) {
+    totalIngresadoPorSku.set(fila.skuId, (totalIngresadoPorSku.get(fila.skuId) ?? 0) + Number(fila._sum.cantidad ?? 0));
+  }
+
+  const resultado: StockPorAreaDespacho[] = [];
+  for (const disp of disponibleTotal) {
+    const info = infoPorSku.get(disp.skuId);
+    const categoria = info?.categoria ?? "";
+    const subfamilia = info?.subfamilia ?? "";
+    const filasDeEsteSku = ingresosPorSkuArea.filter((f) => f.skuId === disp.skuId);
+    const totalIngresado = totalIngresadoPorSku.get(disp.skuId) ?? 0;
+
+    if (filasDeEsteSku.length === 0 || totalIngresado <= 0) {
+      resultado.push({
+        skuId: disp.skuId,
+        codigo: disp.codigo,
+        descripcion: disp.descripcion,
+        unidadMedida: disp.unidadMedida,
+        categoria,
+        subfamilia,
+        areaDetalle: null,
+        cantidad: disp.cantidad,
+      });
+      continue;
+    }
+    for (const fila of filasDeEsteSku) {
+      const proporcion = Number(fila._sum.cantidad ?? 0) / totalIngresado;
+      const cantidad = Math.round(disp.cantidad * proporcion * 1000) / 1000;
+      if (cantidad <= 0) continue;
+      resultado.push({
+        skuId: disp.skuId,
+        codigo: disp.codigo,
+        descripcion: disp.descripcion,
+        unidadMedida: disp.unidadMedida,
+        categoria,
+        subfamilia,
+        areaDetalle: fila.areaDetalle,
+        cantidad,
+      });
+    }
+  }
+  return resultado;
+}

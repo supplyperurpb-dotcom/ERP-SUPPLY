@@ -6,7 +6,23 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
 import { calcularStockDisponibleDespacho, esDeAreaAlmacen } from "@/lib/stock-almacen";
 import { puedeVerCampoPacking } from "@/lib/compras";
+import {
+  skuPermitidoParaAreaSolped,
+  areasDeGerenciaSolped,
+  type AreaSolpedCodigo,
+  type GerenciaSolpedCodigo,
+} from "@/lib/constants/compras";
 import { solicitudDespachoSchema, type SolicitudDespachoInput } from "@/lib/validations/solicitud-despacho";
+
+// Misma resolución que usuarios/[id]/editar/page.tsx: si el usuario
+// todavía no tiene Área puntual asignada (campo nuevo, ver
+// Usuario.areaDetalle), se cae a la primera Área de su Gerencia en vez de
+// no filtrar nada.
+function resolverAreaDetalleUsuario(usuario: { area: string | null; areaDetalle: string | null } | null): AreaSolpedCodigo {
+  if (usuario?.areaDetalle) return usuario.areaDetalle as AreaSolpedCodigo;
+  const gerencia = (usuario?.area as GerenciaSolpedCodigo | null) ?? "PRODUCCION";
+  return (areasDeGerenciaSolped(gerencia)[0]?.valor ?? "PRODUCCION_1") as AreaSolpedCodigo;
+}
 
 export type SolicitudDespachoActionState = { error?: string; id?: string; numero?: string } | undefined;
 
@@ -37,6 +53,22 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
     // se confía en que el cliente no lo haya mandado armado a mano.
     if (items.some((item) => item.campo === "Packing") && !(usuario && puedeVerCampoPacking(usuario))) {
       return { error: "No tienes permiso para usar el campo 'Packing'." };
+    }
+
+    // Misma regla de categoría-por-área que Solped (ver
+    // skuPermitidoParaAreaSolped): no se confía en que el selector del
+    // cliente ya haya filtrado lo que no le toca ver a esta área.
+    const areaDetalleUsuario = resolverAreaDetalleUsuario(usuario);
+    const skusDeItems = await prisma.sku.findMany({
+      where: { id: { in: items.map((i) => i.skuId) } },
+      select: { id: true, codigo: true, categoria: true, subfamilia: true },
+    });
+    const skuPorId = new Map(skusDeItems.map((s) => [s.id, s]));
+    for (const item of items) {
+      const sku = skuPorId.get(item.skuId);
+      if (sku && !skuPermitidoParaAreaSolped(sku, areaDetalleUsuario)) {
+        return { error: `El código ${sku.codigo} no está permitido para tu área.` };
+      }
     }
 
     const cantidadPorSku = new Map<string, number>();
