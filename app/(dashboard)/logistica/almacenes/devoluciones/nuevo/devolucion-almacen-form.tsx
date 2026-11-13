@@ -30,7 +30,7 @@ import {
 
 type AlmacenOpcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
 type ProveedorOpcion = { id: string; razonSocial: string; ruc: string };
-type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
+type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; area: string; almacenesIds: string[] };
 type SkuOpcion = { id: string; codigo: string; descripcion: string; subfamilia: string; unidadMedida: string; requiereLote: boolean };
 
 const ITEM_VACIO = {
@@ -86,6 +86,7 @@ export function DevolucionAlmacenForm({
   const tieneProveedor = useWatch({ control: form.control, name: "tieneProveedor" });
   const proveedorId = useWatch({ control: form.control, name: "proveedorId" });
   const personaQueTraeDni = useWatch({ control: form.control, name: "personaQueTraeDni" });
+  const area = useWatch({ control: form.control, name: "area" });
 
   const almacenActual = almacenes.find((a) => a.id === almacenId);
   const requierePorAlmacen =
@@ -192,6 +193,7 @@ export function DevolucionAlmacenForm({
                     setPreciosPorFila({});
                     form.setValue("personaQueTrae", "");
                     form.setValue("personaQueTraeDni", "");
+                    form.resetField("area");
                   }}
                 >
                   <SelectTrigger>
@@ -224,37 +226,12 @@ export function DevolucionAlmacenForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Usuario que hizo la devolución</Label>
+            <Label>Usuario Registro</Label>
             <Input disabled className="cursor-not-allowed bg-muted opacity-70" value={`${usuario.nombres} ${usuario.apellidos}`} />
           </div>
 
           <div className="space-y-2">
-            <Label>Área que devuelve</Label>
-            <Controller
-              control={form.control}
-              name="area"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un área" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AREAS_EMPRESA.map((a) => (
-                      <SelectItem key={a.valor} value={a.valor}>
-                        {a.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {form.formState.errors.area && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.area.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Quien trae el material</Label>
+            <Label>Usuario</Label>
             <RetiradorAutorizadoCombobox
               retiradores={retiradoresDisponibles}
               value={retiradorSeleccionadoId}
@@ -262,8 +239,16 @@ export function DevolucionAlmacenForm({
               mensajeDeshabilitado="Selecciona primero el almacén."
               mensajeVacio="Nadie tiene permiso en este almacén. Agrégalo en Listas > Retiradores autorizados."
               onSelect={(r) => {
+                // El DNI y el área quedan fijados por el retirador elegido
+                // (ver RetiradorAutorizado.area) — ya no se eligen a mano,
+                // para que no puedan quedar desincronizados del registro de
+                // Listas > Retiradores autorizados.
+                const retirador = retiradoresDisponibles.find((x) => x.id === r.id);
                 form.setValue("personaQueTrae", r.nombreCompleto, { shouldValidate: true });
                 form.setValue("personaQueTraeDni", r.dni, { shouldValidate: true });
+                if (retirador) {
+                  form.setValue("area", retirador.area as DevolucionAlmacenInput["area"], { shouldValidate: true });
+                }
               }}
             />
             {form.formState.errors.personaQueTrae && (
@@ -274,6 +259,14 @@ export function DevolucionAlmacenForm({
           <div className="space-y-2">
             <Label htmlFor="personaQueTraeDni">DNI</Label>
             <Input id="personaQueTraeDni" disabled value={personaQueTraeDni || ""} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="area">Área que devuelve</Label>
+            <Input id="area" disabled value={AREAS_EMPRESA.find((a) => a.valor === area)?.nombre ?? ""} />
+            {form.formState.errors.area && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.area.message}</p>
+            )}
           </div>
 
           <div className="flex items-center gap-2 pt-7">
