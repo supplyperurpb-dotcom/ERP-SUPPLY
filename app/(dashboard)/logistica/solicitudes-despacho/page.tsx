@@ -4,12 +4,21 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db/prisma";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { esAlmacen, tieneRolAlmacen } from "@/lib/stock-almacen";
 import { SolicitudesDespachoTable, type FilaSolicitudDespacho, type EstadoSolicitudDespacho } from "./solicitudes-despacho-table";
 
 export default async function SolicitudesDespachoPage() {
+  const usuario = await getUsuarioActual();
+  const esAdmin = !!usuario?.roles.includes("ADMIN");
+  const puedeVerTodas = !!usuario && esAlmacen(usuario);
+
   const solicitudes = await prisma.solicitudDespacho.findMany({
+    // Cada usuario solo ve las solicitudes que generó, salvo Almacén y
+    // los administradores, que ven todas — ver esAlmacen.
+    where: puedeVerTodas || !usuario ? undefined : { solicitanteId: usuario.id },
     include: {
       _count: { select: { items: true } },
       items: { select: { cantidad: true, consumoAlmacenItems: { select: { cantidad: true } } } },
@@ -26,6 +35,11 @@ export default async function SolicitudesDespachoPage() {
     : [];
   const solicitantePorId = new Map(solicitantes.map((u) => [u.id, `${u.nombres} ${u.apellidos}`]));
 
+  // El rol Almacén nunca puede eliminar una solicitud, ni siquiera la que
+  // él mismo generó — es quien la atiende, no debería poder esquivarla
+  // borrándola. Un ADMIN siempre puede, como con cualquier otro permiso.
+  const tieneRolAlmacenUsuario = !!usuario && tieneRolAlmacen(usuario);
+
   const filas: FilaSolicitudDespacho[] = solicitudes.map((solicitud) => {
     const totalSolicitado = solicitud.items.reduce((acc, item) => acc + Number(item.cantidad), 0);
     const totalAtendido = solicitud.items.reduce(
@@ -33,6 +47,7 @@ export default async function SolicitudesDespachoPage() {
       0
     );
     const estado: EstadoSolicitudDespacho = totalAtendido <= 0 ? "PENDIENTE" : totalAtendido >= totalSolicitado ? "ATENDIDA" : "PARCIAL";
+    const esCreador = !!usuario && solicitud.solicitanteId === usuario.id;
     return {
       id: solicitud.id,
       numero: solicitud.numero,
@@ -42,7 +57,7 @@ export default async function SolicitudesDespachoPage() {
       solicitante: solicitud.solicitanteId ? solicitantePorId.get(solicitud.solicitanteId) ?? "—" : "—",
       numItems: solicitud._count.items,
       estado,
-      puedeEliminar: totalAtendido <= 0,
+      puedeEliminar: totalAtendido <= 0 && (esAdmin || (esCreador && !tieneRolAlmacenUsuario)),
     };
   });
 
@@ -68,7 +83,7 @@ export default async function SolicitudesDespachoPage() {
           descripcion="Registra la primera con el botón de arriba."
         />
       ) : (
-        <SolicitudesDespachoTable filas={filas} />
+        <SolicitudesDespachoTable filas={filas} puedeAtender={puedeVerTodas} />
       )}
     </div>
   );

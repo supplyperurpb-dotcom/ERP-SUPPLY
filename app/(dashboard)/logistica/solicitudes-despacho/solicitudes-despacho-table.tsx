@@ -40,7 +40,16 @@ export type FilaSolicitudDespacho = {
   puedeEliminar: boolean;
 };
 
-export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespacho[] }) {
+export function SolicitudesDespachoTable({
+  filas,
+  puedeAtender,
+}: {
+  filas: FilaSolicitudDespacho[];
+  /** Solo Almacén y los administradores atienden solicitudes — ver
+   * esAlmacen en lib/stock-almacen.ts. El resto solo ve "Ver" y, si
+   * corresponde, "Eliminar". */
+  puedeAtender: boolean;
+}) {
   const router = useRouter();
   const [busqueda, setBusqueda] = useState("");
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
@@ -84,7 +93,7 @@ export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespac
             className="pl-8"
           />
         </div>
-        {seleccionadas.size > 0 && (
+        {puedeAtender && seleccionadas.size > 0 && (
           <Button onClick={atenderSeleccionadas}>
             Atender Seleccionadas ({seleccionadas.size})
           </Button>
@@ -99,7 +108,7 @@ export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespac
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10" />
+              {puedeAtender && <TableHead className="w-10" />}
               <TableHead>Número</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Usuario solicitante</TableHead>
@@ -111,18 +120,20 @@ export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespac
           </TableHeader>
           <TableBody>
             {filasFiltradas.map((f) => {
-              const puedeAtender = f.estado !== "ATENDIDA";
+              const noEstaAtendida = f.estado !== "ATENDIDA";
               const deshabilitadaPorArea = !!areaSeleccionada && f.areaCodigo !== areaSeleccionada && !seleccionadas.has(f.id);
               return (
                 <TableRow key={f.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={seleccionadas.has(f.id)}
-                      disabled={!puedeAtender || deshabilitadaPorArea}
-                      onCheckedChange={(v) => alternarSeleccion(f, !!v)}
-                      title={deshabilitadaPorArea ? "Ya hay solicitudes de otra área usuaria seleccionadas." : undefined}
-                    />
-                  </TableCell>
+                  {puedeAtender && (
+                    <TableCell>
+                      <Checkbox
+                        checked={seleccionadas.has(f.id)}
+                        disabled={!noEstaAtendida || deshabilitadaPorArea}
+                        onCheckedChange={(v) => alternarSeleccion(f, !!v)}
+                        title={deshabilitadaPorArea ? "Ya hay solicitudes de otra área usuaria seleccionadas." : undefined}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">{f.numero}</TableCell>
                   <TableCell>{f.fecha}</TableCell>
                   <TableCell>{f.solicitante}</TableCell>
@@ -141,7 +152,7 @@ export function SolicitudesDespachoTable({ filas }: { filas: FilaSolicitudDespac
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/logistica/solicitudes-despacho/${f.id}`}>Ver</Link>
                       </Button>
-                      {puedeAtender && (
+                      {puedeAtender && noEstaAtendida && (
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/logistica/almacenes/consumos/nuevo?solicitudDespachoIds=${f.id}`}>Atender</Link>
                         </Button>

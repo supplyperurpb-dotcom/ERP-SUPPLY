@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { prisma } from "@/lib/db/prisma";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { formatDate, formatCantidad } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { esAlmacen, tieneRolAlmacen } from "@/lib/stock-almacen";
 import { eliminarSolicitudDespachoAction } from "@/lib/actions/solicitud-despacho-actions";
 import type { EstadoSolicitudDespacho } from "../solicitudes-despacho-table";
 
@@ -36,6 +38,13 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
   });
   if (!solicitud) notFound();
 
+  const usuario = await getUsuarioActual();
+  const puedeVerTodas = !!usuario && esAlmacen(usuario);
+  // Cada usuario solo puede ver las solicitudes que generó, salvo Almacén
+  // y los administradores — mismo criterio que la bandeja, revalidado acá
+  // por si alguien entra directo con la URL.
+  if (!puedeVerTodas && solicitud.solicitanteId !== usuario?.id) notFound();
+
   const solicitante = solicitud.solicitanteId
     ? await prisma.usuario.findUnique({ where: { id: solicitud.solicitanteId } })
     : null;
@@ -46,7 +55,11 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
     0
   );
   const estado: EstadoSolicitudDespacho = totalAtendido <= 0 ? "PENDIENTE" : totalAtendido >= totalSolicitado ? "ATENDIDA" : "PARCIAL";
-  const puedeEliminar = totalAtendido <= 0;
+  const esAdmin = !!usuario?.roles.includes("ADMIN");
+  const esCreador = !!usuario && solicitud.solicitanteId === usuario.id;
+  // El rol Almacén nunca puede eliminar, ni siquiera la que él mismo
+  // generó — ver el mismo criterio en solicitudes-despacho/page.tsx.
+  const puedeEliminar = totalAtendido <= 0 && (esAdmin || (esCreador && !tieneRolAlmacen(usuario ?? { roles: [] })));
   const areaNombre = AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area;
 
   return (
@@ -62,7 +75,7 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
                 Descargar PDF
               </a>
             </Button>
-            {estado !== "ATENDIDA" && (
+            {puedeVerTodas && estado !== "ATENDIDA" && (
               <Button variant="outline" asChild>
                 <Link href={`/logistica/almacenes/consumos/nuevo?solicitudDespachoId=${solicitud.id}`}>Atender en Almacén</Link>
               </Button>

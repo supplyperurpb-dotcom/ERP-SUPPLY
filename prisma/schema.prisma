@@ -31,6 +31,12 @@ enum RolNombre {
   // llegue (p. ej. por "Seguimiento del pedido" de su propia Solped), sin
   // poder modificarla.
   COMPRADORES
+  // Quien atiende Solicitudes de Despacho — ver esAlmacen en
+  // lib/stock-almacen.ts. Solo quien tenga este rol (o ADMIN) ve la
+  // bandeja completa de solicitudes y los controles para atenderlas; el
+  // resto de los usuarios solo ve las que ellos mismos generaron, y nunca
+  // puede eliminar una aunque sea el solicitante.
+  ALMACEN
 }
 
 enum AccionPermiso {

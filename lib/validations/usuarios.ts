@@ -40,6 +40,10 @@ export const crearUsuarioSchema = z
     // lib/compras.ts. Independiente de accesoHrefs: la casilla de acceso
     // controla si VE el submódulo, esta controla si puede modificarlo.
     esComprador: z.boolean(),
+    // Único permiso habilitado para atender Solicitudes de Despacho (ver
+    // esAlmacen en lib/stock-almacen.ts) — determina si ve la bandeja
+    // completa o solo lo que generó, y bloquea que pueda eliminar una.
+    esAlmacen: z.boolean(),
   })
   .superRefine((data, ctx) => {
     if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {
@@ -77,6 +81,7 @@ export const editarUsuarioSchema = z
     activo: z.boolean(),
     // Ver comentario en crearUsuarioSchema.
     esComprador: z.boolean(),
+    esAlmacen: z.boolean(),
   })
   .superRefine((data, ctx) => {
     if (data.tipoRol === "APROBADOR_GENERAL" && !data.rolEspecial) {

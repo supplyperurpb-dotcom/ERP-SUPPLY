@@ -61,6 +61,7 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
           accesoHrefs: usuario.accesoItems.map((a) => a.href),
           activo: usuario.activo,
           esComprador: roles.includes("COMPRADORES"),
+          esAlmacen: roles.includes("ALMACEN"),
         }}
       />
     </div>

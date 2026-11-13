@@ -28,6 +28,7 @@ const ROLES_GESTIONADOS_POR_FORM: RolNombre[] = [
   ROLES.APROBADOR,
   ROLES.APROBADOR_GENERAL,
   ROLES.COMPRADORES,
+  ROLES.ALMACEN,
 ];
 
 // A partir de los hrefs marcados en el árbol de casillas, calcula los
@@ -62,7 +63,7 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { nombres, apellidos, email, dni, telefono, cargo, password, tipoRol, area, rolEspecial, accesoHrefs, esComprador } =
+  const { nombres, apellidos, email, dni, telefono, cargo, password, tipoRol, area, rolEspecial, accesoHrefs, esComprador, esAlmacen } =
     parsed.data;
 
   const quienCrea = await getUsuarioActual();
@@ -116,7 +117,10 @@ export async function crearUsuarioAction(data: CrearUsuarioInput): Promise<Crear
     const nombresRolAprobador: RolNombre[] =
       tipoRol === "APROBADOR" ? [ROLES.APROBADOR] : tipoRol === "APROBADOR_GENERAL" ? [ROLES.APROBADOR_GENERAL] : [];
     const nombresRolComprador: RolNombre[] = esComprador ? [ROLES.COMPRADORES] : [];
-    const nombresRolAAsignar = Array.from(new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador]));
+    const nombresRolAlmacen: RolNombre[] = esAlmacen ? [ROLES.ALMACEN] : [];
+    const nombresRolAAsignar = Array.from(
+      new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador, ...nombresRolAlmacen])
+    );
 
     for (const nombreRol of nombresRolAAsignar) {
       // Las claves de ROLES coinciden textualmente con sus valores
@@ -185,6 +189,7 @@ export async function editarUsuarioAction(
     accesoHrefs,
     activo,
     esComprador,
+    esAlmacen,
   } = parsed.data;
 
   const quienEdita = await getUsuarioActual();
@@ -258,7 +263,10 @@ export async function editarUsuarioAction(
       const nombresRolAprobador: RolNombre[] =
         tipoRol === "APROBADOR" ? [ROLES.APROBADOR] : tipoRol === "APROBADOR_GENERAL" ? [ROLES.APROBADOR_GENERAL] : [];
       const nombresRolComprador: RolNombre[] = esComprador ? [ROLES.COMPRADORES] : [];
-      const nombresRolAAsignar = Array.from(new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador]));
+      const nombresRolAlmacen: RolNombre[] = esAlmacen ? [ROLES.ALMACEN] : [];
+      const nombresRolAAsignar = Array.from(
+        new Set([...nombresRolModulo, ...nombresRolAprobador, ...nombresRolComprador, ...nombresRolAlmacen])
+      );
       if (nombresRolAAsignar.length > 0) {
         // Busca todos los Rol de una sola vez (reusando la conexión de la
         // transacción) en vez de un upsert por rol en una conexión aparte —

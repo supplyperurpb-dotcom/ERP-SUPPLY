@@ -98,10 +98,29 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
 // Igual que la antigua Solicitud de Traslado: no hay estado de aprobación
 // que proteja el borrado, solo que ningún consumo ya haya atendido alguna
 // de sus líneas.
+// Puede eliminar: un ADMIN siempre, o quien la generó — pero nunca quien
+// tenga el rol Almacén (ni siquiera la que él mismo generó): es quien la
+// atiende, no debería poder esquivarla borrándola. Mismo criterio que la
+// bandeja y el detalle (ver solicitudes-despacho/page.tsx), revalidado
+// acá porque nunca se confía solo en que el botón esté oculto del lado
+// del cliente.
+function puedeEliminarSolicitud(usuario: { id: string; roles: string[] }, solicitud: { solicitanteId: string | null }) {
+  if (usuario.roles.includes("ADMIN")) return true;
+  if (usuario.roles.includes("ALMACEN")) return false;
+  return solicitud.solicitanteId === usuario.id;
+}
+
 export async function eliminarSolicitudDespachoAction(id: string): Promise<{ error?: string } | undefined> {
   try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+
     const solicitud = await prisma.solicitudDespacho.findUnique({ where: { id } });
     if (!solicitud) return { error: "La solicitud ya no existe." };
+
+    if (!puedeEliminarSolicitud(usuario, solicitud)) {
+      return { error: "No tienes permiso para eliminar esta solicitud." };
+    }
 
     const itemsAtendidos = await prisma.consumoAlmacenItem.count({
       where: { solicitudDespachoItem: { solicitudDespachoId: id } },

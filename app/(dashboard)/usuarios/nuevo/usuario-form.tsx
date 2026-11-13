@@ -42,6 +42,7 @@ export function UsuarioForm() {
       rolEspecial: undefined,
       accesoHrefs: [],
       esComprador: false,
+      esAlmacen: false,
     },
   });
 
@@ -265,6 +266,25 @@ export function UsuarioForm() {
               Único rol que puede crear/editar Órdenes de compra y servicio y &quot;cerrar posición&quot; (Solped y OC/OS).
               Sin esto, el usuario solo puede VER una orden a la que llegue (p. ej. por seguimiento de su Solped), sin
               poder modificarla.
+            </p>
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <div className="flex items-center gap-2">
+              <Controller
+                control={form.control}
+                name="esAlmacen"
+                render={({ field }) => (
+                  <Checkbox id="esAlmacen" checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />
+                )}
+              />
+              <Label htmlFor="esAlmacen" className="font-normal">
+                Almacén
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Único rol que ve la bandeja completa de Solicitudes de Despacho y los controles para atenderlas. Sin
+              esto, el usuario solo ve las solicitudes que él mismo generó, y nunca puede eliminar una.
             </p>
           </div>
         </CardContent>

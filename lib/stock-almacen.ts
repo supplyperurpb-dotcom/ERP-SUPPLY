@@ -1,5 +1,24 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { ROLES, type RolNombre } from "@/lib/auth/constants";
+
+// Tiene el rol ALMACEN en sí mismo (sin el atajo de ADMIN) — se usa donde
+// el permiso de Almacén debe bloquear incluso a quien lo tenga, como
+// "no puede eliminar una Solicitud de Despacho" (ver
+// solicitudes-despacho-table.tsx), algo que ADMIN sí puede seguir
+// haciendo.
+export function tieneRolAlmacen(usuario: { roles: RolNombre[] }): boolean {
+  return usuario.roles.includes(ROLES.ALMACEN);
+}
+
+// Quien atiende Solicitudes de Despacho: ve la bandeja completa (en vez
+// de solo lo que generó) y los controles para atenderlas — ver
+// solicitudes-despacho/page.tsx. ADMIN siempre lo cumple, como con
+// cualquier otro permiso del sistema (igual que esComprador en
+// lib/compras.ts).
+export function esAlmacen(usuario: { roles: RolNombre[] }): boolean {
+  return usuario.roles.includes(ROLES.ADMIN) || tieneRolAlmacen(usuario);
+}
 
 // Todas las funciones aceptan opcionalmente un cliente de Prisma distinto
 // al singleton (típicamente `tx` dentro de un prisma.$transaction) — se usa
