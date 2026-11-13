@@ -45,14 +45,13 @@ const ANCHO_UTIL = ANCHO_PAGINA - MARGEN * 2;
 export type LineaConsumoPdf = {
   codigo: string;
   descripcion: string;
+  lote: string | null;
   cantidad: number;
   unidadMedida: string;
-  almacen: string;
 };
 
 export async function generarConsumoAlmacenPdf({
   numero,
-  almacenes,
   fecha,
   fechaContabilizacion,
   horaRetiro,
@@ -65,10 +64,6 @@ export async function generarConsumoAlmacenPdf({
   firmaPngBytes,
 }: {
   numero: string;
-  /** Casi siempre uno solo; puede haber más de uno si el consumo repartió
-   * un mismo producto entre varios almacenes al atender una Solicitud de
-   * Despacho — ya vienen unidos con coma. */
-  almacenes: string;
   fecha: Date;
   fechaContabilizacion: Date;
   horaRetiro: string | null;
@@ -104,25 +99,40 @@ export async function generarConsumoAlmacenPdf({
     }
   }
 
-  // Si el consumo repartió productos entre más de un almacén, cada línea
-  // también dice de cuál salió (si es uno solo, ya se ve arriba en
-  // "ALMACÉN" y no hace falta repetirlo).
-  const hayVariosAlmacenes = new Set(lineas.map((l) => l.almacen)).size > 1;
-
-  // Líneas ya envueltas de cada ítem/observación, calculadas ANTES de saber
-  // el alto de la página (acá no hay paginación: el alto se ajusta al
+  // Líneas ya envueltas de las observaciones, calculadas ANTES de saber el
+  // alto de la página (acá no hay paginación: el alto se ajusta al
   // contenido, así que hay que medirlo primero para poder crear la página).
-  const lineasPorItem = lineas.map((l) =>
-    envolverTexto(`${l.codigo} — ${l.descripcion}${hayVariosAlmacenes ? ` (${l.almacen})` : ""}`, regular, 8, ANCHO_UTIL, 2)
-  );
   const lineasObservaciones = observaciones ? envolverTexto(observaciones, regular, 7, ANCHO_UTIL, 3) : [];
 
-  const altoHeader = logoAltura + 4 + 10 + 10 + 14;
+  // Columnas de la tabla de productos (anchos en puntos, relativos a
+  // MARGEN) — no se muestra de qué almacén sale cada línea, eso lo decide
+  // quien atiende y no le aporta nada a quien retira/firma.
+  const COL_COD_X = 0;
+  const COL_PROD_X = 40;
+  const COL_LOTE_X = 150;
+  const COL_UM_X = 184;
+  const COL_CANT_X = 206;
+  const COL_COD_ANCHO = COL_PROD_X - COL_COD_X - 4;
+  const COL_PROD_ANCHO = COL_LOTE_X - COL_PROD_X - 4;
+  const COL_LOTE_ANCHO = COL_UM_X - COL_LOTE_X - 4;
+
+  function truncarCelda(texto: string, size: number, anchoMax: number): string {
+    if (regular.widthOfTextAtSize(texto, size) <= anchoMax) return texto;
+    let actual = texto;
+    while (actual.length > 1 && regular.widthOfTextAtSize(`${actual}…`, size) > anchoMax) {
+      actual = actual.slice(0, -1);
+    }
+    return `${actual}…`;
+  }
+
+  const altoHeader = logoAltura + 4 + 14;
   const altoTitulo = 16;
-  const nDatos = 5 + (vehiculoPlaca ? 1 : 0) + (horometroKilometraje !== null ? 1 : 0);
-  const altoDatos = nDatos * 22; // almacén, fecha/hora, f. contabilización, retirado por, registrado por, [vehículo], [horómetro]
+  const nDatos = 2 + (vehiculoPlaca ? 1 : 0) + (horometroKilometraje !== null ? 1 : 0);
+  const altoDatos = nDatos * 22; // fecha/hora + f. contabilización (misma fila), retirado por + registrado por (misma fila), [vehículo], [horómetro]
   const altoDivisorItems = 10 + 12;
-  const altoItems = lineasPorItem.reduce((acc, titulo) => acc + titulo.length * 9 + 9 + 6, 0);
+  const altoFilaItem = 11;
+  const altoTablaHeader = 10;
+  const altoItems = altoTablaHeader + lineas.length * altoFilaItem;
   const altoObservaciones = lineasObservaciones.length > 0 ? 9 + lineasObservaciones.length * 9 + 5 : 0;
   const altoFirma = 10 + (firma ? firmaAlto + 8 : 16);
   const altoFooter = 16;
@@ -134,11 +144,16 @@ export async function generarConsumoAlmacenPdf({
   let y = altoTotal - MARGEN;
 
   page.drawImage(logo, { x: MARGEN, y: y - logoAltura, width: logoAncho, height: logoAltura });
+  const codigoSize = 11;
+  const codigoAncho = bold.widthOfTextAtSize(numero, codigoSize);
+  page.drawText(numero, {
+    x: ANCHO_PAGINA - MARGEN - codigoAncho,
+    y: y - (logoAltura + codigoSize) / 2 + 1,
+    size: codigoSize,
+    font: bold,
+    color: NEGRO,
+  });
   y -= logoAltura + 4;
-  page.drawText("REITER PERUVIAN BERRY SA", { x: MARGEN, y, size: 8, font: bold, color: NEGRO });
-  y -= 10;
-  page.drawText("RUC: 20610390341", { x: MARGEN, y, size: 6, font: regular, color: GRIS });
-  y -= 10;
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.75, color: NEGRO });
   y -= 14;
 
@@ -151,11 +166,25 @@ export async function generarConsumoAlmacenPdf({
     page.drawText(value, { x: MARGEN, y, size: 8, font: regular, color: NEGRO });
     y -= 13;
   }
-  filaDato("ALMACÉN", almacenes);
-  filaDato("FECHA Y HORA", `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`);
-  filaDato("FECHA DE CONTABILIZACIÓN", fechaContabilizacion.toLocaleDateString("es-PE"));
-  filaDato("RETIRADO POR", retiradoPor);
-  filaDato("REGISTRADO POR", registradoPor);
+  // Dos pares label/valor en la misma fila (FECHA Y HORA / FECHA DE
+  // CONTABILIZACIÓN) — igual alto que filaDato, solo que escribe en dos
+  // columnas en vez de una.
+  function filaDatoDoble(label1: string, value1: string, label2: string, value2: string) {
+    const colAncho = ANCHO_UTIL / 2;
+    page.drawText(label1, { x: MARGEN, y, size: 7, font: bold, color: GRIS });
+    page.drawText(label2, { x: MARGEN + colAncho, y, size: 7, font: bold, color: GRIS });
+    y -= 9;
+    page.drawText(value1, { x: MARGEN, y, size: 8, font: regular, color: NEGRO });
+    page.drawText(value2, { x: MARGEN + colAncho, y, size: 8, font: regular, color: NEGRO });
+    y -= 13;
+  }
+  filaDatoDoble(
+    "FECHA Y HORA",
+    `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`,
+    "FECHA DE CONTABILIZACIÓN",
+    fechaContabilizacion.toLocaleDateString("es-PE")
+  );
+  filaDatoDoble("RETIRADO POR", retiradoPor, "REGISTRADO POR", registradoPor);
   if (vehiculoPlaca) filaDato("PLACA DEL VEHÍCULO", vehiculoPlaca);
   if (horometroKilometraje !== null) filaDato("HORÓMETRO / KILOMETRAJE", String(horometroKilometraje));
 
@@ -164,23 +193,35 @@ export async function generarConsumoAlmacenPdf({
   page.drawText("PRODUCTOS", { x: MARGEN, y, size: 7, font: bold, color: GRIS });
   y -= 12;
 
-  for (let i = 0; i < lineas.length; i++) {
-    const linea = lineas[i];
-    for (const l of lineasPorItem[i]) {
-      page.drawText(l, { x: MARGEN, y, size: 8, font: regular, color: NEGRO });
-      y -= 9;
-    }
-    page.drawText(`Cantidad: ${linea.cantidad} ${linea.unidadMedida}`, { x: MARGEN, y, size: 7, font: bold, color: NEGRO });
-    y -= 9;
-    if (i < lineas.length - 1) {
-      page.drawLine({
-        start: { x: MARGEN, y: y + 3 },
-        end: { x: ANCHO_PAGINA - MARGEN, y: y + 3 },
-        thickness: 0.3,
-        color: GRIS_CLARO,
-      });
-    }
-    y -= 6;
+  page.drawText("COD", { x: MARGEN + COL_COD_X, y, size: 6.5, font: bold, color: GRIS });
+  page.drawText("PRODUCTO", { x: MARGEN + COL_PROD_X, y, size: 6.5, font: bold, color: GRIS });
+  page.drawText("LOTE", { x: MARGEN + COL_LOTE_X, y, size: 6.5, font: bold, color: GRIS });
+  page.drawText("UM", { x: MARGEN + COL_UM_X, y, size: 6.5, font: bold, color: GRIS });
+  page.drawText("CANT", { x: MARGEN + COL_CANT_X, y, size: 6.5, font: bold, color: GRIS });
+  y -= altoTablaHeader;
+  page.drawLine({ start: { x: MARGEN, y: y + 3 }, end: { x: ANCHO_PAGINA - MARGEN, y: y + 3 }, thickness: 0.4, color: GRIS_CLARO });
+
+  for (const linea of lineas) {
+    page.drawText(truncarCelda(linea.codigo, 7, COL_COD_ANCHO), { x: MARGEN + COL_COD_X, y, size: 7, font: regular, color: NEGRO });
+    page.drawText(truncarCelda(linea.descripcion, 7, COL_PROD_ANCHO), {
+      x: MARGEN + COL_PROD_X,
+      y,
+      size: 7,
+      font: regular,
+      color: NEGRO,
+    });
+    page.drawText(linea.lote ? truncarCelda(linea.lote, 7, COL_LOTE_ANCHO) : "—", {
+      x: MARGEN + COL_LOTE_X,
+      y,
+      size: 7,
+      font: regular,
+      color: NEGRO,
+    });
+    page.drawText(linea.unidadMedida, { x: MARGEN + COL_UM_X, y, size: 7, font: regular, color: NEGRO });
+    const cantTexto = String(linea.cantidad);
+    const cantAncho = regular.widthOfTextAtSize(cantTexto, 7);
+    page.drawText(cantTexto, { x: ANCHO_PAGINA - MARGEN - cantAncho, y, size: 7, font: regular, color: NEGRO });
+    y -= altoFilaItem;
   }
 
   if (lineasObservaciones.length > 0) {
