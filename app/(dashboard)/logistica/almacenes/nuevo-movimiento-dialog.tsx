@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, ChevronLeft, PackageMinus, PackagePlus, Plus, Undo2 } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, ClipboardList, Fuel, PackageMinus, PackagePlus, Plus, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -153,7 +153,47 @@ export function NuevoMovimientoDialog({ almacenes }: { almacenes: AlmacenOpcion[
           </>
         )}
 
-        {tipo !== null && categoria === null && (
+        {/* Para Consumo, el segundo paso no es la lista normal de categorías:
+            se ofrece ir directo a la bandeja de Solicitudes de Despacho, o a
+            un atajo de Consumo de Combustible (salta la categoría — ya se
+            sabe que es Combustible — y va directo a elegir el almacén). */}
+        {tipo === "CONSUMO" && categoria === null && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setTipo(null)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                ¿Qué consumo quieres registrar?
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Card
+                className="cursor-pointer transition-colors hover:border-primary hover:bg-accent/40"
+                onClick={() => {
+                  cerrar();
+                  router.push("/logistica/solicitudes-despacho");
+                }}
+              >
+                <CardHeader className="items-center text-center">
+                  <ClipboardList className="mb-2 h-6 w-6 text-primary" />
+                  <CardTitle className="text-sm">Ver Solicitudes de Despacho</CardTitle>
+                </CardHeader>
+              </Card>
+              <Card
+                className="cursor-pointer transition-colors hover:border-primary hover:bg-accent/40"
+                onClick={() => setCategoria("COMBUSTIBLE")}
+              >
+                <CardHeader className="items-center text-center">
+                  <Fuel className="mb-2 h-6 w-6 text-primary" />
+                  <CardTitle className="text-sm">Consumo Combustible</CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+          </>
+        )}
+
+        {tipo !== null && tipo !== "CONSUMO" && categoria === null && (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
