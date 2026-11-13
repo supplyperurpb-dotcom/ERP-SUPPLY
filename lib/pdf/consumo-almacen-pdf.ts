@@ -53,6 +53,7 @@ export async function generarConsumoAlmacenPdf({
   numero,
   almacen,
   fecha,
+  fechaContabilizacion,
   horaRetiro,
   retiradoPor,
   registradoPor,
@@ -65,6 +66,7 @@ export async function generarConsumoAlmacenPdf({
   numero: string;
   almacen: string;
   fecha: Date;
+  fechaContabilizacion: Date;
   horaRetiro: string | null;
   retiradoPor: string;
   registradoPor: string;
@@ -106,8 +108,8 @@ export async function generarConsumoAlmacenPdf({
 
   const altoHeader = logoAltura + 4 + 10 + 10 + 14;
   const altoTitulo = 16;
-  const nDatos = 4 + (vehiculoPlaca ? 1 : 0) + (horometroKilometraje !== null ? 1 : 0);
-  const altoDatos = nDatos * 22; // almacén, fecha/hora, retirado por, registrado por, [vehículo], [horómetro]
+  const nDatos = 5 + (vehiculoPlaca ? 1 : 0) + (horometroKilometraje !== null ? 1 : 0);
+  const altoDatos = nDatos * 22; // almacén, fecha/hora, f. contabilización, retirado por, registrado por, [vehículo], [horómetro]
   const altoDivisorItems = 10 + 12;
   const altoItems = lineasPorItem.reduce((acc, titulo) => acc + titulo.length * 9 + 9 + 6, 0);
   const altoObservaciones = lineasObservaciones.length > 0 ? 9 + lineasObservaciones.length * 9 + 5 : 0;
@@ -140,6 +142,7 @@ export async function generarConsumoAlmacenPdf({
   }
   filaDato("ALMACÉN", almacen);
   filaDato("FECHA Y HORA", `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`);
+  filaDato("FECHA DE CONTABILIZACIÓN", fechaContabilizacion.toLocaleDateString("es-PE"));
   filaDato("RETIRADO POR", retiradoPor);
   filaDato("REGISTRADO POR", registradoPor);
   if (vehiculoPlaca) filaDato("PLACA DEL VEHÍCULO", vehiculoPlaca);

@@ -219,6 +219,7 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
   }
   const {
     fecha,
+    fechaContabilizacion,
     horaRetiro,
     almacenOrigenId,
     retiradoPor,
@@ -298,6 +299,7 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
         data: {
           numero,
           fecha,
+          fechaContabilizacion,
           horaRetiro,
           almacenOrigenId,
           retiradoPor,
@@ -369,6 +371,7 @@ export async function actualizarConsumoAlmacenAction(
   }
   const {
     fecha,
+    fechaContabilizacion,
     horaRetiro,
     almacenOrigenId,
     retiradoPor,
@@ -451,6 +454,7 @@ export async function actualizarConsumoAlmacenAction(
         where: { id },
         data: {
           fecha,
+          fechaContabilizacion,
           horaRetiro,
           almacenOrigenId,
           retiradoPor,

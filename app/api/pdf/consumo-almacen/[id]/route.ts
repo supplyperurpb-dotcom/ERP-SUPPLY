@@ -25,6 +25,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     numero: consumo.numero,
     almacen: consumo.almacen.nombre,
     fecha: consumo.fecha,
+    fechaContabilizacion: consumo.fechaContabilizacion,
     horaRetiro: consumo.horaRetiro,
     retiradoPor: consumo.retiradoPor ? `${consumo.retiradoPor} (DNI ${consumo.retiradoPorDni ?? "—"})` : "—",
     registradoPor: registrador ? `${registrador.nombres} ${registrador.apellidos}` : "—",

@@ -98,11 +98,15 @@ export function ConsumoAlmacenForm({
   const [firmaFile, setFirmaFile] = useState<File | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [subiendoArchivos, setSubiendoArchivos] = useState(false);
+  // Fecha de registro: siempre hoy, bloqueada — igual que en Ingreso. Al
+  // editar, queda como se registró originalmente (nunca se retrofecha).
+  const fecha = edicion?.valoresIniciales.fecha ?? (fechaLocalHoy() as unknown as Date);
 
   const form = useForm<ConsumoAlmacenInput>({
     resolver: zodResolver(consumoAlmacenSchema),
     defaultValues: edicion?.valoresIniciales ?? {
-      fecha: fechaLocalHoy() as unknown as Date,
+      fecha,
+      fechaContabilizacion: fechaLocalHoy() as unknown as Date,
       horaRetiro: horaLocalAhora(),
       almacenOrigenId: almacenIdInicial ?? "",
       retiradoPor: "",
@@ -309,10 +313,26 @@ export function ConsumoAlmacenForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fecha">Fecha</Label>
-            <Input id="fecha" type="date" {...form.register("fecha")} />
-            {form.formState.errors.fecha && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.fecha.message}</p>
+            <Label htmlFor="fecha">Fecha de registro</Label>
+            <Input
+              id="fecha"
+              type="date"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              value={fecha as unknown as string}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fechaContabilizacion">Fecha de Contabilización</Label>
+            <Input
+              id="fechaContabilizacion"
+              type="date"
+              max={fechaLocalHoy()}
+              {...form.register("fechaContabilizacion")}
+            />
+            {form.formState.errors.fechaContabilizacion && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.fechaContabilizacion.message}</p>
             )}
           </div>
 

@@ -139,31 +139,48 @@ const itemConsumoSchema = z.object({
   solicitudDespachoItemId: z.string().optional().or(z.literal("")),
 });
 
-export const consumoAlmacenSchema = z.object({
-  fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-  horaRetiro: z.string().min(1, "La hora es obligatoria"),
-  almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
-  // Seleccionado del catálogo RetiradorAutorizado (ver
-  // lib/validations/retirador-autorizado.ts) — ya no es texto libre, el
-  // combobox del formulario solo ofrece retiradores con permiso en el
-  // almacén elegido.
-  retiradoPor: z.string().trim().min(1, "Selecciona quién retira el material").max(150),
-  retiradoPorDni: z
-    .string()
-    .trim()
-    .regex(/^\d{8}$/, "El DNI de quien retira es obligatorio"),
-  // Solo obligatorios cuando el almacén de origen es de categoría
-  // COMBUSTIBLE (lo exige el servidor, ver validarVehiculoSiAplica en
-  // crearConsumoAlmacenAction) — en los demás almacenes quedan vacíos.
-  vehiculoPlaca: z.string().trim().max(20).optional().or(z.literal("")),
-  horometroKilometraje: z.coerce.number().min(0).optional(),
-  // Rutas en Supabase Storage de la firma (PNG, capturada en un <canvas>) y
-  // de la foto de evidencia del despacho — ver lib/storage.ts. Ambas
-  // obligatorias: sin sustento no se puede registrar el consumo.
-  firmaArchivo: z.string().min(1, "Captura la firma de quien retira el material"),
-  fotoEvidenciaArchivo: z.string().min(1, "Adjunta una foto de evidencia del despacho"),
-  observaciones: z.string().max(500).optional().or(z.literal("")),
-  items: z.array(itemConsumoSchema).min(1, "Agrega al menos un producto"),
-});
+export const consumoAlmacenSchema = z
+  .object({
+    // Fecha de registro: siempre hoy, bloqueada en el formulario — igual
+    // que IngresoAlmacen.fecha.
+    fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    // A diferencia de fecha, esta sí la elige el usuario — pero nunca puede
+    // ser posterior a hoy (no se pueden contabilizar consumos "a futuro").
+    fechaContabilizacion: z.coerce.date({ required_error: "La fecha de contabilización es obligatoria" }),
+    horaRetiro: z.string().min(1, "La hora es obligatoria"),
+    almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
+    // Seleccionado del catálogo RetiradorAutorizado (ver
+    // lib/validations/retirador-autorizado.ts) — ya no es texto libre, el
+    // combobox del formulario solo ofrece retiradores con permiso en el
+    // almacén elegido.
+    retiradoPor: z.string().trim().min(1, "Selecciona quién retira el material").max(150),
+    retiradoPorDni: z
+      .string()
+      .trim()
+      .regex(/^\d{8}$/, "El DNI de quien retira es obligatorio"),
+    // Solo obligatorios cuando el almacén de origen es de categoría
+    // COMBUSTIBLE (lo exige el servidor, ver validarVehiculoSiAplica en
+    // crearConsumoAlmacenAction) — en los demás almacenes quedan vacíos.
+    vehiculoPlaca: z.string().trim().max(20).optional().or(z.literal("")),
+    horometroKilometraje: z.coerce.number().min(0).optional(),
+    // Rutas en Supabase Storage de la firma (PNG, capturada en un <canvas>) y
+    // de la foto de evidencia del despacho — ver lib/storage.ts. Ambas
+    // obligatorias: sin sustento no se puede registrar el consumo.
+    firmaArchivo: z.string().min(1, "Captura la firma de quien retira el material"),
+    fotoEvidenciaArchivo: z.string().min(1, "Adjunta una foto de evidencia del despacho"),
+    observaciones: z.string().max(500).optional().or(z.literal("")),
+    items: z.array(itemConsumoSchema).min(1, "Agrega al menos un producto"),
+  })
+  .superRefine((data, ctx) => {
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999);
+    if (data.fechaContabilizacion > hoy) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La fecha de contabilización no puede ser posterior a hoy",
+        path: ["fechaContabilizacion"],
+      });
+    }
+  });
 
 export type ConsumoAlmacenInput = z.infer<typeof consumoAlmacenSchema>;

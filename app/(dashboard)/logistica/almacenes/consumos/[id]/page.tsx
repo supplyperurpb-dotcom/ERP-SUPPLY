@@ -85,6 +85,10 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
           <p className="text-muted-foreground">Hora de retiro</p>
           <p className="font-medium">{consumo.horaRetiro ?? "—"}</p>
         </div>
+        <div>
+          <p className="text-muted-foreground">Fecha de Contabilización</p>
+          <p className="font-medium">{formatDate(consumo.fechaContabilizacion)}</p>
+        </div>
         {consumo.vehiculoPlaca && (
           <div>
             <p className="text-muted-foreground">Placa del vehículo</p>

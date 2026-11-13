@@ -1019,7 +1019,15 @@ model TrasladoAlmacenItem {
 model ConsumoAlmacen {
   id                   String   @id @default(cuid())
   numero               String   @unique // CA-0001
+  // Fecha de registro: siempre la de hoy, bloqueada en el formulario, igual
+  // que IngresoAlmacen.fecha — es la que de verdad usa el costeo ponderado
+  // y MovimientoStock (ver crearConsumoAlmacenAction), nunca
+  // fechaContabilizacion.
   fecha                DateTime
+  // A diferencia de fecha, esta sí la elige el usuario — pero nunca puede
+  // ser posterior a hoy. Solo para contabilidad, no afecta el costeo ni el
+  // stock — igual que IngresoAlmacen.fechaContabilizacion.
+  fechaContabilizacion DateTime
   // Hora del retiro ("HH:MM"), separada de `fecha` igual que horaDespacho
   // en Despacho — nunca se combinan en un solo DateTime.
   horaRetiro           String?
