@@ -28,23 +28,19 @@ const itemDevolucionSchema = z.object({
   fechaVencimiento: z.preprocess((v) => (v === "" ? undefined : v), z.coerce.date().optional()),
 });
 
-export const devolucionAlmacenSchema = z
-  .object({
-    // Fecha de registro: siempre hoy, bloqueada en el formulario — igual
-    // que el Ingreso.
-    fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-    almacenId: z.string().min(1, "Selecciona el almacén"),
-    area: z.enum(AREAS, { required_error: "Selecciona el área" }),
-    personaQueTrae: z.string().trim().min(1, "Selecciona quién trae el material").max(150),
-    personaQueTraeDni: z
-      .string()
-      .trim()
-      .regex(/^\d{8}$/, "El DNI de quien trae el material es obligatorio"),
-    // Opcional: la devolución puede venir sin proveedor asociado (p. ej.
-    // vuelve de un área interna).
-    proveedorId: z.string().optional().or(z.literal("")),
-    observaciones: z.string().max(500).optional().or(z.literal("")),
-    items: z.array(itemDevolucionSchema).min(1, "Agrega al menos un producto"),
-  });
+export const devolucionAlmacenSchema = z.object({
+  // Fecha de registro: siempre hoy, bloqueada en el formulario — igual
+  // que el Ingreso.
+  fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+  almacenId: z.string().min(1, "Selecciona el almacén"),
+  area: z.enum(AREAS, { required_error: "Selecciona el área" }),
+  personaQueTrae: z.string().trim().min(1, "Selecciona quién trae el material").max(150),
+  personaQueTraeDni: z
+    .string()
+    .trim()
+    .regex(/^\d{8}$/, "El DNI de quien trae el material es obligatorio"),
+  observaciones: z.string().max(500).optional().or(z.literal("")),
+  items: z.array(itemDevolucionSchema).min(1, "Agrega al menos un producto"),
+});
 
 export type DevolucionAlmacenInput = z.infer<typeof devolucionAlmacenSchema>;

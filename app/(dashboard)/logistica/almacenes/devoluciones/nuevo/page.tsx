@@ -12,10 +12,9 @@ export default async function NuevaDevolucionAlmacenPage({
 }) {
   const { almacenId } = await searchParams;
 
-  const [usuario, almacenes, proveedores, retiradores, skus, existentes] = await Promise.all([
+  const [usuario, almacenes, retiradores, skus, existentes] = await Promise.all([
     getUsuarioActual(),
     prisma.almacen.findMany({ where: { activo: true, esGeneral: true }, orderBy: { nombre: "asc" } }),
-    prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
       include: { almacenesPermitidos: true },
@@ -40,7 +39,6 @@ export default async function NuevaDevolucionAlmacenPage({
       <DevolucionAlmacenForm
         usuario={{ nombres: usuario.nombres, apellidos: usuario.apellidos }}
         almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
-        proveedores={proveedores.map((p) => ({ id: p.id, razonSocial: p.razonSocial, ruc: p.numeroDocumento }))}
         retiradores={retiradores.map((r) => ({
           id: r.id,
           nombreCompleto: `${r.nombres} ${r.apellidos}`,

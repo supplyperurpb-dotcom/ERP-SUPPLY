@@ -7,10 +7,9 @@ import type { DevolucionAlmacenInput } from "@/lib/validations/devolucion-almace
 export default async function EditarDevolucionAlmacenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [devolucion, almacenes, proveedores, retiradores, skus] = await Promise.all([
+  const [devolucion, almacenes, retiradores, skus] = await Promise.all([
     prisma.devolucionAlmacen.findUnique({ where: { id }, include: { items: true } }),
     prisma.almacen.findMany({ where: { activo: true, esGeneral: true }, orderBy: { nombre: "asc" } }),
-    prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
       include: { almacenesPermitidos: true },
@@ -36,7 +35,6 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
     area: devolucion.area as DevolucionAlmacenInput["area"],
     personaQueTrae: devolucion.personaQueTrae,
     personaQueTraeDni: devolucion.personaQueTraeDni,
-    proveedorId: devolucion.proveedorId ?? "",
     observaciones: devolucion.observaciones ?? "",
     items: devolucion.items.map((item) => ({
       skuId: item.skuId,
@@ -60,7 +58,6 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
           registradoPor ? { nombres: registradoPor.nombres, apellidos: registradoPor.apellidos } : { nombres: "—", apellidos: "" }
         }
         almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
-        proveedores={proveedores.map((p) => ({ id: p.id, razonSocial: p.razonSocial, ruc: p.numeroDocumento }))}
         retiradores={retiradores.map((r) => ({
           id: r.id,
           nombreCompleto: `${r.nombres} ${r.apellidos}`,

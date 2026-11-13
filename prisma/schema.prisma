@@ -904,9 +904,9 @@ model DevolucionAlmacen {
   // devolver a cualquier almacén.
   personaQueTrae    String
   personaQueTraeDni String
-  // Proveedor opcional: solo cuando la devolución en realidad es mercadería
-  // que se le regresa a su proveedor original, no a un área interna — ver
-  // la casilla "Tiene proveedor" en el formulario.
+  // Proveedor opcional: ya no se captura desde el formulario (se quitó ese
+  // campo), se conserva solo para no perder el dato de devoluciones
+  // antiguas que sí lo tenían.
   proveedorId       String?
   observaciones     String?
   creadoPorId       String?

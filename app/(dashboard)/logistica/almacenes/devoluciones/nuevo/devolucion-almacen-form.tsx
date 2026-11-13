@@ -17,7 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { RetiradorAutorizadoCombobox } from "@/components/shared/retirador-autorizado-combobox";
-import { ProveedorSelectCombobox } from "@/components/shared/proveedor-select-combobox";
 import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
 import { categoriaAlmacenExigidaPorSku } from "@/lib/constants/sku";
@@ -29,7 +28,6 @@ import {
 } from "@/lib/actions/devolucion-almacen-actions";
 
 type AlmacenOpcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
-type ProveedorOpcion = { id: string; razonSocial: string; ruc: string };
 type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; area: string; almacenesIds: string[] };
 type SkuOpcion = { id: string; codigo: string; descripcion: string; subfamilia: string; unidadMedida: string; requiereLote: boolean };
 
@@ -46,7 +44,6 @@ const ITEM_VACIO = {
 export function DevolucionAlmacenForm({
   usuario,
   almacenes,
-  proveedores,
   retiradores,
   skus,
   almacenIdInicial,
@@ -54,7 +51,6 @@ export function DevolucionAlmacenForm({
 }: {
   usuario: { nombres: string; apellidos: string };
   almacenes: AlmacenOpcion[];
-  proveedores: ProveedorOpcion[];
   retiradores: RetiradorOpcion[];
   skus: SkuOpcion[];
   almacenIdInicial?: string;
@@ -73,7 +69,6 @@ export function DevolucionAlmacenForm({
       area: undefined,
       personaQueTrae: "",
       personaQueTraeDni: "",
-      proveedorId: "",
       observaciones: "",
       items: [ITEM_VACIO],
     },
@@ -82,7 +77,6 @@ export function DevolucionAlmacenForm({
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenId = useWatch({ control: form.control, name: "almacenId" });
-  const proveedorId = useWatch({ control: form.control, name: "proveedorId" });
   const personaQueTraeDni = useWatch({ control: form.control, name: "personaQueTraeDni" });
   const area = useWatch({ control: form.control, name: "area" });
 
@@ -264,29 +258,6 @@ export function DevolucionAlmacenForm({
             <Input id="area" disabled value={AREAS_EMPRESA.find((a) => a.valor === area)?.nombre ?? ""} />
             {form.formState.errors.area && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.area.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2 sm:col-span-2">
-            <Label>Proveedor (opcional)</Label>
-            <Controller
-              control={form.control}
-              name="proveedorId"
-              render={({ field }) => (
-                <ProveedorSelectCombobox
-                  proveedores={proveedores}
-                  value={field.value ?? ""}
-                  onSelect={(p) => field.onChange(p?.id ?? "")}
-                />
-              )}
-            />
-            {form.formState.errors.proveedorId && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.proveedorId.message}</p>
-            )}
-            {proveedorId && (
-              <p className="text-xs text-muted-foreground">
-                RUC {proveedores.find((p) => p.id === proveedorId)?.ruc ?? "—"}
-              </p>
             )}
           </div>
 
