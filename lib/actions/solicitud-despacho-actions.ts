@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
 import { calcularStockDisponibleDespacho } from "@/lib/stock-almacen";
+import { puedeVerCampoPacking } from "@/lib/compras";
 import { solicitudDespachoSchema, type SolicitudDespachoInput } from "@/lib/validations/solicitud-despacho";
 
 export type SolicitudDespachoActionState = { error?: string; id?: string; numero?: string } | undefined;
@@ -30,6 +31,13 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
     // en el formulario (es la del usuario que pide, sin excepción): se
     // fuerza aquí también, sin confiar en el valor que llegó del cliente.
     const area = (usuario?.area as typeof parsed.data.area | null) ?? parsed.data.area;
+
+    // "Packing" no sale en el combo de quien no es comprador ni Carlos
+    // Gozzer (ver puedeVerCampoPacking), pero igual se revalida acá: nunca
+    // se confía en que el cliente no lo haya mandado armado a mano.
+    if (items.some((item) => item.campo === "Packing") && !(usuario && puedeVerCampoPacking(usuario))) {
+      return { error: "No tienes permiso para usar el campo 'Packing'." };
+    }
 
     const cantidadPorSku = new Map<string, number>();
     for (const item of items) {

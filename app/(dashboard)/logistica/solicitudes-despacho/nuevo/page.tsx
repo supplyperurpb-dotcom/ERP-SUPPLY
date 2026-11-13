@@ -5,6 +5,7 @@ import { calcularStockDisponibleDespacho } from "@/lib/stock-almacen";
 import { siguienteNumero } from "@/lib/utils";
 import { prisma } from "@/lib/db/prisma";
 import type { AreaEmpresaCodigo } from "@/lib/constants/compras";
+import { puedeVerCampoPacking } from "@/lib/compras";
 import { SolicitudDespachoForm } from "./solicitud-despacho-form";
 
 export default async function NuevaSolicitudDespachoPage() {
@@ -12,13 +13,17 @@ export default async function NuevaSolicitudDespachoPage() {
   const areaInicial: AreaEmpresaCodigo = (usuario?.area as AreaEmpresaCodigo | null) ?? "PRODUCCION";
   const usuarioNombre = usuario ? `${usuario.nombres} ${usuario.apellidos}` : "—";
 
-  const [stockTotal, existentes, centrosCosto, campos] = await Promise.all([
+  const [stockTotal, existentes, centrosCosto, camposTodos] = await Promise.all([
     calcularStockDisponibleDespacho(),
     prisma.solicitudDespacho.findMany({ select: { numero: true } }),
     obtenerValoresActivos("CENTRO_COSTO"),
     obtenerValoresActivos("CAMPO"),
   ]);
   const numeroTentativo = siguienteNumero(existentes.map((s) => s.numero), "SD-");
+
+  // "Packing" solo lo pueden ver/elegir los compradores y Carlos Gozzer —
+  // ver puedeVerCampoPacking.
+  const campos = usuario && puedeVerCampoPacking(usuario) ? camposTodos : camposTodos.filter((c) => c !== "Packing");
 
   return (
     <div>

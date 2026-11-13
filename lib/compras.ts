@@ -17,6 +17,14 @@ export function esComprador(usuario: { roles: RolNombre[] }): boolean {
   return usuario.roles.includes(ROLES.ADMIN) || usuario.roles.includes(ROLES.COMPRADORES);
 }
 
+// Valor "Packing" de la lista de Campo (ver lib/listas.ts, CAMPO): solo lo
+// deben poder ver/elegir los compradores y Carlos Gozzer (aprobador de
+// Supply Chain) — pedido explícito del cliente, 2026-11-12. Usa el mismo
+// email que EMAIL_APROBADOR_GENERAL_ACOTADO_A_SU_AREA más abajo.
+export function puedeVerCampoPacking(usuario: { roles: RolNombre[]; email: string }): boolean {
+  return esComprador(usuario) || usuario.email === EMAIL_APROBADOR_GENERAL_ACOTADO_A_SU_AREA;
+}
+
 export type ItemPendiente = {
   id: string; // SolicitudPedidoItem.id
   skuId: string;
