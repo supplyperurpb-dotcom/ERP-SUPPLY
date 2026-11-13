@@ -14,7 +14,7 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
 
   const consumo = await prisma.consumoAlmacen.findUnique({
     where: { id },
-    include: { almacen: true, items: { include: { sku: true } } },
+    include: { items: { include: { sku: true, almacenOrigen: true } } },
   });
   if (!consumo) notFound();
 
@@ -23,6 +23,10 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
     : null;
 
   const valorConsumido = consumo.items.reduce((acc, item) => acc + Number(item.valorConsumido), 0);
+  // Casi siempre es uno solo; puede ser más de uno si el consumo repartió
+  // un mismo producto entre varios almacenes al atender una Solicitud de
+  // Despacho (ver "Ver Productos" en consumo-almacen-form.tsx).
+  const almacenesUsados = [...new Map(consumo.items.map((item) => [item.almacenOrigen.id, item.almacenOrigen])).values()];
 
   return (
     <div className="space-y-6">
@@ -64,9 +68,14 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
           <p className="font-medium">{consumo.numero}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Almacén</p>
+          <p className="text-muted-foreground">{almacenesUsados.length > 1 ? "Almacenes" : "Almacén"}</p>
           <p className="font-medium">
-            {consumo.almacen.nombre} <span className="font-mono text-muted-foreground">({consumo.almacen.codigo})</span>
+            {almacenesUsados.map((a, i) => (
+              <span key={a.id}>
+                {i > 0 && ", "}
+                {a.nombre} <span className="font-mono text-muted-foreground">({a.codigo})</span>
+              </span>
+            ))}
           </p>
         </div>
         <div>
@@ -138,6 +147,7 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
       <Table>
         <TableHeader>
           <TableRow>
+            {almacenesUsados.length > 1 && <TableHead>Almacén</TableHead>}
             <TableHead>Código</TableHead>
             <TableHead>Producto</TableHead>
             <TableHead>Lote</TableHead>
@@ -152,6 +162,11 @@ export default async function ConsumoAlmacenDetallePage({ params }: { params: Pr
         <TableBody>
           {consumo.items.map((item) => (
             <TableRow key={item.id}>
+              {almacenesUsados.length > 1 && (
+                <TableCell>
+                  <span className="font-mono text-muted-foreground">{item.almacenOrigen.codigo}</span> {item.almacenOrigen.nombre}
+                </TableCell>
+              )}
               <TableCell className="font-medium">{item.sku.codigo}</TableCell>
               <TableCell>{item.sku.descripcion}</TableCell>
               <TableCell>{item.lote ?? "—"}</TableCell>

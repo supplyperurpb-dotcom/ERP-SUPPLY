@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ClipboardList, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -19,49 +20,57 @@ import { FirmaCanvas } from "@/components/shared/firma-canvas";
 import { RetiradorAutorizadoCombobox } from "@/components/shared/retirador-autorizado-combobox";
 import { VehiculoCombobox, type VehiculoOpcionCombobox } from "@/components/shared/vehiculo-combobox";
 import { fechaLocalHoy, horaLocalAhora, formatCantidad } from "@/lib/utils";
+import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
 import {
   crearConsumoAlmacenAction,
   actualizarConsumoAlmacenAction,
   subirFirmaConsumoAction,
   subirEvidenciaConsumoAction,
+  obtenerStockPorAlmacenParaSkuAction,
 } from "@/lib/actions/consumo-almacen-actions";
-import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
+import type { FilaStockAlmacen, LoteStock, StockPorAlmacen } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
 type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
 
-const ITEM_VACIO = {
-  skuId: "",
-  cantidad: 0,
-  unidadMedida: "",
-  lote: "",
-  fechaProduccion: undefined,
-  fechaVencimiento: undefined,
-  solicitudDespachoItemId: "",
+function itemVacio(almacenOrigenId: string) {
+  return {
+    almacenOrigenId,
+    skuId: "",
+    cantidad: 0,
+    unidadMedida: "",
+    lote: "",
+    fechaProduccion: undefined,
+    fechaVencimiento: undefined,
+    solicitudDespachoItemId: "",
+  };
+}
+
+// Una línea pendiente de atender, de alguna de las Solicitudes de Despacho
+// que se están atendiendo en este consumo — ver "Ver Productos" más abajo.
+type PendienteDespacho = {
+  id: string; // SolicitudDespachoItem.id
+  solicitudId: string;
+  solicitudNumero: string;
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  subfamilia: string;
+  unidadMedida: string;
+  cantidadPendiente: number;
 };
 
 type SolicitudDespachoInicial = {
   id: string;
   numero: string;
-  items: { id: string; skuId: string; codigo: string; descripcion: string; unidadMedida: string; cantidadPendiente: number }[];
+  area: string;
+  items: Omit<PendienteDespacho, "solicitudId" | "solicitudNumero">[];
 };
 
 function soloFecha(d: Date | string | undefined): string {
   if (!d) return "";
   return (typeof d === "string" ? d : d.toISOString()).slice(0, 10);
-}
-
-function itemsDesdeSolicitud(solicitud: SolicitudDespachoInicial) {
-  return solicitud.items.map((item) => ({
-    skuId: item.skuId,
-    cantidad: item.cantidadPendiente,
-    unidadMedida: item.unidadMedida,
-    lote: "",
-    fechaProduccion: undefined,
-    fechaVencimiento: undefined,
-    solicitudDespachoItemId: item.id,
-  }));
 }
 
 export function ConsumoAlmacenForm({
@@ -71,27 +80,31 @@ export function ConsumoAlmacenForm({
   retiradores,
   vehiculos,
   almacenIdInicial,
-  solicitudDespachoInicial,
+  solicitudesDespachoInicial,
   edicion,
 }: {
   almacenes: Opcion[];
   /** Para almacenes de categoría COMBUSTIBLE, la página ya filtró esta lista
-   * a solo SKU de subfamilia "Combustibles" (ver consumos/nuevo/page.tsx). */
+   * a solo SKU de subfamilia "Combustibles" (ver consumos/nuevo/page.tsx).
+   * Solo se usa en el flujo manual (sin solicitudes de despacho). */
   stockPorAlmacen: Record<string, FilaStockAlmacen[]>;
-  /** Solo trae datos para almacenes de categoría PESTICIDAS o FERTILIZANTES. */
+  /** Lotes con stock por almacén y SKU, para cada almacén de categoría
+   * PESTICIDAS o FERTILIZANTES que pueda aparecer en el formulario (el
+   * elegido en el flujo manual, o cualquiera de los elegibles si se están
+   * atendiendo Solicitudes de Despacho). */
   lotesPorAlmacen: Record<string, Record<string, LoteStock[]>>;
   retiradores: RetiradorOpcion[];
   vehiculos: VehiculoOpcionCombobox[];
   almacenIdInicial?: string;
-  /** Presente cuando este consumo viene de "Atender" una Solicitud de
-   * Despacho (ver consumos/nuevo/page.tsx): precarga sus líneas pendientes
-   * y fija el almacén, pero las cantidades siguen siendo editables por si
-   * no se entrega todo lo pedido. */
-  solicitudDespachoInicial?: SolicitudDespachoInicial;
+  /** Presente cuando este consumo atiende una o varias Solicitudes de
+   * Despacho (ver consumos/nuevo/page.tsx): ya no hay un único "Almacén de
+   * origen" — cada línea se arma con el botón "Ver Productos", que deja
+   * repartir un mismo producto entre varios almacenes. */
+  solicitudesDespachoInicial: SolicitudDespachoInicial[];
   /** Presente solo cuando el formulario edita un consumo ya existente.
-   * `stockPorAlmacen` ya viene ajustado por la página (ver
-   * consumos/[id]/editar/page.tsx): incluye de vuelta lo que este mismo
-   * consumo ya había restado, como si ya estuviera reversado. */
+   * `stockPorAlmacen`/`lotesPorAlmacen` ya vienen ajustados por la página
+   * (ver consumos/[id]/editar/page.tsx): incluyen de vuelta lo que este
+   * mismo consumo ya había restado, como si ya estuviera reversado. */
   edicion?: { id: string; valoresIniciales: ConsumoAlmacenInput };
 }) {
   const router = useRouter();
@@ -102,13 +115,23 @@ export function ConsumoAlmacenForm({
   // editar, queda como se registró originalmente (nunca se retrofecha).
   const fecha = edicion?.valoresIniciales.fecha ?? (fechaLocalHoy() as unknown as Date);
 
+  // Atendiendo una o varias Solicitudes de Despacho: no hay un único
+  // almacén de origen, cada línea trae el suyo (ver "Ver Productos").
+  const atendiendoSolicitudes = solicitudesDespachoInicial.length > 0;
+  // Un consumo ya existente puede tener líneas de más de un almacén (si
+  // vino de atender solicitudes) — en ese caso tampoco hay un único
+  // almacén que mostrar arriba, aunque ya no se pueda seguir repartiendo
+  // (ver más abajo, "Ver Productos" no aplica al editar).
+  const almacenesDeEdicion = edicion ? new Set(edicion.valoresIniciales.items.map((it) => it.almacenOrigenId)) : new Set<string>();
+  const esEdicionMultiAlmacen = edicion ? almacenesDeEdicion.size > 1 : false;
+  const sinAlmacenGeneral = atendiendoSolicitudes || esEdicionMultiAlmacen;
+
   const form = useForm<ConsumoAlmacenInput>({
     resolver: zodResolver(consumoAlmacenSchema),
     defaultValues: edicion?.valoresIniciales ?? {
       fecha,
       fechaContabilizacion: fechaLocalHoy() as unknown as Date,
       horaRetiro: horaLocalAhora(),
-      almacenOrigenId: almacenIdInicial ?? "",
       retiradoPor: "",
       retiradoPorDni: "",
       vehiculoPlaca: "",
@@ -116,61 +139,180 @@ export function ConsumoAlmacenForm({
       firmaArchivo: "",
       fotoEvidenciaArchivo: "",
       observaciones: "",
-      items: solicitudDespachoInicial ? itemsDesdeSolicitud(solicitudDespachoInicial) : [ITEM_VACIO],
+      items: atendiendoSolicitudes ? [] : [itemVacio(almacenIdInicial ?? "")],
     },
   });
 
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
-  const almacenOrigenId = useWatch({ control: form.control, name: "almacenOrigenId" });
   const firmaArchivoActual = edicion?.valoresIniciales.firmaArchivo;
   const fotoArchivoActual = edicion?.valoresIniciales.fotoEvidenciaArchivo;
   const retiradoPorDni = useWatch({ control: form.control, name: "retiradoPorDni" });
   const vehiculoPlaca = useWatch({ control: form.control, name: "vehiculoPlaca" });
 
-  // Solo se puede elegir a alguien con permiso de retirar de ESTE almacén —
-  // ver Listas > Retiradores autorizados.
-  const retiradoresDisponibles = almacenOrigenId ? retiradores.filter((r) => r.almacenesIds.includes(almacenOrigenId)) : [];
-  const retiradorSeleccionadoId = retiradoresDisponibles.find((r) => r.dni === retiradoPorDni)?.id ?? "";
-
-  // Solo se puede consumir lo que el almacén realmente tiene en stock: el
-  // combobox de producto se restringe a esa lista, y sirve también para
-  // mostrar/validar la cantidad disponible por línea.
-  const stockOrigen = almacenOrigenId ? stockPorAlmacen[almacenOrigenId] ?? [] : [];
-  const skusDisponibles = stockOrigen.map((s) => ({
+  // --- Flujo manual (sin solicitudes de despacho detrás): un único
+  // almacén de origen para todas las líneas, elegido arriba — igual que
+  // antes de repartir el almacén por línea.
+  const [almacenManualId, setAlmacenManualId] = useState(almacenIdInicial ?? "");
+  const almacenManual = almacenes.find((a) => a.id === almacenManualId);
+  const stockOrigenManual = almacenManualId ? stockPorAlmacen[almacenManualId] ?? [] : [];
+  const skusDisponiblesManual = stockOrigenManual.map((s) => ({
     id: s.skuId,
     codigo: s.codigo,
     descripcion: s.descripcion,
     unidadMedida: s.unidadMedida,
   }));
-  const stockPorSkuId = new Map(stockOrigen.map((s) => [s.skuId, s]));
+  const stockPorSkuIdManual = new Map(stockOrigenManual.map((s) => [s.skuId, s]));
 
-  function stockDisponibleDe(skuId: string) {
-    return stockPorSkuId.get(skuId)?.cantidad ?? 0;
-  }
+  // --- Líneas ya en la tabla: de qué almacén(es) es cada una (para
+  // mostrar la columna Almacén, y para derivar retirador/lote/combustible
+  // cuando no hay un único almacén de origen).
+  const almacenPorId = new Map(almacenes.map((a) => [a.id, a]));
+  const almacenesUsados = [...new Set(items.map((it) => it.almacenOrigenId).filter(Boolean))]
+    .map((id) => almacenPorId.get(id))
+    .filter((a): a is Opcion => !!a);
 
-  // Agroquímicos y Fertilizantes exige elegir de qué lote se despacha —
-  // igual que ya exige lote/fechas al ingresar — y la cantidad a consumir
-  // no puede superar lo que queda de ESE lote puntual, no solo el total
-  // del SKU en el almacén.
-  const almacenActual = almacenes.find((a) => a.id === almacenOrigenId);
-  const muestraLote =
-    almacenActual?.categoriaGeneral === "PESTICIDAS" || almacenActual?.categoriaGeneral === "FERTILIZANTES";
+  const almacenActual = sinAlmacenGeneral ? null : almacenManual;
+  const muestraLote = sinAlmacenGeneral
+    ? almacenesUsados.some((a) => a.categoriaGeneral === "PESTICIDAS" || a.categoriaGeneral === "FERTILIZANTES")
+    : almacenActual?.categoriaGeneral === "PESTICIDAS" || almacenActual?.categoriaGeneral === "FERTILIZANTES";
   // Un almacén de Combustible exige indicar a qué vehículo se despachó y su
   // horómetro/kilometraje (ver validarVehiculoSiAplica en
-  // lib/actions/consumo-almacen-actions.ts), y solo deja elegir productos
-  // de subfamilia "Combustibles" (ya filtrados por la página en
-  // stockPorAlmacen).
-  const esCombustible = almacenActual?.categoriaGeneral === "COMBUSTIBLE";
+  // lib/actions/consumo-almacen-actions.ts).
+  const esCombustible = sinAlmacenGeneral
+    ? almacenesUsados.some((a) => a.categoriaGeneral === "COMBUSTIBLE")
+    : almacenActual?.categoriaGeneral === "COMBUSTIBLE";
 
-  function lotesDe(skuId: string): LoteStock[] {
-    if (!muestraLote || !almacenOrigenId || !skuId) return [];
-    return lotesPorAlmacen[almacenOrigenId]?.[skuId] ?? [];
+  // Solo se puede elegir a alguien con permiso de retirar de TODOS los
+  // almacenes usados en la tabla — ver Listas > Retiradores autorizados.
+  const almacenIdsParaRetirador = sinAlmacenGeneral ? almacenesUsados.map((a) => a.id) : almacenManualId ? [almacenManualId] : [];
+  const retiradoresDisponibles =
+    almacenIdsParaRetirador.length > 0
+      ? retiradores.filter((r) => almacenIdsParaRetirador.every((id) => r.almacenesIds.includes(id)))
+      : [];
+  const retiradorSeleccionadoId = retiradoresDisponibles.find((r) => r.dni === retiradoPorDni)?.id ?? "";
+
+  function stockDisponibleManual(skuId: string) {
+    return stockPorSkuIdManual.get(skuId)?.cantidad ?? 0;
   }
 
-  function stockDisponibleEfectivo(skuId: string, lote: string) {
-    if (!muestraLote) return stockDisponibleDe(skuId);
-    return lotesDe(skuId).find((l) => l.lote === lote)?.cantidad ?? 0;
+  function lotesDe(almacenId: string, skuId: string): LoteStock[] {
+    if (!almacenId || !skuId) return [];
+    return lotesPorAlmacen[almacenId]?.[skuId] ?? [];
+  }
+
+  function stockDisponibleEfectivo(almacenId: string, skuId: string, lote: string) {
+    const almacen = almacenPorId.get(almacenId);
+    const requiereLote = almacen?.categoriaGeneral === "PESTICIDAS" || almacen?.categoriaGeneral === "FERTILIZANTES";
+    if (!requiereLote) return sinAlmacenGeneral ? Infinity : stockDisponibleManual(skuId);
+    return lotesDe(almacenId, skuId).find((l) => l.lote === lote)?.cantidad ?? 0;
+  }
+
+  // --- "Ver Productos": categoría -> producto pendiente -> reparto por
+  // almacén. Solo aplica al crear, atendiendo solicitudes de despacho.
+  const pendientesDespacho: PendienteDespacho[] = useMemo(
+    () =>
+      solicitudesDespachoInicial.flatMap((s) =>
+        s.items.map((it) => ({ ...it, solicitudId: s.id, solicitudNumero: s.numero }))
+      ),
+    [solicitudesDespachoInicial]
+  );
+
+  function cantidadYaAsignada(pendienteId: string): number {
+    return items
+      .filter((it) => it.solicitudDespachoItemId === pendienteId)
+      .reduce((acc, it) => acc + (Number(it.cantidad) || 0), 0);
+  }
+
+  const [verProductosOpen, setVerProductosOpen] = useState(false);
+  const [categoriaElegida, setCategoriaElegida] = useState<string | null>(null);
+  const [productoElegido, setProductoElegido] = useState<PendienteDespacho | null>(null);
+  const [stockSplit, setStockSplit] = useState<StockPorAlmacen[]>([]);
+  const [cargandoStockSplit, setCargandoStockSplit] = useState(false);
+  const [cantidadesSplit, setCantidadesSplit] = useState<Record<string, string>>({});
+
+  function cerrarVerProductos() {
+    setVerProductosOpen(false);
+    setCategoriaElegida(null);
+    setProductoElegido(null);
+    setStockSplit([]);
+    setCantidadesSplit({});
+  }
+
+  const categoriasDisponibles = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of pendientesDespacho) {
+      const restante = p.cantidadPendiente - cantidadYaAsignada(p.id);
+      if (restante <= 0) continue;
+      const categoria = categoriaAlmacenExigidaPorSku({ codigo: p.codigo, descripcion: p.descripcion, subfamilia: p.subfamilia });
+      if (categoria) set.add(categoria);
+    }
+    return [...set];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendientesDespacho, items]);
+
+  const productosDeCategoria = useMemo(() => {
+    if (!categoriaElegida) return [];
+    return pendientesDespacho
+      .filter(
+        (p) =>
+          categoriaAlmacenExigidaPorSku({ codigo: p.codigo, descripcion: p.descripcion, subfamilia: p.subfamilia }) === categoriaElegida
+      )
+      .map((p) => ({ ...p, asignada: cantidadYaAsignada(p.id), restante: p.cantidadPendiente - cantidadYaAsignada(p.id) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendientesDespacho, categoriaElegida, items]);
+
+  async function elegirProducto(p: PendienteDespacho) {
+    setProductoElegido(p);
+    setCantidadesSplit({});
+    setCargandoStockSplit(true);
+    try {
+      const stock = await obtenerStockPorAlmacenParaSkuAction(p.skuId);
+      setStockSplit(stock);
+    } finally {
+      setCargandoStockSplit(false);
+    }
+  }
+
+  const restanteProducto = productoElegido ? productoElegido.cantidadPendiente - cantidadYaAsignada(productoElegido.id) : 0;
+  const sumaSplit = Object.values(cantidadesSplit).reduce((acc, v) => acc + (Number(v) || 0), 0);
+
+  function agregarSplit() {
+    if (!productoElegido) return;
+    if (sumaSplit <= 0) {
+      toast.error("Ingresa cuánto retirar de al menos un almacén.");
+      return;
+    }
+    if (sumaSplit > restanteProducto + 0.001) {
+      toast.error(`La suma (${formatCantidad(sumaSplit)}) no puede superar lo pendiente (${formatCantidad(restanteProducto)}).`);
+      return;
+    }
+    for (const fila of stockSplit) {
+      const cantidad = Number(cantidadesSplit[fila.almacenId]) || 0;
+      if (cantidad > fila.cantidad + 0.001) {
+        toast.error(`${fila.nombre}: no hay ${formatCantidad(cantidad)} disponible (stock: ${formatCantidad(fila.cantidad)}).`);
+        return;
+      }
+    }
+
+    for (const fila of stockSplit) {
+      const cantidad = Number(cantidadesSplit[fila.almacenId]) || 0;
+      if (cantidad <= 0) continue;
+      append({
+        almacenOrigenId: fila.almacenId,
+        skuId: productoElegido.skuId,
+        cantidad,
+        unidadMedida: productoElegido.unidadMedida,
+        lote: "",
+        fechaProduccion: undefined,
+        fechaVencimiento: undefined,
+        solicitudDespachoItemId: productoElegido.id,
+      });
+    }
+    toast.success("Producto agregado");
+    setProductoElegido(null);
+    setStockSplit([]);
+    setCantidadesSplit({});
   }
 
   async function handleSubmitConArchivos(e: React.FormEvent) {
@@ -214,15 +356,24 @@ export function ConsumoAlmacenForm({
   }
 
   async function onSubmit(data: ConsumoAlmacenInput) {
-    const excedeAlgunaLinea = data.items.some(
-      (item) => item.cantidad > stockDisponibleEfectivo(item.skuId, item.lote ?? "")
-    );
-    if (excedeAlgunaLinea) {
-      toast.error("Hay productos cuya cantidad excede el stock disponible en el almacén. Corrígelo antes de guardar.");
+    if (data.items.length === 0) {
+      toast.error("Agrega al menos un producto.");
       return;
     }
-    if (muestraLote && data.items.some((item) => !item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento)) {
-      toast.error("Selecciona el lote de cada producto en este almacén (exige lote, fecha de producción y vencimiento).");
+    const excedeAlgunaLinea = data.items.some(
+      (item) => item.cantidad > stockDisponibleEfectivo(item.almacenOrigenId, item.skuId, item.lote ?? "")
+    );
+    if (excedeAlgunaLinea) {
+      toast.error("Hay productos cuya cantidad excede el stock disponible en su almacén. Corrígelo antes de guardar.");
+      return;
+    }
+    const faltaLote = data.items.some((item) => {
+      const almacen = almacenPorId.get(item.almacenOrigenId);
+      const requiereLote = almacen?.categoriaGeneral === "PESTICIDAS" || almacen?.categoriaGeneral === "FERTILIZANTES";
+      return requiereLote && (!item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento);
+    });
+    if (faltaLote) {
+      toast.error("Selecciona el lote de cada producto que lo exige (lote, fecha de producción y vencimiento).");
       return;
     }
     if (esCombustible && !data.vehiculoPlaca?.trim()) {
@@ -258,59 +409,57 @@ export function ConsumoAlmacenForm({
     router.push(resultado?.id ? `/logistica/almacenes/consumos/${resultado.id}` : "/logistica/almacenes/consumos");
   }
 
+  const puedeAgregarManual = !sinAlmacenGeneral && !!almacenManualId;
+
   return (
     <form onSubmit={handleSubmitConArchivos} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos del consumo</CardTitle>
-          {solicitudDespachoInicial && (
+          {atendiendoSolicitudes && (
             <p className="text-sm text-muted-foreground">
-              Atendiendo la solicitud de despacho <strong>{solicitudDespachoInicial.numero}</strong>. Elige de qué
-              almacén sale cada producto; las cantidades ya vienen cargadas, ajústalas si no vas a entregar todo lo
-              pedido.
+              Atendiendo{" "}
+              {solicitudesDespachoInicial.map((s, i) => (
+                <span key={s.id}>
+                  <strong>{s.numero}</strong>
+                  {i < solicitudesDespachoInicial.length - 1 ? ", " : ""}
+                </span>
+              ))}
+              . Usa &quot;Ver Productos&quot; para elegir qué despachar y de qué almacén(es).
             </p>
           )}
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Almacén de origen</Label>
-            <Controller
-              control={form.control}
-              name="almacenOrigenId"
-              render={({ field }) => (
-                <Select
-                  value={field.value}
-                  onValueChange={(valor) => {
-                    field.onChange(valor);
-                    // Los productos de las líneas ya cargadas pueden no
-                    // tener stock en el nuevo almacén: se limpian (o se
-                    // vuelven a cargar desde la solicitud de despacho, si
-                    // esta venía de una). Lo mismo el usuario elegido: puede
-                    // no tener permiso de retirar del nuevo almacén.
-                    replace(solicitudDespachoInicial ? itemsDesdeSolicitud(solicitudDespachoInicial) : [ITEM_VACIO]);
-                    form.setValue("retiradoPor", "");
-                    form.setValue("retiradoPorDni", "");
-                    form.setValue("vehiculoPlaca", "");
-                    form.setValue("horometroKilometraje", undefined);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un almacén" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {almacenes.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        <span className="font-mono text-muted-foreground">{a.codigo}</span> — {a.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {form.formState.errors.almacenOrigenId && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.almacenOrigenId.message}</p>
-            )}
-          </div>
+          {!sinAlmacenGeneral && (
+            <div className="space-y-2">
+              <Label>Almacén de origen</Label>
+              <Select
+                value={almacenManualId}
+                onValueChange={(valor) => {
+                  setAlmacenManualId(valor);
+                  // Los productos de las líneas ya cargadas pueden no tener
+                  // stock en el nuevo almacén: se limpian. Lo mismo el
+                  // retirador elegido: puede no tener permiso ahí.
+                  replace([itemVacio(valor)]);
+                  form.setValue("retiradoPor", "");
+                  form.setValue("retiradoPorDni", "");
+                  form.setValue("vehiculoPlaca", "");
+                  form.setValue("horometroKilometraje", undefined);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un almacén" />
+                </SelectTrigger>
+                <SelectContent>
+                  {almacenes.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="font-mono text-muted-foreground">{a.codigo}</span> — {a.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de registro</Label>
@@ -355,7 +504,8 @@ export function ConsumoAlmacenForm({
             <RetiradorAutorizadoCombobox
               retiradores={retiradoresDisponibles}
               value={retiradorSeleccionadoId}
-              disabled={!almacenOrigenId}
+              disabled={almacenIdsParaRetirador.length === 0}
+              mensajeDeshabilitado={sinAlmacenGeneral ? "Agrega primero un producto." : "Selecciona primero el almacén."}
               onSelect={(r) => {
                 form.setValue("retiradoPor", r.nombreCompleto, { shouldValidate: true });
                 form.setValue("retiradoPorDni", r.dni, { shouldValidate: true });
@@ -452,34 +602,41 @@ export function ConsumoAlmacenForm({
           <div>
             <CardTitle className="text-base">Productos</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Solo aparecen productos con stock disponible en el almacén elegido. El precio unitario ponderado y
-              el valor consumido se calculan automáticamente al guardar.
+              {atendiendoSolicitudes
+                ? "Usa \"Ver Productos\" para elegir qué despachar de las solicitudes seleccionadas."
+                : "Solo aparecen productos con stock disponible en el almacén elegido. El precio unitario ponderado y el valor consumido se calculan automáticamente al guardar."}
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!almacenOrigenId}
-            onClick={() => append(ITEM_VACIO)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar producto
-          </Button>
+          {atendiendoSolicitudes ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setVerProductosOpen(true)}>
+              <ClipboardList className="mr-2 h-4 w-4" />
+              Ver Productos
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled={!puedeAgregarManual} onClick={() => append(itemVacio(almacenManualId))}>
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar producto
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {!almacenOrigenId ? (
+          {!sinAlmacenGeneral && !almacenManualId ? (
             <p className="text-sm text-muted-foreground">Selecciona primero el almacén.</p>
+          ) : fields.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {atendiendoSolicitudes ? "Todavía no agregaste ningún producto. Usa \"Ver Productos\"." : "Agrega al menos un producto."}
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {sinAlmacenGeneral && <TableHead className="w-40">Almacén</TableHead>}
                     <TableHead className="w-28">Código</TableHead>
                     <TableHead className="min-w-[260px]">Producto</TableHead>
                     <TableHead className="w-28">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
-                    <TableHead className="w-28">Stock disponible</TableHead>
+                    {!sinAlmacenGeneral && <TableHead className="w-28">Stock disponible</TableHead>}
                     {muestraLote && (
                       <>
                         <TableHead className="w-48">Lote *</TableHead>
@@ -492,113 +649,141 @@ export function ConsumoAlmacenForm({
                 </TableHeader>
                 <TableBody>
                   {fields.map((field, index) => {
+                    const itemAlmacenId = items[index]?.almacenOrigenId ?? "";
+                    const itemAlmacen = almacenPorId.get(itemAlmacenId);
                     const skuId = items[index]?.skuId ?? "";
                     const loteElegido = items[index]?.lote ?? "";
-                    const lotesSku = lotesDe(skuId);
-                    const disponible = stockDisponibleEfectivo(skuId, loteElegido);
+                    const lotesSku = lotesDe(itemAlmacenId, skuId);
+                    const disponible = sinAlmacenGeneral ? null : stockDisponibleEfectivo(itemAlmacenId, skuId, loteElegido);
                     const cantidad = Number(items[index]?.cantidad) || 0;
-                    const excede = skuId !== "" && cantidad > disponible;
+                    const excede = !sinAlmacenGeneral && skuId !== "" && disponible !== null && cantidad > disponible;
+                    const filaRequiereLote =
+                      itemAlmacen?.categoriaGeneral === "PESTICIDAS" || itemAlmacen?.categoriaGeneral === "FERTILIZANTES";
+                    const codigoManual = stockOrigenManual.find((s) => s.skuId === skuId)?.codigo ?? "";
+                    const pendienteDeLaFila = sinAlmacenGeneral
+                      ? pendientesDespacho.find((p) => p.id === items[index]?.solicitudDespachoItemId)
+                      : undefined;
                     return (
                       <TableRow key={field.id}>
-                        <TableCell className="align-top">
-                          <Input disabled value={stockOrigen.find((s) => s.skuId === skuId)?.codigo ?? ""} />
+                        {sinAlmacenGeneral && (
+                          <TableCell className="align-top pt-4 text-sm">
+                            <span className="font-mono text-muted-foreground">{itemAlmacen?.codigo}</span> {itemAlmacen?.nombre}
+                          </TableCell>
+                        )}
+                        <TableCell className="align-top pt-4 text-sm">
+                          {sinAlmacenGeneral ? pendienteDeLaFila?.codigo : <Input disabled value={codigoManual} />}
                         </TableCell>
                         <TableCell className="align-top">
-                          <Controller
-                            control={form.control}
-                            name={`items.${index}.skuId`}
-                            render={({ field: selectField }) => (
-                              <SkuCombobox
-                                skus={skusDisponibles}
-                                value={selectField.value}
-                                emptyMessage="Este almacén no tiene productos con stock disponible."
-                                onSelect={(sku) => {
-                                  selectField.onChange(sku.id);
-                                  form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
-                                  // Los lotes dependen del producto: se limpian al cambiarlo.
-                                  form.setValue(`items.${index}.lote`, "");
-                                  form.setValue(`items.${index}.fechaProduccion`, undefined);
-                                  form.setValue(`items.${index}.fechaVencimiento`, undefined);
-                                  // Si esta línea venía de una Solicitud de Despacho, cambiar el
-                                  // producto la desvincula (ya no es "el mismo" pedido).
-                                  form.setValue(`items.${index}.solicitudDespachoItemId`, "");
-                                }}
+                          {sinAlmacenGeneral ? (
+                            <p className="pt-2 text-sm">{pendienteDeLaFila?.descripcion}</p>
+                          ) : (
+                            <>
+                              <Controller
+                                control={form.control}
+                                name={`items.${index}.skuId`}
+                                render={({ field: selectField }) => (
+                                  <SkuCombobox
+                                    skus={skusDisponiblesManual}
+                                    value={selectField.value}
+                                    emptyMessage="Este almacén no tiene productos con stock disponible."
+                                    onSelect={(sku) => {
+                                      selectField.onChange(sku.id);
+                                      form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
+                                      // Los lotes dependen del producto: se limpian al cambiarlo.
+                                      form.setValue(`items.${index}.lote`, "");
+                                      form.setValue(`items.${index}.fechaProduccion`, undefined);
+                                      form.setValue(`items.${index}.fechaVencimiento`, undefined);
+                                    }}
+                                  />
+                                )}
                               />
-                            )}
-                          />
-                          {form.formState.errors.items?.[index]?.skuId && (
-                            <p className="mt-1 text-xs font-medium text-destructive">
-                              {form.formState.errors.items[index]?.skuId?.message}
-                            </p>
+                              {form.formState.errors.items?.[index]?.skuId && (
+                                <p className="mt-1 text-xs font-medium text-destructive">
+                                  {form.formState.errors.items[index]?.skuId?.message}
+                                </p>
+                              )}
+                            </>
                           )}
                         </TableCell>
                         <TableCell className="align-top">
-                          <Controller
-                            control={form.control}
-                            name={`items.${index}.cantidad`}
-                            render={({ field: cantidadField }) => (
-                              <NumberInput
-                                value={String(cantidadField.value ?? "")}
-                                onChange={cantidadField.onChange}
-                                className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
+                          {sinAlmacenGeneral ? (
+                            <p className="pt-2 text-sm">{formatCantidad(cantidad)}</p>
+                          ) : (
+                            <>
+                              <Controller
+                                control={form.control}
+                                name={`items.${index}.cantidad`}
+                                render={({ field: cantidadField }) => (
+                                  <NumberInput
+                                    value={String(cantidadField.value ?? "")}
+                                    onChange={cantidadField.onChange}
+                                    className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
+                                  />
+                                )}
                               />
-                            )}
-                          />
-                          {form.formState.errors.items?.[index]?.cantidad && (
-                            <p className="mt-1 text-xs font-medium text-destructive">
-                              {form.formState.errors.items[index]?.cantidad?.message}
-                            </p>
-                          )}
-                          {excede && (
-                            <p className="mt-1 text-xs font-medium text-destructive">
-                              La cantidad excede el stock disponible ({formatCantidad(disponible)}).
-                            </p>
+                              {form.formState.errors.items?.[index]?.cantidad && (
+                                <p className="mt-1 text-xs font-medium text-destructive">
+                                  {form.formState.errors.items[index]?.cantidad?.message}
+                                </p>
+                              )}
+                              {excede && (
+                                <p className="mt-1 text-xs font-medium text-destructive">
+                                  La cantidad excede el stock disponible ({formatCantidad(disponible ?? 0)}).
+                                </p>
+                              )}
+                            </>
                           )}
                         </TableCell>
                         <TableCell className="align-top pt-4 text-sm text-muted-foreground">
                           {items[index]?.unidadMedida || "—"}
                         </TableCell>
-                        <TableCell className="align-top pt-4 text-sm">{skuId ? formatCantidad(disponible) : "—"}</TableCell>
+                        {!sinAlmacenGeneral && (
+                          <TableCell className="align-top pt-4 text-sm">{skuId ? formatCantidad(disponible ?? 0) : "—"}</TableCell>
+                        )}
                         {muestraLote && (
                           <>
                             <TableCell className="align-top">
-                              <Controller
-                                control={form.control}
-                                name={`items.${index}.lote`}
-                                render={({ field: loteField }) => (
-                                  <Select
-                                    value={loteField.value || ""}
-                                    onValueChange={(valor) => {
-                                      loteField.onChange(valor);
-                                      const lote = lotesSku.find((l) => l.lote === valor);
-                                      form.setValue(
-                                        `items.${index}.fechaProduccion`,
-                                        lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
-                                      );
-                                      form.setValue(
-                                        `items.${index}.fechaVencimiento`,
-                                        lote?.fechaVencimiento ? (soloFecha(lote.fechaVencimiento) as unknown as Date) : undefined
-                                      );
-                                    }}
-                                    disabled={!skuId}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Selecciona un lote" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {lotesSku.length === 0 ? (
-                                        <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
-                                      ) : (
-                                        lotesSku.map((l) => (
-                                          <SelectItem key={l.lote} value={l.lote}>
-                                            {l.lote} — {formatCantidad(l.cantidad)} {l.unidadMedida}
-                                          </SelectItem>
-                                        ))
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
+                              {filaRequiereLote ? (
+                                <Controller
+                                  control={form.control}
+                                  name={`items.${index}.lote`}
+                                  render={({ field: loteField }) => (
+                                    <Select
+                                      value={loteField.value || ""}
+                                      onValueChange={(valor) => {
+                                        loteField.onChange(valor);
+                                        const lote = lotesSku.find((l) => l.lote === valor);
+                                        form.setValue(
+                                          `items.${index}.fechaProduccion`,
+                                          lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
+                                        );
+                                        form.setValue(
+                                          `items.${index}.fechaVencimiento`,
+                                          lote?.fechaVencimiento ? (soloFecha(lote.fechaVencimiento) as unknown as Date) : undefined
+                                        );
+                                      }}
+                                      disabled={!skuId}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona un lote" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {lotesSku.length === 0 ? (
+                                          <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
+                                        ) : (
+                                          lotesSku.map((l) => (
+                                            <SelectItem key={l.lote} value={l.lote}>
+                                              {l.lote} — {formatCantidad(l.cantidad)} {l.unidadMedida}
+                                            </SelectItem>
+                                          ))
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                />
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="align-top pt-4 text-sm text-muted-foreground">
                               {soloFecha(items[index]?.fechaProduccion as unknown as string) || "—"}
@@ -613,7 +798,7 @@ export function ConsumoAlmacenForm({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            disabled={fields.length === 1}
+                            disabled={!sinAlmacenGeneral && fields.length === 1}
                             onClick={() => remove(index)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -641,6 +826,123 @@ export function ConsumoAlmacenForm({
               : "Registrar consumo"}
         </Button>
       </div>
+
+      {/* "Ver Productos": categoría -> producto pendiente -> reparto por almacén. */}
+      <Dialog open={verProductosOpen} onOpenChange={(v) => (v ? setVerProductosOpen(true) : cerrarVerProductos())}>
+        <DialogContent className="sm:max-w-lg">
+          {!categoriaElegida && (
+            <>
+              <DialogHeader>
+                <DialogTitle>¿Qué categoría quieres despachar?</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2">
+                {categoriasDisponibles.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Ya agregaste todo lo pendiente de estas solicitudes.</p>
+                )}
+                {categoriasDisponibles.map((c) => (
+                  <Button key={c} variant="outline" className="w-full justify-start" onClick={() => setCategoriaElegida(c)}>
+                    {ETIQUETA_CATEGORIA_ALMACEN[c] ?? c}
+                  </Button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {categoriaElegida && !productoElegido && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCategoriaElegida(null)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  Productos de {ETIQUETA_CATEGORIA_ALMACEN[categoriaElegida] ?? categoriaElegida}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="max-h-[60vh] space-y-1 overflow-y-auto">
+                {productosDeCategoria.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={p.restante <= 0}
+                    onClick={() => elegirProducto(p)}
+                    className="w-full rounded-md border p-2 text-left text-sm transition-colors hover:border-primary hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <p className="font-medium">
+                      {p.codigo} — {p.descripcion}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Solicitud {p.solicitudNumero} · Solicitado: {formatCantidad(p.cantidadPendiente + p.asignada)} ·
+                      Asignado: {formatCantidad(p.asignada)} · Pendiente: {formatCantidad(p.restante)} {p.unidadMedida}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {productoElegido && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      setProductoElegido(null);
+                      setStockSplit([]);
+                      setCantidadesSplit({});
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {productoElegido.codigo} — {productoElegido.descripcion}
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Pendiente: {formatCantidad(restanteProducto)} {productoElegido.unidadMedida}. Reparte cuánto retirar de cada
+                almacén.
+              </p>
+              {cargandoStockSplit ? (
+                <p className="text-sm text-muted-foreground">Cargando stock por almacén…</p>
+              ) : stockSplit.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay stock de este producto en ningún almacén.</p>
+              ) : (
+                <div className="space-y-3">
+                  {stockSplit.map((fila) => (
+                    <div key={fila.almacenId} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          <span className="font-mono text-muted-foreground">{fila.codigo}</span> {fila.nombre}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Disponible: {formatCantidad(fila.cantidad)}</p>
+                      </div>
+                      <div className="w-28">
+                        <NumberInput
+                          value={cantidadesSplit[fila.almacenId] ?? ""}
+                          onChange={(v) => setCantidadesSplit((prev) => ({ ...prev, [fila.almacenId]: v }))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-sm">
+                    Total repartido:{" "}
+                    <span className={sumaSplit > restanteProducto + 0.001 ? "font-medium text-destructive" : "font-medium"}>
+                      {formatCantidad(sumaSplit)}
+                    </span>{" "}
+                    / {formatCantidad(restanteProducto)}
+                  </p>
+                  <div className="flex justify-end">
+                    <Button type="button" onClick={agregarSplit}>
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

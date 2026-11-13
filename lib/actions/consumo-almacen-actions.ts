@@ -10,26 +10,24 @@ import {
   calcularStockPorLote,
   categoriaEfectivaAlmacen,
   almacenPermitidoParaConsumo,
+  calcularStockPorAlmacenParaSku,
+  type StockPorAlmacen,
 } from "@/lib/stock-almacen";
 import { categoriaAlmacenExigidaPorSku, ETIQUETA_CATEGORIA_ALMACEN } from "@/lib/constants/sku";
 import { subirArchivo } from "@/lib/storage";
 import { consumoAlmacenSchema, type ConsumoAlmacenInput } from "@/lib/validations/almacen";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Almacen, AlmacenCategoriaGeneral, Prisma, PrismaClient } from "@prisma/client";
 
 export type ConsumoAlmacenActionState = { error?: string; id?: string } | undefined;
 
 type Db = PrismaClient | Prisma.TransactionClient;
+type Item = ConsumoAlmacenInput["items"][number];
 
 // En un almacén de Agroquímicos y Fertilizantes, cada línea debe indicar de
 // qué lote se despacha (igual que el ingreso exige lote al entrar), y esa
 // cantidad no puede superar lo que queda de ese lote puntual — no solo el
 // total del SKU en el almacén (que ya valida costosParaValidacion aparte).
-async function validarLotesSiAplica(
-  almacen: { nombre: string; categoriaGeneral: string | null },
-  almacenId: string,
-  items: ConsumoAlmacenInput["items"],
-  db: Db
-): Promise<{ error?: string }> {
+async function validarLotesSiAplica(almacen: Almacen, items: Item[], db: Db): Promise<{ error?: string }> {
   if (almacen.categoriaGeneral !== "PESTICIDAS" && almacen.categoriaGeneral !== "FERTILIZANTES") return {};
 
   for (const item of items) {
@@ -49,7 +47,7 @@ async function validarLotesSiAplica(
   for (const item of items) {
     const clave = `${item.skuId}::${item.lote}`;
     const cantidadSolicitada = cantidadPorSkuLote.get(clave)!;
-    const lotes = await calcularStockPorLote(almacenId, item.skuId, db);
+    const lotes = await calcularStockPorLote(almacen.id, item.skuId, db);
     const disponible = lotes.find((l) => l.lote === item.lote)?.cantidad ?? 0;
     if (cantidadSolicitada > disponible) {
       const sku = await db.sku.findUnique({ where: { id: item.skuId }, select: { codigo: true } });
@@ -64,11 +62,7 @@ async function validarLotesSiAplica(
 // En un almacén de Combustible, cada línea solo puede ser un SKU de
 // subfamilia "Combustibles" (diesel/gasohol) — nunca se confía en lo que
 // el combobox del cliente ya filtró, se vuelve a verificar acá.
-async function validarSubfamiliaCombustibleSiAplica(
-  almacen: { nombre: string; categoriaGeneral: string | null },
-  items: ConsumoAlmacenInput["items"],
-  db: Db
-): Promise<{ error?: string }> {
+async function validarSubfamiliaCombustibleSiAplica(almacen: Almacen, items: Item[], db: Db): Promise<{ error?: string }> {
   if (almacen.categoriaGeneral !== "COMBUSTIBLE") return {};
 
   const skuIds = [...new Set(items.map((i) => i.skuId))];
@@ -82,9 +76,7 @@ async function validarSubfamiliaCombustibleSiAplica(
 
 // Entre los almacenes de categoría Empaques, los consumos solo se pueden
 // registrar desde "ALMACÉN PRODUCCIÓN" — ver almacenPermitidoParaConsumo.
-function validarAlmacenEmpaquesSiAplica(almacen: { nombre: string; codigo: string; categoriaGeneral: string | null }): {
-  error?: string;
-} {
+function validarAlmacenEmpaquesSiAplica(almacen: Almacen): { error?: string } {
   if (!almacenPermitidoParaConsumo(almacen)) {
     return { error: `Los consumos de materiales de empaque solo se pueden registrar desde Almacén Producción, no desde ${almacen.nombre}.` };
   }
@@ -94,11 +86,7 @@ function validarAlmacenEmpaquesSiAplica(almacen: { nombre: string; codigo: strin
 // Cada código solo puede consumirse desde el almacén de la categoría que le
 // corresponde según su tipo (Agroquímicos/Fertilizantes/Ósmosis/
 // Suministros) — ver categoriaAlmacenExigidaPorSku.
-async function validarCategoriaExclusivaSiAplica(
-  almacen: { nombre: string; esGeneral: boolean; categoriaGeneral: string | null; almacenPadreId: string | null },
-  items: ConsumoAlmacenInput["items"],
-  db: Db
-): Promise<{ error?: string }> {
+async function validarCategoriaExclusivaSiAplica(almacen: Almacen, items: Item[], db: Db): Promise<{ error?: string }> {
   const categoriaAlmacen = await categoriaEfectivaAlmacen(almacen, db);
   const skuIds = [...new Set(items.map((i) => i.skuId))];
   const skus = await db.sku.findMany({ where: { id: { in: skuIds } }, select: { codigo: true, descripcion: true, subfamilia: true } });
@@ -115,14 +103,16 @@ async function validarCategoriaExclusivaSiAplica(
 
 // Un almacén de Combustible exige indicar a qué vehículo se le despachó
 // (placa, jalada del catálogo Vehiculo) y el horómetro/kilometraje al
-// momento del despacho — igual que el lote en Agroquímicos, se exige acá
-// porque solo aplica a esta categoría de almacén.
+// momento del despacho. vehiculoPlaca/horometroKilometraje son del
+// documento (una sola firma para todo el retiro, aunque reparta líneas
+// entre varios almacenes) — se exigen si CUALQUIERA de los almacenes de
+// las líneas es de categoría Combustible.
 async function validarVehiculoSiAplica(
-  almacen: { nombre: string; categoriaGeneral: string | null },
+  almacenesUsados: Almacen[],
   vehiculoPlaca: string | undefined,
   horometroKilometraje: number | undefined
 ): Promise<{ error?: string }> {
-  if (almacen.categoriaGeneral !== "COMBUSTIBLE") return {};
+  if (!almacenesUsados.some((a) => a.categoriaGeneral === "COMBUSTIBLE")) return {};
 
   if (!vehiculoPlaca?.trim()) {
     return { error: "Selecciona la placa del vehículo que recibe el combustible." };
@@ -143,8 +133,10 @@ const TIPOS_FOTO_PERMITIDOS = ["image/jpeg", "image/png"];
 // El combobox del formulario ya solo ofrece retiradores con permiso en el
 // almacén elegido, pero nunca se confía en lo que mande el cliente: se
 // vuelve a verificar acá que el DNI recibido sea un RetiradorAutorizado
-// activo y con ese almacén en su lista de permitidos.
-async function verificarRetiradorAutorizado(dni: string, almacenId: string): Promise<{ error?: string }> {
+// activo y con TODOS los almacenes usados en su lista de permitidos (si
+// las líneas reparten el retiro entre varios almacenes, debe poder retirar
+// de cada uno).
+async function verificarRetiradorAutorizado(dni: string, almacenIds: string[]): Promise<{ error?: string }> {
   const retirador = await prisma.retiradorAutorizado.findUnique({
     where: { dni },
     include: { almacenesPermitidos: true },
@@ -152,10 +144,103 @@ async function verificarRetiradorAutorizado(dni: string, almacenId: string): Pro
   if (!retirador || !retirador.activo) {
     return { error: "Esa persona no está en la lista de retiradores autorizados." };
   }
-  if (!retirador.almacenesPermitidos.some((p) => p.almacenId === almacenId)) {
-    return { error: `${retirador.nombres} ${retirador.apellidos} no tiene permiso de retirar de este almacén.` };
+  const permitidos = new Set(retirador.almacenesPermitidos.map((p) => p.almacenId));
+  if (!almacenIds.every((id) => permitidos.has(id))) {
+    return { error: `${retirador.nombres} ${retirador.apellidos} no tiene permiso de retirar de todos los almacenes de esta lista.` };
   }
   return {};
+}
+
+type ItemConPrecio = Item & { precioUnitarioPonderado: number; valorConsumido: number };
+
+// Agrupa las líneas por almacén, corre todas las validaciones que antes
+// eran "de la cabecera" para cada grupo, y calcula el precio ponderado de
+// cada línea — tal como era en `fecha` (el día de la operación), nunca el
+// de hoy (ver costosAFecha). La cantidad DISPONIBLE se valida contra el
+// stock físico de AHORA (costosParaValidacion), por (almacén, sku): si dos
+// líneas del mismo almacén piden el mismo sku, se suman antes de comparar.
+async function validarYCostearItems(
+  tx: Db,
+  items: Item[],
+  fecha: Date,
+  exigirActivo: boolean
+): Promise<{ error?: string; itemsConPrecio?: ItemConPrecio[]; almacenesUsados?: Almacen[] }> {
+  const almacenIds = [...new Set(items.map((i) => i.almacenOrigenId))];
+  const almacenes = await tx.almacen.findMany({ where: { id: { in: almacenIds } } });
+  const almacenPorId = new Map(almacenes.map((a) => [a.id, a]));
+  for (const almacenId of almacenIds) {
+    if (!almacenPorId.has(almacenId)) {
+      return { error: "Uno de los almacenes seleccionados ya no existe. Actualiza la página e intenta de nuevo." };
+    }
+  }
+  const almacenesUsados = almacenIds.map((id) => almacenPorId.get(id)!);
+
+  if (exigirActivo) {
+    const inactivo = almacenesUsados.find((a) => !a.activo);
+    if (inactivo) return { error: `${inactivo.nombre} está inactivo. Actívalo antes de registrar consumos ahí.` };
+  }
+
+  const itemsPorAlmacen = new Map<string, Item[]>();
+  for (const item of items) {
+    const lista = itemsPorAlmacen.get(item.almacenOrigenId) ?? [];
+    lista.push(item);
+    itemsPorAlmacen.set(item.almacenOrigenId, lista);
+  }
+
+  const precioPorAlmacenSku = new Map<string, number>();
+  for (const [almacenId, itemsDelAlmacen] of itemsPorAlmacen) {
+    const almacen = almacenPorId.get(almacenId)!;
+
+    const permisoEmpaques = validarAlmacenEmpaquesSiAplica(almacen);
+    if (permisoEmpaques.error) return permisoEmpaques;
+
+    const permisoCategoria = await validarCategoriaExclusivaSiAplica(almacen, itemsDelAlmacen, tx);
+    if (permisoCategoria.error) return permisoCategoria;
+
+    const permisoLotes = await validarLotesSiAplica(almacen, itemsDelAlmacen, tx);
+    if (permisoLotes.error) return permisoLotes;
+
+    const permisoCombustible = await validarSubfamiliaCombustibleSiAplica(almacen, itemsDelAlmacen, tx);
+    if (permisoCombustible.error) return permisoCombustible;
+
+    const cantidadPorSku = new Map<string, number>();
+    for (const item of itemsDelAlmacen) {
+      cantidadPorSku.set(item.skuId, (cantidadPorSku.get(item.skuId) ?? 0) + item.cantidad);
+    }
+
+    // El stock disponible se valida contra el total físico de AHORA, pero
+    // el precio con el que se costea el consumo es el ponderado tal como
+    // era en `fecha` — no el de hoy.
+    const [costosOrigen, costosHistoricos] = await Promise.all([
+      costosParaValidacion(almacenId, tx),
+      costosAFecha(almacenId, fecha, tx),
+    ]);
+    for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
+      const costo = costosOrigen.get(skuId);
+      const disponible = costo?.cantidad ?? 0;
+      if (cantidadSolicitada > disponible) {
+        const sku = await tx.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
+        return {
+          error: `No hay suficiente stock de ${sku?.codigo ?? skuId} en ${almacen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`,
+        };
+      }
+      const costoHistorico = costosHistoricos.get(skuId);
+      if (costoHistorico?.precioUnitarioPonderado === null || costoHistorico?.precioUnitarioPonderado === undefined) {
+        const sku = await tx.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
+        return {
+          error: `No hay ingresos ni traslados con costo registrados de ${sku?.codigo ?? skuId} en ${almacen.nombre} hasta la fecha de este consumo, así que no se puede calcular su precio unitario ponderado.`,
+        };
+      }
+      precioPorAlmacenSku.set(`${almacenId}::${skuId}`, costoHistorico.precioUnitarioPonderado);
+    }
+  }
+
+  const itemsConPrecio: ItemConPrecio[] = items.map((item) => {
+    const precioUnitarioPonderado = precioPorAlmacenSku.get(`${item.almacenOrigenId}::${item.skuId}`)!;
+    return { ...item, precioUnitarioPonderado, valorConsumido: item.cantidad * precioUnitarioPonderado };
+  });
+
+  return { itemsConPrecio, almacenesUsados };
 }
 
 // Sube la firma táctil (siempre PNG, capturada en un <canvas>) antes de
@@ -212,6 +297,27 @@ export async function subirEvidenciaConsumoAction(formData: FormData): Promise<{
   }
 }
 
+// Stock de un SKU desglosado por cada almacén elegible para consumirlo
+// (de la categoría que le corresponde, ya filtrados a los permitidos para
+// consumo — ver almacenPermitidoParaConsumo) — usado por el paso "reparte
+// entre almacenes" de "Ver Productos" al atender una Solicitud de
+// Despacho (ver consumo-almacen-form.tsx).
+export async function obtenerStockPorAlmacenParaSkuAction(skuId: string): Promise<StockPorAlmacen[]> {
+  const sku = await prisma.sku.findUnique({ where: { id: skuId } });
+  if (!sku) return [];
+  const categoria = categoriaAlmacenExigidaPorSku(sku);
+  if (!categoria) return [];
+
+  const almacenesActivos = await prisma.almacen.findMany({
+    where: { activo: true, categoriaGeneral: categoria as AlmacenCategoriaGeneral },
+  });
+  const elegibles = almacenesActivos.filter(almacenPermitidoParaConsumo);
+  return calcularStockPorAlmacenParaSku(
+    skuId,
+    elegibles.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre }))
+  );
+}
+
 export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Promise<ConsumoAlmacenActionState> {
   const parsed = consumoAlmacenSchema.safeParse(data);
   if (!parsed.success) {
@@ -221,7 +327,6 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
     fecha,
     fechaContabilizacion,
     horaRetiro,
-    almacenOrigenId,
     retiradoPor,
     retiradoPorDni,
     vehiculoPlaca,
@@ -232,66 +337,21 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
     items,
   } = parsed.data;
 
-  const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
-  if (!almacen) {
-    return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
-  }
-  if (!almacen.activo) {
-    return { error: `${almacen.nombre} está inactivo. Actívalo antes de registrar consumos ahí.` };
-  }
-
-  const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
+  const almacenIds = [...new Set(items.map((i) => i.almacenOrigenId))];
+  const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenIds);
   if (permiso.error) return permiso;
-
-  const permisoEmpaques = validarAlmacenEmpaquesSiAplica(almacen);
-  if (permisoEmpaques.error) return permisoEmpaques;
-
-  const permisoCategoria = await validarCategoriaExclusivaSiAplica(almacen, items, prisma);
-  if (permisoCategoria.error) return permisoCategoria;
-
-  const permisoLotes = await validarLotesSiAplica(almacen, almacenOrigenId, items, prisma);
-  if (permisoLotes.error) return permisoLotes;
-
-  const permisoCombustible = await validarSubfamiliaCombustibleSiAplica(almacen, items, prisma);
-  if (permisoCombustible.error) return permisoCombustible;
-
-  const permisoVehiculo = await validarVehiculoSiAplica(almacen, vehiculoPlaca, horometroKilometraje);
-  if (permisoVehiculo.error) return permisoVehiculo;
-
-  const cantidadPorSku = new Map<string, number>();
-  for (const item of items) {
-    cantidadPorSku.set(item.skuId, (cantidadPorSku.get(item.skuId) ?? 0) + item.cantidad);
-  }
-
-  // El stock disponible se valida contra el total físico de AHORA
-  // (costosParaValidacion, sin fecha de corte), pero el precio con el que
-  // se costea el consumo es el ponderado tal como era en `fecha` (el día
-  // de la operación) — no el de hoy, ver costosAFecha.
-  const [costosOrigen, costosHistoricos] = await Promise.all([costosParaValidacion(almacenOrigenId), costosAFecha(almacenOrigenId, fecha)]);
-  const precioPorSku = new Map<string, number>();
-  for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
-    const costo = costosOrigen.get(skuId);
-    const disponible = costo?.cantidad ?? 0;
-    if (cantidadSolicitada > disponible) {
-      const sku = await prisma.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
-      return {
-        error: `No hay suficiente stock de ${sku?.codigo ?? skuId} en ${almacen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`,
-      };
-    }
-    const costoHistorico = costosHistoricos.get(skuId);
-    if (costoHistorico?.precioUnitarioPonderado === null || costoHistorico?.precioUnitarioPonderado === undefined) {
-      const sku = await prisma.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
-      return {
-        error: `No hay ingresos ni traslados con costo registrados de ${sku?.codigo ?? skuId} en ${almacen.nombre} hasta la fecha de este consumo, así que no se puede calcular su precio unitario ponderado.`,
-      };
-    }
-    precioPorSku.set(skuId, costoHistorico.precioUnitarioPonderado);
-  }
 
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoConsumo = await prisma.$transaction(async (tx) => {
+      const resultado = await validarYCostearItems(tx, items, fecha, true);
+      if (resultado.error) throw new Error(resultado.error);
+      const { itemsConPrecio, almacenesUsados } = resultado;
+
+      const permisoVehiculo = await validarVehiculoSiAplica(almacenesUsados!, vehiculoPlaca, horometroKilometraje);
+      if (permisoVehiculo.error) throw new Error(permisoVehiculo.error);
+
       const existentes = await tx.consumoAlmacen.findMany({ select: { numero: true } });
       const numero = siguienteNumero(existentes.map((c) => c.numero), "CA-");
 
@@ -301,7 +361,6 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
           fecha,
           fechaContabilizacion,
           horaRetiro,
-          almacenOrigenId,
           retiradoPor,
           retiradoPorDni,
           vehiculoPlaca: vehiculoPlaca || null,
@@ -313,18 +372,16 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
         },
       });
 
-      for (const item of items) {
-        const precioUnitarioPonderadoValor = precioPorSku.get(item.skuId)!;
-        const valorConsumido = item.cantidad * precioUnitarioPonderadoValor;
-
+      for (const item of itemsConPrecio!) {
         await tx.consumoAlmacenItem.create({
           data: {
             consumoAlmacenId: consumo.id,
+            almacenOrigenId: item.almacenOrigenId,
             skuId: item.skuId,
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
-            precioUnitarioPonderado: precioUnitarioPonderadoValor,
-            valorConsumido,
+            precioUnitarioPonderado: item.precioUnitarioPonderado,
+            valorConsumido: item.valorConsumido,
             lote: item.lote || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
@@ -335,7 +392,7 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
         await tx.movimientoStock.create({
           data: {
             skuId: item.skuId,
-            almacenOrigenId,
+            almacenOrigenId: item.almacenOrigenId,
             tipo: "SALIDA",
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
@@ -352,8 +409,9 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
     });
 
     revalidatePath("/logistica/almacenes");
-    revalidatePath(`/logistica/almacenes/${almacenOrigenId}`);
+    for (const almacenId of almacenIds) revalidatePath(`/logistica/almacenes/${almacenId}`);
     revalidatePath("/logistica/almacenes/consumos");
+    revalidatePath("/logistica/solicitudes-despacho");
     return { id: nuevoConsumo.id };
   } catch (e) {
     console.error("Error inesperado en crearConsumoAlmacenAction:", e);
@@ -373,7 +431,6 @@ export async function actualizarConsumoAlmacenAction(
     fecha,
     fechaContabilizacion,
     horaRetiro,
-    almacenOrigenId,
     retiradoPor,
     retiradoPorDni,
     vehiculoPlaca,
@@ -384,34 +441,11 @@ export async function actualizarConsumoAlmacenAction(
     items,
   } = parsed.data;
 
-  const almacen = await prisma.almacen.findUnique({ where: { id: almacenOrigenId } });
-  if (!almacen) {
-    return { error: "El almacén seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
-  }
-
-  const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenOrigenId);
+  const almacenIds = [...new Set(items.map((i) => i.almacenOrigenId))];
+  const permiso = await verificarRetiradorAutorizado(retiradoPorDni, almacenIds);
   if (permiso.error) return permiso;
 
-  const permisoEmpaques = validarAlmacenEmpaquesSiAplica(almacen);
-  if (permisoEmpaques.error) return permisoEmpaques;
-
-  const permisoCategoria = await validarCategoriaExclusivaSiAplica(almacen, items, prisma);
-  if (permisoCategoria.error) return permisoCategoria;
-
-  const permisoCombustible = await validarSubfamiliaCombustibleSiAplica(almacen, items, prisma);
-  if (permisoCombustible.error) return permisoCombustible;
-
-  const permisoVehiculo = await validarVehiculoSiAplica(almacen, vehiculoPlaca, horometroKilometraje);
-  if (permisoVehiculo.error) return permisoVehiculo;
-
-  const cantidadPorSku = new Map<string, number>();
-  for (const item of items) {
-    cantidadPorSku.set(item.skuId, (cantidadPorSku.get(item.skuId) ?? 0) + item.cantidad);
-  }
-
   try {
-    const usuario = await getUsuarioActual();
-
     await prisma.$transaction(async (tx) => {
       const existente = await tx.consumoAlmacen.findUnique({ where: { id } });
       if (!existente) throw new Error("El consumo ya no existe. Actualiza la página e intenta de nuevo.");
@@ -423,32 +457,14 @@ export async function actualizarConsumoAlmacenAction(
       await tx.movimientoStock.deleteMany({ where: { documentoOrigenId: id, documentoOrigenTipo: "CONSUMO_ALMACEN" } });
       await tx.consumoAlmacenItem.deleteMany({ where: { consumoAlmacenId: id } });
 
-      const permisoLotes = await validarLotesSiAplica(almacen, almacenOrigenId, items, tx);
-      if (permisoLotes.error) throw new Error(permisoLotes.error);
+      const usuario = await getUsuarioActual();
 
-      const [costosOrigen, costosHistoricos] = await Promise.all([
-        costosParaValidacion(almacenOrigenId, tx),
-        costosAFecha(almacenOrigenId, fecha, tx),
-      ]);
-      const precioPorSku = new Map<string, number>();
-      for (const [skuId, cantidadSolicitada] of cantidadPorSku) {
-        const costo = costosOrigen.get(skuId);
-        const disponible = costo?.cantidad ?? 0;
-        if (cantidadSolicitada > disponible) {
-          const sku = await tx.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
-          throw new Error(
-            `No hay suficiente stock de ${sku?.codigo ?? skuId} en ${almacen.nombre} (disponible: ${disponible}, solicitado: ${cantidadSolicitada}).`
-          );
-        }
-        const costoHistorico = costosHistoricos.get(skuId);
-        if (costoHistorico?.precioUnitarioPonderado === null || costoHistorico?.precioUnitarioPonderado === undefined) {
-          const sku = await tx.sku.findUnique({ where: { id: skuId }, select: { codigo: true } });
-          throw new Error(
-            `No hay ingresos ni traslados con costo registrados de ${sku?.codigo ?? skuId} en ${almacen.nombre} hasta la fecha de este consumo, así que no se puede calcular su precio unitario ponderado.`
-          );
-        }
-        precioPorSku.set(skuId, costoHistorico.precioUnitarioPonderado);
-      }
+      const resultado = await validarYCostearItems(tx, items, fecha, false);
+      if (resultado.error) throw new Error(resultado.error);
+      const { itemsConPrecio, almacenesUsados } = resultado;
+
+      const permisoVehiculo = await validarVehiculoSiAplica(almacenesUsados!, vehiculoPlaca, horometroKilometraje);
+      if (permisoVehiculo.error) throw new Error(permisoVehiculo.error);
 
       await tx.consumoAlmacen.update({
         where: { id },
@@ -456,7 +472,6 @@ export async function actualizarConsumoAlmacenAction(
           fecha,
           fechaContabilizacion,
           horaRetiro,
-          almacenOrigenId,
           retiradoPor,
           retiradoPorDni,
           vehiculoPlaca: vehiculoPlaca || null,
@@ -467,18 +482,16 @@ export async function actualizarConsumoAlmacenAction(
         },
       });
 
-      for (const item of items) {
-        const precioUnitarioPonderadoValor = precioPorSku.get(item.skuId)!;
-        const valorConsumido = item.cantidad * precioUnitarioPonderadoValor;
-
+      for (const item of itemsConPrecio!) {
         await tx.consumoAlmacenItem.create({
           data: {
             consumoAlmacenId: id,
+            almacenOrigenId: item.almacenOrigenId,
             skuId: item.skuId,
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
-            precioUnitarioPonderado: precioUnitarioPonderadoValor,
-            valorConsumido,
+            precioUnitarioPonderado: item.precioUnitarioPonderado,
+            valorConsumido: item.valorConsumido,
             lote: item.lote || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
@@ -489,7 +502,7 @@ export async function actualizarConsumoAlmacenAction(
         await tx.movimientoStock.create({
           data: {
             skuId: item.skuId,
-            almacenOrigenId,
+            almacenOrigenId: item.almacenOrigenId,
             tipo: "SALIDA",
             cantidad: item.cantidad,
             unidadMedida: item.unidadMedida,
@@ -504,9 +517,10 @@ export async function actualizarConsumoAlmacenAction(
     });
 
     revalidatePath("/logistica/almacenes");
-    revalidatePath(`/logistica/almacenes/${almacenOrigenId}`);
+    for (const almacenId of almacenIds) revalidatePath(`/logistica/almacenes/${almacenId}`);
     revalidatePath("/logistica/almacenes/consumos");
     revalidatePath(`/logistica/almacenes/consumos/${id}`);
+    revalidatePath("/logistica/solicitudes-despacho");
     return { id };
   } catch (e) {
     console.error("Error inesperado en actualizarConsumoAlmacenAction:", e);
@@ -516,8 +530,9 @@ export async function actualizarConsumoAlmacenAction(
 
 export async function eliminarConsumoAlmacenAction(id: string): Promise<{ error?: string } | undefined> {
   try {
-    const consumo = await prisma.consumoAlmacen.findUnique({ where: { id } });
+    const consumo = await prisma.consumoAlmacen.findUnique({ where: { id }, include: { items: true } });
     if (!consumo) return { error: "El consumo ya no existe." };
+    const almacenIds = [...new Set(consumo.items.map((i) => i.almacenOrigenId))];
 
     await prisma.$transaction(async (tx) => {
       // Reversar un consumo siempre es seguro: le devuelve stock al
@@ -528,8 +543,9 @@ export async function eliminarConsumoAlmacenAction(id: string): Promise<{ error?
     });
 
     revalidatePath("/logistica/almacenes");
-    revalidatePath(`/logistica/almacenes/${consumo.almacenOrigenId}`);
+    for (const almacenId of almacenIds) revalidatePath(`/logistica/almacenes/${almacenId}`);
     revalidatePath("/logistica/almacenes/consumos");
+    revalidatePath("/logistica/solicitudes-despacho");
     return undefined;
   } catch (e) {
     console.error("Error inesperado en eliminarConsumoAlmacenAction:", e);

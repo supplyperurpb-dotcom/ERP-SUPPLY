@@ -131,6 +131,12 @@ export const trasladoAlmacenSchema = z
 export type TrasladoAlmacenInput = z.infer<typeof trasladoAlmacenSchema>;
 
 const itemConsumoSchema = z.object({
+  // El almacén de origen vive en la línea, no en la cabecera: un mismo
+  // consumo puede repartir un mismo producto entre varios almacenes (ver
+  // "Ver Productos" en consumo-almacen-form.tsx). En el flujo manual
+  // (sin solicitud de despacho detrás) el formulario le pone el mismo
+  // almacén elegido a todas las líneas.
+  almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
   skuId: z.string().min(1, "Selecciona un producto"),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   unidadMedida: z.string().min(1),
@@ -154,7 +160,6 @@ export const consumoAlmacenSchema = z
     // ser posterior a hoy (no se pueden contabilizar consumos "a futuro").
     fechaContabilizacion: z.coerce.date({ required_error: "La fecha de contabilización es obligatoria" }),
     horaRetiro: z.string().min(1, "La hora es obligatoria"),
-    almacenOrigenId: z.string().min(1, "Selecciona el almacén"),
     // Seleccionado del catálogo RetiradorAutorizado (ver
     // lib/validations/retirador-autorizado.ts) — ya no es texto libre, el
     // combobox del formulario solo ofrece retiradores con permiso en el

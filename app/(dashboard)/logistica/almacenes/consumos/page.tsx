@@ -13,7 +13,7 @@ export default async function ConsumosAlmacenPage() {
   const consumos = await prisma.consumoAlmacen.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
-    include: { almacen: true, _count: { select: { items: true } } },
+    include: { items: { include: { almacenOrigen: true } } },
   });
 
   return (
@@ -57,12 +57,14 @@ export default async function ConsumosAlmacenPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {consumos.map((consumo) => (
+            {consumos.map((consumo) => {
+              const nombresAlmacenes = [...new Set(consumo.items.map((item) => item.almacenOrigen.nombre))];
+              return (
               <TableRow key={consumo.id}>
                 <TableCell className="font-medium">{consumo.numero}</TableCell>
                 <TableCell>{formatDateTime(consumo.fecha)}</TableCell>
-                <TableCell>{consumo.almacen.nombre}</TableCell>
-                <TableCell className="text-right">{consumo._count.items}</TableCell>
+                <TableCell>{nombresAlmacenes.join(", ")}</TableCell>
+                <TableCell className="text-right">{consumo.items.length}</TableCell>
                 <TableCell className="flex justify-end gap-1">
                   <Button variant="outline" size="sm" asChild title="Vista previa en PDF">
                     <a href={`/api/pdf/consumo-almacen/${consumo.id}`} target="_blank" rel="noopener noreferrer">
@@ -80,7 +82,8 @@ export default async function ConsumosAlmacenPage() {
                   />
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       )}

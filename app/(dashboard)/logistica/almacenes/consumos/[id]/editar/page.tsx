@@ -45,54 +45,61 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
     }
   }
 
-  // Igual que en traslados: se le devuelve al almacén lo que este mismo
-  // consumo ya le había restado, para que "disponible" refleje el mundo sin
-  // este consumo (el servidor lo reversa de verdad al guardar).
-  const filas = [...(stockPorAlmacen[consumo.almacenOrigenId] ?? [])];
-  for (const item of consumo.items) {
-    const idx = filas.findIndex((f) => f.skuId === item.skuId);
-    if (idx >= 0) {
-      filas[idx] = { ...filas[idx], cantidad: filas[idx].cantidad + Number(item.cantidad) };
-    } else {
-      filas.push({
-        skuId: item.skuId,
-        codigo: item.sku.codigo,
-        descripcion: item.sku.descripcion,
-        unidadMedida: item.unidadMedida,
-        cantidad: Number(item.cantidad),
-        precioUnitarioPonderado: Number(item.precioUnitarioPonderado),
-      });
+  // Un consumo ya puede tener líneas de más de un almacén (si vino de
+  // atender Solicitudes de Despacho repartidas entre varios) — se le
+  // devuelve a CADA almacén usado lo que este mismo consumo ya le había
+  // restado, para que "disponible" refleje el mundo sin este consumo (el
+  // servidor lo reversa de verdad al guardar).
+  const almacenIdsDelConsumo = [...new Set(consumo.items.map((item) => item.almacenOrigenId))];
+  for (const almacenId of almacenIdsDelConsumo) {
+    const filas = [...(stockPorAlmacen[almacenId] ?? [])];
+    for (const item of consumo.items) {
+      if (item.almacenOrigenId !== almacenId) continue;
+      const idx = filas.findIndex((f) => f.skuId === item.skuId);
+      if (idx >= 0) {
+        filas[idx] = { ...filas[idx], cantidad: filas[idx].cantidad + Number(item.cantidad) };
+      } else {
+        filas.push({
+          skuId: item.skuId,
+          codigo: item.sku.codigo,
+          descripcion: item.sku.descripcion,
+          unidadMedida: item.unidadMedida,
+          cantidad: Number(item.cantidad),
+          precioUnitarioPonderado: Number(item.precioUnitarioPonderado),
+        });
+      }
     }
+    stockPorAlmacen[almacenId] = filas;
   }
-  stockPorAlmacen[consumo.almacenOrigenId] = filas;
 
-  // Igual que con el stock agregado: se le devuelve a cada lote lo que
-  // este mismo consumo ya le había restado.
-  const almacenEditado = almacenes.find((a) => a.id === consumo.almacenOrigenId);
+  // Igual que con el stock agregado: se le devuelve a cada lote, en cada
+  // almacén de Agroquímicos/Fertilizantes usado, lo que este consumo ya le
+  // había restado.
   const lotesPorAlmacen: Record<string, Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>>> = {};
-  if (almacenEditado?.categoriaGeneral === "PESTICIDAS" || almacenEditado?.categoriaGeneral === "FERTILIZANTES") {
-    const skuIds = [...new Set(filas.map((f) => f.skuId))];
-    const lotesPorSku = await Promise.all(skuIds.map((skuId) => calcularStockPorLote(consumo.almacenOrigenId, skuId)));
+  for (const almacenId of almacenIdsDelConsumo) {
+    const almacen = almacenes.find((a) => a.id === almacenId);
+    if (almacen?.categoriaGeneral !== "PESTICIDAS" && almacen?.categoriaGeneral !== "FERTILIZANTES") continue;
+    const skuIds = [...new Set((stockPorAlmacen[almacenId] ?? []).map((f) => f.skuId))];
+    const lotesPorSku = await Promise.all(skuIds.map((skuId) => calcularStockPorLote(almacenId, skuId)));
     const mapa: Record<string, Awaited<ReturnType<typeof calcularStockPorLote>>> = {};
     skuIds.forEach((skuId, i) => {
       mapa[skuId] = lotesPorSku[i];
     });
     for (const item of consumo.items) {
-      if (!item.lote) continue;
+      if (item.almacenOrigenId !== almacenId || !item.lote) continue;
       const lotes = mapa[item.skuId];
       if (!lotes) continue;
       const lote = lotes.find((l) => l.lote === item.lote);
       if (lote) lote.cantidad += Number(item.cantidad);
       else lotes.push({ lote: item.lote, fechaProduccion: item.fechaProduccion, fechaVencimiento: item.fechaVencimiento, cantidad: Number(item.cantidad), unidadMedida: item.unidadMedida });
     }
-    lotesPorAlmacen[consumo.almacenOrigenId] = mapa;
+    lotesPorAlmacen[almacenId] = mapa;
   }
 
   const valoresIniciales: ConsumoAlmacenInput = {
     fecha: consumo.fecha.toISOString().slice(0, 10) as unknown as Date,
     fechaContabilizacion: consumo.fechaContabilizacion.toISOString().slice(0, 10) as unknown as Date,
     horaRetiro: consumo.horaRetiro ?? "",
-    almacenOrigenId: consumo.almacenOrigenId,
     retiradoPor: consumo.retiradoPor ?? "",
     retiradoPorDni: consumo.retiradoPorDni ?? "",
     vehiculoPlaca: consumo.vehiculoPlaca ?? "",
@@ -101,12 +108,14 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
     fotoEvidenciaArchivo: consumo.fotoEvidenciaArchivo ?? "",
     observaciones: consumo.observaciones ?? "",
     items: consumo.items.map((item) => ({
+      almacenOrigenId: item.almacenOrigenId,
       skuId: item.skuId,
       cantidad: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
       lote: item.lote ?? "",
       fechaProduccion: item.fechaProduccion ? (item.fechaProduccion.toISOString().slice(0, 10) as unknown as Date) : undefined,
       fechaVencimiento: item.fechaVencimiento ? (item.fechaVencimiento.toISOString().slice(0, 10) as unknown as Date) : undefined,
+      solicitudDespachoItemId: item.solicitudDespachoItemId ?? "",
     })),
   };
 
@@ -132,6 +141,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
           codigoEquipo: v.codigoEquipo,
           tipo: TIPOS_VEHICULO.find((t) => t.valor === v.tipo)?.nombre ?? v.tipo,
         }))}
+        solicitudesDespachoInicial={[]}
         edicion={{ id: consumo.id, valoresIniciales }}
       />
     </div>

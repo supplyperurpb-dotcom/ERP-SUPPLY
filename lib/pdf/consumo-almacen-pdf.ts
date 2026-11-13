@@ -47,11 +47,12 @@ export type LineaConsumoPdf = {
   descripcion: string;
   cantidad: number;
   unidadMedida: string;
+  almacen: string;
 };
 
 export async function generarConsumoAlmacenPdf({
   numero,
-  almacen,
+  almacenes,
   fecha,
   fechaContabilizacion,
   horaRetiro,
@@ -64,7 +65,10 @@ export async function generarConsumoAlmacenPdf({
   firmaPngBytes,
 }: {
   numero: string;
-  almacen: string;
+  /** Casi siempre uno solo; puede haber más de uno si el consumo repartió
+   * un mismo producto entre varios almacenes al atender una Solicitud de
+   * Despacho — ya vienen unidos con coma. */
+  almacenes: string;
   fecha: Date;
   fechaContabilizacion: Date;
   horaRetiro: string | null;
@@ -100,10 +104,17 @@ export async function generarConsumoAlmacenPdf({
     }
   }
 
+  // Si el consumo repartió productos entre más de un almacén, cada línea
+  // también dice de cuál salió (si es uno solo, ya se ve arriba en
+  // "ALMACÉN" y no hace falta repetirlo).
+  const hayVariosAlmacenes = new Set(lineas.map((l) => l.almacen)).size > 1;
+
   // Líneas ya envueltas de cada ítem/observación, calculadas ANTES de saber
   // el alto de la página (acá no hay paginación: el alto se ajusta al
   // contenido, así que hay que medirlo primero para poder crear la página).
-  const lineasPorItem = lineas.map((l) => envolverTexto(`${l.codigo} — ${l.descripcion}`, regular, 8, ANCHO_UTIL, 2));
+  const lineasPorItem = lineas.map((l) =>
+    envolverTexto(`${l.codigo} — ${l.descripcion}${hayVariosAlmacenes ? ` (${l.almacen})` : ""}`, regular, 8, ANCHO_UTIL, 2)
+  );
   const lineasObservaciones = observaciones ? envolverTexto(observaciones, regular, 7, ANCHO_UTIL, 3) : [];
 
   const altoHeader = logoAltura + 4 + 10 + 10 + 14;
@@ -140,7 +151,7 @@ export async function generarConsumoAlmacenPdf({
     page.drawText(value, { x: MARGEN, y, size: 8, font: regular, color: NEGRO });
     y -= 13;
   }
-  filaDato("ALMACÉN", almacen);
+  filaDato("ALMACÉN", almacenes);
   filaDato("FECHA Y HORA", `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`);
   filaDato("FECHA DE CONTABILIZACIÓN", fechaContabilizacion.toLocaleDateString("es-PE"));
   filaDato("RETIRADO POR", retiradoPor);

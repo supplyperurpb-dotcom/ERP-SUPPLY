@@ -371,7 +371,7 @@ model Almacen {
   ingresosAlmacen       IngresoAlmacen[]            @relation("IngresosAlmacen")
   trasladosOrigen       TrasladoAlmacen[]           @relation("TrasladosOrigen")
   trasladosDestino      TrasladoAlmacen[]           @relation("TrasladosDestino")
-  consumosAlmacen       ConsumoAlmacen[]            @relation("ConsumosAlmacen")
+  consumosAlmacenItems  ConsumoAlmacenItem[]        @relation("ConsumosAlmacenItems")
   devolucionesAlmacen   DevolucionAlmacen[]
   retiradoresPermitidos RetiradorAlmacenPermitido[] @relation("RetiradorAlmacenesPermitidos")
 
@@ -1051,7 +1051,13 @@ model ConsumoAlmacen {
   // Hora del retiro ("HH:MM"), separada de `fecha` igual que horaDespacho
   // en Despacho — nunca se combinan en un solo DateTime.
   horaRetiro           String?
-  almacenOrigenId      String
+  // El almacén de origen YA NO vive acá: desde que un consumo puede
+  // atender varias Solicitudes de Despacho repartiendo un mismo producto
+  // entre varios almacenes, cada línea tiene el suyo — ver
+  // ConsumoAlmacenItem.almacenOrigenId. Un consumo manual (no atendiendo
+  // solicitudes) sigue siendo, en la práctica, un solo almacén: el
+  // formulario simplemente le pone el mismo almacenOrigenId a todas sus
+  // líneas.
   // Nombre de quien retira físicamente el material — no necesariamente un
   // usuario del sistema (a diferencia de creadoPorId, que es quien lo
   // registró acá).
@@ -1079,8 +1085,7 @@ model ConsumoAlmacen {
   creadoPorId          String?
   createdAt            DateTime @default(now())
 
-  almacen Almacen              @relation("ConsumosAlmacen", fields: [almacenOrigenId], references: [id])
-  items   ConsumoAlmacenItem[]
+  items ConsumoAlmacenItem[]
 
   @@map("consumos_almacen")
 }
@@ -1088,6 +1093,11 @@ model ConsumoAlmacen {
 model ConsumoAlmacenItem {
   id                      String    @id @default(cuid())
   consumoAlmacenId        String
+  // Almacén del que SALE esta línea puntual (ver el comentario en
+  // ConsumoAlmacen más arriba) — un mismo consumo puede tener líneas de
+  // distintos almacenes, p. ej. al repartir un mismo producto entre dos
+  // almacenes para atender una Solicitud de Despacho.
+  almacenOrigenId         String
   skuId                   String
   cantidad                Decimal   @db.Decimal(12, 3)
   unidadMedida            String
@@ -1106,6 +1116,7 @@ model ConsumoAlmacenItem {
   solicitudDespachoItemId String?
 
   consumoAlmacen        ConsumoAlmacen         @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
+  almacenOrigen         Almacen                @relation("ConsumosAlmacenItems", fields: [almacenOrigenId], references: [id])
   sku                   Sku                    @relation(fields: [skuId], references: [id])
   solicitudDespachoItem SolicitudDespachoItem? @relation(fields: [solicitudDespachoItemId], references: [id])
 

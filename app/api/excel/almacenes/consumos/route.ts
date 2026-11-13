@@ -10,8 +10,8 @@ export async function GET(request: Request) {
   const [almacen, consumos] = await Promise.all([
     almacenId ? prisma.almacen.findUnique({ where: { id: almacenId } }) : null,
     prisma.consumoAlmacen.findMany({
-      where: almacenId ? { almacenOrigenId: almacenId } : undefined,
-      include: { almacen: true, items: { include: { sku: true } } },
+      where: almacenId ? { items: { some: { almacenOrigenId: almacenId } } } : undefined,
+      include: { items: { include: { sku: true, almacenOrigen: true } } },
       orderBy: { fecha: "desc" },
     }),
   ]);
@@ -33,13 +33,17 @@ export async function GET(request: Request) {
 
   const filas: Fila[] = [];
   for (const consumo of consumos) {
-    for (const item of consumo.items) {
+    // Si se filtró por almacén, solo las líneas de ESE almacén — el resto
+    // de un consumo que repartió un producto entre varios no corresponde
+    // a este reporte.
+    const items = almacenId ? consumo.items.filter((item) => item.almacenOrigenId === almacenId) : consumo.items;
+    for (const item of items) {
       filas.push({
         Número: consumo.numero,
         Fecha: formatDate(consumo.fecha),
         Hora: consumo.horaRetiro ?? "",
         "Fecha de Contabilización": formatDate(consumo.fechaContabilizacion),
-        Almacén: consumo.almacen.nombre,
+        Almacén: item.almacenOrigen.nombre,
         Código: item.sku.codigo,
         Producto: item.sku.descripcion,
         Cantidad: Number(item.cantidad),

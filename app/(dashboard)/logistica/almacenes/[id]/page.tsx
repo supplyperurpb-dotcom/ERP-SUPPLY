@@ -31,7 +31,7 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
       include: { almacenOrigen: true, almacenDestino: true, _count: { select: { items: true } } },
     }),
     prisma.consumoAlmacen.findMany({
-      where: { almacenOrigenId: id },
+      where: { items: { some: { almacenOrigenId: id } } },
       orderBy: { createdAt: "desc" },
       take: 10,
       include: { _count: { select: { items: true } } },

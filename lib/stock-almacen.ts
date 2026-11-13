@@ -74,7 +74,7 @@ async function mapaCostosAlmacen(almacenId: string, db: Db = prisma, fechaCorte?
       select: { skuId: true, valorTotal: true },
     }),
     db.consumoAlmacenItem.findMany({
-      where: { consumoAlmacen: { almacenOrigenId: almacenId, ...(corte && { fecha: corte }) } },
+      where: { almacenOrigenId: almacenId, ...(corte && { consumoAlmacen: { fecha: corte } }) },
       select: { skuId: true, valorConsumido: true },
     }),
     db.devolucionAlmacenItem.findMany({
@@ -241,6 +241,28 @@ export function almacenPermitidoParaConsumo(almacen: { codigo: string; categoria
   return almacen.codigo === CODIGO_ALMACEN_PRODUCCION_EMPAQUES;
 }
 
+export type StockPorAlmacen = { almacenId: string; codigo: string; nombre: string; cantidad: number };
+
+// Stock de un SKU puntual, desglosado por cada almacén de la lista dada —
+// usado al atender una o varias Solicitudes de Despacho, cuando se reparte
+// un mismo producto entre varios almacenes (ver "Ver Productos" en
+// consumo-almacen-form.tsx). El llamador decide qué almacenes son
+// "elegibles" para ese SKU (de la categoría que le corresponde, ver
+// categoriaAlmacenExigidaPorSku, y ya filtrados por
+// almacenPermitidoParaConsumo) — esta función solo junta el stock de cada
+// uno.
+export async function calcularStockPorAlmacenParaSku(
+  skuId: string,
+  almacenesElegibles: { id: string; codigo: string; nombre: string }[],
+  db: Db = prisma
+): Promise<StockPorAlmacen[]> {
+  const cantidades = await Promise.all(almacenesElegibles.map((a) => stockDisponible(a.id, skuId, db)));
+  return almacenesElegibles
+    .map((a, i) => ({ almacenId: a.id, codigo: a.codigo, nombre: a.nombre, cantidad: cantidades[i] }))
+    .filter((f) => f.cantidad > 0)
+    .sort((a, b) => a.codigo.localeCompare(b.codigo));
+}
+
 // ---------------------------------------------------------------------
 // Ingreso a almacén desde Orden de Compra: la cantidad pendiente de
 // recibir de un OrdenCompraItem es su cantidad menos la suma de
@@ -372,7 +394,7 @@ export async function calcularStockPorLote(almacenId: string, skuId: string, db:
       select: { lote: true, fechaProduccion: true, fechaVencimiento: true, cantidad: true, unidadMedida: true },
     }),
     db.consumoAlmacenItem.findMany({
-      where: { skuId, lote: { not: null }, consumoAlmacen: { almacenOrigenId: almacenId } },
+      where: { skuId, lote: { not: null }, almacenOrigenId: almacenId },
       select: { lote: true, cantidad: true },
     }),
     db.trasladoAlmacenItem.findMany({
@@ -439,6 +461,10 @@ export type ItemSolicitudDespachoPendiente = {
   skuId: string;
   codigo: string;
   descripcion: string;
+  // Para agrupar por categoría de almacén al atender (ver
+  // categoriaAlmacenExigidaPorSku) en el flujo "Ver Productos" de
+  // consumo-almacen-form.tsx.
+  subfamilia: string;
   unidadMedida: string;
   centroCosto: string;
   campo: string | null;
@@ -488,6 +514,7 @@ export async function calcularSolicitudesDespachoPendientes(db: Db = prisma): Pr
         skuId: item.skuId,
         codigo: item.sku.codigo,
         descripcion: item.sku.descripcion,
+        subfamilia: item.sku.subfamilia,
         unidadMedida: item.unidadMedida,
         centroCosto: item.centroCosto,
         campo: item.campo,

@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const consumo = await prisma.consumoAlmacen.findUnique({
     where: { id },
-    include: { almacen: true, items: { include: { sku: true } } },
+    include: { items: { include: { sku: true, almacenOrigen: true } } },
   });
 
   if (!consumo) {
@@ -20,10 +20,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     : null;
 
   const firmaPngBytes = consumo.firmaArchivo ? await descargarArchivo(consumo.firmaArchivo) : null;
+  const nombresAlmacenes = [...new Set(consumo.items.map((item) => item.almacenOrigen.nombre))];
 
   const bytes = await generarConsumoAlmacenPdf({
     numero: consumo.numero,
-    almacen: consumo.almacen.nombre,
+    almacenes: nombresAlmacenes.join(", "),
     fecha: consumo.fecha,
     fechaContabilizacion: consumo.fechaContabilizacion,
     horaRetiro: consumo.horaRetiro,
@@ -37,6 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       descripcion: item.lote ? `${item.sku.descripcion} (Lote ${item.lote})` : item.sku.descripcion,
       cantidad: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
+      almacen: item.almacenOrigen.nombre,
     })),
     firmaPngBytes,
   });
