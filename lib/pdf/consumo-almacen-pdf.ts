@@ -31,6 +31,31 @@ function envolverTexto(texto: string, font: PDFFont, size: number, anchoMax: num
   return lineas.length > 0 ? lineas : [""];
 }
 
+// Para un valor que puede ser largo (ej. "RETIRADO POR" con el DNI
+// incluido) en una columna angosta: antes de recortarlo, se achica un
+// poco la letra (hasta `tamanoMinimo`) para que se vea completo si cabe
+// así — solo si ni achicado cabe, se recorta con "…" (ver truncarTexto).
+function tamanoQueCabe(font: PDFFont, texto: string, tamanoPreferido: number, anchoMax: number, tamanoMinimo = 7): number {
+  let size = tamanoPreferido;
+  while (size > tamanoMinimo && font.widthOfTextAtSize(texto, size) > anchoMax) {
+    size -= 0.5;
+  }
+  return size;
+}
+
+// Recorta a una sola línea que quepa en `anchoMax`, con "…" al final si
+// hubo que cortar — usado donde dos textos van en la misma fila (columnas
+// de la tabla, o pares de dato en la misma línea) y NO pueden invadir el
+// espacio del vecino, por angosto que sea el valor real.
+function truncarTexto(font: PDFFont, texto: string, size: number, anchoMax: number): string {
+  if (font.widthOfTextAtSize(texto, size) <= anchoMax) return texto;
+  let actual = texto;
+  while (actual.length > 1 && font.widthOfTextAtSize(`${actual}…`, size) > anchoMax) {
+    actual = actual.slice(0, -1);
+  }
+  return `${actual}…`;
+}
+
 const GRIS = rgb(0.45, 0.45, 0.45);
 const GRIS_CLARO = rgb(0.85, 0.85, 0.85);
 const NEGRO = rgb(0.1, 0.1, 0.1);
@@ -64,10 +89,10 @@ const ALTO_FILA_ITEM = 15;
 // MARGEN) — no se muestra de qué almacén sale cada línea, eso lo decide
 // quien atiende y no le aporta nada a quien retira/firma.
 const COL_COD_X = 0;
-const COL_PROD_X = 46;
-const COL_LOTE_X = 160;
-const COL_UM_X = 196;
-const COL_CANT_X = 220;
+const COL_PROD_X = 60;
+const COL_LOTE_X = 170;
+const COL_UM_X = 202;
+const COL_CANT_X = 222;
 const COL_COD_ANCHO = COL_PROD_X - COL_COD_X - 4;
 const COL_PROD_ANCHO = COL_LOTE_X - COL_PROD_X - 4;
 const COL_LOTE_ANCHO = COL_UM_X - COL_LOTE_X - 4;
@@ -134,15 +159,6 @@ export async function generarConsumoAlmacenPdf({
 
   const lineasObservaciones = observaciones ? envolverTexto(observaciones, regular, TAM_VALOR - 1, ANCHO_UTIL, 3) : [];
 
-  function truncarCelda(texto: string, size: number, anchoMax: number): string {
-    if (regular.widthOfTextAtSize(texto, size) <= anchoMax) return texto;
-    let actual = texto;
-    while (actual.length > 1 && regular.widthOfTextAtSize(`${actual}…`, size) > anchoMax) {
-      actual = actual.slice(0, -1);
-    }
-    return `${actual}…`;
-  }
-
   // Encabezado de la tabla de productos (COD/PRODUCTO/LOTE/UM/CANT) + la
   // línea que lo separa de las filas de datos — se repite tal cual en cada
   // página nueva que haga falta por desbordamiento (ver el loop de abajo).
@@ -163,21 +179,21 @@ export async function generarConsumoAlmacenPdf({
   }
 
   function dibujarFilaProducto(pagina: PDFPage, yFila: number, linea: LineaConsumoPdf) {
-    pagina.drawText(truncarCelda(linea.codigo, TAM_TABLA_DATA, COL_COD_ANCHO), {
+    pagina.drawText(truncarTexto(regular, linea.codigo, TAM_TABLA_DATA, COL_COD_ANCHO), {
       x: MARGEN + COL_COD_X,
       y: yFila,
       size: TAM_TABLA_DATA,
       font: regular,
       color: NEGRO,
     });
-    pagina.drawText(truncarCelda(linea.descripcion, TAM_TABLA_DATA, COL_PROD_ANCHO), {
+    pagina.drawText(truncarTexto(regular, linea.descripcion, TAM_TABLA_DATA, COL_PROD_ANCHO), {
       x: MARGEN + COL_PROD_X,
       y: yFila,
       size: TAM_TABLA_DATA,
       font: regular,
       color: NEGRO,
     });
-    pagina.drawText(linea.lote ? truncarCelda(linea.lote, TAM_TABLA_DATA, COL_LOTE_ANCHO) : "—", {
+    pagina.drawText(linea.lote ? truncarTexto(regular, linea.lote, TAM_TABLA_DATA, COL_LOTE_ANCHO) : "—", {
       x: MARGEN + COL_LOTE_X,
       y: yFila,
       size: TAM_TABLA_DATA,
@@ -226,11 +242,35 @@ export async function generarConsumoAlmacenPdf({
   // filaDato, solo que escribe en dos columnas en vez de una.
   function filaDatoDoble(label1: string, value1: string, label2: string, value2: string) {
     const colAncho = ANCHO_UTIL / 2;
-    page.drawText(label1, { x: MARGEN, y, size: TAM_LABEL, font: bold, color: GRIS });
-    page.drawText(label2, { x: MARGEN + colAncho, y, size: TAM_LABEL, font: bold, color: GRIS });
+    const anchoCol1 = colAncho - 6;
+    const anchoCol2 = ANCHO_UTIL - colAncho - 2;
+    page.drawText(truncarTexto(bold, label1, TAM_LABEL, anchoCol1), { x: MARGEN, y, size: TAM_LABEL, font: bold, color: GRIS });
+    page.drawText(truncarTexto(bold, label2, TAM_LABEL, anchoCol2), {
+      x: MARGEN + colAncho,
+      y,
+      size: TAM_LABEL,
+      font: bold,
+      color: GRIS,
+    });
     y -= GAP_LABEL_VALOR;
-    page.drawText(value1, { x: MARGEN, y, size: TAM_VALOR, font: regular, color: NEGRO });
-    page.drawText(value2, { x: MARGEN + colAncho, y, size: TAM_VALOR, font: regular, color: NEGRO });
+    // Cada valor se recorta a lo que mide SU columna: un nombre largo (ej.
+    // "RETIRADO POR" con DNI incluido) no puede invadir la columna vecina.
+    const tamValor1 = tamanoQueCabe(regular, value1, TAM_VALOR, anchoCol1);
+    const tamValor2 = tamanoQueCabe(regular, value2, TAM_VALOR, anchoCol2);
+    page.drawText(truncarTexto(regular, value1, tamValor1, anchoCol1), {
+      x: MARGEN,
+      y,
+      size: tamValor1,
+      font: regular,
+      color: NEGRO,
+    });
+    page.drawText(truncarTexto(regular, value2, tamValor2, anchoCol2), {
+      x: MARGEN + colAncho,
+      y,
+      size: tamValor2,
+      font: regular,
+      color: NEGRO,
+    });
     y -= GAP_FILA_DATO;
   }
   filaDatoDoble(
