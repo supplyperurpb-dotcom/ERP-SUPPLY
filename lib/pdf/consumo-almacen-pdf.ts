@@ -214,7 +214,7 @@ export async function generarConsumoAlmacenPdf({
       color: NEGRO,
     });
     pagina.drawText(linea.unidadMedida, { x: MARGEN + COL_UM_X, y: yFila, size: TAM_TABLA_DATA, font: regular, color: NEGRO });
-    const cantTexto = String(linea.cantidad);
+    const cantTexto = linea.cantidad.toFixed(2);
     const cantAncho = regular.widthOfTextAtSize(cantTexto, TAM_TABLA_DATA);
     pagina.drawText(cantTexto, {
       x: ANCHO_PAGINA - MARGEN - cantAncho,
