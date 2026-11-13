@@ -56,6 +56,18 @@ function truncarTexto(font: PDFFont, texto: string, size: number, anchoMax: numb
   return `${actual}…`;
 }
 
+// "PAUL VERA" -> "P. VERA": el nombre completo nunca se recorta con "…",
+// en vez de eso se abrevia a inicial + apellido(s) (el DNI, aparte, va en
+// su propia línea debajo — ver filaRetiradoRegistrado). Asume que la
+// primera palabra es el nombre y el resto apellido(s), que es como se
+// arma hoy (RetiradorAutorizado.nombres + " " + apellidos).
+function formatearNombreInicial(nombreCompleto: string): string {
+  const partes = nombreCompleto.trim().split(/\s+/).filter(Boolean);
+  if (partes.length <= 1) return nombreCompleto;
+  const inicial = partes[0].charAt(0).toUpperCase();
+  return `${inicial}. ${partes.slice(1).join(" ")}`;
+}
+
 const GRIS = rgb(0.45, 0.45, 0.45);
 const GRIS_CLARO = rgb(0.85, 0.85, 0.85);
 const NEGRO = rgb(0.1, 0.1, 0.1);
@@ -110,7 +122,8 @@ export async function generarConsumoAlmacenPdf({
   fecha,
   fechaContabilizacion,
   horaRetiro,
-  retiradoPor,
+  retiradoPorNombre,
+  retiradoPorDni,
   registradoPor,
   vehiculoPlaca,
   horometroKilometraje,
@@ -122,7 +135,8 @@ export async function generarConsumoAlmacenPdf({
   fecha: Date;
   fechaContabilizacion: Date;
   horaRetiro: string | null;
-  retiradoPor: string;
+  retiradoPorNombre: string;
+  retiradoPorDni: string | null;
   registradoPor: string;
   vehiculoPlaca: string | null;
   horometroKilometraje: number | null;
@@ -273,13 +287,49 @@ export async function generarConsumoAlmacenPdf({
     });
     y -= GAP_FILA_DATO;
   }
+  // RETIRADO POR necesita su propia fila (no filaDatoDoble): el nombre se
+  // abrevia a inicial + apellido(s) para que nunca haga falta recortarlo,
+  // y el DNI va en una línea aparte debajo, no pegado al nombre.
+  function filaRetiradoRegistrado(nombreRetirado: string, dniRetirado: string | null, nombreRegistrado: string) {
+    const colAncho = ANCHO_UTIL / 2;
+    const anchoCol1 = colAncho - 6;
+    const anchoCol2 = ANCHO_UTIL - colAncho - 2;
+
+    page.drawText("RETIRADO POR", { x: MARGEN, y, size: TAM_LABEL, font: bold, color: GRIS });
+    page.drawText("REGISTRADO POR", { x: MARGEN + colAncho, y, size: TAM_LABEL, font: bold, color: GRIS });
+    y -= GAP_LABEL_VALOR;
+
+    const nombreFormateado = formatearNombreInicial(nombreRetirado);
+    const tamNombre = tamanoQueCabe(regular, nombreFormateado, TAM_VALOR, anchoCol1);
+    const tamRegistrado = tamanoQueCabe(regular, nombreRegistrado, TAM_VALOR, anchoCol2);
+    page.drawText(truncarTexto(regular, nombreFormateado, tamNombre, anchoCol1), {
+      x: MARGEN,
+      y,
+      size: tamNombre,
+      font: regular,
+      color: NEGRO,
+    });
+    page.drawText(truncarTexto(regular, nombreRegistrado, tamRegistrado, anchoCol2), {
+      x: MARGEN + colAncho,
+      y,
+      size: tamRegistrado,
+      font: regular,
+      color: NEGRO,
+    });
+
+    if (dniRetirado) {
+      y -= GAP_LABEL_VALOR;
+      page.drawText(`DNI: ${dniRetirado}`, { x: MARGEN, y, size: TAM_LABEL - 1, font: regular, color: GRIS });
+    }
+    y -= GAP_FILA_DATO;
+  }
   filaDatoDoble(
     "FECHA Y HORA",
     `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`,
     "FECHA DE CONTABILIZACIÓN",
     fechaContabilizacion.toLocaleDateString("es-PE")
   );
-  filaDatoDoble("RETIRADO POR", retiradoPor, "REGISTRADO POR", registradoPor);
+  filaRetiradoRegistrado(retiradoPorNombre, retiradoPorDni, registradoPor);
   if (vehiculoPlaca) filaDato("PLACA DEL VEHÍCULO", vehiculoPlaca);
   if (horometroKilometraje !== null) filaDato("HORÓMETRO / KILOMETRAJE", String(horometroKilometraje));
 
