@@ -261,7 +261,16 @@ export function almacenPermitidoParaConsumo(almacen: { codigo: string; categoria
   return almacen.codigo === CODIGO_ALMACEN_PRODUCCION_EMPAQUES;
 }
 
-export type StockPorAlmacen = { almacenId: string; codigo: string; nombre: string; cantidad: number };
+export type StockPorAlmacen = {
+  almacenId: string;
+  codigo: string;
+  nombre: string;
+  /** null si este almacén no exige lote (no es de categoría PESTICIDAS/FERTILIZANTES). */
+  lote: string | null;
+  fechaProduccion: Date | null;
+  fechaVencimiento: Date | null;
+  cantidad: number;
+};
 
 // Stock de un SKU puntual, desglosado por cada almacén de la lista dada —
 // usado al atender una o varias Solicitudes de Despacho, cuando se reparte
@@ -269,18 +278,49 @@ export type StockPorAlmacen = { almacenId: string; codigo: string; nombre: strin
 // consumo-almacen-form.tsx). El llamador decide qué almacenes son
 // "elegibles" para ese SKU (de la categoría que le corresponde, ver
 // categoriaAlmacenExigidaPorSku, y ya filtrados por
-// almacenPermitidoParaConsumo) — esta función solo junta el stock de cada
-// uno.
+// almacenPermitidoParaConsumo). En un almacén que exige lote (PESTICIDAS o
+// FERTILIZANTES) sale UNA FILA POR LOTE (ver calcularStockPorLote) en vez
+// de una sola fila con el total del almacén — así quien atiende elige
+// cantidad y lote en el mismo paso, y ese lote (con sus fechas) queda
+// pegado a la línea que se agrega, sin tener que volver a elegirlo después
+// en la tabla de productos.
 export async function calcularStockPorAlmacenParaSku(
   skuId: string,
-  almacenesElegibles: { id: string; codigo: string; nombre: string }[],
+  almacenesElegibles: { id: string; codigo: string; nombre: string; categoriaGeneral: string | null }[],
   db: Db = prisma
 ): Promise<StockPorAlmacen[]> {
-  const cantidades = await Promise.all(almacenesElegibles.map((a) => stockDisponible(a.id, skuId, db)));
-  return almacenesElegibles
-    .map((a, i) => ({ almacenId: a.id, codigo: a.codigo, nombre: a.nombre, cantidad: cantidades[i] }))
-    .filter((f) => f.cantidad > 0)
-    .sort((a, b) => a.codigo.localeCompare(b.codigo));
+  const resultado: StockPorAlmacen[] = [];
+  for (const almacen of almacenesElegibles) {
+    const requiereLote = almacen.categoriaGeneral === "PESTICIDAS" || almacen.categoriaGeneral === "FERTILIZANTES";
+    if (requiereLote) {
+      const lotes = await calcularStockPorLote(almacen.id, skuId, db);
+      for (const l of lotes) {
+        resultado.push({
+          almacenId: almacen.id,
+          codigo: almacen.codigo,
+          nombre: almacen.nombre,
+          lote: l.lote,
+          fechaProduccion: l.fechaProduccion,
+          fechaVencimiento: l.fechaVencimiento,
+          cantidad: l.cantidad,
+        });
+      }
+    } else {
+      const cantidad = await stockDisponible(almacen.id, skuId, db);
+      if (cantidad > 0) {
+        resultado.push({
+          almacenId: almacen.id,
+          codigo: almacen.codigo,
+          nombre: almacen.nombre,
+          lote: null,
+          fechaProduccion: null,
+          fechaVencimiento: null,
+          cantidad,
+        });
+      }
+    }
+  }
+  return resultado.sort((a, b) => a.codigo.localeCompare(b.codigo) || (a.lote ?? "").localeCompare(b.lote ?? ""));
 }
 
 // ---------------------------------------------------------------------

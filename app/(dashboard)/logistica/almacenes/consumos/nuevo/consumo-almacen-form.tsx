@@ -58,6 +58,7 @@ type PendienteDespacho = {
   descripcion: string;
   subfamilia: string;
   unidadMedida: string;
+  centroCosto: string;
   cantidadPendiente: number;
 };
 
@@ -271,6 +272,13 @@ export function ConsumoAlmacenForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendientesDespacho, categoriaElegida, items]);
 
+  // Un almacén que exige lote aparece como varias filas (una por lote, ver
+  // calcularStockPorAlmacenParaSku) — se identifica cada fila por
+  // almacén+lote, no solo por almacén, para no mezclar sus cantidades.
+  function claveSplit(fila: StockPorAlmacen): string {
+    return `${fila.almacenId}::${fila.lote ?? "__sin_lote__"}`;
+  }
+
   async function elegirProducto(p: PendienteDespacho) {
     setProductoElegido(p);
     setCantidadesSplit({});
@@ -289,7 +297,7 @@ export function ConsumoAlmacenForm({
   function agregarSplit() {
     if (!productoElegido) return;
     if (sumaSplit <= 0) {
-      toast.error("Ingresa cuánto retirar de al menos un almacén.");
+      toast.error("Ingresa cuánto retirar de al menos una fila.");
       return;
     }
     if (sumaSplit > restanteProducto + 0.001) {
@@ -297,24 +305,24 @@ export function ConsumoAlmacenForm({
       return;
     }
     for (const fila of stockSplit) {
-      const cantidad = Number(cantidadesSplit[fila.almacenId]) || 0;
+      const cantidad = Number(cantidadesSplit[claveSplit(fila)]) || 0;
       if (cantidad > fila.cantidad + 0.001) {
-        toast.error(`${fila.nombre}: no hay ${formatCantidad(cantidad)} disponible (stock: ${formatCantidad(fila.cantidad)}).`);
+        toast.error(`${fila.nombre}${fila.lote ? ` (lote ${fila.lote})` : ""}: no hay ${formatCantidad(cantidad)} disponible (stock: ${formatCantidad(fila.cantidad)}).`);
         return;
       }
     }
 
     for (const fila of stockSplit) {
-      const cantidad = Number(cantidadesSplit[fila.almacenId]) || 0;
+      const cantidad = Number(cantidadesSplit[claveSplit(fila)]) || 0;
       if (cantidad <= 0) continue;
       append({
         almacenOrigenId: fila.almacenId,
         skuId: productoElegido.skuId,
         cantidad,
         unidadMedida: productoElegido.unidadMedida,
-        lote: "",
-        fechaProduccion: undefined,
-        fechaVencimiento: undefined,
+        lote: fila.lote ?? "",
+        fechaProduccion: fila.fechaProduccion ? (soloFecha(fila.fechaProduccion) as unknown as Date) : undefined,
+        fechaVencimiento: fila.fechaVencimiento ? (soloFecha(fila.fechaVencimiento) as unknown as Date) : undefined,
         solicitudDespachoItemId: productoElegido.id,
       });
     }
@@ -651,6 +659,7 @@ export function ConsumoAlmacenForm({
                     <TableHead className="w-28">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
                     {!sinAlmacenGeneral && <TableHead className="w-28">Stock disponible</TableHead>}
+                    {atendiendoSolicitudes && <TableHead className="w-36">Centro de costo</TableHead>}
                     {muestraLote && (
                       <>
                         <TableHead className="w-48">Lote *</TableHead>
@@ -753,6 +762,11 @@ export function ConsumoAlmacenForm({
                         </TableCell>
                         {!sinAlmacenGeneral && (
                           <TableCell className="align-top pt-4 text-sm">{skuId ? formatCantidad(disponible ?? 0) : "—"}</TableCell>
+                        )}
+                        {atendiendoSolicitudes && (
+                          <TableCell className="align-top pt-4 text-sm text-muted-foreground">
+                            {pendienteDeLaFila?.centroCosto ?? "—"}
+                          </TableCell>
                         )}
                         {muestraLote && (
                           <>
@@ -914,8 +928,8 @@ export function ConsumoAlmacenForm({
                 </DialogTitle>
               </DialogHeader>
               <p className="text-sm text-muted-foreground">
-                Pendiente: {formatCantidad(restanteProducto)} {productoElegido.unidadMedida}. Reparte cuánto retirar de cada
-                almacén.
+                Pendiente: {formatCantidad(restanteProducto)} {productoElegido.unidadMedida} · Centro de costo:{" "}
+                {productoElegido.centroCosto}. Reparte cuánto retirar de cada almacén (o lote).
               </p>
               {cargandoStockSplit ? (
                 <p className="text-sm text-muted-foreground">Cargando stock por almacén…</p>
@@ -924,17 +938,27 @@ export function ConsumoAlmacenForm({
               ) : (
                 <div className="space-y-3">
                   {stockSplit.map((fila) => (
-                    <div key={fila.almacenId} className="flex items-center gap-3">
+                    <div key={claveSplit(fila)} className="flex items-center gap-3">
                       <div className="flex-1">
                         <p className="text-sm font-medium">
                           <span className="font-mono text-muted-foreground">{fila.codigo}</span> {fila.nombre}
+                          {fila.lote && <span className="text-muted-foreground"> — Lote {fila.lote}</span>}
                         </p>
-                        <p className="text-xs text-muted-foreground">Disponible: {formatCantidad(fila.cantidad)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Disponible: {formatCantidad(fila.cantidad)}
+                          {fila.lote && (
+                            <>
+                              {" "}
+                              · Prod.: {soloFecha(fila.fechaProduccion ?? undefined) || "—"} · Venc.:{" "}
+                              {soloFecha(fila.fechaVencimiento ?? undefined) || "—"}
+                            </>
+                          )}
+                        </p>
                       </div>
                       <div className="w-28">
                         <NumberInput
-                          value={cantidadesSplit[fila.almacenId] ?? ""}
-                          onChange={(v) => setCantidadesSplit((prev) => ({ ...prev, [fila.almacenId]: v }))}
+                          value={cantidadesSplit[claveSplit(fila)] ?? ""}
+                          onChange={(v) => setCantidadesSplit((prev) => ({ ...prev, [claveSplit(fila)]: v }))}
                         />
                       </div>
                     </div>

@@ -314,7 +314,7 @@ export async function obtenerStockPorAlmacenParaSkuAction(skuId: string): Promis
   const elegibles = almacenesActivos.filter(almacenPermitidoParaConsumo);
   return calcularStockPorAlmacenParaSku(
     skuId,
-    elegibles.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre }))
+    elegibles.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))
   );
 }
 
