@@ -73,7 +73,6 @@ export function DevolucionAlmacenForm({
       area: undefined,
       personaQueTrae: "",
       personaQueTraeDni: "",
-      tieneProveedor: false,
       proveedorId: "",
       observaciones: "",
       items: [ITEM_VACIO],
@@ -83,7 +82,6 @@ export function DevolucionAlmacenForm({
   const { fields, append, remove, replace } = useFieldArray({ control: form.control, name: "items" });
   const items = useWatch({ control: form.control, name: "items" }) ?? [];
   const almacenId = useWatch({ control: form.control, name: "almacenId" });
-  const tieneProveedor = useWatch({ control: form.control, name: "tieneProveedor" });
   const proveedorId = useWatch({ control: form.control, name: "proveedorId" });
   const personaQueTraeDni = useWatch({ control: form.control, name: "personaQueTraeDni" });
   const area = useWatch({ control: form.control, name: "area" });
@@ -269,50 +267,28 @@ export function DevolucionAlmacenForm({
             )}
           </div>
 
-          <div className="flex items-center gap-2 pt-7">
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Proveedor (opcional)</Label>
             <Controller
               control={form.control}
-              name="tieneProveedor"
+              name="proveedorId"
               render={({ field }) => (
-                <Checkbox
-                  id="tieneProveedor"
-                  checked={field.value}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked);
-                    if (!checked) form.setValue("proveedorId", "");
-                  }}
+                <ProveedorSelectCombobox
+                  proveedores={proveedores}
+                  value={field.value ?? ""}
+                  onSelect={(p) => field.onChange(p?.id ?? "")}
                 />
               )}
             />
-            <Label htmlFor="tieneProveedor" className="cursor-pointer font-normal">
-              Esta devolución tiene proveedor
-            </Label>
+            {form.formState.errors.proveedorId && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.proveedorId.message}</p>
+            )}
+            {proveedorId && (
+              <p className="text-xs text-muted-foreground">
+                RUC {proveedores.find((p) => p.id === proveedorId)?.ruc ?? "—"}
+              </p>
+            )}
           </div>
-
-          {tieneProveedor && (
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Proveedor</Label>
-              <Controller
-                control={form.control}
-                name="proveedorId"
-                render={({ field }) => (
-                  <ProveedorSelectCombobox
-                    proveedores={proveedores}
-                    value={field.value ?? ""}
-                    onSelect={(p) => field.onChange(p?.id ?? "")}
-                  />
-                )}
-              />
-              {form.formState.errors.proveedorId && (
-                <p className="text-sm font-medium text-destructive">{form.formState.errors.proveedorId.message}</p>
-              )}
-              {proveedorId && (
-                <p className="text-xs text-muted-foreground">
-                  RUC {proveedores.find((p) => p.id === proveedorId)?.ruc ?? "—"}
-                </p>
-              )}
-            </div>
-          )}
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="observaciones">Observaciones (opcional)</Label>

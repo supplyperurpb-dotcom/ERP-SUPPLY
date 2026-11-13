@@ -40,18 +40,11 @@ export const devolucionAlmacenSchema = z
       .string()
       .trim()
       .regex(/^\d{8}$/, "El DNI de quien trae el material es obligatorio"),
-    // Si está marcada, proveedorId es obligatorio (ver superRefine) y el
-    // formulario muestra el combobox de proveedor; si no, la devolución
-    // queda sin proveedor asociado (p. ej. vuelve de un área interna).
-    tieneProveedor: z.coerce.boolean().default(false),
+    // Opcional: la devolución puede venir sin proveedor asociado (p. ej.
+    // vuelve de un área interna).
     proveedorId: z.string().optional().or(z.literal("")),
     observaciones: z.string().max(500).optional().or(z.literal("")),
     items: z.array(itemDevolucionSchema).min(1, "Agrega al menos un producto"),
-  })
-  .superRefine((data, ctx) => {
-    if (data.tieneProveedor && !data.proveedorId) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Selecciona el proveedor", path: ["proveedorId"] });
-    }
   });
 
 export type DevolucionAlmacenInput = z.infer<typeof devolucionAlmacenSchema>;

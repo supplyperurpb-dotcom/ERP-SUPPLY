@@ -26,8 +26,8 @@ export async function obtenerPrecioPonderadoAction(almacenId: string, skuId: str
 
 type ItemConPrecio = DevolucionAlmacenInput["items"][number] & { precioUnitario: number; subtotal: number };
 
-// Valida el almacén (general, activo si corresponde) y el proveedor (si
-// tieneProveedor), y calcula en el servidor el precio de cada línea — nunca
+// Valida el almacén (general, activo si corresponde) y el proveedor (si se
+// indicó uno), y calcula en el servidor el precio de cada línea — nunca
 // se confía en lo que mande el cliente: 0 si noValorado, si no el costo
 // unitario ponderado ACTUAL del SKU en el almacén de destino (ver
 // precioUnitarioPonderado en lib/stock-almacen.ts). También exige que cada
@@ -44,8 +44,7 @@ async function validarOrigen(tx: Tx, data: DevolucionAlmacenInput, exigirActivo:
     throw new Error("Las devoluciones solo se registran en un almacén general; este es un sub-almacén.");
   }
 
-  if (data.tieneProveedor) {
-    if (!data.proveedorId) throw new Error("Selecciona el proveedor.");
+  if (data.proveedorId) {
     const proveedor = await tx.proveedor.findUnique({ where: { id: data.proveedorId } });
     if (!proveedor) throw new Error("El proveedor seleccionado ya no existe. Actualiza la página e intenta de nuevo.");
   }
@@ -96,8 +95,7 @@ export async function crearDevolucionAlmacenAction(data: DevolucionAlmacenInput)
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, area, personaQueTrae, personaQueTraeDni, tieneProveedor, proveedorId, observaciones } =
-    parsed.data;
+  const { fecha, almacenId, area, personaQueTrae, personaQueTraeDni, proveedorId, observaciones } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
@@ -116,7 +114,7 @@ export async function crearDevolucionAlmacenAction(data: DevolucionAlmacenInput)
           area,
           personaQueTrae,
           personaQueTraeDni,
-          proveedorId: tieneProveedor ? proveedorId || null : null,
+          proveedorId: proveedorId || null,
           observaciones: observaciones || null,
           creadoPorId: usuario?.id,
         },
@@ -174,8 +172,7 @@ export async function actualizarDevolucionAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, area, personaQueTrae, personaQueTraeDni, tieneProveedor, proveedorId, observaciones } =
-    parsed.data;
+  const { fecha, almacenId, area, personaQueTrae, personaQueTraeDni, proveedorId, observaciones } = parsed.data;
 
   const existente = await prisma.devolucionAlmacen.findUnique({ where: { id }, include: { items: true } });
   if (!existente) return { error: "La devolución ya no existe." };
@@ -212,7 +209,7 @@ export async function actualizarDevolucionAlmacenAction(
           area,
           personaQueTrae,
           personaQueTraeDni,
-          proveedorId: tieneProveedor ? proveedorId || null : null,
+          proveedorId: proveedorId || null,
           observaciones: observaciones || null,
         },
       });

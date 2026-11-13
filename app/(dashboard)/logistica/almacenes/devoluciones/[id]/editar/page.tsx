@@ -36,7 +36,6 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
     area: devolucion.area as DevolucionAlmacenInput["area"],
     personaQueTrae: devolucion.personaQueTrae,
     personaQueTraeDni: devolucion.personaQueTraeDni,
-    tieneProveedor: devolucion.proveedorId !== null,
     proveedorId: devolucion.proveedorId ?? "",
     observaciones: devolucion.observaciones ?? "",
     items: devolucion.items.map((item) => ({
