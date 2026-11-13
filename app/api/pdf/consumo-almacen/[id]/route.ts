@@ -24,7 +24,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const bytes = await generarConsumoAlmacenPdf({
     numero: consumo.numero,
     fecha: consumo.fecha,
-    fechaContabilizacion: consumo.fechaContabilizacion,
     horaRetiro: consumo.horaRetiro,
     retiradoPorNombre: consumo.retiradoPor ?? "—",
     retiradoPorDni: consumo.retiradoPorDni,

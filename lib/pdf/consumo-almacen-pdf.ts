@@ -82,14 +82,15 @@ const ALTO_PAGINA = 148 * MM_A_PT;
 const MARGEN = 16;
 const ANCHO_UTIL = ANCHO_PAGINA - MARGEN * 2;
 
-const TAM_CODIGO_HEADER = 13;
-const TAM_TITULO = 14;
-const TAM_LABEL = 9;
-const TAM_VALOR = 11;
-const TAM_SECCION = 9;
-const TAM_TABLA_HEADER = 8;
-const TAM_TABLA_DATA = 10;
-const TAM_PIE = 8;
+// Letras reducidas un 30% respecto al primer tamaño fijado (ver pedido
+// del 2026-11-13).
+const TAM_CODIGO_HEADER = 13 * 0.7;
+const TAM_LABEL = 9 * 0.7;
+const TAM_VALOR = 11 * 0.7;
+const TAM_SECCION = 9 * 0.7;
+const TAM_TABLA_HEADER = 8 * 0.7;
+const TAM_TABLA_DATA = 10 * 0.7;
+const TAM_PIE = 8 * 0.7;
 
 const GAP_LABEL_VALOR = 11;
 const GAP_FILA_DATO = 15;
@@ -120,7 +121,6 @@ export type LineaConsumoPdf = {
 export async function generarConsumoAlmacenPdf({
   numero,
   fecha,
-  fechaContabilizacion,
   horaRetiro,
   retiradoPorNombre,
   retiradoPorDni,
@@ -133,7 +133,6 @@ export async function generarConsumoAlmacenPdf({
 }: {
   numero: string;
   fecha: Date;
-  fechaContabilizacion: Date;
   horaRetiro: string | null;
   retiradoPorNombre: string;
   retiradoPorDni: string | null;
@@ -230,8 +229,9 @@ export async function generarConsumoAlmacenPdf({
   let y = ALTO_PAGINA - MARGEN;
 
   page.drawImage(logo, { x: MARGEN, y: y - logoAltura, width: logoAncho, height: logoAltura });
-  const codigoAncho = bold.widthOfTextAtSize(numero, TAM_CODIGO_HEADER);
-  page.drawText(numero, {
+  const tituloConsumo = `CONSUMO ${numero}`;
+  const codigoAncho = bold.widthOfTextAtSize(tituloConsumo, TAM_CODIGO_HEADER);
+  page.drawText(tituloConsumo, {
     x: ANCHO_PAGINA - MARGEN - codigoAncho,
     y: y - (logoAltura + TAM_CODIGO_HEADER) / 2 + 1,
     size: TAM_CODIGO_HEADER,
@@ -240,10 +240,7 @@ export async function generarConsumoAlmacenPdf({
   });
   y -= logoAltura + 6;
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.75, color: NEGRO });
-  y -= 18;
-
-  page.drawText(`CONSUMO ${numero}`, { x: MARGEN, y, size: TAM_TITULO, font: bold, color: NEGRO });
-  y -= 20;
+  y -= 14;
 
   function filaDato(label: string, value: string) {
     page.drawText(label, { x: MARGEN, y, size: TAM_LABEL, font: bold, color: GRIS });
@@ -251,45 +248,10 @@ export async function generarConsumoAlmacenPdf({
     page.drawText(value, { x: MARGEN, y, size: TAM_VALOR, font: regular, color: NEGRO });
     y -= GAP_FILA_DATO;
   }
-  // Dos pares label/valor en la misma fila (FECHA Y HORA / FECHA DE
-  // CONTABILIZACIÓN, RETIRADO POR / REGISTRADO POR) — igual alto que
-  // filaDato, solo que escribe en dos columnas en vez de una.
-  function filaDatoDoble(label1: string, value1: string, label2: string, value2: string) {
-    const colAncho = ANCHO_UTIL / 2;
-    const anchoCol1 = colAncho - 6;
-    const anchoCol2 = ANCHO_UTIL - colAncho - 2;
-    page.drawText(truncarTexto(bold, label1, TAM_LABEL, anchoCol1), { x: MARGEN, y, size: TAM_LABEL, font: bold, color: GRIS });
-    page.drawText(truncarTexto(bold, label2, TAM_LABEL, anchoCol2), {
-      x: MARGEN + colAncho,
-      y,
-      size: TAM_LABEL,
-      font: bold,
-      color: GRIS,
-    });
-    y -= GAP_LABEL_VALOR;
-    // Cada valor se recorta a lo que mide SU columna: un nombre largo (ej.
-    // "RETIRADO POR" con DNI incluido) no puede invadir la columna vecina.
-    const tamValor1 = tamanoQueCabe(regular, value1, TAM_VALOR, anchoCol1);
-    const tamValor2 = tamanoQueCabe(regular, value2, TAM_VALOR, anchoCol2);
-    page.drawText(truncarTexto(regular, value1, tamValor1, anchoCol1), {
-      x: MARGEN,
-      y,
-      size: tamValor1,
-      font: regular,
-      color: NEGRO,
-    });
-    page.drawText(truncarTexto(regular, value2, tamValor2, anchoCol2), {
-      x: MARGEN + colAncho,
-      y,
-      size: tamValor2,
-      font: regular,
-      color: NEGRO,
-    });
-    y -= GAP_FILA_DATO;
-  }
-  // RETIRADO POR necesita su propia fila (no filaDatoDoble): el nombre se
-  // abrevia a inicial + apellido(s) para que nunca haga falta recortarlo,
-  // y el DNI va en una línea aparte debajo, no pegado al nombre.
+  // RETIRADO POR necesita su propia fila (dos columnas, a diferencia de
+  // filaDato): el nombre se abrevia a inicial + apellido(s) para que
+  // nunca haga falta recortarlo, y el DNI va en una línea aparte debajo,
+  // no pegado al nombre.
   function filaRetiradoRegistrado(nombreRetirado: string, dniRetirado: string | null, nombreRegistrado: string) {
     const colAncho = ANCHO_UTIL / 2;
     const anchoCol1 = colAncho - 6;
@@ -323,12 +285,7 @@ export async function generarConsumoAlmacenPdf({
     }
     y -= GAP_FILA_DATO;
   }
-  filaDatoDoble(
-    "FECHA Y HORA",
-    `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`,
-    "FECHA DE CONTABILIZACIÓN",
-    fechaContabilizacion.toLocaleDateString("es-PE")
-  );
+  filaDato("FECHA Y HORA", `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`);
   filaRetiradoRegistrado(retiradoPorNombre, retiradoPorDni, registradoPor);
   if (vehiculoPlaca) filaDato("PLACA DEL VEHÍCULO", vehiculoPlaca);
   if (horometroKilometraje !== null) filaDato("HORÓMETRO / KILOMETRAJE", String(horometroKilometraje));
