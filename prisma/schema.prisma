@@ -895,6 +895,14 @@ model IngresoAlmacenItem {
   // OrdenCompraItem es su cantidad menos la suma de IngresoAlmacenItem.cantidad
   // de todos los ingresos que apuntan a él). Null en ingresos antiguos.
   ordenCompraItemId String?
+  // Área que solicitó este producto (Gerencia + Área puntual), jalada
+  // automáticamente de la Solicitud de Pedido detrás de esta línea de OC
+  // (ver SolicitudPedido.area/areaDetalle en crearIngresoAlmacenAction) —
+  // para poder filtrar qué stock le pertenece a cada área. Null si la OC
+  // es "directa" (sin Solped detrás, ver crearOrdenCompraDirectaAction) o
+  // es un ingreso de antes de este campo.
+  area              String?
+  areaDetalle       String?
 
   ingresoAlmacen  IngresoAlmacen   @relation(fields: [ingresoAlmacenId], references: [id], onDelete: Cascade)
   sku             Sku              @relation(fields: [skuId], references: [id])

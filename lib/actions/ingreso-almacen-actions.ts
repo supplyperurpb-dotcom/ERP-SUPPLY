@@ -83,7 +83,11 @@ async function validarOrigen(tx: Tx, data: IngresoAlmacenInput, exigirActivo: bo
 
   const itemsOc = await tx.ordenCompraItem.findMany({
     where: { ordenCompraId: orden.id },
-    include: { sku: true },
+    // El área que solicitó cada línea se jala del Solped detrás de ella
+    // (ver SolicitudPedido.area/areaDetalle) — una OC "directa" no tiene
+    // Solped detrás, así que sus líneas no traen área (ver más abajo
+    // dónde se usa, en crear/actualizarIngresoAlmacenAction).
+    include: { sku: true, solicitudPedidoItem: { include: { solicitudPedido: true } } },
   });
   const itemOcPorId = new Map(itemsOc.map((i) => [i.id, i]));
 
@@ -205,6 +209,8 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
             lote: item.lote || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
+            area: itemOc.solicitudPedidoItem?.solicitudPedido.area ?? null,
+            areaDetalle: itemOc.solicitudPedidoItem?.solicitudPedido.areaDetalle ?? null,
           },
         });
 
@@ -326,6 +332,8 @@ export async function actualizarIngresoAlmacenAction(
             lote: item.lote || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
+            area: itemOc.solicitudPedidoItem?.solicitudPedido.area ?? null,
+            areaDetalle: itemOc.solicitudPedidoItem?.solicitudPedido.areaDetalle ?? null,
           },
         });
 

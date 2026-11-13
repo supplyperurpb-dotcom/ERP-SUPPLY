@@ -8,6 +8,7 @@ import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimient
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatDateTime, formatMoneda } from "@/lib/utils";
 import { MONEDAS, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
+import { AREAS_SOLPED } from "@/lib/constants/compras";
 import { eliminarIngresoAlmacenAction } from "@/lib/actions/ingreso-almacen-actions";
 
 export default async function IngresoAlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -131,6 +132,7 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
           <TableRow>
             <TableHead>Código</TableHead>
             <TableHead>Producto</TableHead>
+            <TableHead>Área solicitante</TableHead>
             <TableHead>Lote</TableHead>
             <TableHead>F. producción</TableHead>
             <TableHead>F. vencimiento</TableHead>
@@ -146,6 +148,7 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.sku.codigo}</TableCell>
               <TableCell>{item.sku.descripcion}</TableCell>
+              <TableCell>{AREAS_SOLPED.find((a) => a.valor === item.areaDetalle)?.nombre ?? item.areaDetalle ?? "—"}</TableCell>
               <TableCell>{item.lote ?? "—"}</TableCell>
               <TableCell>{item.fechaProduccion ? formatDate(item.fechaProduccion) : "—"}</TableCell>
               <TableCell>{item.fechaVencimiento ? formatDate(item.fechaVencimiento) : "—"}</TableCell>

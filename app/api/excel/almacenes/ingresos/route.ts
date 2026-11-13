@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate } from "@/lib/utils";
 import { MONEDAS } from "@/lib/constants/moneda";
+import { AREAS_SOLPED } from "@/lib/constants/compras";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
     Proveedor: string;
     Código: string;
     Producto: string;
+    "Área solicitante": string;
     Lote: string;
     Cantidad: number;
     "U.M.": string;
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
         Proveedor: ingreso.proveedor?.razonSocial ?? "",
         Código: item.sku.codigo,
         Producto: item.sku.descripcion,
+        "Área solicitante": AREAS_SOLPED.find((a) => a.valor === item.areaDetalle)?.nombre ?? item.areaDetalle ?? "",
         Lote: item.lote ?? "",
         Cantidad: Number(item.cantidad),
         "U.M.": item.unidadMedida,
@@ -70,7 +73,7 @@ export async function GET(request: Request) {
   const hoja = XLSX.utils.json_to_sheet(filas);
   hoja["!cols"] = [
     { wch: 12 }, { wch: 22 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
-    { wch: 22 }, { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 14 },
+    { wch: 22 }, { wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 14 },
     { wch: 14 }, { wch: 30 },
   ];
 
