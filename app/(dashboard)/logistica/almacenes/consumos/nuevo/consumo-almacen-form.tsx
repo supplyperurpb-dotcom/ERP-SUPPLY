@@ -32,7 +32,7 @@ import {
 import type { FilaStockAlmacen, LoteStock, StockPorAlmacen } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
-type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; almacenesIds: string[] };
+type RetiradorOpcion = { id: string; nombreCompleto: string; dni: string; area: string; almacenesIds: string[] };
 
 function itemVacio(almacenOrigenId: string) {
   return {
@@ -183,11 +183,20 @@ export function ConsumoAlmacenForm({
     ? almacenesUsados.some((a) => a.categoriaGeneral === "COMBUSTIBLE")
     : almacenActual?.categoriaGeneral === "COMBUSTIBLE";
 
-  // Solo se puede elegir a alguien con permiso de retirar de TODOS los
-  // almacenes usados en la tabla — ver Listas > Retiradores autorizados.
-  const almacenIdsParaRetirador = sinAlmacenGeneral ? almacenesUsados.map((a) => a.id) : almacenManualId ? [almacenManualId] : [];
-  const retiradoresDisponibles =
-    almacenIdsParaRetirador.length > 0
+  // Al atender Solicitudes de Despacho, quien retira se filtra por el
+  // ÁREA de esas solicitudes (no por almacén: recién se sabe de qué
+  // almacén(es) sale cada línea después de pasar por "Ver Productos", y
+  // no tendría sentido obligar a elegir productos antes de poder elegir
+  // quién retira). En el flujo manual (o editando un consumo que no vino
+  // de una solicitud) sigue siendo por permiso de almacén — ver Listas >
+  // Retiradores autorizados.
+  const areaSolicitudes = solicitudesDespachoInicial[0]?.area ?? null;
+  const almacenIdsParaRetirador = esEdicionMultiAlmacen ? almacenesUsados.map((a) => a.id) : almacenManualId ? [almacenManualId] : [];
+  const retiradoresDisponibles = atendiendoSolicitudes
+    ? areaSolicitudes
+      ? retiradores.filter((r) => r.area === areaSolicitudes)
+      : []
+    : almacenIdsParaRetirador.length > 0
       ? retiradores.filter((r) => almacenIdsParaRetirador.every((id) => r.almacenesIds.includes(id)))
       : [];
   const retiradorSeleccionadoId = retiradoresDisponibles.find((r) => r.dni === retiradoPorDni)?.id ?? "";
@@ -504,8 +513,13 @@ export function ConsumoAlmacenForm({
             <RetiradorAutorizadoCombobox
               retiradores={retiradoresDisponibles}
               value={retiradorSeleccionadoId}
-              disabled={almacenIdsParaRetirador.length === 0}
-              mensajeDeshabilitado={sinAlmacenGeneral ? "Agrega primero un producto." : "Selecciona primero el almacén."}
+              disabled={atendiendoSolicitudes ? !areaSolicitudes : almacenIdsParaRetirador.length === 0}
+              mensajeDeshabilitado={esEdicionMultiAlmacen ? "Agrega primero un producto." : "Selecciona primero el almacén."}
+              mensajeVacio={
+                atendiendoSolicitudes
+                  ? "No hay retiradores autorizados para esta área. Agrégalo en Listas > Retiradores autorizados."
+                  : undefined
+              }
               onSelect={(r) => {
                 form.setValue("retiradoPor", r.nombreCompleto, { shouldValidate: true });
                 form.setValue("retiradoPorDni", r.dni, { shouldValidate: true });

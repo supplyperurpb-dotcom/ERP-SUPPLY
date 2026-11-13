@@ -133,6 +133,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
           id: r.id,
           nombreCompleto: `${r.nombres} ${r.apellidos}`,
           dni: r.dni,
+          area: r.area,
           almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),
         }))}
         vehiculos={vehiculos.map((v) => ({
