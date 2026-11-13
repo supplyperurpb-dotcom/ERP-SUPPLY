@@ -105,6 +105,7 @@ export function SolicitudDespachoForm({
   // Selector de "Agregar producto": lista de stock por área -> (si el área
   // no es la del usuario) confirmación -> cantidad + centro de costo.
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [busquedaStock, setBusquedaStock] = useState("");
   const [filaCandidata, setFilaCandidata] = useState<FilaStockArea | null>(null);
   const [filaElegida, setFilaElegida] = useState<FilaStockArea | null>(null);
   const [cantidadNueva, setCantidadNueva] = useState("");
@@ -112,12 +113,14 @@ export function SolicitudDespachoForm({
 
   function abrirPicker() {
     setPickerOpen(true);
+    setBusquedaStock("");
     setFilaCandidata(null);
     setFilaElegida(null);
   }
 
   function cerrarPicker() {
     setPickerOpen(false);
+    setBusquedaStock("");
     setFilaCandidata(null);
     setFilaElegida(null);
   }
@@ -138,6 +141,11 @@ export function SolicitudDespachoForm({
   }
 
   const filasVisibles = stockPorArea.filter((fila) => restanteDeFila(fila) > 0.001);
+  const filasFiltradas = filasVisibles.filter((fila) => {
+    const q = busquedaStock.trim().toLowerCase();
+    if (!q) return true;
+    return fila.codigo.toLowerCase().includes(q) || fila.descripcion.toLowerCase().includes(q);
+  });
   const restanteElegida = filaElegida ? restanteDeFila(filaElegida) : 0;
 
   function agregarLinea() {
@@ -326,31 +334,54 @@ export function SolicitudDespachoForm({
 
       {/* Agregar producto: lista de stock por área -> cantidad + centro de costo. */}
       <Dialog open={pickerOpen} onOpenChange={(v) => (v ? setPickerOpen(true) : cerrarPicker())}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           {!filaElegida && (
             <>
               <DialogHeader>
                 <DialogTitle>Stock disponible</DialogTitle>
               </DialogHeader>
-              <div className="max-h-[60vh] space-y-1 overflow-y-auto">
-                {filasVisibles.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No hay stock disponible de productos que puedas pedir.</p>
-                )}
-                {filasVisibles.map((fila) => (
-                  <button
-                    key={claveFila(fila.skuId, fila.areaDetalle)}
-                    type="button"
-                    onClick={() => elegirFila(fila)}
-                    className="w-full rounded-md border p-2 text-left text-sm transition-colors hover:border-primary hover:bg-accent/40"
-                  >
-                    <p className="font-medium">
-                      {fila.codigo} — {fila.descripcion}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Área: {nombreArea(fila.areaDetalle)} · Disponible: {formatCantidad(restanteDeFila(fila))} {fila.unidadMedida}
-                    </p>
-                  </button>
-                ))}
+              <Input
+                placeholder="Buscar por código o producto..."
+                value={busquedaStock}
+                onChange={(e) => setBusquedaStock(e.target.value)}
+                autoFocus
+              />
+              <div className="max-h-[60vh] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-28">Código</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead className="w-32 text-right">Disponible</TableHead>
+                      <TableHead className="w-36">Área</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filasFiltradas.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                          {filasVisibles.length === 0
+                            ? "No hay stock disponible de productos que puedas pedir."
+                            : "Ningún producto coincide con la búsqueda."}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {filasFiltradas.map((fila) => (
+                      <TableRow
+                        key={claveFila(fila.skuId, fila.areaDetalle)}
+                        className="cursor-pointer hover:bg-accent/40"
+                        onClick={() => elegirFila(fila)}
+                      >
+                        <TableCell className="font-mono text-sm">{fila.codigo}</TableCell>
+                        <TableCell className="text-sm">{fila.descripcion}</TableCell>
+                        <TableCell className="text-right text-sm">
+                          {formatCantidad(restanteDeFila(fila))} {fila.unidadMedida}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{nombreArea(fila.areaDetalle)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </>
           )}
