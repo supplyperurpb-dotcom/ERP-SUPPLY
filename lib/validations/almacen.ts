@@ -67,6 +67,9 @@ export const ingresoAlmacenSchema = z
     // A diferencia de fecha, esta sí la elige el usuario — pero nunca puede
     // ser posterior a hoy (no se pueden contabilizar ingresos "a futuro").
     fechaContabilizacion: z.coerce.date({ required_error: "La fecha de contabilización es obligatoria" }),
+    // Hora de registro ("HH:MM"), capturada y bloqueada en el formulario —
+    // igual que ConsumoAlmacen.horaRetiro.
+    hora: z.string().optional().or(z.literal("")),
     ordenCompraId: z.string().min(1, "Selecciona una orden de compra"),
     almacenId: z.string().min(1, "Selecciona el almacén"),
     guiaRemision: z.string().trim().min(1, "El número de guía de remisión es obligatorio").max(60),
@@ -107,6 +110,9 @@ const itemTrasladoSchema = z.object({
 export const trasladoAlmacenSchema = z
   .object({
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    // Hora de registro ("HH:MM"), capturada y bloqueada en el formulario —
+    // igual que ConsumoAlmacen.horaRetiro.
+    hora: z.string().optional().or(z.literal("")),
     almacenOrigenId: z.string().min(1, "Selecciona el almacén de origen"),
     almacenDestinoId: z.string().min(1, "Selecciona el almacén de destino"),
     guiaRemision: z.string().trim().min(1, "El número de guía de remisión es obligatorio").max(60),

@@ -40,6 +40,7 @@ export async function generarOrdenCompraPdf({
   nombreDocumento,
   numero,
   fecha,
+  hora,
   fechaEntrega,
   condicionPago,
   lugarEntrega,
@@ -65,6 +66,7 @@ export async function generarOrdenCompraPdf({
   nombreDocumento: string;
   numero: string;
   fecha: Date;
+  hora: string | null;
   fechaEntrega: Date | null;
   condicionPago: string | null;
   lugarEntrega: string | null;
@@ -211,6 +213,7 @@ export async function generarOrdenCompraPdf({
     yDer -= 13;
   };
   filaDer("FECHA EMISIÓN:", fecha.toLocaleDateString("es-PE"));
+  filaDer("HORA:", hora ?? "—");
   filaDer("FECHA ENTREGA:", fechaEntrega ? fechaEntrega.toLocaleDateString("es-PE") : "—");
   filaDer("CONDICIÓN DE PAGO:", condicionPago || "—");
   filaDer("MONEDA:", moneda);

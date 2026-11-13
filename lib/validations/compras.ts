@@ -53,6 +53,9 @@ export const solicitudPedidoSchema = z
     area: z.enum(AREAS, { required_error: "Selecciona la gerencia" }),
     areaDetalle: z.enum(AREAS_DETALLE, { required_error: "Selecciona el área" }),
     fecha: z.coerce.date({ required_error: "La fecha de pedido es obligatoria" }),
+    // Hora de registro ("HH:MM"), capturada y bloqueada en el formulario —
+    // igual que ConsumoAlmacen.horaRetiro.
+    hora: z.string().optional().or(z.literal("")),
     fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),
     tipoNecesidad: z.enum(["URGENTE", "ESTANDAR"], { required_error: "Selecciona el tipo de necesidad" }),
     justificacion: z.string().trim().min(1, "Especifica el uso").max(500),
@@ -110,6 +113,9 @@ export const ordenCompraSchema = z
     tipoOrden: z.enum(TIPOS_ORDEN, { required_error: "Falta el tipo de orden" }),
     vigenteHasta: z.coerce.date().optional(),
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    // Hora de registro ("HH:MM"), capturada y bloqueada en el formulario —
+    // igual que ConsumoAlmacen.horaRetiro.
+    hora: z.string().optional().or(z.literal("")),
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
@@ -154,6 +160,7 @@ export const editarOrdenCompraSchema = z
   .object({
     proveedorId: z.string().min(1, "Selecciona un proveedor"),
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    hora: z.string().optional().or(z.literal("")),
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
@@ -199,6 +206,7 @@ export const ordenCompraDirectaSchema = z
     vigenteHasta: z.coerce.date().optional(),
     proveedorId: z.string().min(1, "Selecciona un proveedor"),
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+    hora: z.string().optional().or(z.literal("")),
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),

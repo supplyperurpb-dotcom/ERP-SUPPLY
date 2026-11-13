@@ -74,7 +74,7 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { categoria, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
+  const { categoria, fecha, hora, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
@@ -97,6 +97,7 @@ export async function crearSolicitudPedidoAction(data: SolicitudPedidoInput): Pr
           areaDetalle,
           estado: "PENDIENTE",
           fecha,
+          hora: hora || null,
           fechaNecesidad,
           tipoNecesidad,
           justificacion: justificacion || null,
@@ -190,7 +191,7 @@ export async function editarSolicitudPedidoAction(
       };
     }
 
-    const { categoria, fecha, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
+    const { categoria, fecha, hora, fechaNecesidad, tipoNecesidad, justificacion, items } = parsed.data;
     const resuelto = resolverAreaForzada(usuario, { area: parsed.data.area, areaDetalle: parsed.data.areaDetalle });
     if ("error" in resuelto) return resuelto;
     const { area, areaDetalle } = resuelto;
@@ -207,6 +208,7 @@ export async function editarSolicitudPedidoAction(
           areaDetalle,
           estado: "PENDIENTE",
           fecha,
+          hora: hora || null,
           fechaNecesidad,
           tipoNecesidad,
           justificacion: justificacion || null,

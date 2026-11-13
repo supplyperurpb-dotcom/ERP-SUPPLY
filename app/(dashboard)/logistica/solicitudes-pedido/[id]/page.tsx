@@ -278,6 +278,10 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
             <p className="font-medium">{formatDate(solicitud.fecha)}</p>
           </div>
           <div>
+            <p className="text-muted-foreground">Hora</p>
+            <p className="font-medium">{solicitud.hora ?? "—"}</p>
+          </div>
+          <div>
             <p className="text-muted-foreground">Fecha estimada de necesidad</p>
             <p className="font-medium">{formatDate(solicitud.fechaNecesidad)}</p>
           </div>

@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy, formatCantidad } from "@/lib/utils";
+import { fechaLocalHoy, formatCantidad, horaLocalAhora } from "@/lib/utils";
 import { trasladoAlmacenSchema, type TrasladoAlmacenInput } from "@/lib/validations/almacen";
 import {
   crearTrasladoAlmacenAction,
@@ -63,6 +63,7 @@ export function TrasladoAlmacenForm({
     resolver: zodResolver(trasladoAlmacenSchema),
     defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
+      hora: horaLocalAhora(),
       almacenOrigenId: almacenOrigenIdInicial ?? "",
       almacenDestinoId: "",
       guiaRemision: "",
@@ -278,6 +279,11 @@ export function TrasladoAlmacenForm({
               className="cursor-not-allowed bg-muted opacity-70"
               value={fechaRegistro}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input id="hora" type="time" readOnly className="cursor-not-allowed bg-muted opacity-70" {...form.register("hora")} />
           </div>
 
           <div className="space-y-2">

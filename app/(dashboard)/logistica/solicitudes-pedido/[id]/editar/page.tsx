@@ -78,6 +78,7 @@ export default async function EditarSolicitudPedidoPage({ params }: { params: Pr
         advertenciaReinicioAprobacion={solicitud.estado === "APROBADO"}
         valoresIniciales={{
           fecha: fechaInputValue(solicitud.fecha),
+          hora: solicitud.hora ?? "",
           fechaNecesidad: fechaInputValue(solicitud.fechaNecesidad),
           tipoNecesidad: solicitud.tipoNecesidad,
           justificacion: solicitud.justificacion ?? "",

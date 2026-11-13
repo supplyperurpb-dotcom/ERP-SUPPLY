@@ -131,7 +131,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, almacenDestinoId, guiaRemision, guiaRemisionArchivo, observaciones, items } = parsed.data;
+  const { fecha, hora, almacenOrigenId, almacenDestinoId, guiaRemision, guiaRemisionArchivo, observaciones, items } = parsed.data;
   // El flete y los datos de transporte se quitaron de este flujo (ver
   // trasladoAlmacenSchema): quedan siempre en 0/null, pero las columnas
   // *Asignado siguen existiendo porque las usa el costeo ponderado
@@ -208,6 +208,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
         data: {
           numero,
           fecha,
+          hora: hora || null,
           almacenOrigenId,
           almacenDestinoId,
           moneda,
@@ -279,7 +280,7 @@ export async function actualizarTrasladoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenOrigenId, almacenDestinoId, guiaRemision, guiaRemisionArchivo, observaciones, items } = parsed.data;
+  const { fecha, hora, almacenOrigenId, almacenDestinoId, guiaRemision, guiaRemisionArchivo, observaciones, items } = parsed.data;
   const moneda = "PEN" as const;
 
   const existente = await prisma.trasladoAlmacen.findUnique({
@@ -362,6 +363,7 @@ export async function actualizarTrasladoAlmacenAction(
         where: { id },
         data: {
           fecha,
+          hora: hora || null,
           almacenOrigenId,
           almacenDestinoId,
           moneda,

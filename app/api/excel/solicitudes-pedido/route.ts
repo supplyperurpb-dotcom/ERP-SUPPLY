@@ -53,6 +53,7 @@ export async function GET() {
     "Área (detalle)": string;
     "Estado de la solicitud": string;
     "Fecha de pedido": string;
+    Hora: string;
     "Fecha de necesidad": string;
     "Tipo de necesidad": string;
     "Especificar Uso": string;
@@ -78,6 +79,7 @@ export async function GET() {
       "Área (detalle)": nombreAreaDetalle(solicitud.areaDetalle),
       "Estado de la solicitud": ESTADO_LABEL[solicitud.estado],
       "Fecha de pedido": formatDate(solicitud.fecha),
+      Hora: solicitud.hora ?? "",
       "Fecha de necesidad": formatDate(solicitud.fechaNecesidad),
       "Tipo de necesidad": TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad,
       "Especificar Uso": solicitud.justificacion ?? "",
@@ -128,6 +130,7 @@ export async function GET() {
     { wch: 20 }, // Área (detalle)
     { wch: 16 }, // Estado de la solicitud
     { wch: 14 }, // Fecha de pedido
+    { wch: 8 }, // Hora
     { wch: 14 }, // Fecha de necesidad
     { wch: 14 }, // Tipo de necesidad
     { wch: 30 }, // Especificar Uso

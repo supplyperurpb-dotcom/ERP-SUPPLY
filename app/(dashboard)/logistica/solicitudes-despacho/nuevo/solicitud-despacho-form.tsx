@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy, formatCantidad } from "@/lib/utils";
+import { fechaLocalHoy, formatCantidad, horaLocalAhora } from "@/lib/utils";
 import { AREAS_EMPRESA, type AreaEmpresaCodigo } from "@/lib/constants/compras";
 import { solicitudDespachoSchema, type SolicitudDespachoInput } from "@/lib/validations/solicitud-despacho";
 import { crearSolicitudDespachoAction } from "@/lib/actions/solicitud-despacho-actions";
@@ -47,6 +47,7 @@ export function SolicitudDespachoForm({
     defaultValues: {
       area: areaInicial,
       fecha: fechaLocalHoy() as unknown as Date,
+      hora: horaLocalAhora(),
       observaciones: "",
       items: [itemVacio(centroCostoInicial)],
     },
@@ -125,6 +126,11 @@ export function SolicitudDespachoForm({
             {form.formState.errors.fecha && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.fecha.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input id="hora" type="time" disabled {...form.register("hora")} />
           </div>
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-4">

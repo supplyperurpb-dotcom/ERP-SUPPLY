@@ -19,6 +19,8 @@ export async function GET(request: Request) {
   type Fila = {
     Número: string;
     Fecha: string;
+    Hora: string;
+    "Fecha de Contabilización": string;
     Almacén: string;
     Código: string;
     Producto: string;
@@ -35,6 +37,8 @@ export async function GET(request: Request) {
       filas.push({
         Número: consumo.numero,
         Fecha: formatDate(consumo.fecha),
+        Hora: consumo.horaRetiro ?? "",
+        "Fecha de Contabilización": formatDate(consumo.fechaContabilizacion),
         Almacén: consumo.almacen.nombre,
         Código: item.sku.codigo,
         Producto: item.sku.descripcion,
@@ -49,7 +53,7 @@ export async function GET(request: Request) {
 
   const hoja = XLSX.utils.json_to_sheet(filas);
   hoja["!cols"] = [
-    { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 18 },
+    { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 18 },
     { wch: 16 }, { wch: 30 },
   ];
 

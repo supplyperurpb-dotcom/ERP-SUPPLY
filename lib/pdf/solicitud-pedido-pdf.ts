@@ -54,6 +54,7 @@ export async function generarSolicitudPedidoPdf({
   numero,
   area,
   fecha,
+  hora,
   fechaNecesidad,
   tipoNecesidad,
   solicitante,
@@ -67,6 +68,7 @@ export async function generarSolicitudPedidoPdf({
   numero: string;
   area: string;
   fecha: Date;
+  hora: string | null;
   fechaNecesidad: Date;
   tipoNecesidad: string;
   solicitante: string;
@@ -192,7 +194,7 @@ export async function generarSolicitudPedidoPdf({
   };
   filaDato("Área:", area, "Solicitante:", solicitante);
   filaDato("Fecha de pedido:", fecha.toLocaleDateString("es-PE"), "Tipo de necesidad:", tipoNecesidad);
-  filaDato("Fecha de necesidad:", fechaNecesidad.toLocaleDateString("es-PE"));
+  filaDato("Fecha de necesidad:", fechaNecesidad.toLocaleDateString("es-PE"), "Hora:", hora ?? "—");
   if (justificacion) {
     page.drawText("Especificar Uso:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
     page.drawText(truncar(justificacion, 85), { x: colDatoX, y, size: 9, font: regular, color: NEGRO });

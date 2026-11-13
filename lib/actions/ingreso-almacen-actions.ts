@@ -138,7 +138,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, fechaContabilizacion, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, observaciones, items } =
+  const { fecha, hora, fechaContabilizacion, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, observaciones, items } =
     parsed.data;
 
   try {
@@ -164,6 +164,7 @@ export async function crearIngresoAlmacenAction(data: IngresoAlmacenInput): Prom
         data: {
           numero,
           fecha,
+          hora: hora || null,
           fechaContabilizacion,
           ocNumero: orden.numero,
           ordenCompraId: orden.id,
@@ -243,7 +244,7 @@ export async function actualizarIngresoAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, fechaContabilizacion, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, observaciones, items } =
+  const { fecha, hora, fechaContabilizacion, almacenId, ordenCompraId, guiaRemision, guiaRemisionArchivo, observaciones, items } =
     parsed.data;
 
   const existente = await prisma.ingresoAlmacen.findUnique({ where: { id }, include: { items: true } });
@@ -285,6 +286,7 @@ export async function actualizarIngresoAlmacenAction(
         where: { id },
         data: {
           fecha,
+          hora: hora || null,
           fechaContabilizacion,
           ocNumero: orden.numero,
           ordenCompraId: orden.id,

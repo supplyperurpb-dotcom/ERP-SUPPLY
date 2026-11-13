@@ -76,6 +76,14 @@ export default async function TrasladoAlmacenDetallePage({ params }: { params: P
           </p>
         </div>
         <div>
+          <p className="text-muted-foreground">Fecha</p>
+          <p className="font-medium">{formatDate(traslado.fecha)}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Hora</p>
+          <p className="font-medium">{traslado.hora ?? "—"}</p>
+        </div>
+        <div>
           <p className="text-muted-foreground">Guía de remisión</p>
           <p className="font-medium">{traslado.guiaRemision ?? "—"}</p>
         </div>

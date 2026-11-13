@@ -16,7 +16,7 @@ import {
   OrdenCompraPendienteCombobox,
   type OrdenCompraPendienteOpcion,
 } from "@/components/shared/orden-compra-pendiente-combobox";
-import { fechaLocalHoy, formatMoneda, formatCantidad } from "@/lib/utils";
+import { fechaLocalHoy, formatMoneda, formatCantidad, horaLocalAhora } from "@/lib/utils";
 import { convertirAUsd, TIPO_CAMBIO_PEN_USD } from "@/lib/constants/moneda";
 import { crearIngresoAlmacenAction, subirGuiaRemisionIngresoAction } from "@/lib/actions/ingreso-almacen-actions";
 import type { IngresoAlmacenInput } from "@/lib/validations/almacen";
@@ -60,6 +60,7 @@ export function IngresoAlmacenWizard({
   // emisión de una OC/Solped. Fecha de contabilización sí es editable,
   // pero nunca posterior a hoy (ver ingresoAlmacenSchema).
   const fecha = fechaLocalHoy();
+  const hora = horaLocalAhora();
   const [fechaContabilizacion, setFechaContabilizacion] = useState(fechaLocalHoy());
   const [guiaRemision, setGuiaRemision] = useState("");
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -170,6 +171,7 @@ export function IngresoAlmacenWizard({
 
       const payload: IngresoAlmacenInput = {
         fecha: new Date(fecha) as unknown as Date,
+        hora,
         fechaContabilizacion: new Date(fechaContabilizacion) as unknown as Date,
         ordenCompraId,
         almacenId,
@@ -254,6 +256,10 @@ export function IngresoAlmacenWizard({
               <p className="font-medium">{fecha}</p>
             </div>
             <div>
+              <p className="text-muted-foreground">Hora</p>
+              <p className="font-medium">{hora}</p>
+            </div>
+            <div>
               <p className="text-muted-foreground">Registrado por</p>
               <p className="font-medium">
                 {usuario.nombres} {usuario.apellidos}
@@ -325,6 +331,10 @@ export function IngresoAlmacenWizard({
             <div className="space-y-2">
               <Label htmlFor="fecha">Fecha de ingreso</Label>
               <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="hora">Hora</Label>
+              <Input id="hora" type="time" readOnly className="cursor-not-allowed bg-muted opacity-70" value={hora} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="fechaContabilizacion">Fecha de contabilización</Label>

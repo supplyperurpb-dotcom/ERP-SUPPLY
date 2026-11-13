@@ -259,6 +259,10 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
             <p className="font-medium">{formatDate(orden.fecha)}</p>
           </div>
           <div>
+            <p className="text-muted-foreground">Hora</p>
+            <p className="font-medium">{orden.hora ?? "—"}</p>
+          </div>
+          <div>
             <p className="text-muted-foreground">Moneda</p>
             <p className="font-medium">{orden.moneda}</p>
           </div>

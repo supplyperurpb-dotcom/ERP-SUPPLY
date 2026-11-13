@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   type Fila = {
     Número: string;
     Fecha: string;
+    Hora: string;
     Origen: string;
     Destino: string;
     Moneda: string;
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
       filas.push({
         Número: traslado.numero,
         Fecha: formatDate(traslado.fecha),
+        Hora: traslado.hora ?? "",
         Origen: traslado.almacenOrigen.nombre,
         Destino: traslado.almacenDestino.nombre,
         Moneda: monedaNombre,
@@ -61,7 +63,7 @@ export async function GET(request: Request) {
 
   const hoja = XLSX.utils.json_to_sheet(filas);
   hoja["!cols"] = [
-    { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
+    { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
     { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 14 }, { wch: 30 },
   ];
 

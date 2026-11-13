@@ -29,6 +29,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return detalle === gerencia ? gerencia : `${gerencia} — ${detalle}`;
     })(),
     fecha: solicitud.fecha,
+    hora: solicitud.hora,
     fechaNecesidad: solicitud.fechaNecesidad,
     tipoNecesidad: TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad,
     solicitante: solicitante ? `${solicitante.nombres} ${solicitante.apellidos}` : "—",

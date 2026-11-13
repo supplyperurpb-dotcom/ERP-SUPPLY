@@ -70,6 +70,14 @@ export default async function DevolucionAlmacenDetallePage({ params }: { params:
           <p className="font-medium">{AREAS_EMPRESA.find((a) => a.valor === devolucion.area)?.nombre ?? devolucion.area}</p>
         </div>
         <div>
+          <p className="text-muted-foreground">Fecha</p>
+          <p className="font-medium">{formatDate(devolucion.fecha)}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Hora</p>
+          <p className="font-medium">{devolucion.hora ?? "—"}</p>
+        </div>
+        <div>
           <p className="text-muted-foreground">Usuario</p>
           <p className="font-medium">
             {devolucion.personaQueTrae} — DNI {devolucion.personaQueTraeDni}

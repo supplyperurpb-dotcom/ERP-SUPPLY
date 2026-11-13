@@ -22,6 +22,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     numero: solicitud.numero,
     area: AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
     fecha: solicitud.fecha,
+    hora: solicitud.hora,
     solicitante: solicitante ? `${solicitante.nombres} ${solicitante.apellidos}` : "—",
     observaciones: solicitud.observaciones,
     lineas: solicitud.items.map((item) => ({

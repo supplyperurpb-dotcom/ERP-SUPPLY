@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
-import { fechaLocalHoy, fechaLocalManana, formatMoneda } from "@/lib/utils";
+import { fechaLocalHoy, fechaLocalManana, formatMoneda, horaLocalAhora } from "@/lib/utils";
 import {
   CONDICIONES_PAGO,
   CONDICION_PAGO_POR_DEFECTO,
@@ -85,6 +85,7 @@ export function OrdenCompraForm({
   // Fecha de emisión: siempre la de hoy, bloqueada -- no se puede
   // retrofechar ni adelantar una OC/OS.
   const fecha = fechaLocalHoy();
+  const hora = horaLocalAhora();
   const [fechaEntrega, setFechaEntrega] = useState(fechaLocalManana());
   // Solo para una orden Abierta: plazo de vigencia, pasado el cual no se
   // pueden registrar más ingresos contra ella (ver validarOrigen en
@@ -246,6 +247,7 @@ export function OrdenCompraForm({
         tipoOrden,
         vigenteHasta: tipoOrden === "ABIERTA" ? (new Date(vigenteHasta) as unknown as Date) : undefined,
         fecha: new Date(fecha) as unknown as Date,
+        hora,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
         condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
@@ -310,6 +312,10 @@ export function OrdenCompraForm({
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de emisión</Label>
             <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input id="hora" type="time" readOnly className="cursor-not-allowed bg-muted opacity-70" value={hora} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="fechaEntrega">Fecha de entrega</Label>

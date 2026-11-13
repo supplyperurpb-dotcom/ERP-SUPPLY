@@ -32,6 +32,9 @@ export const devolucionAlmacenSchema = z.object({
   // Fecha de registro: siempre hoy, bloqueada en el formulario — igual
   // que el Ingreso.
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
+  // Hora de registro ("HH:MM"), capturada y bloqueada en el formulario —
+  // igual que ConsumoAlmacen.horaRetiro.
+  hora: z.string().optional().or(z.literal("")),
   almacenId: z.string().min(1, "Selecciona el almacén"),
   area: z.enum(AREAS, { required_error: "Selecciona el área" }),
   personaQueTrae: z.string().trim().min(1, "Selecciona quién trae el material").max(150),

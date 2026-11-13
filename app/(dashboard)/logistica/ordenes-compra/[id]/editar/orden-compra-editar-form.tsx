@@ -90,6 +90,7 @@ export function OrdenCompraEditarForm({
   valoresIniciales: {
     proveedorId: string;
     fecha: string;
+    hora: string;
     fechaEntrega: string;
     condicionPago: string;
     lugarEntrega: string;
@@ -104,6 +105,7 @@ export function OrdenCompraEditarForm({
   // Fecha de emisión: se mantiene fija en la original, bloqueada -- no se
   // puede retrofechar ni adelantar una OC/OS, ni siquiera al editarla.
   const fecha = valoresIniciales.fecha;
+  const hora = valoresIniciales.hora;
   const [fechaEntrega, setFechaEntrega] = useState(valoresIniciales.fechaEntrega);
   const [condicionPago, setCondicionPago] = useState(valoresIniciales.condicionPago);
   const [lugarEntrega, setLugarEntrega] = useState(valoresIniciales.lugarEntrega);
@@ -234,6 +236,7 @@ export function OrdenCompraEditarForm({
       const resultado = await editarOrdenCompraAction(ordenId, {
         proveedorId,
         fecha: new Date(fecha) as unknown as Date,
+        hora,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
         condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
@@ -290,6 +293,10 @@ export function OrdenCompraEditarForm({
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de emisión</Label>
             <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input id="hora" type="time" readOnly className="cursor-not-allowed bg-muted opacity-70" value={hora} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="fechaEntrega">Fecha de entrega</Label>

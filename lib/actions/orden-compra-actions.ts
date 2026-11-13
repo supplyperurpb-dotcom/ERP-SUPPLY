@@ -30,8 +30,19 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { proveedorId, tipoOrden, vigenteHasta, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } =
-    parsed.data;
+  const {
+    proveedorId,
+    tipoOrden,
+    vigenteHasta,
+    fecha,
+    hora,
+    fechaEntrega,
+    condicionPago,
+    lugarEntrega,
+    observaciones,
+    moneda,
+    items,
+  } = parsed.data;
 
   const usuario = await getUsuarioActual();
   if (!usuario) return { error: "Debes iniciar sesión para crear una orden." };
@@ -101,6 +112,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
           // PENDIENTE recién con la primera firma (ver firmarOrdenCompraAction).
           estado: "BORRADOR",
           fecha,
+          hora: hora || null,
           fechaEntrega: fechaEntrega || null,
           condicionPago: condicionPago || null,
           lugarEntrega: lugarEntrega || null,
@@ -161,8 +173,20 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { categoria, tipoOrden, vigenteHasta, proveedorId, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } =
-    parsed.data;
+  const {
+    categoria,
+    tipoOrden,
+    vigenteHasta,
+    proveedorId,
+    fecha,
+    hora,
+    fechaEntrega,
+    condicionPago,
+    lugarEntrega,
+    observaciones,
+    moneda,
+    items,
+  } = parsed.data;
 
   const usuario = await getUsuarioActual();
   if (!usuario) return { error: "Debes iniciar sesión para crear una orden." };
@@ -195,6 +219,7 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
           // recién con la primera firma (ver firmarOrdenCompraAction).
           estado: "BORRADOR",
           fecha,
+          hora: hora || null,
           fechaEntrega: fechaEntrega || null,
           condicionPago: condicionPago || null,
           lugarEntrega: lugarEntrega || null,
@@ -396,7 +421,7 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { proveedorId, fecha, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } = parsed.data;
+  const { proveedorId, fecha, hora, fechaEntrega, condicionPago, lugarEntrega, observaciones, moneda, items } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
@@ -476,6 +501,7 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
         data: {
           proveedorId,
           fecha,
+          hora: hora || null,
           fechaEntrega: fechaEntrega || null,
           condicionPago: condicionPago || null,
           lugarEntrega: lugarEntrega || null,

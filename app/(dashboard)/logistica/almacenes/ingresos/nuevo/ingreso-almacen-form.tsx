@@ -59,6 +59,7 @@ export function IngresoAlmacenForm({
     id: string;
     ordenCompra: OrdenCompraOpcion;
     fecha: string;
+    hora: string;
     fechaContabilizacion: string;
     guiaRemision: string;
     guiaRemisionArchivo: string;
@@ -72,6 +73,7 @@ export function IngresoAlmacenForm({
   // se retrofecha ni adelanta ni siquiera al editar. Fecha de
   // contabilización sí es editable, pero nunca posterior a hoy.
   const fecha = edicion.fecha;
+  const hora = edicion.hora;
   const [fechaContabilizacion, setFechaContabilizacion] = useState(edicion.fechaContabilizacion);
   const [guiaRemision, setGuiaRemision] = useState(edicion.guiaRemision);
   const [archivoActual] = useState(edicion.guiaRemisionArchivo);
@@ -149,6 +151,7 @@ export function IngresoAlmacenForm({
 
       const payload: IngresoAlmacenInput = {
         fecha: new Date(fecha) as unknown as Date,
+        hora,
         fechaContabilizacion: new Date(fechaContabilizacion) as unknown as Date,
         ordenCompraId: edicion.ordenCompra.id,
         almacenId: almacen.id,
@@ -202,6 +205,11 @@ export function IngresoAlmacenForm({
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de ingreso</Label>
             <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input id="hora" type="time" readOnly className="cursor-not-allowed bg-muted opacity-70" value={hora} />
           </div>
 
           <div className="space-y-2">

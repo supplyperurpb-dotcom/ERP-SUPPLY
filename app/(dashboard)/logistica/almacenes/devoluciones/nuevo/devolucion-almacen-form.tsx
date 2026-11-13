@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
 import { RetiradorAutorizadoCombobox } from "@/components/shared/retirador-autorizado-combobox";
-import { fechaLocalHoy, formatMoneda } from "@/lib/utils";
+import { fechaLocalHoy, formatMoneda, horaLocalAhora } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
 import { categoriaAlmacenExigidaPorSku } from "@/lib/constants/sku";
 import { devolucionAlmacenSchema, type DevolucionAlmacenInput } from "@/lib/validations/devolucion-almacen";
@@ -59,12 +59,14 @@ export function DevolucionAlmacenForm({
 }) {
   const router = useRouter();
   const fecha = edicion?.valoresIniciales.fecha ?? (fechaLocalHoy() as unknown as Date);
+  const hora = edicion?.valoresIniciales.hora ?? horaLocalAhora();
   const [preciosPorFila, setPreciosPorFila] = useState<Record<number, number | null>>({});
 
   const form = useForm<DevolucionAlmacenInput>({
     resolver: zodResolver(devolucionAlmacenSchema),
     defaultValues: edicion?.valoresIniciales ?? {
       fecha: fechaLocalHoy() as unknown as Date,
+      hora,
       almacenId: almacenIdInicial ?? "",
       area: undefined,
       personaQueTrae: "",
@@ -215,6 +217,11 @@ export function DevolucionAlmacenForm({
               className="cursor-not-allowed bg-muted opacity-70"
               value={fecha as unknown as string}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input id="hora" type="time" readOnly className="cursor-not-allowed bg-muted opacity-70" value={hora} />
           </div>
 
           <div className="space-y-2">

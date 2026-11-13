@@ -28,6 +28,7 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
 
   const valoresIniciales: DevolucionAlmacenInput = {
     fecha: devolucion.fecha.toISOString().slice(0, 10) as unknown as Date,
+    hora: devolucion.hora ?? "",
     almacenId: devolucion.almacenId,
     // El enum AreaEmpresa ahora también incluye CALIDAD_E_INOCUIDAD (solo
     // seleccionable como Gerencia de una Solped — ver GERENCIAS_SOLPED); el

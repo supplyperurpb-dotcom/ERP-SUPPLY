@@ -559,6 +559,10 @@ model SolicitudPedido {
   areaDetalle       String
   estado            EstadoDocumento @default(BORRADOR)
   fecha             DateTime        @default(now())
+  // Hora de registro ("HH:MM"), capturada en el formulario y bloqueada —
+  // igual que ConsumoAlmacen.horaRetiro. Null en solicitudes de antes de
+  // este campo.
+  hora              String?
   fechaNecesidad    DateTime
   tipoNecesidad     TipoNecesidad   @default(ESTANDAR)
   justificacion     String?
@@ -711,6 +715,10 @@ model OrdenCompra {
   proveedorId       String
   estado            EstadoDocumento @default(BORRADOR)
   fecha             DateTime        @default(now())
+  // Hora de registro ("HH:MM"), capturada en el formulario y bloqueada —
+  // igual que ConsumoAlmacen.horaRetiro. Null en órdenes de antes de este
+  // campo.
+  hora              String?
   // Datos propios del formato impreso de la OC/OS (ver lib/pdf/orden-compra-pdf.ts).
   fechaEntrega      DateTime?
   condicionPago     String?
@@ -810,6 +818,10 @@ model IngresoAlmacen {
   // físico fue antes pero se contabiliza en otra fecha dentro del mismo
   // periodo. Nunca puede ser posterior a hoy (ver ingresoAlmacenSchema).
   fechaContabilizacion DateTime
+  // Hora de registro ("HH:MM"), capturada en el formulario y bloqueada —
+  // igual que ConsumoAlmacen.horaRetiro. Null en ingresos de antes de este
+  // campo.
+  hora                 String?
   ocNumero             String?
   // Orden de compra real de donde se jalaron los items (ver
   // crearIngresoAlmacenAction) — null en ingresos antiguos, de antes de
@@ -894,6 +906,10 @@ model DevolucionAlmacen {
   // Fecha de registro: siempre la de hoy, bloqueada en el formulario —
   // igual que IngresoAlmacen.fecha.
   fecha             DateTime
+  // Hora de registro ("HH:MM"), capturada en el formulario y bloqueada —
+  // igual que ConsumoAlmacen.horaRetiro. Null en devoluciones de antes de
+  // este campo.
+  hora              String?
   almacenId         String
   // Área de la empresa que está devolviendo el material (no necesariamente
   // la misma que lo había retirado originalmente).
@@ -952,6 +968,10 @@ model TrasladoAlmacen {
   id                  String   @id @default(cuid())
   numero              String   @unique // TA-0001
   fecha               DateTime
+  // Hora de registro ("HH:MM"), capturada en el formulario y bloqueada —
+  // igual que ConsumoAlmacen.horaRetiro. Null en traslados de antes de
+  // este campo.
+  hora                String?
   almacenOrigenId     String
   almacenDestinoId    String
   guiaRemision        String?
@@ -1107,6 +1127,10 @@ model SolicitudDespacho {
   // importa el área que pide, igual que en SolicitudPedido.
   area          AreaEmpresa
   fecha         DateTime
+  // Hora de registro ("HH:MM"), capturada en el formulario y bloqueada —
+  // igual que ConsumoAlmacen.horaRetiro. Null en solicitudes de antes de
+  // este campo.
+  hora          String?
   observaciones String?
   // Quien pide, no necesariamente quien lo registra en el sistema — igual
   // que solicitanteId en SolicitudPedido, sin relación Prisma a Usuario

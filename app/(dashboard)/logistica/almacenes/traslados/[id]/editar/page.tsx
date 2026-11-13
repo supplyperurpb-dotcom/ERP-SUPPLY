@@ -77,6 +77,7 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
 
   const valoresIniciales: TrasladoAlmacenInput = {
     fecha: traslado.fecha.toISOString().slice(0, 10) as unknown as Date,
+    hora: traslado.hora ?? "",
     almacenOrigenId: traslado.almacenOrigenId,
     almacenDestinoId: traslado.almacenDestinoId,
     guiaRemision: traslado.guiaRemision ?? "",

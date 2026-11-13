@@ -23,7 +23,7 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, observaciones, items } = parsed.data;
+  const { fecha, hora, observaciones, items } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
@@ -64,6 +64,7 @@ export async function crearSolicitudDespachoAction(data: SolicitudDespachoInput)
           numero,
           area,
           fecha,
+          hora: hora || null,
           observaciones: observaciones || null,
           solicitanteId: usuario?.id,
           creadoPorId: usuario?.id,

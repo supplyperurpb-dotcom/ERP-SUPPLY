@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
 import { SkuCombobox, type SkuOpcionCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy, fechaLocalManana, formatMoneda } from "@/lib/utils";
+import { fechaLocalHoy, fechaLocalManana, formatMoneda, horaLocalAhora } from "@/lib/utils";
 import {
   CONDICIONES_PAGO,
   CONDICION_PAGO_POR_DEFECTO,
@@ -76,6 +76,7 @@ export function OrdenCompraDirectaForm({
   const [proveedorId, setProveedorId] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<ProveedorOpcionSelect | null>(null);
   const fecha = fechaLocalHoy();
+  const hora = horaLocalAhora();
   const [fechaEntrega, setFechaEntrega] = useState(fechaLocalManana());
   const [vigenteHasta, setVigenteHasta] = useState("");
   const [condicionPago, setCondicionPago] = useState<string>(CONDICION_PAGO_POR_DEFECTO);
@@ -151,6 +152,7 @@ export function OrdenCompraDirectaForm({
         vigenteHasta: tipoOrden === "ABIERTA" ? (new Date(vigenteHasta) as unknown as Date) : undefined,
         proveedorId,
         fecha: new Date(fecha) as unknown as Date,
+        hora,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
         condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
@@ -215,6 +217,10 @@ export function OrdenCompraDirectaForm({
           <div className="space-y-2">
             <Label htmlFor="fecha">Fecha de emisión</Label>
             <Input id="fecha" type="date" readOnly className="cursor-not-allowed bg-muted opacity-70" value={fecha} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input id="hora" type="time" readOnly className="cursor-not-allowed bg-muted opacity-70" value={hora} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="fechaEntrega">Fecha de entrega</Label>

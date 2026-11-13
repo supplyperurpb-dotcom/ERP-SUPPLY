@@ -53,6 +53,7 @@ export async function generarActaTrasladoPdf({
   almacenOrigen,
   almacenDestino,
   fecha,
+  hora,
   guiaRemision,
   remitente,
   observaciones,
@@ -62,6 +63,7 @@ export async function generarActaTrasladoPdf({
   almacenOrigen: string;
   almacenDestino: string;
   fecha: Date;
+  hora: string | null;
   guiaRemision: string | null;
   remitente: string | null;
   observaciones: string | null;
@@ -166,7 +168,7 @@ export async function generarActaTrasladoPdf({
   };
   filaDato("Almacén origen:", almacenOrigen, "Almacén destino:", almacenDestino);
   filaDato("Fecha:", fecha.toLocaleDateString("es-PE"), "Remitente:", remitente ?? "—");
-  filaDato("Guía de remisión:", guiaRemision ?? "—");
+  filaDato("Guía de remisión:", guiaRemision ?? "—", "Hora:", hora ?? "—");
   if (observaciones) {
     page.drawText("Observaciones:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
     page.drawText(truncar(observaciones, 85), { x: colDatoX, y, size: 9, font: regular, color: NEGRO });

@@ -23,6 +23,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     almacenOrigen: traslado.almacenOrigen.nombre,
     almacenDestino: traslado.almacenDestino.nombre,
     fecha: traslado.fecha,
+    hora: traslado.hora,
     guiaRemision: traslado.guiaRemision,
     remitente: traslado.remitente,
     observaciones: traslado.observaciones,

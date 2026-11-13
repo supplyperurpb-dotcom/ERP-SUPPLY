@@ -66,6 +66,7 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
         valoresIniciales={{
           proveedorId: orden.proveedorId,
           fecha: fechaInputValue(orden.fecha),
+          hora: orden.hora ?? "",
           fechaEntrega: orden.fechaEntrega ? fechaInputValue(orden.fechaEntrega) : fechaInputValue(new Date()),
           condicionPago: orden.condicionPago ?? "",
           lugarEntrega: orden.lugarEntrega ?? "",

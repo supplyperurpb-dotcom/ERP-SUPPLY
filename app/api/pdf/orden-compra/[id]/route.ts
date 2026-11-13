@@ -63,6 +63,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     nombreDocumento: NOMBRE_ORDEN[orden.categoria as CategoriaCompraCodigo],
     numero: orden.numero,
     fecha: orden.fecha,
+    hora: orden.hora,
     fechaEntrega: orden.fechaEntrega,
     condicionPago: orden.condicionPago,
     lugarEntrega: orden.lugarEntrega,

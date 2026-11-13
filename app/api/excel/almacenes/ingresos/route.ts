@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     Número: string;
     Almacén: string;
     Fecha: string;
+    Hora: string;
     "N° de OC": string;
     Moneda: string;
     "Guía de remisión": string;
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
         Número: ingreso.numero,
         Almacén: ingreso.almacen.nombre,
         Fecha: formatDate(ingreso.fecha),
+        Hora: ingreso.hora ?? "",
         "N° de OC": ingreso.ocNumero ?? "",
         Moneda: monedaNombre,
         "Guía de remisión": ingreso.guiaRemision ?? "",
@@ -67,7 +69,7 @@ export async function GET(request: Request) {
 
   const hoja = XLSX.utils.json_to_sheet(filas);
   hoja["!cols"] = [
-    { wch: 12 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
+    { wch: 12 }, { wch: 22 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
     { wch: 22 }, { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 14 },
     { wch: 14 }, { wch: 30 },
   ];

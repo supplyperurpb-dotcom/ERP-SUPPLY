@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkuCombobox } from "@/components/shared/sku-combobox";
-import { fechaLocalHoy, fechaLocalEnDias } from "@/lib/utils";
+import { fechaLocalHoy, fechaLocalEnDias, horaLocalAhora } from "@/lib/utils";
 import {
   GERENCIAS_SOLPED,
   TIPOS_NECESIDAD,
@@ -89,6 +89,7 @@ export function SolicitudPedidoForm({
   solicitudId?: string;
   valoresIniciales?: {
     fecha: string;
+    hora: string;
     fechaNecesidad: string;
     tipoNecesidad: SolicitudPedidoInput["tipoNecesidad"];
     justificacion: string;
@@ -113,6 +114,7 @@ export function SolicitudPedidoForm({
           area: areaInicial,
           areaDetalle: areaDetalleInicialResuelta,
           fecha: valoresIniciales.fecha as unknown as Date,
+          hora: valoresIniciales.hora,
           fechaNecesidad: valoresIniciales.fechaNecesidad as unknown as Date,
           tipoNecesidad: valoresIniciales.tipoNecesidad,
           justificacion: valoresIniciales.justificacion,
@@ -123,6 +125,7 @@ export function SolicitudPedidoForm({
           area: areaInicial,
           areaDetalle: areaDetalleInicialResuelta,
           fecha: fechaLocalHoy() as unknown as Date,
+          hora: horaLocalAhora(),
           // Sugerida a una semana vista — el usuario debe hacer clic en el
           // campo (confirmarla o cambiarla) antes de poder guardar, ver
           // fechaNecesidadConfirmada más abajo.
@@ -289,6 +292,17 @@ export function SolicitudPedidoForm({
             {form.formState.errors.fecha && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.fecha.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hora">Hora</Label>
+            <Input
+              id="hora"
+              type="time"
+              readOnly
+              className="cursor-not-allowed bg-muted opacity-70"
+              {...form.register("hora")}
+            />
           </div>
 
           <div className="space-y-2">

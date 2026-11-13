@@ -97,6 +97,10 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
             <p className="text-muted-foreground">Fecha</p>
             <p className="font-medium">{formatDate(solicitud.fecha)}</p>
           </div>
+          <div>
+            <p className="text-muted-foreground">Hora</p>
+            <p className="font-medium">{solicitud.hora ?? "—"}</p>
+          </div>
           {solicitante && (
             <div>
               <p className="text-muted-foreground">Solicitante</p>

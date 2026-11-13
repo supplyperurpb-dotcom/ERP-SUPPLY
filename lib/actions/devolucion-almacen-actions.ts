@@ -90,7 +90,7 @@ export async function crearDevolucionAlmacenAction(data: DevolucionAlmacenInput)
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, area, personaQueTrae, personaQueTraeDni, observaciones } = parsed.data;
+  const { fecha, hora, almacenId, area, personaQueTrae, personaQueTraeDni, observaciones } = parsed.data;
 
   try {
     const usuario = await getUsuarioActual();
@@ -105,6 +105,7 @@ export async function crearDevolucionAlmacenAction(data: DevolucionAlmacenInput)
         data: {
           numero,
           fecha,
+          hora: hora || null,
           almacenId,
           area,
           personaQueTrae,
@@ -166,7 +167,7 @@ export async function actualizarDevolucionAlmacenAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { fecha, almacenId, area, personaQueTrae, personaQueTraeDni, observaciones } = parsed.data;
+  const { fecha, hora, almacenId, area, personaQueTrae, personaQueTraeDni, observaciones } = parsed.data;
 
   const existente = await prisma.devolucionAlmacen.findUnique({ where: { id }, include: { items: true } });
   if (!existente) return { error: "La devolución ya no existe." };
@@ -199,6 +200,7 @@ export async function actualizarDevolucionAlmacenAction(
         where: { id },
         data: {
           fecha,
+          hora: hora || null,
           almacenId,
           area,
           personaQueTrae,

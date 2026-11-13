@@ -77,6 +77,14 @@ export default async function IngresoAlmacenDetallePage({ params }: { params: Pr
           </p>
         </div>
         <div>
+          <p className="text-muted-foreground">Hora</p>
+          <p className="font-medium">{ingreso.hora ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Fecha de contabilización</p>
+          <p className="font-medium">{formatDate(ingreso.fechaContabilizacion)}</p>
+        </div>
+        <div>
           <p className="text-muted-foreground">Proveedor</p>
           <p className="font-medium">{ingreso.proveedor?.razonSocial ?? "—"}</p>
         </div>

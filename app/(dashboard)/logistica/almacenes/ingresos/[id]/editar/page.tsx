@@ -77,6 +77,7 @@ export default async function EditarIngresoAlmacenPage({ params }: { params: Pro
             items: [],
           },
           fecha: ingreso.fecha.toISOString().slice(0, 10),
+          hora: ingreso.hora ?? "",
           fechaContabilizacion: ingreso.fechaContabilizacion.toISOString().slice(0, 10),
           guiaRemision: ingreso.guiaRemision ?? "",
           guiaRemisionArchivo: ingreso.guiaRemisionArchivo ?? "",
