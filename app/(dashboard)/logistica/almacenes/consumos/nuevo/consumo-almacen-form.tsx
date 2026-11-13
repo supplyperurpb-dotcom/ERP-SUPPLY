@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useFieldArray, useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ClipboardList, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ClipboardList, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -240,6 +240,12 @@ export function ConsumoAlmacenForm({
   const [stockSplit, setStockSplit] = useState<StockPorAlmacen[]>([]);
   const [cargandoStockSplit, setCargandoStockSplit] = useState(false);
   const [cantidadesSplit, setCantidadesSplit] = useState<Record<string, string>>({});
+  // SolicitudDespachoItem.id de la línea que se está reeditando (ver
+  // "Editar" en la tabla de productos) — mientras no se confirme con
+  // "Agregar", las líneas viejas de este producto siguen en la tabla (por
+  // si se cancela), y no cuentan como "ya asignadas" al calcular cuánto
+  // queda por repartir.
+  const [editandoPendienteId, setEditandoPendienteId] = useState<string | null>(null);
 
   function cerrarVerProductos() {
     setVerProductosOpen(false);
@@ -247,6 +253,7 @@ export function ConsumoAlmacenForm({
     setProductoElegido(null);
     setStockSplit([]);
     setCantidadesSplit({});
+    setEditandoPendienteId(null);
   }
 
   const categoriasDisponibles = useMemo(() => {
@@ -291,7 +298,41 @@ export function ConsumoAlmacenForm({
     }
   }
 
-  const restanteProducto = productoElegido ? productoElegido.cantidadPendiente - cantidadYaAsignada(productoElegido.id) : 0;
+  // "Editar" desde la tabla de productos: reabre el mismo paso de reparto
+  // por almacén/lote, precargado con lo que ya se había repartido. Las
+  // líneas viejas de este producto NO se tocan todavía — recién se
+  // reemplazan si se confirma con "Agregar" (ver más abajo); así cancelar
+  // o cerrar la ventana no pierde nada.
+  async function editarProducto(pendiente: PendienteDespacho) {
+    const cantidadesPrevias: Record<string, string> = {};
+    for (const item of items) {
+      if (item.solicitudDespachoItemId !== pendiente.id) continue;
+      const clave = `${item.almacenOrigenId}::${item.lote || "__sin_lote__"}`;
+      cantidadesPrevias[clave] = String((Number(cantidadesPrevias[clave]) || 0) + (Number(item.cantidad) || 0));
+    }
+    setEditandoPendienteId(pendiente.id);
+    setCategoriaElegida(
+      categoriaAlmacenExigidaPorSku({ codigo: pendiente.codigo, descripcion: pendiente.descripcion, subfamilia: pendiente.subfamilia })
+    );
+    setProductoElegido(pendiente);
+    setCantidadesSplit(cantidadesPrevias);
+    setCargandoStockSplit(true);
+    setVerProductosOpen(true);
+    try {
+      const stock = await obtenerStockPorAlmacenParaSkuAction(pendiente.skuId);
+      setStockSplit(stock);
+    } finally {
+      setCargandoStockSplit(false);
+    }
+  }
+
+  // Mientras se reedita un producto, sus líneas viejas siguen en `items`
+  // (todavía no se borraron) — no deben contar como "ya asignadas", o el
+  // reparto disponible se vería reducido por algo que está a punto de
+  // reemplazarse.
+  const restanteProducto = productoElegido
+    ? productoElegido.cantidadPendiente - (editandoPendienteId === productoElegido.id ? 0 : cantidadYaAsignada(productoElegido.id))
+    : 0;
   const sumaSplit = Object.values(cantidadesSplit).reduce((acc, v) => acc + (Number(v) || 0), 0);
 
   function agregarSplit() {
@@ -312,6 +353,14 @@ export function ConsumoAlmacenForm({
       }
     }
 
+    if (editandoPendienteId === productoElegido.id) {
+      const indicesViejos: number[] = [];
+      items.forEach((item, i) => {
+        if (item.solicitudDespachoItemId === productoElegido.id) indicesViejos.push(i);
+      });
+      if (indicesViejos.length > 0) remove(indicesViejos);
+    }
+
     for (const fila of stockSplit) {
       const cantidad = Number(cantidadesSplit[claveSplit(fila)]) || 0;
       if (cantidad <= 0) continue;
@@ -326,10 +375,11 @@ export function ConsumoAlmacenForm({
         solicitudDespachoItemId: productoElegido.id,
       });
     }
-    toast.success("Producto agregado");
+    toast.success(editandoPendienteId === productoElegido.id ? "Producto actualizado" : "Producto agregado");
     setProductoElegido(null);
     setStockSplit([]);
     setCantidadesSplit({});
+    setEditandoPendienteId(null);
   }
 
   async function handleSubmitConArchivos(e: React.FormEvent) {
@@ -667,7 +717,7 @@ export function ConsumoAlmacenForm({
                         <TableHead className="w-32">F. vencimiento</TableHead>
                       </>
                     )}
-                    <TableHead className="w-10" />
+                    <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -771,7 +821,12 @@ export function ConsumoAlmacenForm({
                         {muestraLote && (
                           <>
                             <TableCell className="align-top">
-                              {filaRequiereLote ? (
+                              {atendiendoSolicitudes ? (
+                                // El lote ya se eligió en "Ver Productos" (reparto por
+                                // almacén/lote) — acá solo se muestra; para cambiarlo hay
+                                // que usar el botón "Editar" de esta fila.
+                                <p className="pt-2 text-sm">{loteElegido || "—"}</p>
+                              ) : filaRequiereLote ? (
                                 <Controller
                                   control={form.control}
                                   name={`items.${index}.lote`}
@@ -822,15 +877,22 @@ export function ConsumoAlmacenForm({
                           </>
                         )}
                         <TableCell className="align-top">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            disabled={!sinAlmacenGeneral && fields.length === 1}
-                            onClick={() => remove(index)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex items-center">
+                            {atendiendoSolicitudes && pendienteDeLaFila && (
+                              <Button type="button" variant="ghost" size="icon" onClick={() => editarProducto(pendienteDeLaFila)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={!sinAlmacenGeneral && fields.length === 1}
+                              onClick={() => remove(index)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -920,11 +982,15 @@ export function ConsumoAlmacenForm({
                       setProductoElegido(null);
                       setStockSplit([]);
                       setCantidadesSplit({});
+                      setEditandoPendienteId(null);
                     }}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   {productoElegido.codigo} — {productoElegido.descripcion}
+                  {editandoPendienteId === productoElegido.id && (
+                    <span className="text-xs font-normal text-muted-foreground">(editando)</span>
+                  )}
                 </DialogTitle>
               </DialogHeader>
               <p className="text-sm text-muted-foreground">
