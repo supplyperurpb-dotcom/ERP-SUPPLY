@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 // Parte un texto en líneas que caben en `anchoMax` (igual que en los demás
 // generadores de lib/pdf/, con un máximo de líneas más corto porque este
@@ -35,12 +35,42 @@ const GRIS = rgb(0.45, 0.45, 0.45);
 const GRIS_CLARO = rgb(0.85, 0.85, 0.85);
 const NEGRO = rgb(0.1, 0.1, 0.1);
 
-// Formato "recibo angosto", pensado para leerse en la pantalla de un
-// celular (o imprimirse en una impresora térmica de 80mm) — no A4: el
-// alto se ajusta exactamente al contenido, no hay paginación.
-const ANCHO_PAGINA = 300;
+// No es para imprimirse en la etiqueta térmica del almacén: es solo para
+// leerse en el celular (ver link del PDF en la bandeja de Consumos) — por
+// eso el tamaño fijo es A6 (105mm x 148mm, en vez del "recibo angosto" de
+// alto variable que tenía antes) y las fuentes son más grandes.
+const MM_A_PT = 72 / 25.4;
+const ANCHO_PAGINA = 105 * MM_A_PT;
+const ALTO_PAGINA = 148 * MM_A_PT;
 const MARGEN = 16;
 const ANCHO_UTIL = ANCHO_PAGINA - MARGEN * 2;
+
+const TAM_CODIGO_HEADER = 13;
+const TAM_TITULO = 14;
+const TAM_LABEL = 9;
+const TAM_VALOR = 11;
+const TAM_SECCION = 9;
+const TAM_TABLA_HEADER = 8;
+const TAM_TABLA_DATA = 10;
+const TAM_PIE = 8;
+
+const GAP_LABEL_VALOR = 11;
+const GAP_FILA_DATO = 15;
+const GAP_TABLA_HEADER_LINEA = 11;
+const GAP_LINEA_DATOS = 7;
+const ALTO_FILA_ITEM = 15;
+
+// Columnas de la tabla de productos (anchos en puntos, relativos a
+// MARGEN) — no se muestra de qué almacén sale cada línea, eso lo decide
+// quien atiende y no le aporta nada a quien retira/firma.
+const COL_COD_X = 0;
+const COL_PROD_X = 46;
+const COL_LOTE_X = 160;
+const COL_UM_X = 196;
+const COL_CANT_X = 220;
+const COL_COD_ANCHO = COL_PROD_X - COL_COD_X - 4;
+const COL_PROD_ANCHO = COL_LOTE_X - COL_PROD_X - 4;
+const COL_LOTE_ANCHO = COL_UM_X - COL_LOTE_X - 4;
 
 export type LineaConsumoPdf = {
   codigo: string;
@@ -81,40 +111,28 @@ export async function generarConsumoAlmacenPdf({
 
   const logoBytes = await readFile(path.join(process.cwd(), "public", "logo-rpb.jpg"));
   const logo = await pdfDoc.embedJpg(logoBytes);
-  const logoAltura = 20;
+  const logoAltura = 24;
   const logoAncho = (logo.width / logo.height) * logoAltura;
 
+  // Pedida más pequeña que antes (ya no se imprime en la etiqueta, es solo
+  // para leer en pantalla): tope de alto más bajo y no ocupa todo el ancho.
   let firma: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null;
   let firmaAncho = 0;
   let firmaAlto = 0;
   if (firmaPngBytes) {
     firma = await pdfDoc.embedPng(firmaPngBytes);
-    const escalaAncho = ANCHO_UTIL / firma.width;
+    const anchoMaxFirma = ANCHO_UTIL * 0.55;
+    const escalaAncho = anchoMaxFirma / firma.width;
     firmaAncho = firma.width * escalaAncho;
     firmaAlto = firma.height * escalaAncho;
-    if (firmaAlto > 70) {
-      const escalaAlto = 70 / firma.height;
+    if (firmaAlto > 40) {
+      const escalaAlto = 40 / firma.height;
       firmaAncho = firma.width * escalaAlto;
-      firmaAlto = 70;
+      firmaAlto = 40;
     }
   }
 
-  // Líneas ya envueltas de las observaciones, calculadas ANTES de saber el
-  // alto de la página (acá no hay paginación: el alto se ajusta al
-  // contenido, así que hay que medirlo primero para poder crear la página).
-  const lineasObservaciones = observaciones ? envolverTexto(observaciones, regular, 7, ANCHO_UTIL, 3) : [];
-
-  // Columnas de la tabla de productos (anchos en puntos, relativos a
-  // MARGEN) — no se muestra de qué almacén sale cada línea, eso lo decide
-  // quien atiende y no le aporta nada a quien retira/firma.
-  const COL_COD_X = 0;
-  const COL_PROD_X = 40;
-  const COL_LOTE_X = 150;
-  const COL_UM_X = 184;
-  const COL_CANT_X = 206;
-  const COL_COD_ANCHO = COL_PROD_X - COL_COD_X - 4;
-  const COL_PROD_ANCHO = COL_LOTE_X - COL_PROD_X - 4;
-  const COL_LOTE_ANCHO = COL_UM_X - COL_LOTE_X - 4;
+  const lineasObservaciones = observaciones ? envolverTexto(observaciones, regular, TAM_VALOR - 1, ANCHO_UTIL, 3) : [];
 
   function truncarCelda(texto: string, size: number, anchoMax: number): string {
     if (regular.widthOfTextAtSize(texto, size) <= anchoMax) return texto;
@@ -125,58 +143,95 @@ export async function generarConsumoAlmacenPdf({
     return `${actual}…`;
   }
 
-  const altoHeader = logoAltura + 4 + 14;
-  const altoTitulo = 16;
-  const nDatos = 2 + (vehiculoPlaca ? 1 : 0) + (horometroKilometraje !== null ? 1 : 0);
-  const altoDatos = nDatos * 22; // fecha/hora + f. contabilización (misma fila), retirado por + registrado por (misma fila), [vehículo], [horómetro]
-  const altoDivisorItems = 10 + 12;
-  const altoFilaItem = 11;
-  const altoTablaHeader = 10;
-  const altoItems = altoTablaHeader + lineas.length * altoFilaItem;
-  const altoObservaciones = lineasObservaciones.length > 0 ? 9 + lineasObservaciones.length * 9 + 5 : 0;
-  const altoFirma = 10 + (firma ? firmaAlto + 8 : 16);
-  const altoFooter = 16;
+  // Encabezado de la tabla de productos (COD/PRODUCTO/LOTE/UM/CANT) + la
+  // línea que lo separa de las filas de datos — se repite tal cual en cada
+  // página nueva que haga falta por desbordamiento (ver el loop de abajo).
+  function dibujarEncabezadoTabla(pagina: PDFPage, yInicial: number): number {
+    let yy = yInicial;
+    pagina.drawText("COD", { x: MARGEN + COL_COD_X, y: yy, size: TAM_TABLA_HEADER, font: bold, color: GRIS });
+    pagina.drawText("PRODUCTO", { x: MARGEN + COL_PROD_X, y: yy, size: TAM_TABLA_HEADER, font: bold, color: GRIS });
+    pagina.drawText("LOTE", { x: MARGEN + COL_LOTE_X, y: yy, size: TAM_TABLA_HEADER, font: bold, color: GRIS });
+    pagina.drawText("UM", { x: MARGEN + COL_UM_X, y: yy, size: TAM_TABLA_HEADER, font: bold, color: GRIS });
+    pagina.drawText("CANT", { x: MARGEN + COL_CANT_X, y: yy, size: TAM_TABLA_HEADER, font: bold, color: GRIS });
+    yy -= GAP_TABLA_HEADER_LINEA;
+    // La línea separa el encabezado de la primera fila de datos: no
+    // comparte altura con ninguno de los dos, por eso va en su propio
+    // escalón en vez de pegada al texto de arriba o de abajo.
+    pagina.drawLine({ start: { x: MARGEN, y: yy }, end: { x: ANCHO_PAGINA - MARGEN, y: yy }, thickness: 0.5, color: GRIS_CLARO });
+    yy -= GAP_LINEA_DATOS;
+    return yy;
+  }
 
-  const altoTotal =
-    MARGEN * 2 + altoHeader + altoTitulo + altoDatos + altoDivisorItems + altoItems + altoObservaciones + altoFirma + altoFooter;
+  function dibujarFilaProducto(pagina: PDFPage, yFila: number, linea: LineaConsumoPdf) {
+    pagina.drawText(truncarCelda(linea.codigo, TAM_TABLA_DATA, COL_COD_ANCHO), {
+      x: MARGEN + COL_COD_X,
+      y: yFila,
+      size: TAM_TABLA_DATA,
+      font: regular,
+      color: NEGRO,
+    });
+    pagina.drawText(truncarCelda(linea.descripcion, TAM_TABLA_DATA, COL_PROD_ANCHO), {
+      x: MARGEN + COL_PROD_X,
+      y: yFila,
+      size: TAM_TABLA_DATA,
+      font: regular,
+      color: NEGRO,
+    });
+    pagina.drawText(linea.lote ? truncarCelda(linea.lote, TAM_TABLA_DATA, COL_LOTE_ANCHO) : "—", {
+      x: MARGEN + COL_LOTE_X,
+      y: yFila,
+      size: TAM_TABLA_DATA,
+      font: regular,
+      color: NEGRO,
+    });
+    pagina.drawText(linea.unidadMedida, { x: MARGEN + COL_UM_X, y: yFila, size: TAM_TABLA_DATA, font: regular, color: NEGRO });
+    const cantTexto = String(linea.cantidad);
+    const cantAncho = regular.widthOfTextAtSize(cantTexto, TAM_TABLA_DATA);
+    pagina.drawText(cantTexto, {
+      x: ANCHO_PAGINA - MARGEN - cantAncho,
+      y: yFila,
+      size: TAM_TABLA_DATA,
+      font: regular,
+      color: NEGRO,
+    });
+  }
 
-  const page = pdfDoc.addPage([ANCHO_PAGINA, altoTotal]);
-  let y = altoTotal - MARGEN;
+  let page = pdfDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+  let y = ALTO_PAGINA - MARGEN;
 
   page.drawImage(logo, { x: MARGEN, y: y - logoAltura, width: logoAncho, height: logoAltura });
-  const codigoSize = 11;
-  const codigoAncho = bold.widthOfTextAtSize(numero, codigoSize);
+  const codigoAncho = bold.widthOfTextAtSize(numero, TAM_CODIGO_HEADER);
   page.drawText(numero, {
     x: ANCHO_PAGINA - MARGEN - codigoAncho,
-    y: y - (logoAltura + codigoSize) / 2 + 1,
-    size: codigoSize,
+    y: y - (logoAltura + TAM_CODIGO_HEADER) / 2 + 1,
+    size: TAM_CODIGO_HEADER,
     font: bold,
     color: NEGRO,
   });
-  y -= logoAltura + 4;
+  y -= logoAltura + 6;
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.75, color: NEGRO });
-  y -= 14;
+  y -= 18;
 
-  page.drawText(`CONSUMO ${numero}`, { x: MARGEN, y, size: 11, font: bold, color: NEGRO });
-  y -= 16;
+  page.drawText(`CONSUMO ${numero}`, { x: MARGEN, y, size: TAM_TITULO, font: bold, color: NEGRO });
+  y -= 20;
 
   function filaDato(label: string, value: string) {
-    page.drawText(label, { x: MARGEN, y, size: 7, font: bold, color: GRIS });
-    y -= 9;
-    page.drawText(value, { x: MARGEN, y, size: 8, font: regular, color: NEGRO });
-    y -= 13;
+    page.drawText(label, { x: MARGEN, y, size: TAM_LABEL, font: bold, color: GRIS });
+    y -= GAP_LABEL_VALOR;
+    page.drawText(value, { x: MARGEN, y, size: TAM_VALOR, font: regular, color: NEGRO });
+    y -= GAP_FILA_DATO;
   }
   // Dos pares label/valor en la misma fila (FECHA Y HORA / FECHA DE
-  // CONTABILIZACIÓN) — igual alto que filaDato, solo que escribe en dos
-  // columnas en vez de una.
+  // CONTABILIZACIÓN, RETIRADO POR / REGISTRADO POR) — igual alto que
+  // filaDato, solo que escribe en dos columnas en vez de una.
   function filaDatoDoble(label1: string, value1: string, label2: string, value2: string) {
     const colAncho = ANCHO_UTIL / 2;
-    page.drawText(label1, { x: MARGEN, y, size: 7, font: bold, color: GRIS });
-    page.drawText(label2, { x: MARGEN + colAncho, y, size: 7, font: bold, color: GRIS });
-    y -= 9;
-    page.drawText(value1, { x: MARGEN, y, size: 8, font: regular, color: NEGRO });
-    page.drawText(value2, { x: MARGEN + colAncho, y, size: 8, font: regular, color: NEGRO });
-    y -= 13;
+    page.drawText(label1, { x: MARGEN, y, size: TAM_LABEL, font: bold, color: GRIS });
+    page.drawText(label2, { x: MARGEN + colAncho, y, size: TAM_LABEL, font: bold, color: GRIS });
+    y -= GAP_LABEL_VALOR;
+    page.drawText(value1, { x: MARGEN, y, size: TAM_VALOR, font: regular, color: NEGRO });
+    page.drawText(value2, { x: MARGEN + colAncho, y, size: TAM_VALOR, font: regular, color: NEGRO });
+    y -= GAP_FILA_DATO;
   }
   filaDatoDoble(
     "FECHA Y HORA",
@@ -188,67 +243,61 @@ export async function generarConsumoAlmacenPdf({
   if (vehiculoPlaca) filaDato("PLACA DEL VEHÍCULO", vehiculoPlaca);
   if (horometroKilometraje !== null) filaDato("HORÓMETRO / KILOMETRAJE", String(horometroKilometraje));
 
-  page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.5, color: GRIS_CLARO });
-  y -= 10;
-  page.drawText("PRODUCTOS", { x: MARGEN, y, size: 7, font: bold, color: GRIS });
-  y -= 12;
-
-  page.drawText("COD", { x: MARGEN + COL_COD_X, y, size: 6.5, font: bold, color: GRIS });
-  page.drawText("PRODUCTO", { x: MARGEN + COL_PROD_X, y, size: 6.5, font: bold, color: GRIS });
-  page.drawText("LOTE", { x: MARGEN + COL_LOTE_X, y, size: 6.5, font: bold, color: GRIS });
-  page.drawText("UM", { x: MARGEN + COL_UM_X, y, size: 6.5, font: bold, color: GRIS });
-  page.drawText("CANT", { x: MARGEN + COL_CANT_X, y, size: 6.5, font: bold, color: GRIS });
-  y -= altoTablaHeader;
-  page.drawLine({ start: { x: MARGEN, y: y + 3 }, end: { x: ANCHO_PAGINA - MARGEN, y: y + 3 }, thickness: 0.4, color: GRIS_CLARO });
-
-  for (const linea of lineas) {
-    page.drawText(truncarCelda(linea.codigo, 7, COL_COD_ANCHO), { x: MARGEN + COL_COD_X, y, size: 7, font: regular, color: NEGRO });
-    page.drawText(truncarCelda(linea.descripcion, 7, COL_PROD_ANCHO), {
-      x: MARGEN + COL_PROD_X,
-      y,
-      size: 7,
-      font: regular,
-      color: NEGRO,
-    });
-    page.drawText(linea.lote ? truncarCelda(linea.lote, 7, COL_LOTE_ANCHO) : "—", {
-      x: MARGEN + COL_LOTE_X,
-      y,
-      size: 7,
-      font: regular,
-      color: NEGRO,
-    });
-    page.drawText(linea.unidadMedida, { x: MARGEN + COL_UM_X, y, size: 7, font: regular, color: NEGRO });
-    const cantTexto = String(linea.cantidad);
-    const cantAncho = regular.widthOfTextAtSize(cantTexto, 7);
-    page.drawText(cantTexto, { x: ANCHO_PAGINA - MARGEN - cantAncho, y, size: 7, font: regular, color: NEGRO });
-    y -= altoFilaItem;
-  }
-
   if (lineasObservaciones.length > 0) {
-    page.drawText("OBSERVACIONES", { x: MARGEN, y, size: 7, font: bold, color: GRIS });
-    y -= 9;
+    page.drawText("OBSERVACIONES", { x: MARGEN, y, size: TAM_SECCION, font: bold, color: GRIS });
+    y -= GAP_LABEL_VALOR;
     for (const l of lineasObservaciones) {
-      page.drawText(l, { x: MARGEN, y, size: 7, font: regular, color: NEGRO });
-      y -= 9;
+      page.drawText(l, { x: MARGEN, y, size: TAM_VALOR - 1, font: regular, color: NEGRO });
+      y -= GAP_LABEL_VALOR;
     }
-    y -= 5;
+    y -= 4;
   }
 
-  page.drawText("FIRMA DE QUIEN RETIRA", { x: MARGEN, y, size: 7, font: bold, color: GRIS });
-  y -= 10;
+  page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.5, color: GRIS_CLARO });
+  y -= 16;
+
+  // La firma va ANTES de la tabla de productos (pedido explícito) y más
+  // chica que antes: ya no se imprime en la etiqueta térmica.
+  page.drawText("FIRMA DE QUIEN RETIRA", { x: MARGEN, y, size: TAM_SECCION, font: bold, color: GRIS });
+  y -= 12;
   if (firma) {
     page.drawImage(firma, { x: MARGEN, y: y - firmaAlto, width: firmaAncho, height: firmaAlto });
-    y -= firmaAlto + 8;
+    y -= firmaAlto + 10;
   } else {
-    page.drawText("(sin firma)", { x: MARGEN, y: y - 8, size: 7, font: regular, color: GRIS });
-    y -= 16;
+    page.drawText("(sin firma)", { x: MARGEN, y: y - 8, size: TAM_VALOR - 1, font: regular, color: GRIS });
+    y -= 20;
   }
 
-  page.drawLine({ start: { x: MARGEN, y: y + 8 }, end: { x: ANCHO_PAGINA - MARGEN, y: y + 8 }, thickness: 0.5, color: GRIS_CLARO });
+  page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.5, color: GRIS_CLARO });
+  y -= 16;
+
+  page.drawText("PRODUCTOS", { x: MARGEN, y, size: TAM_SECCION, font: bold, color: GRIS });
+  y -= 12;
+  y = dibujarEncabezadoTabla(page, y);
+
+  // Si una fila no entra en lo que queda de la página, se abre una
+  // hoja nueva en el mismo documento con SOLO el encabezado de la tabla y
+  // las filas que faltan (sin repetir logo, datos ni firma).
+  for (const linea of lineas) {
+    if (y - ALTO_FILA_ITEM < MARGEN) {
+      page = pdfDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+      y = ALTO_PAGINA - MARGEN;
+      y = dibujarEncabezadoTabla(page, y);
+    }
+    dibujarFilaProducto(page, y, linea);
+    y -= ALTO_FILA_ITEM;
+  }
+
+  const altoNotaPie = 20;
+  if (y - altoNotaPie < MARGEN) {
+    page = pdfDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+    y = ALTO_PAGINA - MARGEN;
+  }
+  page.drawLine({ start: { x: MARGEN, y: y + 6 }, end: { x: ANCHO_PAGINA - MARGEN, y: y + 6 }, thickness: 0.5, color: GRIS_CLARO });
   page.drawText("Evidencia fotográfica del despacho adjunta en el sistema.", {
     x: MARGEN,
     y,
-    size: 6,
+    size: TAM_PIE,
     font: regular,
     color: GRIS,
   });
