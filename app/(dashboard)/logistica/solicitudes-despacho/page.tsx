@@ -18,6 +18,14 @@ export default async function SolicitudesDespachoPage() {
     take: 100,
   });
 
+  // SolicitudDespacho.solicitanteId no tiene relación Prisma a Usuario
+  // (ver el comentario en el schema) — se resuelve aparte.
+  const solicitanteIds = [...new Set(solicitudes.map((s) => s.solicitanteId).filter((id): id is string => !!id))];
+  const solicitantes = solicitanteIds.length
+    ? await prisma.usuario.findMany({ where: { id: { in: solicitanteIds } }, select: { id: true, nombres: true, apellidos: true } })
+    : [];
+  const solicitantePorId = new Map(solicitantes.map((u) => [u.id, `${u.nombres} ${u.apellidos}`]));
+
   const filas: FilaSolicitudDespacho[] = solicitudes.map((solicitud) => {
     const totalSolicitado = solicitud.items.reduce((acc, item) => acc + Number(item.cantidad), 0);
     const totalAtendido = solicitud.items.reduce(
@@ -29,7 +37,9 @@ export default async function SolicitudesDespachoPage() {
       id: solicitud.id,
       numero: solicitud.numero,
       area: AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
+      areaCodigo: solicitud.area,
       fecha: formatDate(solicitud.fecha),
+      solicitante: solicitud.solicitanteId ? solicitantePorId.get(solicitud.solicitanteId) ?? "—" : "—",
       numItems: solicitud._count.items,
       estado,
       puedeEliminar: totalAtendido <= 0,
