@@ -107,7 +107,7 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
           )}
           {solicitud.observaciones && (
             <div className="sm:col-span-2 lg:col-span-4">
-              <p className="text-muted-foreground">Observaciones</p>
+              <p className="text-muted-foreground">Especificar Uso</p>
               <p className="font-medium">{solicitud.observaciones}</p>
             </div>
           )}

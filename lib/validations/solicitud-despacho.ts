@@ -13,7 +13,7 @@ const itemSolicitudDespachoSchema = z.object({
 export const solicitudDespachoSchema = z.object({
   area: z.enum(AREAS, { required_error: "Selecciona el área" }),
   fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
-  observaciones: z.string().max(500).optional().or(z.literal("")),
+  observaciones: z.string().trim().min(1, "Especifica el uso").max(500),
   items: z.array(itemSolicitudDespachoSchema).min(1, "Agrega al menos un producto"),
 });
 

@@ -342,7 +342,7 @@ export function SolicitudPedidoForm({
           </div>
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-4">
-            <Label htmlFor="justificacion">Justificación / observación</Label>
+            <Label htmlFor="justificacion">Especificar Uso</Label>
             <Textarea id="justificacion" rows={2} {...form.register("justificacion")} />
             {form.formState.errors.justificacion && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.justificacion.message}</p>

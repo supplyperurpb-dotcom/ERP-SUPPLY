@@ -167,7 +167,7 @@ export async function generarSolicitudDespachoPdf({
   filaDato("Área:", area, "Solicitante:", solicitante);
   filaDato("Fecha de emisión:", fecha.toLocaleDateString("es-PE"));
   if (observaciones) {
-    page.drawText("Observaciones:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
+    page.drawText("Especificar Uso:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
     page.drawText(truncar(observaciones, 85), { x: colDatoX, y, size: 9, font: regular, color: NEGRO });
     y -= 14;
   }

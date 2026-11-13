@@ -300,7 +300,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
           )}
           {solicitud.justificacion && (
             <div className="sm:col-span-2 lg:col-span-4">
-              <p className="text-muted-foreground">Justificación</p>
+              <p className="text-muted-foreground">Especificar Uso</p>
               <p className="font-medium">{solicitud.justificacion}</p>
             </div>
           )}

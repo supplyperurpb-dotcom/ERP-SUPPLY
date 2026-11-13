@@ -128,8 +128,11 @@ export function SolicitudDespachoForm({
           </div>
 
           <div className="space-y-2 sm:col-span-2 lg:col-span-4">
-            <Label htmlFor="observaciones">Observaciones (opcional)</Label>
+            <Label htmlFor="observaciones">Especificar Uso:</Label>
             <Textarea id="observaciones" rows={2} {...form.register("observaciones")} />
+            {form.formState.errors.observaciones && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.observaciones.message}</p>
+            )}
           </div>
         </CardContent>
       </Card>

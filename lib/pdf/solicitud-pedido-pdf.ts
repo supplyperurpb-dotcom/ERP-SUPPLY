@@ -194,7 +194,7 @@ export async function generarSolicitudPedidoPdf({
   filaDato("Fecha de pedido:", fecha.toLocaleDateString("es-PE"), "Tipo de necesidad:", tipoNecesidad);
   filaDato("Fecha de necesidad:", fechaNecesidad.toLocaleDateString("es-PE"));
   if (justificacion) {
-    page.drawText("Justificación:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
+    page.drawText("Especificar Uso:", { x: MARGEN_X, y, size: 9, font: bold, color: GRIS });
     page.drawText(truncar(justificacion, 85), { x: colDatoX, y, size: 9, font: regular, color: NEGRO });
     y -= 14;
   }

@@ -55,7 +55,7 @@ export const solicitudPedidoSchema = z
     fecha: z.coerce.date({ required_error: "La fecha de pedido es obligatoria" }),
     fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),
     tipoNecesidad: z.enum(["URGENTE", "ESTANDAR"], { required_error: "Selecciona el tipo de necesidad" }),
-    justificacion: z.string().trim().min(1, "La justificación es obligatoria").max(500),
+    justificacion: z.string().trim().min(1, "Especifica el uso").max(500),
     items: z.array(itemSolicitudPedidoSchema).min(1, "Agrega al menos un producto"),
   })
   .superRefine((data, ctx) => {

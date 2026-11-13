@@ -55,7 +55,7 @@ export async function GET() {
     "Fecha de pedido": string;
     "Fecha de necesidad": string;
     "Tipo de necesidad": string;
-    Justificación: string;
+    "Especificar Uso": string;
     Código: string;
     Producto: string;
     "Descripción del servicio": string;
@@ -80,7 +80,7 @@ export async function GET() {
       "Fecha de pedido": formatDate(solicitud.fecha),
       "Fecha de necesidad": formatDate(solicitud.fechaNecesidad),
       "Tipo de necesidad": TIPOS_NECESIDAD.find((t) => t.valor === solicitud.tipoNecesidad)?.nombre ?? solicitud.tipoNecesidad,
-      Justificación: solicitud.justificacion ?? "",
+      "Especificar Uso": solicitud.justificacion ?? "",
     };
 
     if (solicitud.items.length === 0) {
@@ -130,7 +130,7 @@ export async function GET() {
     { wch: 14 }, // Fecha de pedido
     { wch: 14 }, // Fecha de necesidad
     { wch: 14 }, // Tipo de necesidad
-    { wch: 30 }, // Justificación
+    { wch: 30 }, // Especificar Uso
     { wch: 14 }, // Código
     { wch: 30 }, // Producto
     { wch: 30 }, // Descripción del servicio
