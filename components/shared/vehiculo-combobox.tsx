@@ -1,11 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Combobox } from "@/components/ui/combobox";
 
 export type VehiculoOpcionCombobox = { id: string; placa: string; tipo: string; codigoEquipo?: string | null };
 
@@ -19,43 +14,25 @@ export function VehiculoCombobox({
   value: string;
   onSelect: (vehiculo: VehiculoOpcionCombobox) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const seleccionado = vehiculos.find((v) => v.placa === value);
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" role="combobox" aria-expanded={open} className="h-10 w-full justify-between font-normal">
-          <span className="truncate">{seleccionado ? `${seleccionado.placa} — ${seleccionado.tipo}` : "Busca por placa..."}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[min(90vw,420px)] p-0" align="start">
-        <Command filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
-          <CommandInput placeholder="Buscar por placa..." />
-          <CommandList>
-            <CommandEmpty>Ningún vehículo coincide. Agrégalo en Listas &gt; Vehículos.</CommandEmpty>
-            <CommandGroup>
-              {vehiculos.map((v) => (
-                <CommandItem
-                  key={v.id}
-                  value={`${v.placa} ${v.codigoEquipo ?? ""}`}
-                  onSelect={() => {
-                    onSelect(v);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn("mr-2 h-4 w-4 shrink-0", v.placa === value ? "opacity-100" : "opacity-0")} />
-                  <span className="truncate">
-                    {v.placa} — {v.tipo}
-                    {v.codigoEquipo ? ` (${v.codigoEquipo})` : ""}
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <Combobox
+      items={vehiculos}
+      value={value}
+      onSelect={onSelect}
+      ancho={420}
+      placeholder="Busca por placa..."
+      searchPlaceholder="Buscar por placa..."
+      emptyMessage="Ningún vehículo coincide. Agrégalo en Listas &gt; Vehículos."
+      itemKey={(v) => v.id}
+      matchValue={(v) => v.placa}
+      searchValue={(v) => `${v.placa} ${v.codigoEquipo ?? ""}`}
+      renderSeleccionado={(v) => `${v.placa} — ${v.tipo}`}
+      renderItem={(v) => (
+        <span className="truncate">
+          {v.placa} — {v.tipo}
+          {v.codigoEquipo ? ` (${v.codigoEquipo})` : ""}
+        </span>
+      )}
+    />
   );
 }

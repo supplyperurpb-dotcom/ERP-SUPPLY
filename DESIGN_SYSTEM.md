@@ -34,6 +34,39 @@ hex literal en un componente nuevo si un token ya cubre el caso.
 sidebar sea navy y el contenido sea gris. No usar estos dos grupos de tokens
 fuera de los dos archivos indicados.
 
+## Selectores con búsqueda — `components/ui/combobox.tsx`
+
+Primitivo `Combobox<T>` (Popover + Command de cmdk) del que son envoltorios
+finos los 7 comboboxes de dominio existentes (`SkuCombobox`,
+`ProveedorSelectCombobox`, `VehiculoCombobox`, `RetiradorAutorizadoCombobox`,
+`OrdenCompraPendienteCombobox`, `CamionCombobox`, `ConductorCombobox`, todos
+en `components/shared/`). Cada uno mantiene su propio tipo de opción y su
+firma de props exacta — nadie que los importa necesita cambiar nada.
+
+```tsx
+import { Combobox } from "@/components/ui/combobox";
+
+<Combobox
+  items={opciones}
+  value={value}
+  onSelect={onSelect}
+  itemKey={(o) => o.id}
+  matchValue={(o) => o.id}       // campo contra el que se compara `value` (no siempre es itemKey, ej. placa en vez de id)
+  searchValue={(o) => `${o.codigo} ${o.nombre}`}  // texto buscable en cmdk
+  renderItem={(o) => <span>{o.nombre}</span>}
+  renderSeleccionado={(o) => o.nombre}  // opcional, por defecto usa renderItem
+  placeholder="Selecciona..."
+  searchPlaceholder="Buscar..."
+  emptyMessage="No se encontró ningún resultado."
+  ancho={420}       // 420 | 480, default 480 (clases completas predefinidas, no interpoladas)
+  multilinea         // para filas largas tipo "código — descripción"
+  extraOption={{ label: "Sin proveedor", value: "", onSelect: () => onSelect(null) }}
+/>
+```
+
+Para un combobox de dominio nuevo: crear el wrapper en `components/shared/`
+con su propio tipo de opción, nunca usar `Combobox` directo en una página.
+
 ## Botones — `components/ui/buttons.tsx`
 
 Envoltorios de `Button` (`components/ui/button.tsx`) con la variante fija,
@@ -199,6 +232,7 @@ import { EstadoBadge, ActivoBadge, SuccessBadge, WarningBadge, DangerBadge, Info
   zod, un mensaje de toast ni una query — son solo envoltorios de
   presentación.
 - Pendiente (fuera de esta ronda, requiere aprobación explícita antes de
-  migrar más módulos): `Combobox` genérico, `EntityFormDialog` +
-  `SubmitButton`, `chart-colors.ts` centralizado, eliminar
-  `placa-vehiculo-field.tsx` (confirmado sin importadores).
+  migrar más módulos): `EntityFormDialog` + `SubmitButton`, `chart-colors.ts`
+  centralizado, eliminar `placa-vehiculo-field.tsx` (confirmado sin
+  importadores). El `Combobox` genérico ya se creó y los 7 comboboxes de
+  dominio existentes se migraron a envoltorios finos sobre él.
