@@ -10,11 +10,12 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    /* Fase 3 (identidad visual): acento único de marca — "berry-600",
-       el violeta-azulado de la piel del arándano — reemplaza el azul
-       corporativo genérico que no tenía relación con el negocio. Mismo
-       rol de siempre (botón primario, nav activo, focus ring). */
-    --primary: 253 41% 39%;
+    /* Fase 3 (identidad visual): acento único de marca, azul oscuro
+       (#0A357B) — pedido explícito del usuario tras ver el violeta
+       "berry" inicial ("no me convence, se ve morado, quiero azul
+       oscuro"). Mismo rol de siempre (botón primario, nav activo, focus
+       ring). */
+    --primary: 217 85% 26%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
@@ -26,7 +27,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 253 41% 39%;
+    --ring: 217 85% 26%;
     --radius: 0.5rem;
 
     /* Superficies del shell (sidebar/contenido) — separadas de --card/--background
@@ -51,8 +52,8 @@
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 10%;
     --popover-foreground: 210 40% 98%;
-    /* Mismo acento "berry" de .root, aclarado para contrastar sobre fondo oscuro. */
-    --primary: 253 55% 65%;
+    /* Mismo acento azul oscuro de :root, aclarado para contrastar sobre fondo oscuro. */
+    --primary: 217 85% 62%;
     --primary-foreground: 222 47% 11%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
@@ -64,7 +65,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217 33% 20%;
     --input: 217 33% 20%;
-    --ring: 253 55% 65%;
+    --ring: 217 85% 62%;
 
     /* Modo oscuro no está activado en la app todavía (sin next-themes/toggle),
        pero se completan estas variables para que el bloque no quede a medias. */

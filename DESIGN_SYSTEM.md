@@ -43,10 +43,11 @@ cálculos. Propuesta aprobada antes de implementar. Alcance real:
 **Color** — se retonó (mismos roles, mismos nombres de token, nuevos
 valores) para darle una identidad propia a la marca en vez del azul
 corporativo genérico que había antes:
-- `--primary`/`--ring`: de un azul SaaS genérico a un violeta-azulado
-  ("berry-600", `#4C3A8C` en claro) — el color de la piel del arándano. Un
-  solo acento de marca, gastado con disciplina (botón primario, nav activo,
-  focus ring) — no se agregó un segundo color de identidad.
+- `--primary`/`--ring`: azul oscuro (`#0A357B` en claro) — un solo acento
+  de marca, gastado con disciplina (botón primario, nav activo, focus
+  ring). Primer intento fue un violeta-azulado ("berry", el color de la
+  piel del arándano); el usuario lo vio morado y pidió explícitamente azul
+  oscuro en su lugar — no se agregó un segundo color de identidad.
 - `--sidebar-background`/`-border`/`-accent`: mismo navy de siempre
   ("indigo-950"), tono más específico, sin cambiar su rol.
 - `--content-background` ("canvas"): gris ligeramente más cálido que antes.
