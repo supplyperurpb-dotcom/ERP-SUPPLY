@@ -319,6 +319,37 @@ export function TipoBandejaFormDialog({ tipoBandeja }: { tipoBandeja?: TipoBande
   `ProveedorFormDialog`, `SkuFormDialog`, `AlmacenFormDialog` siguen con el
   esqueleto manual) queda para una próxima ronda, sin plazo.
 
+## Pestañas — `components/ui/tabs.tsx`
+
+Wrapper estándar de shadcn sobre `@radix-ui/react-tabs` (no existía en el
+proyecto; primer uso en `acopio/reporte` — ver más abajo).
+
+```tsx
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+<Tabs defaultValue="a">
+  <TabsList>
+    <TabsTrigger value="a">A</TabsTrigger>
+    <TabsTrigger value="b">B</TabsTrigger>
+  </TabsList>
+  <TabsContent value="a">...</TabsContent>
+  <TabsContent value="b">...</TabsContent>
+</Tabs>
+```
+
+## Exportar una vista a PNG/PDF
+
+Patrón usado en `acopio/reporte/reporte-acopio-view.tsx`: un `useRef` sobre
+el `div` que se quiere exportar (normalmente el contenedor "ficha" completo,
+no solo una tabla), capturado con `html-to-image` (`toPng`, `pixelRatio: 2`
+para buena nitidez al compartir por WhatsApp) y, para PDF, la misma imagen
+embebida en una página de `jspdf` del mismo tamaño exacto (sin recortar ni
+paginar). Ambas librerías se importan con `await import(...)` dentro del
+handler del botón (no en el top-level) para que no engorden el bundle de
+la página — solo se cargan cuando alguien exporta. Los botones de
+exportar/los controles de filtro llevan `print:hidden` para no aparecer en
+la imagen capturada ni al imprimir.
+
 ## Ventanas / mensajes
 
 | Componente | Archivo | Cuándo usar |
