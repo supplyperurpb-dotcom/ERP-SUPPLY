@@ -67,10 +67,10 @@ function tiposBandejaDisponibles(todos: TipoBandejaOption[], tipoProducto: strin
 
 // Pedido explícito: por default toda línea nueva sale en "Exportable" con
 // "BANDEJA PLÁSTICA BLANCA"; si se cambia a "Descarte Campo", la bandeja
-// salta sola a "JABA PLASTICA AZUL" (y vuelve a la de exportación si se
-// regresa a "Exportable"). Nombres exactos del catálogo (ver TipoBandeja).
+// salta sola a "BANDEJA PLASTICA DE COLOR" (y vuelve a la de exportación si
+// se regresa a "Exportable"). Nombres exactos del catálogo (ver TipoBandeja).
 const BANDEJA_EXPORTABLE_DEFAULT = "BANDEJA PLÁSTICA BLANCA";
-const BANDEJA_DESCARTE_DEFAULT = "JABA PLASTICA AZUL";
+const BANDEJA_DESCARTE_DEFAULT = "BANDEJA PLASTICA DE COLOR";
 
 function idTipoBandejaPorNombre(tiposBandeja: TipoBandejaOption[], nombre: string): string {
   return tiposBandeja.find((t) => t.nombre.toUpperCase() === nombre.toUpperCase())?.id ?? "";
