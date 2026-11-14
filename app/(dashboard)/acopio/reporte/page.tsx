@@ -36,6 +36,12 @@ function formatPorcentaje(n: number) {
   return `${n.toLocaleString("es-PE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
+// Igual formato que el "PESO NETO (KG)" del reporte de Excel (2 decimales
+// fijos), sin el sufijo "kg" que agrega formatKg — la columna ya lo dice.
+function formatKgDosDecimales(n: number) {
+  return n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default async function ReporteAcopioPage({
   searchParams,
 }: {
@@ -58,18 +64,23 @@ export default async function ReporteAcopioPage({
       where: fechaCosecha ? { ingresoFruta: { fechaCosecha } } : undefined,
       select: {
         variedad: true,
+        modulo: true,
+        turno: true,
         tipoProducto: true,
         pesoNetoKg: true,
-        ingresoFruta: { select: { fechaCosecha: true } },
+        cantidadBandejas: true,
+        ingresoFruta: { select: { fechaCosecha: true, placaTransporte: true, horaIngreso: true } },
       },
     }),
     // Todo lo registrado en Ingreso Industrial Planta cuenta como Nacional Campo (ver
-    // comentario arriba: acá no se distingue descarte de planta).
+    // comentario arriba: acá no se distingue descarte de planta). No tiene
+    // módulo/turno (ese desglose es solo de campo) — sale "—" en esa tabla.
     prisma.ingresoIndustrialPallet.findMany({
       where: fechaCosecha ? { fechaCosecha } : undefined,
       select: {
         variedad: true,
         pesoNetoKg: true,
+        cantidadBandejas: true,
         fechaCosecha: true,
       },
     }),
@@ -186,6 +197,56 @@ export default async function ReporteAcopioPage({
   );
   const pctNacionalTotal = totalGeneral.recepcionado > 0 ? (totalGeneral.nacionalCampo / totalGeneral.recepcionado) * 100 : 0;
 
+  // --- "I. Volumen recepcionado de Materia Prima": detalle por viaje
+  // (Exportable, a la izquierda) y resumen por variedad/módulo/turno
+  // (Nacional Campo, a la derecha) — mismo filtro de fecha de cosecha de
+  // arriba. No se muestra N.º de viaje ni de boleta (pedido explícito).
+  const filasExportable = lineasFruta
+    .filter((l) => l.tipoProducto === "Exportable")
+    .map((l) => ({
+      semana: semanaISOConAnio(l.ingresoFruta.fechaCosecha).semana,
+      anio: semanaISOConAnio(l.ingresoFruta.fechaCosecha).anio,
+      placa: l.ingresoFruta.placaTransporte || "—",
+      horaRecepcion: l.ingresoFruta.horaIngreso || "—",
+      variedad: l.variedad,
+      modulo: l.modulo,
+      turno: l.turno,
+      pesoNetoKg: Number(l.pesoNetoKg),
+      cantidadBandejas: l.cantidadBandejas,
+    }))
+    .sort((a, b) => a.horaRecepcion.localeCompare(b.horaRecepcion));
+
+  const totalExportable = filasExportable.reduce(
+    (acc, f) => ({ pesoNetoKg: acc.pesoNetoKg + f.pesoNetoKg, cantidadBandejas: acc.cantidadBandejas + f.cantidadBandejas }),
+    { pesoNetoKg: 0, cantidadBandejas: 0 }
+  );
+
+  type FilaNacionalCampo = { variedad: string; modulo: string; turno: string; pesoNetoKg: number; cantidadBandejas: number };
+  const nacionalCampoPorClave = new Map<string, FilaNacionalCampo>();
+  function acumularNacionalCampo(variedad: string, modulo: string, turno: string, pesoNetoKg: number, cantidadBandejas: number) {
+    const clave = `${variedad}|${modulo}|${turno}`;
+    const fila = nacionalCampoPorClave.get(clave) ?? { variedad, modulo, turno, pesoNetoKg: 0, cantidadBandejas: 0 };
+    fila.pesoNetoKg += pesoNetoKg;
+    fila.cantidadBandejas += cantidadBandejas;
+    nacionalCampoPorClave.set(clave, fila);
+  }
+  for (const l of lineasFruta) {
+    if (l.tipoProducto === "Descarte Campo") {
+      acumularNacionalCampo(l.variedad, l.modulo, l.turno, Number(l.pesoNetoKg), l.cantidadBandejas);
+    }
+  }
+  for (const l of lineasIndustrial) {
+    // Sin módulo/turno (ver comentario de la consulta más arriba).
+    acumularNacionalCampo(l.variedad, "—", "—", Number(l.pesoNetoKg), l.cantidadBandejas);
+  }
+  const filasNacionalCampo = Array.from(nacionalCampoPorClave.values()).sort(
+    (a, b) => a.variedad.localeCompare(b.variedad) || a.modulo.localeCompare(b.modulo) || a.turno.localeCompare(b.turno)
+  );
+  const totalNacionalCampo = filasNacionalCampo.reduce(
+    (acc, f) => ({ pesoNetoKg: acc.pesoNetoKg + f.pesoNetoKg, cantidadBandejas: acc.cantidadBandejas + f.cantidadBandejas }),
+    { pesoNetoKg: 0, cantidadBandejas: 0 }
+  );
+
   const hayFiltro = Boolean(desde || hasta || semanaParam);
 
   return (
@@ -295,6 +356,94 @@ export default async function ReporteAcopioPage({
             <SummaryCard label="Total aprovechable" value={`${formatNumero(totalGeneral.aprovechable)} kg`} />
             <SummaryCard label="Total nacional campo" value={`${formatNumero(totalGeneral.nacionalCampo)} kg`} />
             <SummaryCard label="% Nacional" value={formatPorcentaje(pctNacionalTotal)} />
+          </div>
+
+          <h2 className="mb-3 mt-10 text-base font-semibold tracking-tight">
+            I. Volumen recepcionado de Materia Prima
+          </h2>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div>
+              <p className="mb-2 text-sm font-medium text-muted-foreground">Tipo de operación: Exportación</p>
+              {filasExportable.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin datos de Exportable en el filtro elegido.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow>
+                        <TableHead>Semana</TableHead>
+                        <TableHead>Placa</TableHead>
+                        <TableHead>Hora de recepción</TableHead>
+                        <TableHead>Variedad</TableHead>
+                        <TableHead>Módulo</TableHead>
+                        <TableHead>Turno</TableHead>
+                        <TableHead className="text-right">Peso neto (kg)</TableHead>
+                        <TableHead className="text-right">N.º jabas</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filasExportable.map((f, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-muted-foreground">
+                            {f.semana}
+                            {mostrarAnio ? ` (${f.anio})` : ""}
+                          </TableCell>
+                          <TableCell className="font-medium">{f.placa}</TableCell>
+                          <TableCell>{f.horaRecepcion}</TableCell>
+                          <TableCell>{f.variedad}</TableCell>
+                          <TableCell>{f.modulo}</TableCell>
+                          <TableCell>{f.turno}</TableCell>
+                          <TableCell className="text-right">{formatKgDosDecimales(f.pesoNetoKg)}</TableCell>
+                          <TableCell className="text-right">{f.cantidadBandejas}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-muted/50 font-semibold">
+                        <TableCell colSpan={6}>Total general</TableCell>
+                        <TableCell className="text-right">{formatKgDosDecimales(totalExportable.pesoNetoKg)}</TableCell>
+                        <TableCell className="text-right">{totalExportable.cantidadBandejas}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-medium text-muted-foreground">Tipo de operación: Nacional Campo</p>
+              {filasNacionalCampo.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin datos de Nacional Campo en el filtro elegido.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow>
+                        <TableHead>Variedad</TableHead>
+                        <TableHead>Módulo</TableHead>
+                        <TableHead>Turno</TableHead>
+                        <TableHead className="text-right">Peso neto (kg)</TableHead>
+                        <TableHead className="text-right">Total bandejas</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filasNacionalCampo.map((f, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{f.variedad}</TableCell>
+                          <TableCell>{f.modulo}</TableCell>
+                          <TableCell>{f.turno}</TableCell>
+                          <TableCell className="text-right">{formatKgDosDecimales(f.pesoNetoKg)}</TableCell>
+                          <TableCell className="text-right">{f.cantidadBandejas}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-muted/50 font-semibold">
+                        <TableCell colSpan={3}>Total general</TableCell>
+                        <TableCell className="text-right">{formatKgDosDecimales(totalNacionalCampo.pesoNetoKg)}</TableCell>
+                        <TableCell className="text-right">{totalNacionalCampo.cantidadBandejas}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}
