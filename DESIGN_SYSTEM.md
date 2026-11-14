@@ -211,6 +211,55 @@ import { EstadoBadge, ActivoBadge, SuccessBadge, WarningBadge, DangerBadge, Info
   cada estado salvo que sea un bug confirmado (ver `usuarios/lista/page.tsx`,
   que usaba `destructive` en vez de `secondary` para inactivo).
 
+## Form-dialogs — `components/shared/entity-form-dialog.tsx`
+
+Envuelve el esqueleto repetido en los `*-form-dialog.tsx`: `Dialog` +
+`useFormState` + toast de éxito (cierra el diálogo) + botón de envío con
+"Guardando...". El contenido del formulario (los campos) lo sigue armando
+cada `*-form-dialog.tsx` vía `children` — nunca absorbe la server action,
+la validación zod, ni el gating por rol (que sigue en el padre, ej. una
+tabla, decidiendo si renderiza el `*FormDialog`).
+
+```tsx
+import { EntityFormDialog } from "@/components/shared/entity-form-dialog";
+
+export function TipoBandejaFormDialog({ tipoBandeja }: { tipoBandeja?: TipoBandeja }) {
+  const esEdicion = !!tipoBandeja;
+  const action = esEdicion ? actualizarTipoBandejaAction.bind(null, tipoBandeja.id) : crearTipoBandejaAction;
+
+  return (
+    <EntityFormDialog esEdicion={esEdicion} action={action} entidad="tipo de bandeja">
+      {() => (
+        <>
+          <FormInput label="Nombre" name="nombre" defaultValue={tipoBandeja?.nombre} required />
+          {/* resto de campos */}
+        </>
+      )}
+    </EntityFormDialog>
+  );
+}
+```
+
+- `entidad` (minúscula, singular, ej. "tipo de bandeja" o "camión") arma los
+  defaults: título ("Nuevo/Editar X"), botón de la lista ("Nuevo X"), botón
+  de envío ("Crear X" / "Guardar cambios") y el toast de éxito ("X
+  creado"/"X actualizado"). Sobrescribir con `textoBotonCrear`,
+  `textoBotonEnviarCrear`, `mensajeExitoCrear`, etc. solo si el texto
+  default no calza (género/plural irregular).
+- `action` debe tener la forma `(state, formData) => Promise<state>` con
+  `state: { error?: string; success?: boolean } | undefined` — el mismo
+  tipo que ya devuelven todas las server actions de los `*-form-dialog.tsx`
+  existentes (`TaraActionState`, `TransporteActionState`, etc.), así que no
+  hace falta tocarlas.
+- `children` recibe el `state` actual (para mostrar algo condicionado a un
+  error puntual si hiciera falta) y debe devolver solo los campos — el
+  wrapper ya pone el `<form>`, el mensaje de error general y el botón.
+- Migrados como piloto: `TipoBandejaFormDialog`, `TipoPalletFormDialog`,
+  `CamionFormDialog`. El resto (`ConductorFormDialog` ya usa
+  `FormInput`/`FormSelect`/`PrimaryButton` pero no este wrapper;
+  `ProveedorFormDialog`, `SkuFormDialog`, `AlmacenFormDialog` siguen con el
+  esqueleto manual) queda para una próxima ronda, sin plazo.
+
 ## Ventanas / mensajes
 
 | Componente | Archivo | Cuándo usar |
@@ -232,7 +281,8 @@ import { EstadoBadge, ActivoBadge, SuccessBadge, WarningBadge, DangerBadge, Info
   zod, un mensaje de toast ni una query — son solo envoltorios de
   presentación.
 - Pendiente (fuera de esta ronda, requiere aprobación explícita antes de
-  migrar más módulos): `EntityFormDialog` + `SubmitButton`, `chart-colors.ts`
-  centralizado, eliminar `placa-vehiculo-field.tsx` (confirmado sin
-  importadores). El `Combobox` genérico ya se creó y los 7 comboboxes de
-  dominio existentes se migraron a envoltorios finos sobre él.
+  migrar más módulos): `chart-colors.ts` centralizado, eliminar
+  `placa-vehiculo-field.tsx` (confirmado sin importadores), migrar el resto
+  de los `*-form-dialog.tsx` a `EntityFormDialog`. El `Combobox` genérico y
+  `EntityFormDialog` ya se crearon, con piloto aplicado (ver sus secciones
+  arriba).
