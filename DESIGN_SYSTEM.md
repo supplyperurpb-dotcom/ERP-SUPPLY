@@ -281,8 +281,16 @@ export function TipoBandejaFormDialog({ tipoBandeja }: { tipoBandeja?: TipoBande
   zod, un mensaje de toast ni una query — son solo envoltorios de
   presentación.
 - Pendiente (fuera de esta ronda, requiere aprobación explícita antes de
-  migrar más módulos): `chart-colors.ts` centralizado, eliminar
-  `placa-vehiculo-field.tsx` (confirmado sin importadores), migrar el resto
-  de los `*-form-dialog.tsx` a `EntityFormDialog`. El `Combobox` genérico y
-  `EntityFormDialog` ya se crearon, con piloto aplicado (ver sus secciones
-  arriba).
+  migrar más módulos): migrar el resto de los `*-form-dialog.tsx` a
+  `EntityFormDialog`. El `Combobox` genérico y `EntityFormDialog` ya se
+  crearon, con piloto aplicado (ver sus secciones arriba);
+  `placa-vehiculo-field.tsx` (confirmado sin importadores) ya se eliminó.
+- `chart-colors.ts` centralizado — **descartado, premisa ya no aplica**: el
+  acento `#8dcfec` que motivó este ítem ya no existe en el código (la
+  paleta del dashboard de Exportaciones se rediseñó por completo en una
+  ronda anterior, ver `app/(dashboard)/comex/dashboard-exportaciones/colores.ts`).
+  Se confirmó por grep que ningún otro archivo del repo repite esos hex —
+  `colores.ts` ya es la única fuente de verdad de color de ese dashboard,
+  así que moverlo a `components/ui/charts/chart-colors.ts` sería solo un
+  rename cosmético (tocar todos sus importadores) sin resolver ninguna
+  duplicación real. No se hizo.
