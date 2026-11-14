@@ -34,6 +34,64 @@ hex literal en un componente nuevo si un token ya cubre el caso.
 sidebar sea navy y el contenido sea gris. No usar estos dos grupos de tokens
 fuera de los dos archivos indicados.
 
+## Fase 3 — Identidad visual (tokens, tipografía, tablas, KPI)
+
+Pedido explícito del usuario (2026-11-14): mejorar calidad visual/jerarquía/
+tipografía/espaciados/tablas/microinteracciones sin tocar funcionalidad ni
+cálculos. Propuesta aprobada antes de implementar. Alcance real:
+
+**Color** — se retonó (mismos roles, mismos nombres de token, nuevos
+valores) para darle una identidad propia a la marca en vez del azul
+corporativo genérico que había antes:
+- `--primary`/`--ring`: de un azul SaaS genérico a un violeta-azulado
+  ("berry-600", `#4C3A8C` en claro) — el color de la piel del arándano. Un
+  solo acento de marca, gastado con disciplina (botón primario, nav activo,
+  focus ring) — no se agregó un segundo color de identidad.
+- `--sidebar-background`/`-border`/`-accent`: mismo navy de siempre
+  ("indigo-950"), tono más específico, sin cambiar su rol.
+- `--content-background` ("canvas"): gris ligeramente más cálido que antes.
+- `--bloom` (nuevo, mapeado a `bg-bloom`): gris-violeta pálido (la pruina
+  del arándano) — reemplaza `bg-muted/50` como hover por defecto de
+  `TableRow` (`components/ui/table.tsx`).
+- `app/layout.tsx` (`viewport.themeColor`) y `public/manifest.json`
+  (`theme_color`) actualizados al mismo hex, para que la barra del
+  navegador/PWA coincida.
+- **No se tocó** la paleta de gráficos de `dashboard-exportaciones/colores.ts`
+  ni ninguna de sus cards (`SectionCard` solo lo usa ese dashboard hoy) — ya
+  estaba bien resuelta de una ronda anterior y el pedido era no tocarla.
+
+**Tipografía** — antes no había ninguna declarada (caía al stack del
+sistema operativo por defecto de Tailwind). Ahora, vía `next/font/google`
+en `app/layout.tsx` + `fontFamily` en `tailwind.config.ts`:
+- `font-sans` (default de toda la UI): **IBM Plex Sans** — pensada para
+  software empresarial denso en datos, con carácter propio.
+- `font-mono`: **IBM Plex Mono**, reservada solo para códigos reales (no
+  para labels ni texto normal) — SKU, placas, DNI, licencias, N.º de
+  documento. Es un recurso estructural (marca "esto es un código"), no
+  decoración. Pilotado en `SkuCombobox`, `CamionCombobox`,
+  `VehiculoCombobox`, `RetiradorAutorizadoCombobox`, y las columnas de
+  Documento/Placa/DNI/Licencia de `proveedor-table.tsx`,
+  `camion-table.tsx`, `conductor-table.tsx`. El resto de tablas/comboboxes
+  con códigos queda para una próxima ronda (mismo patrón de adopción
+  incremental que `Combobox`/`EntityFormDialog`).
+
+**Tablas** (`components/ui/table.tsx`) — `TableHead`/`TableCell` ganan un
+prop opcional `numeric` (alinea a la derecha + `tabular-nums`; sin el prop,
+comportamiento idéntico a antes). Pilotado en `TipoBandejaTable` y
+`TipoPalletTable` (columna "Peso tara (kg)"); el resto de tablas con
+columnas numéricas se migra incrementalmente.
+
+**KPICard** (`components/ui/cards/kpi-card.tsx`) — la rama **sin** `paleta`
+(hoy sin ningún llamador real: todos los que existen, en
+`dashboard-exportaciones/kpi-cards.tsx`, pasan `paleta`) cambió de
+fondo+borde teñidos a una barra de acento a la izquierda
+(`border-l-4 border-l-primary`), más valores con `tabular-nums`. La rama
+**con** `paleta` (la que sí usa Exportaciones) no cambió en absoluto.
+
+**No se tocó** (fuera del alcance aprobado): `Card`/`Button`/`Badge` base,
+`SectionCard`, ninguna lógica de negocio, cálculo, query, validación zod ni
+mensaje de toast.
+
 ## Selectores con búsqueda — `components/ui/combobox.tsx`
 
 Primitivo `Combobox<T>` (Popover + Command de cmdk) del que son envoltorios

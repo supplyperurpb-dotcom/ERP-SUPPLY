@@ -33,7 +33,7 @@ export function TipoBandejaTable({ tiposBandeja, esAdmin }: { tiposBandeja: Tipo
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
-          <TableHead>Peso tara (kg)</TableHead>
+          <TableHead numeric>Peso tara (kg)</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
@@ -42,7 +42,7 @@ export function TipoBandejaTable({ tiposBandeja, esAdmin }: { tiposBandeja: Tipo
         {tiposBandeja.map((tipoBandeja) => (
           <TableRow key={tipoBandeja.id}>
             <TableCell className="font-medium">{tipoBandeja.nombre}</TableCell>
-            <TableCell>{formatKg(Number(tipoBandeja.pesoTaraKg))}</TableCell>
+            <TableCell numeric>{formatKg(Number(tipoBandeja.pesoTaraKg))}</TableCell>
             <TableCell>
               <Badge variant={tipoBandeja.activo ? "success" : "secondary"}>
                 {tipoBandeja.activo ? "Activo" : "Inactivo"}

@@ -61,6 +61,16 @@ const config: Config = {
         canvas: {
           DEFAULT: "hsl(var(--content-background))",
         },
+        // Tinte sutil (gris-violeta pálido, la "pruina" del arándano) para
+        // hovers/fondos discretos — reemplaza el gris genérico de Tailwind
+        // en los lugares donde antes se usaba bg-muted/50 a mano.
+        bloom: {
+          DEFAULT: "hsl(var(--bloom))",
+        },
+      },
+      fontFamily: {
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -42,8 +42,8 @@ export function ConductorTable({ conductores }: { conductores: Conductor[] }) {
           <TableRow key={c.id}>
             <TableCell className="font-medium">{c.nombre}</TableCell>
             <TableCell>{TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE.find((t) => t.valor === c.tipo)?.nombre ?? c.tipo}</TableCell>
-            <TableCell>{c.dni}</TableCell>
-            <TableCell>{c.licenciaConducir}</TableCell>
+            <TableCell className="font-mono">{c.dni}</TableCell>
+            <TableCell className="font-mono">{c.licenciaConducir}</TableCell>
             <TableCell>
               <Badge variant={c.activo ? "success" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge>
             </TableCell>

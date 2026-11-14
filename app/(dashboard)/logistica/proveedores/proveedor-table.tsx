@@ -132,7 +132,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
         <TableBody>
           {proveedoresPagina.map((proveedor) => (
             <TableRow key={proveedor.id}>
-              <TableCell className="font-medium">
+              <TableCell className="font-mono font-medium">
                 {proveedor.tipoDocumento} {proveedor.numeroDocumento}
               </TableCell>
               <TableCell>

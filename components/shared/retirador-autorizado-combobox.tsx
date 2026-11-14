@@ -37,10 +37,14 @@ export function RetiradorAutorizadoCombobox({
       itemKey={(r) => r.id}
       matchValue={(r) => r.id}
       searchValue={(r) => `${r.nombreCompleto} ${r.dni}`}
-      renderSeleccionado={(r) => `${r.nombreCompleto} — DNI ${r.dni}`}
+      renderSeleccionado={(r) => (
+        <>
+          {r.nombreCompleto} — DNI <span className="font-mono">{r.dni}</span>
+        </>
+      )}
       renderItem={(r) => (
         <span className="truncate">
-          {r.nombreCompleto} — DNI {r.dni}
+          {r.nombreCompleto} — DNI <span className="font-mono">{r.dni}</span>
         </span>
       )}
     />

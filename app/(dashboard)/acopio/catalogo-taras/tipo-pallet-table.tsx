@@ -29,7 +29,7 @@ export function TipoPalletTable({ tiposPallet }: { tiposPallet: TipoPallet[] }) 
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
-          <TableHead>Peso tara (kg)</TableHead>
+          <TableHead numeric>Peso tara (kg)</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
@@ -38,7 +38,7 @@ export function TipoPalletTable({ tiposPallet }: { tiposPallet: TipoPallet[] }) 
         {tiposPallet.map((tipoPallet) => (
           <TableRow key={tipoPallet.id}>
             <TableCell className="font-medium">{tipoPallet.nombre}</TableCell>
-            <TableCell>{formatKg(Number(tipoPallet.pesoTaraKg))}</TableCell>
+            <TableCell numeric>{formatKg(Number(tipoPallet.pesoTaraKg))}</TableCell>
             <TableCell>
               <Badge variant={tipoPallet.activo ? "success" : "secondary"}>
                 {tipoPallet.activo ? "Activo" : "Inactivo"}

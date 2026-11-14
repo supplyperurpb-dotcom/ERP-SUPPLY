@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** 5 roles de color de una identidad visual de tarjeta (ver PaletaTarjeta en colores.ts de cada dashboard que la use). */
@@ -33,9 +34,13 @@ export function KPICard({
   icon?: LucideIcon;
   className?: string;
 }) {
+  // Sin `paleta` (default): barra de acento a la izquierda en vez de fondo
+  //+ borde teñidos — jerarquía por estructura, no por repetir la misma
+  // card con tinte en todos lados (Fase 3). Con `paleta` (dashboards con
+  // identidad de color propia, ej. Exportaciones): comportamiento intacto.
   return (
     <Card
-      className={className}
+      className={cn(!paleta && "border-l-4 border-l-primary", className)}
       style={paleta ? { backgroundColor: paleta.fondo, borderColor: paleta.borde } : undefined}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -48,12 +53,12 @@ export function KPICard({
         {Icon && <Icon className="h-4 w-4 shrink-0" style={paleta ? { color: paleta.titulo } : undefined} />}
       </CardHeader>
       <CardContent className="space-y-1">
-        <p className="text-2xl font-semibold" style={paleta ? { color: paleta.valor } : undefined}>
+        <p className="text-2xl font-semibold tabular-nums" style={paleta ? { color: paleta.valor } : undefined}>
           {value}
         </p>
         {secondaryLine && (
           <p
-            className={paleta ? "text-sm font-medium" : "text-sm text-muted-foreground"}
+            className={cn(paleta ? "text-sm font-medium" : "text-sm text-muted-foreground", "tabular-nums")}
             style={paleta ? { color: paleta.valorSecundario } : undefined}
           >
             {secondaryLine}

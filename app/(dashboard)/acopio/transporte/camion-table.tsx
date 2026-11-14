@@ -46,7 +46,7 @@ export function CamionTable({ camiones }: { camiones: Camion[] }) {
       <TableBody>
         {camiones.map((c) => (
           <TableRow key={c.id}>
-            <TableCell className="font-medium">{c.placa}</TableCell>
+            <TableCell className="font-mono font-medium">{c.placa}</TableCell>
             <TableCell>{TIPO_LABEL[c.tipo]}</TableCell>
             <TableCell>{TIPO_PROPIEDAD_LABEL[c.tipoPropiedad]}</TableCell>
             <TableCell>

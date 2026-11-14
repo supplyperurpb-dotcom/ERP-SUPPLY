@@ -31,10 +31,14 @@ export function CamionCombobox({
       itemKey={(c) => c.id}
       matchValue={(c) => c.placa}
       searchValue={(c) => c.placa}
-      renderSeleccionado={(c) => `${c.placa} — ${TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}`}
+      renderSeleccionado={(c) => (
+        <>
+          <span className="font-mono">{c.placa}</span> — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
+        </>
+      )}
       renderItem={(c) => (
         <span className="truncate">
-          {c.placa} — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
+          <span className="font-mono">{c.placa}</span> — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
         </span>
       )}
     />

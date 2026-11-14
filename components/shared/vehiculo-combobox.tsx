@@ -26,10 +26,14 @@ export function VehiculoCombobox({
       itemKey={(v) => v.id}
       matchValue={(v) => v.placa}
       searchValue={(v) => `${v.placa} ${v.codigoEquipo ?? ""}`}
-      renderSeleccionado={(v) => `${v.placa} — ${v.tipo}`}
+      renderSeleccionado={(v) => (
+        <>
+          <span className="font-mono">{v.placa}</span> — {v.tipo}
+        </>
+      )}
       renderItem={(v) => (
         <span className="truncate">
-          {v.placa} — {v.tipo}
+          <span className="font-mono">{v.placa}</span> — {v.tipo}
           {v.codigoEquipo ? ` (${v.codigoEquipo})` : ""}
         </span>
       )}

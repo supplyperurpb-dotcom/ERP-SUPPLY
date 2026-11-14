@@ -40,7 +40,7 @@ export function SkuCombobox({
       renderSeleccionado={(sku) => sku.descripcion}
       renderItem={(sku) => (
         <span>
-          <span className="font-medium">{sku.codigo}</span> — {sku.descripcion}
+          <span className="font-mono font-medium">{sku.codigo}</span> — {sku.descripcion}
         </span>
       )}
     />

@@ -10,7 +10,11 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 217 91% 30%;
+    /* Fase 3 (identidad visual): acento único de marca — "berry-600",
+       el violeta-azulado de la piel del arándano — reemplaza el azul
+       corporativo genérico que no tenía relación con el negocio. Mismo
+       rol de siempre (botón primario, nav activo, focus ring). */
+    --primary: 253 41% 39%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
@@ -22,17 +26,22 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 217 91% 30%;
+    --ring: 253 41% 39%;
     --radius: 0.5rem;
 
     /* Superficies del shell (sidebar/contenido) — separadas de --card/--background
-       a propósito: --card sigue blanco para Topbar, Dialog, etc. */
-    --sidebar-background: 217 91% 16%;
+       a propósito: --card sigue blanco para Topbar, Dialog, etc.
+       "indigo-950": mismo navy de siempre, tono más específico (Fase 3). */
+    --sidebar-background: 218 60% 15%;
     --sidebar-foreground: 210 20% 96%;
-    --sidebar-border: 217 60% 22%;
-    --sidebar-accent: 217 70% 24%;
+    --sidebar-border: 218 50% 22%;
+    --sidebar-accent: 218 50% 24%;
     --sidebar-accent-foreground: 210 20% 98%;
-    --content-background: 220 14% 97%;
+    /* "canvas": gris de contenido, ligeramente más cálido que antes. */
+    --content-background: 40 13% 95%;
+    /* "bloom-100": gris-violeta pálido (la pruina del arándano) — tinte
+       sutil para hovers, en vez del gris genérico de Tailwind. */
+    --bloom: 255 7% 92%;
   }
 
   .dark {
@@ -42,7 +51,8 @@
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 10%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
+    /* Mismo acento "berry" de .root, aclarado para contrastar sobre fondo oscuro. */
+    --primary: 253 55% 65%;
     --primary-foreground: 222 47% 11%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
@@ -54,7 +64,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217 33% 20%;
     --input: 217 33% 20%;
-    --ring: 217 91% 60%;
+    --ring: 253 55% 65%;
 
     /* Modo oscuro no está activado en la app todavía (sin next-themes/toggle),
        pero se completan estas variables para que el bloque no quede a medias. */
@@ -64,6 +74,7 @@
     --sidebar-accent: 217 33% 14%;
     --sidebar-accent-foreground: 210 40% 98%;
     --content-background: 222 47% 10%;
+    --bloom: 255 10% 20%;
   }
 }
 
