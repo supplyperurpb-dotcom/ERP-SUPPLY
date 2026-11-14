@@ -1429,6 +1429,7 @@ enum TipoCamion {
   TERMOKING
   CAMION_KIA
   CAMIONETA
+  CAMION_CARGA_SECA
 }
 
 // Submódulo "Información Transporte" de Acopio (ver /acopio/transporte):

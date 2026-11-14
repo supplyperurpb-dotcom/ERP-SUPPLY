@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TipoCamion" ADD VALUE 'CAMION_CARGA_SECA';

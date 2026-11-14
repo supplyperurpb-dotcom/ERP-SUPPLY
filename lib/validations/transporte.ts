@@ -4,6 +4,7 @@ export const TIPOS_CAMION = [
   { valor: "TERMOKING", nombre: "Termoking" },
   { valor: "CAMION_KIA", nombre: "Camión Kia" },
   { valor: "CAMIONETA", nombre: "Camioneta" },
+  { valor: "CAMION_CARGA_SECA", nombre: "Camión Carga Seca" },
 ] as const;
 
 export const camionSchema = z.object({
@@ -13,7 +14,7 @@ export const camionSchema = z.object({
     .min(1, "La placa es obligatoria")
     .max(20)
     .transform((v) => v.toUpperCase()),
-  tipo: z.enum(["TERMOKING", "CAMION_KIA", "CAMIONETA"], { required_error: "Selecciona el tipo de camión" }),
+  tipo: z.enum(["TERMOKING", "CAMION_KIA", "CAMIONETA", "CAMION_CARGA_SECA"], { required_error: "Selecciona el tipo de camión" }),
 });
 
 export type CamionInput = z.infer<typeof camionSchema>;
