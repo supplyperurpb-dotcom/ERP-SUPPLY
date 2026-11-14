@@ -25,11 +25,9 @@ export function PremiumConvencionalCard({
   const paleta: PaletaTarjeta = variante === "facturado" ? PALETA_FACTURADO : PALETA_LIQUIDADO;
 
   return (
-    <Card style={{ backgroundColor: paleta.fondo, borderColor: paleta.borde }}>
+    <Card className="border-l-4" style={{ borderLeftColor: paleta.titulo }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium" style={{ color: paleta.titulo }}>
-          {titulo}
-        </CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{titulo}</CardTitle>
       </CardHeader>
       <CardContent>
         {datos.length === 0 ? (

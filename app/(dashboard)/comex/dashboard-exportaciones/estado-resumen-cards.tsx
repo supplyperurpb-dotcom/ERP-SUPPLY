@@ -40,35 +40,20 @@ export function EstadoResumenCards({ resumen }: { resumen: ResumenEstadoContened
         const paleta = PALETA_ESTADO[r.estado];
         const Icono = ICONO_ESTADO[r.estado];
         return (
-          <Card key={r.estado} style={paleta ? { backgroundColor: paleta.fondo, borderColor: paleta.borde } : undefined}>
+          <Card key={r.estado} className={paleta ? "border-l-4" : undefined} style={paleta ? { borderLeftColor: paleta.titulo } : undefined}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle
-                className={
-                  paleta ? "flex items-center gap-2 text-sm font-medium" : "flex items-center gap-2 text-sm font-medium text-muted-foreground"
-                }
-                style={paleta ? { color: paleta.titulo } : undefined}
-              >
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Ship className="h-4 w-4 shrink-0" />
                 {ETIQUETA_ESTADO[r.estado] ?? r.estado}
               </CardTitle>
               {Icono && <Icono className="h-4 w-4 shrink-0" style={paleta ? { color: paleta.titulo } : undefined} />}
             </CardHeader>
             <CardContent className="space-y-1">
-              <p className="text-2xl font-semibold" style={paleta ? { color: paleta.valor } : undefined}>
-                {r.n} Embarques
-              </p>
-              <p
-                className={paleta ? "text-base font-medium" : "text-base font-medium text-foreground"}
-                style={paleta ? { color: paleta.valorSecundario } : undefined}
-              >
+              <p className="text-2xl font-semibold tabular-nums">{r.n} Embarques</p>
+              <p className="text-base font-medium tabular-nums" style={paleta ? { color: paleta.titulo } : undefined}>
                 {formatCantidad(r.netWeight)} Kg
               </p>
-              <p
-                className={paleta ? "text-sm" : "text-sm text-muted-foreground"}
-                style={paleta ? { color: paleta.valorSecundario } : undefined}
-              >
-                {formatMoneda(r.invoicedAmount, "USD")}
-              </p>
+              <p className="text-sm tabular-nums text-muted-foreground">{formatMoneda(r.invoicedAmount, "USD")}</p>
             </CardContent>
           </Card>
         );

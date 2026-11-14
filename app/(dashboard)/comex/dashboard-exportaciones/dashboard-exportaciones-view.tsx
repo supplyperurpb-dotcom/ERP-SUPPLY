@@ -89,7 +89,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <EstadoResumenCards resumen={resumenEstado} />
 
       <EvolucionPrecioChart
-        titulo="Evolución Semanal De Precios"
+        titulo="Evolución semanal de precios"
         descripcion="PU CIF Facturado vs PU CIF Liquidado"
         puntos={evolucionPrecioSemanal}
       />
@@ -97,7 +97,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <ImpactoLiquidacionCard resumen={impactoLiquidacion} />
 
       <StackedBarChart
-        titulo="Estatus De Embarques Por Semana"
+        titulo="Estatus de embarques por semana"
         puntos={embarquesCombinadoPorSemana.puntos}
         series={embarquesCombinadoPorSemana.series}
         etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado" : s === "EN TRANSITO" ? "En tránsito" : s)}
@@ -107,30 +107,30 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg Exportados Por Formato" filas={porFormato} mostrarEmbarques={false} />
-        <DimensionBreakdownChart titulo="Kg Exportados Por Mercado" filas={porMercado} />
+        <DimensionBreakdownChart titulo="Kg exportados por formato" filas={porFormato} mostrarEmbarques={false} />
+        <DimensionBreakdownChart titulo="Kg exportados por mercado" filas={porMercado} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto De Origen" filas={porOrigen} />
-        <DimensionBreakdownChart titulo="Kg Exportados Por Puerto De Destino" filas={porDestino} />
+        <DimensionBreakdownChart titulo="Kg exportados por puerto de origen" filas={porOrigen} />
+        <DimensionBreakdownChart titulo="Kg exportados por puerto de destino" filas={porDestino} />
       </div>
 
       <StackedBarChart
-        titulo="Kg Por Semana De Despacho Según Tipo De Producto"
+        titulo="Kg por semana de despacho según tipo de producto"
         puntos={kgPorSemanaTipo.puntos}
         series={kgPorSemanaTipo.series}
         bordeSuperiorPx={8}
       />
 
-      <VariedadTipoChart titulo="Kg Exportados Por Variedad, Según Tipo" datos={exportacionesPorVariedadYTipo} />
+      <VariedadTipoChart titulo="Kg exportados por variedad, según tipo" datos={exportacionesPorVariedadYTipo} />
 
       <VariedadEtiquetaPremiumChart
-        titulo="Mezcla De Etiquetas Premium Por Variedad"
+        titulo="Mezcla de etiquetas Premium por variedad"
         datos={exportacionesPorVariedadYEtiquetaPremium}
       />
 
-      <VariedadMercadoChart titulo="Kg Exportados Por Variedad, Según Mercado" datos={exportacionesPorVariedadYMercado} />
+      <VariedadMercadoChart titulo="Kg exportados por variedad, según mercado" datos={exportacionesPorVariedadYMercado} />
     </div>
   );
 }

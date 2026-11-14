@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
@@ -20,11 +21,15 @@ export function SectionCard({
   children: ReactNode;
   className?: string;
 }) {
+  // Fase 3 (propuesta visual aprobada para el dashboard de Exportaciones):
+  // sin la sombra por defecto de Card y con el título un poco más chico —
+  // "menos card sobre card", el contenido (gráfico/tabla) es lo que debe
+  // destacar, no el marco que lo envuelve.
   return (
-    <Card className={className}>
+    <Card className={cn("shadow-none", className)}>
       <CardHeader className={actions ? "flex flex-row items-center justify-between space-y-0" : undefined}>
         <div>
-          <CardTitle className="text-base">{title}</CardTitle>
+          <CardTitle className="text-sm font-semibold">{title}</CardTitle>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
         {actions}

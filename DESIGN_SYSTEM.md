@@ -82,16 +82,42 @@ comportamiento idéntico a antes). Pilotado en `TipoBandejaTable` y
 `TipoPalletTable` (columna "Peso tara (kg)"); el resto de tablas con
 columnas numéricas se migra incrementalmente.
 
-**KPICard** (`components/ui/cards/kpi-card.tsx`) — la rama **sin** `paleta`
-(hoy sin ningún llamador real: todos los que existen, en
-`dashboard-exportaciones/kpi-cards.tsx`, pasan `paleta`) cambió de
-fondo+borde teñidos a una barra de acento a la izquierda
-(`border-l-4 border-l-primary`), más valores con `tabular-nums`. La rama
-**con** `paleta` (la que sí usa Exportaciones) no cambió en absoluto.
+**KPICard** (`components/ui/cards/kpi-card.tsx`) — con o sin `paleta`,
+mismo tratamiento: barra de acento a la izquierda (`border-l-4`, color de
+`paleta.titulo` o `border-l-primary` sin paleta) en vez de fondo+borde
+teñidos; el valor principal siempre en el color normal del tema
+(`tabular-nums`), nunca en el color de marca — solo la barra, el ícono y
+la línea secundaria llevan color. `PaletaTarjetaKPI` ahora solo declara
+`titulo` (único campo que lee el componente).
 
-**No se tocó** (fuera del alcance aprobado): `Card`/`Button`/`Badge` base,
-`SectionCard`, ninguna lógica de negocio, cálculo, query, validación zod ni
-mensaje de toast.
+**2026-11-14 — propuesta visual aprobada para el dashboard de
+Exportaciones** (mockup revisado antes de implementar): se extendió el
+mismo criterio de "menos tinte, más jerarquía" a las demás tarjetas KPI de
+ese dashboard y se aplanó el marco de sus gráficos — sin tocar ningún
+cálculo, query ni la paleta de colores de los gráficos (que ya estaba
+bien resuelta):
+- `PorLiquidarCard`, `EstadoResumenCards`, `PremiumConvencionalCard`: el
+  Card exterior pasó de fondo+borde teñido a barra de acento lateral
+  (`border-l-4`, color `paleta.titulo`); el contenido interno que sí
+  distingue información (ej. Premium vs. Convencional dentro de
+  `PremiumConvencionalCard`) no se tocó.
+- `colores.ts`: los campos `fondo`/`borde` de `PaletaTarjeta` (y de las 5
+  constantes `PALETA_*`) se eliminaron — quedaron sin ningún lector tras
+  este cambio.
+- `SectionCard` (`components/ui/cards/section-card.tsx`, usada
+  exclusivamente por los 6 gráficos de Exportaciones): sin la sombra por
+  defecto de `Card` (`shadow-none`) y título más chico (`text-sm` en vez
+  de `text-base`) — el contenido del gráfico no cambió.
+- Títulos de gráfico en `dashboard-exportaciones-view.tsx`: de Title Case
+  ("Kg Exportados Por Mercado") a sentence case ("Kg exportados por
+  mercado") — los nombres propios de categoría (Premium, Facturado,
+  Liquidado) se mantienen capitalizados, son términos fijos del dominio,
+  no texto genérico de título.
+
+**No se tocó**: `Card`/`Button`/`Badge` base (fuera de este dashboard),
+ninguna lógica de negocio, cálculo, query, validación zod, mensaje de
+toast, ni la paleta de colores de los gráficos (`COLOR_SEMANTICO`,
+`PALETA_SOBRIA`, `ImpactoLiquidacionCard`).
 
 ## Selectores con búsqueda — `components/ui/combobox.tsx`
 
