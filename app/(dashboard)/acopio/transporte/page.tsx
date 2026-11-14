@@ -8,17 +8,9 @@ import { ConductorFormDialog } from "./conductor-form-dialog";
 import { ConductorTable } from "./conductor-table";
 
 export default async function TransportePage() {
-  const [camiones, conductores, proveedoresTransporte] = await Promise.all([
+  const [camiones, conductores] = await Promise.all([
     prisma.camion.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.conductor.findMany({
-      include: { proveedor: { select: { razonSocial: true, numeroDocumento: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.proveedor.findMany({
-      where: { activo: true, tipo: "TRANSPORTE" },
-      orderBy: { razonSocial: "asc" },
-      select: { id: true, razonSocial: true, numeroDocumento: true },
-    }),
+    prisma.conductor.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
 
   return (
@@ -32,7 +24,7 @@ export default async function TransportePage() {
         <section>
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <h2 className="text-lg font-semibold tracking-tight">Conductores</h2>
-            <ConductorFormDialog proveedores={proveedoresTransporte} />
+            <ConductorFormDialog />
           </div>
           {conductores.length === 0 ? (
             <EmptyState
@@ -41,7 +33,7 @@ export default async function TransportePage() {
               descripcion="Crea el primer conductor con el botón de arriba."
             />
           ) : (
-            <ConductorTable conductores={conductores} proveedores={proveedoresTransporte} />
+            <ConductorTable conductores={conductores} />
           )}
         </section>
 

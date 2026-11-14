@@ -19,7 +19,7 @@ export const camionSchema = z.object({
 export type CamionInput = z.infer<typeof camionSchema>;
 
 export const conductorSchema = z.object({
-  proveedorId: z.string().min(1, "Selecciona el proveedor"),
+  tipo: z.enum(["PROPIO", "TERCERO"], { required_error: "Selecciona el tipo" }),
   nombre: z.string().trim().min(1, "El nombre del conductor es obligatorio").max(150),
   dni: z.string().trim().min(1, "El DNI es obligatorio").max(20),
   licenciaConducir: z.string().trim().min(1, "La licencia de conducir es obligatoria").max(30),

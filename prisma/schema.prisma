@@ -1447,20 +1447,25 @@ model Camion {
   @@map("camiones")
 }
 
-// Conductor registrado bajo un Proveedor de transporte (tipo TRANSPORTE),
-// para elegir en el desplegable de Despacho. Nunca se borra uno ya
-// usado: se desactiva (activo=false).
+// Conductor para elegir en el desplegable de Despacho. Ya no se liga a un
+// Proveedor de transporte al crearlo (campo 2026-11-14): ahora solo dice
+// si es personal Propio o de un Tercero (mismo TipoPropiedadVehiculoTransporte
+// que ya usa VehiculoTransporte.tipo). `proveedorId` queda nullable y solo
+// por compatibilidad con los conductores creados antes de este cambio — ya
+// no se pide en el formulario. Nunca se borra uno ya usado: se desactiva
+// (activo=false).
 model Conductor {
-  id               String   @id @default(cuid())
-  proveedorId      String
+  id               String                          @id @default(cuid())
+  proveedorId      String?
+  tipo             TipoPropiedadVehiculoTransporte @default(TERCERO)
   nombre           String
   dni              String
   licenciaConducir String
-  activo           Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  activo           Boolean                         @default(true)
+  createdAt        DateTime                        @default(now())
+  updatedAt        DateTime                        @updatedAt
 
-  proveedor Proveedor @relation(fields: [proveedorId], references: [id])
+  proveedor Proveedor? @relation(fields: [proveedorId], references: [id])
 
   @@map("conductores")
 }

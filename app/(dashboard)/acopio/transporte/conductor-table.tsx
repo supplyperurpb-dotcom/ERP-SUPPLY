@@ -8,15 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toggleActivoConductorAction } from "@/lib/actions/transporte-actions";
+import { TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE } from "@/lib/validations/vehiculo-transporte";
 import { ConductorFormDialog } from "./conductor-form-dialog";
 
-type ProveedorOption = { id: string; razonSocial: string; numeroDocumento: string };
-type FilaConductor = Conductor & { proveedor: { razonSocial: string; numeroDocumento: string } };
-
-export function ConductorTable({ conductores, proveedores }: { conductores: FilaConductor[]; proveedores: ProveedorOption[] }) {
+export function ConductorTable({ conductores }: { conductores: Conductor[] }) {
   const [isPending, startTransition] = useTransition();
 
-  function handleToggle(conductor: FilaConductor) {
+  function handleToggle(conductor: Conductor) {
     startTransition(async () => {
       const resultado = await toggleActivoConductorAction(conductor.id);
       if (resultado?.error) {
@@ -32,8 +30,7 @@ export function ConductorTable({ conductores, proveedores }: { conductores: Fila
       <TableHeader>
         <TableRow>
           <TableHead>Nombre</TableHead>
-          <TableHead>Proveedor</TableHead>
-          <TableHead>RUC</TableHead>
+          <TableHead>Tipo</TableHead>
           <TableHead>DNI</TableHead>
           <TableHead>Licencia</TableHead>
           <TableHead>Estado</TableHead>
@@ -44,15 +41,14 @@ export function ConductorTable({ conductores, proveedores }: { conductores: Fila
         {conductores.map((c) => (
           <TableRow key={c.id}>
             <TableCell className="font-medium">{c.nombre}</TableCell>
-            <TableCell>{c.proveedor.razonSocial}</TableCell>
-            <TableCell>{c.proveedor.numeroDocumento}</TableCell>
+            <TableCell>{TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE.find((t) => t.valor === c.tipo)?.nombre ?? c.tipo}</TableCell>
             <TableCell>{c.dni}</TableCell>
             <TableCell>{c.licenciaConducir}</TableCell>
             <TableCell>
               <Badge variant={c.activo ? "success" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge>
             </TableCell>
             <TableCell className="flex justify-end gap-1">
-              <ConductorFormDialog conductor={c} proveedores={proveedores} />
+              <ConductorFormDialog conductor={c} />
               <Button variant="ghost" size="icon" disabled={isPending} onClick={() => handleToggle(c)}>
                 <Power className="h-4 w-4" />
               </Button>

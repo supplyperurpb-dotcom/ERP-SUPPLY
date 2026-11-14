@@ -15,23 +15,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FormInput, FormSelect } from "@/components/ui/form-fields";
+import { TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE } from "@/lib/validations/vehiculo-transporte";
 import {
   crearConductorAction,
   actualizarConductorAction,
   type TransporteActionState,
 } from "@/lib/actions/transporte-actions";
 
-type ProveedorOption = { id: string; razonSocial: string; numeroDocumento: string };
-
-export function ConductorFormDialog({
-  conductor,
-  proveedores,
-}: {
-  conductor?: Conductor;
-  proveedores: ProveedorOption[];
-}) {
+export function ConductorFormDialog({ conductor }: { conductor?: Conductor }) {
   const [open, setOpen] = useState(false);
-  const [proveedorId, setProveedorId] = useState(conductor?.proveedorId ?? "");
+  const [tipo, setTipo] = useState(conductor?.tipo ?? "TERCERO");
   const esEdicion = !!conductor;
   const action = esEdicion ? actualizarConductorAction.bind(null, conductor.id) : crearConductorAction;
   const [state, formAction] = useFormState<TransporteActionState, FormData>(action, undefined);
@@ -42,8 +35,6 @@ export function ConductorFormDialog({
       setOpen(false);
     }
   }, [state, esEdicion]);
-
-  const ruc = proveedores.find((p) => p.id === proveedorId)?.numeroDocumento ?? "";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -66,27 +57,13 @@ export function ConductorFormDialog({
 
         <form action={formAction} className="space-y-4">
           <FormSelect
-            label="Proveedor (empresa de transporte)"
-            id="proveedorId"
-            name="proveedorId"
-            value={proveedorId}
-            onValueChange={setProveedorId}
-            placeholder="Selecciona un proveedor"
-            options={proveedores.map((p) => ({ value: p.id, label: p.razonSocial }))}
-            description={
-              proveedores.length === 0
-                ? 'No hay proveedores con tipo "Transporte". Créalos en Logística > Proveedores.'
-                : undefined
-            }
-          />
-
-          <FormInput
-            label="RUC"
-            id="ruc"
-            value={ruc}
-            disabled
-            readOnly
-            className="cursor-not-allowed bg-muted opacity-70"
+            label="Tipo"
+            id="tipo"
+            name="tipo"
+            value={tipo}
+            onValueChange={(v) => setTipo(v as typeof tipo)}
+            placeholder="Selecciona el tipo"
+            options={TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE.map((t) => ({ value: t.valor, label: t.nombre }))}
           />
 
           <FormInput label="Nombre del conductor" id="nombre" name="nombre" defaultValue={conductor?.nombre} required />
