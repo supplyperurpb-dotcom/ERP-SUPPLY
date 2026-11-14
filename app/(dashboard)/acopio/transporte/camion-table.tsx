@@ -8,10 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TIPOS_CAMION } from "@/lib/validations/transporte";
+import { TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE } from "@/lib/validations/vehiculo-transporte";
 import { toggleActivoCamionAction } from "@/lib/actions/transporte-actions";
 import { CamionFormDialog } from "./camion-form-dialog";
 
 const TIPO_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<Camion["tipo"], string>;
+const TIPO_PROPIEDAD_LABEL = Object.fromEntries(TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE.map((t) => [t.valor, t.nombre])) as Record<
+  Camion["tipoPropiedad"],
+  string
+>;
 
 export function CamionTable({ camiones }: { camiones: Camion[] }) {
   const [isPending, startTransition] = useTransition();
@@ -33,6 +38,7 @@ export function CamionTable({ camiones }: { camiones: Camion[] }) {
         <TableRow>
           <TableHead>Placa</TableHead>
           <TableHead>Tipo</TableHead>
+          <TableHead>Propio/Tercero</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
@@ -42,6 +48,7 @@ export function CamionTable({ camiones }: { camiones: Camion[] }) {
           <TableRow key={c.id}>
             <TableCell className="font-medium">{c.placa}</TableCell>
             <TableCell>{TIPO_LABEL[c.tipo]}</TableCell>
+            <TableCell>{TIPO_PROPIEDAD_LABEL[c.tipoPropiedad]}</TableCell>
             <TableCell>
               <Badge variant={c.activo ? "success" : "secondary"}>{c.activo ? "Activo" : "Inactivo"}</Badge>
             </TableCell>

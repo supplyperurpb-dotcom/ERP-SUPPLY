@@ -17,9 +17,7 @@ export default async function NuevoIngresoPage() {
         orderBy: { numero: "asc" },
       }),
       prisma.camion.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
-      // En materia prima solo se elige entre conductores Propios (ver
-      // Conductor.tipo) — los de Terceros son para Ingreso Industrial.
-      prisma.conductor.findMany({ where: { activo: true, tipo: "PROPIO" }, orderBy: { nombre: "asc" } }),
+      prisma.conductor.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     ]);
 
   // Se mapea explícitamente a objetos planos: el campo Decimal de Prisma no

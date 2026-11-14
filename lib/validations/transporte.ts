@@ -15,6 +15,7 @@ export const camionSchema = z.object({
     .max(20)
     .transform((v) => v.toUpperCase()),
   tipo: z.enum(["TERMOKING", "CAMION_KIA", "CAMIONETA", "CAMION_CARGA_SECA"], { required_error: "Selecciona el tipo de camión" }),
+  tipoPropiedad: z.enum(["PROPIO", "TERCERO"], { required_error: "Selecciona el tipo de propiedad" }),
 });
 
 export type CamionInput = z.infer<typeof camionSchema>;

@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TIPOS_CAMION } from "@/lib/validations/transporte";
+import { TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE } from "@/lib/validations/vehiculo-transporte";
 import { crearCamionAction, actualizarCamionAction, type TransporteActionState } from "@/lib/actions/transporte-actions";
 
 export function CamionFormDialog({ camion }: { camion?: Camion }) {
@@ -66,6 +67,22 @@ export function CamionFormDialog({ camion }: { camion?: Camion }) {
               </SelectTrigger>
               <SelectContent>
                 {TIPOS_CAMION.map((t) => (
+                  <SelectItem key={t.valor} value={t.valor}>
+                    {t.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tipoPropiedad">Tipo</Label>
+            <Select name="tipoPropiedad" defaultValue={camion?.tipoPropiedad ?? "TERCERO"}>
+              <SelectTrigger id="tipoPropiedad">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS_PROPIEDAD_VEHICULO_TRANSPORTE.map((t) => (
                   <SelectItem key={t.valor} value={t.valor}>
                     {t.nombre}
                   </SelectItem>

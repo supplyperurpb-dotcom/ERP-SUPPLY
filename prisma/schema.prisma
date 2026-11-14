@@ -1438,12 +1438,15 @@ enum TipoCamion {
 // Industrial) — Despacho usa este catálogo en vez de aquel. Nunca se borra un
 // registro ya usado: se desactiva (activo=false).
 model Camion {
-  id        String     @id @default(cuid())
-  placa     String     @unique
-  tipo      TipoCamion
-  activo    Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id             String                          @id @default(cuid())
+  placa          String                          @unique
+  tipo           TipoCamion
+  // Si es de la empresa o de un tercero (mismo enum que ya usa
+  // VehiculoTransporte.tipo y Conductor.tipo) — campo agregado 2026-11-14.
+  tipoPropiedad  TipoPropiedadVehiculoTransporte @default(TERCERO)
+  activo         Boolean                         @default(true)
+  createdAt      DateTime                        @default(now())
+  updatedAt      DateTime                        @updatedAt
 
   @@map("camiones")
 }
