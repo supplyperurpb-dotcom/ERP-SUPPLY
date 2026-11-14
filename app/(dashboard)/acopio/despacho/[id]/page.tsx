@@ -14,6 +14,10 @@ export default async function DespachoDetallePage({ params }: { params: Promise<
   });
   if (!despacho) notFound();
 
+  const registradoPor = despacho.creadoPorId
+    ? await prisma.usuario.findUnique({ where: { id: despacho.creadoPorId }, select: { nombres: true, apellidos: true } })
+    : null;
+
   const totalBandejas = despacho.tarjas.reduce((acc, t) => acc + t.pallet.cantidadBandejas, 0);
   const pesoNetoTotalKg = despacho.tarjas.reduce((acc, t) => acc + Number(t.pallet.pesoNetoKg), 0);
 
@@ -32,6 +36,7 @@ export default async function DespachoDetallePage({ params }: { params: Promise<
           estado: despacho.estado,
           numeroGuiaRemision: despacho.numeroGuiaRemision,
           guiaRemisionArchivo: despacho.guiaRemisionArchivo,
+          registradoPor: registradoPor ? `${registradoPor.nombres} ${registradoPor.apellidos}` : "—",
         }}
         tarjas={despacho.tarjas.map((t) => ({
           id: t.id,

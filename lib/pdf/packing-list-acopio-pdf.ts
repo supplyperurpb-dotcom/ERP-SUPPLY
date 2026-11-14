@@ -24,6 +24,7 @@ export async function generarPackingListAcopioPdf({
   horaDespacho,
   numeroGuiaRemision,
   destino,
+  registradoPor,
   lineas,
   totalBandejas,
   pesoNetoTotalKg,
@@ -39,6 +40,8 @@ export async function generarPackingListAcopioPdf({
   numeroGuiaRemision: string | null;
   /** Solo el despacho de fruta exportable tiene un destino fijo (ver despacho-form.tsx). */
   destino?: string;
+  /** Usuario que registró el despacho en el sistema (Despacho.creadoPorId). */
+  registradoPor: string;
   lineas: LineaPackingListAcopio[];
   totalBandejas: number;
   pesoNetoTotalKg: number;
@@ -85,6 +88,10 @@ export async function generarPackingListAcopioPdf({
 
   if (destino) {
     dato(colIzqX, y, "Destino", destino);
+    dato(colDerX, y, "Registrado por", registradoPor || "—");
+    y -= 36;
+  } else {
+    dato(colIzqX, y, "Registrado por", registradoPor || "—");
     y -= 36;
   }
 

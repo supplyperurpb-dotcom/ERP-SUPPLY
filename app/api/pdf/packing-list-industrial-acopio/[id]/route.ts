@@ -16,6 +16,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "El despacho no existe." }, { status: 404 });
   }
 
+  const registrador = despacho.creadoPorId
+    ? await prisma.usuario.findUnique({ where: { id: despacho.creadoPorId }, select: { nombres: true, apellidos: true } })
+    : null;
+
   const totalBandejas = despacho.tarjas.reduce((acc, t) => acc + t.pallet.cantidadBandejas, 0);
   const pesoNetoTotalKg = despacho.tarjas.reduce((acc, t) => acc + Number(t.pallet.pesoNetoKg), 0);
 
@@ -27,6 +31,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     fechaDespacho: despacho.fechaDespacho,
     horaDespacho: despacho.horaDespacho,
     numeroGuiaRemision: despacho.numeroGuiaRemision,
+    registradoPor: registrador ? `${registrador.nombres} ${registrador.apellidos}` : "—",
     lineas: despacho.tarjas.map((t) => ({
       descripcion: descripcionPackingList(t.pallet.cantidadBandejas, variedadDePalletIndustrial(t.pallet), t.numero),
       pesoNetoKg: Number(t.pallet.pesoNetoKg),

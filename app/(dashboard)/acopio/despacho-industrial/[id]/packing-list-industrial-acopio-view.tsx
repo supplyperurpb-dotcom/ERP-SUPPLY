@@ -22,6 +22,7 @@ type DespachoResumen = {
   estado: EstadoDespacho;
   numeroGuiaRemision: string | null;
   guiaRemisionArchivo: string | null;
+  registradoPor: string;
 };
 type TarjaFila = { id: string; descripcion: string; pesoNetoKg: number };
 
@@ -110,6 +111,10 @@ export function PackingListIndustrialAcopioView({
           <div>
             <p className="text-xs text-muted-foreground">N.º de tarjas</p>
             <p className="font-medium">{tarjas.length}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Registrado por</p>
+            <p className="font-medium">{despacho.registradoPor}</p>
           </div>
         </CardContent>
       </Card>
