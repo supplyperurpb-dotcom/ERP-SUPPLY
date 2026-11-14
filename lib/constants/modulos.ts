@@ -3,6 +3,16 @@
 // seleccionado en esa misma línea.
 export const MODULOS_ACOPIO = ["MODULO 1", "MODULO 2", "MODULO 3", "MODULO 4"] as const;
 
+/**
+ * "MODULO 1" -> "M01" — forma compacta usada en reportes (pedido explícito,
+ * para que la columna de módulo ocupe menos espacio). No se usa en los
+ * formularios de captura, donde el nombre completo sigue siendo más claro.
+ */
+export function formatModuloCompacto(modulo: string): string {
+  const numero = modulo.match(/\d+/)?.[0];
+  return numero ? `M${numero.padStart(2, "0")}` : modulo;
+}
+
 export const VARIEDADES_POR_MODULO: Record<string, string[]> = {
   "MODULO 1": ["ARANA"],
   "MODULO 2": ["RAYMI"],

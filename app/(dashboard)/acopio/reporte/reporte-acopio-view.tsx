@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatModuloCompacto } from "@/lib/constants/modulos";
 import { cn } from "@/lib/utils";
 
 type MatrizModuloVariedad = {
@@ -324,7 +325,7 @@ function MatrizModuloVariedadTabla({ matriz }: { matriz: MatrizModuloVariedad })
         <TableBody>
           {matriz.filas.map((fila) => (
             <TableRow key={fila.modulo}>
-              <TableCell className="font-medium">{fila.modulo}</TableCell>
+              <TableCell className="font-medium">{formatModuloCompacto(fila.modulo)}</TableCell>
               {fila.valores.map((v, i) => (
                 <TableCell key={i} numeric>
                   {formatNumero(v)}
@@ -355,9 +356,9 @@ function ControlHorarioTabla({ controlHorario }: { controlHorario: ControlHorari
     return <p className="text-sm text-muted-foreground">Sin datos en el filtro elegido.</p>;
   }
   return (
-    <div className="max-h-[420px] overflow-y-auto overflow-x-auto rounded-lg border">
+    <div className="overflow-x-auto rounded-lg border">
       <Table>
-        <TableHeader className="sticky top-0 bg-muted/40">
+        <TableHeader className="bg-muted/40">
           <TableRow>
             <TableHead>Hora</TableHead>
             <TableHead>Placa</TableHead>
