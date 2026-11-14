@@ -23,7 +23,7 @@ type DespachoResumen = {
   numeroGuiaRemision: string | null;
   guiaRemisionArchivo: string | null;
 };
-type TarjaFila = { id: string; numero: string; palletNumero: string; cantidadBandejas: number; pesoNetoKg: number };
+type TarjaFila = { id: string; descripcion: string; pesoNetoKg: number };
 
 export function PackingListAcopioView({
   despacho,
@@ -126,18 +126,16 @@ export function PackingListAcopioView({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tarja</TableHead>
-                <TableHead>Pallet</TableHead>
-                <TableHead>Bandejas</TableHead>
-                <TableHead>Peso neto</TableHead>
+                <TableHead>Descripción</TableHead>
+                <TableHead>UM</TableHead>
+                <TableHead>Cantidad</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tarjas.map((t) => (
                 <TableRow key={t.id}>
-                  <TableCell className="font-medium">{t.numero}</TableCell>
-                  <TableCell>{t.palletNumero}</TableCell>
-                  <TableCell>{formatCantidad(t.cantidadBandejas)}</TableCell>
+                  <TableCell className="font-medium">{t.descripcion}</TableCell>
+                  <TableCell>KG</TableCell>
                   <TableCell>{formatKg(t.pesoNetoKg)}</TableCell>
                 </TableRow>
               ))}

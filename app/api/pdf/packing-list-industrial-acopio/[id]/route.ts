@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generarPackingListAcopioPdf } from "@/lib/pdf/packing-list-acopio-pdf";
+import { variedadDePalletIndustrial, descripcionPackingList } from "@/lib/acopio";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const despacho = await prisma.despachoIndustrial.findUnique({
     where: { id },
-    include: { tarjas: { include: { pallet: true }, orderBy: { numero: "asc" } } },
+    include: {
+      tarjas: { include: { pallet: { include: { lineas: true, lineasFruta: true } } }, orderBy: { numero: "asc" } },
+    },
   });
 
   if (!despacho) {
@@ -25,9 +28,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     horaDespacho: despacho.horaDespacho,
     numeroGuiaRemision: despacho.numeroGuiaRemision,
     lineas: despacho.tarjas.map((t) => ({
-      tarjaNumero: t.numero,
-      palletNumero: t.pallet.numero,
-      cantidadBandejas: t.pallet.cantidadBandejas,
+      descripcion: descripcionPackingList(t.pallet.cantidadBandejas, variedadDePalletIndustrial(t.pallet), t.numero),
       pesoNetoKg: Number(t.pallet.pesoNetoKg),
     })),
     totalBandejas,

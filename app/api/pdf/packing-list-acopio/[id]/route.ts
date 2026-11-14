@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generarPackingListAcopioPdf } from "@/lib/pdf/packing-list-acopio-pdf";
+import { variedadDePallet, descripcionPackingList } from "@/lib/acopio";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const despacho = await prisma.despacho.findUnique({
     where: { id },
-    include: { tarjas: { include: { pallet: true }, orderBy: { numero: "asc" } } },
+    include: { tarjas: { include: { pallet: { include: { lineas: true } } }, orderBy: { numero: "asc" } } },
   });
 
   if (!despacho) {
@@ -27,9 +28,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     // mismo destino fijo (ver DESTINO_FIJO en despacho-form.tsx).
     destino: "Agrícola Andrea",
     lineas: despacho.tarjas.map((t) => ({
-      tarjaNumero: t.numero,
-      palletNumero: t.pallet.numero,
-      cantidadBandejas: t.pallet.cantidadBandejas,
+      descripcion: descripcionPackingList(t.pallet.cantidadBandejas, variedadDePallet(t.pallet), t.numero),
       pesoNetoKg: Number(t.pallet.pesoNetoKg),
     })),
     totalBandejas,

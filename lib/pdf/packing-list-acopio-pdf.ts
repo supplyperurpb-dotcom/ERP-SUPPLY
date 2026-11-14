@@ -11,9 +11,7 @@ const GRIS_CLARO = rgb(0.9, 0.9, 0.9);
 const NEGRO = rgb(0.1, 0.1, 0.1);
 
 export type LineaPackingListAcopio = {
-  tarjaNumero: string;
-  palletNumero: string;
-  cantidadBandejas: number;
+  descripcion: string;
   pesoNetoKg: number;
 };
 
@@ -93,17 +91,15 @@ export async function generarPackingListAcopioPdf({
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO - MARGEN, y }, thickness: 0.5, color: GRIS });
   y -= 20;
 
-  const colTarja = MARGEN;
-  const colPallet = MARGEN + 150;
-  const colBandejas = MARGEN + 300;
-  const colNeto = MARGEN + 400;
+  const colDescripcion = MARGEN;
+  const colUM = MARGEN + 400;
+  const colCantidad = MARGEN + 450;
 
   function encabezadoTabla() {
     page.drawRectangle({ x: MARGEN, y: y - 4, width: ANCHO - MARGEN * 2, height: 18, color: GRIS_CLARO });
-    page.drawText("Tarja", { x: colTarja + 4, y, size: 9, font: bold, color: NEGRO });
-    page.drawText("Pallet", { x: colPallet + 4, y, size: 9, font: bold, color: NEGRO });
-    page.drawText("Bandejas", { x: colBandejas + 4, y, size: 9, font: bold, color: NEGRO });
-    page.drawText("Peso neto (kg)", { x: colNeto + 4, y, size: 9, font: bold, color: NEGRO });
+    page.drawText("Descripción", { x: colDescripcion + 4, y, size: 9, font: bold, color: NEGRO });
+    page.drawText("UM", { x: colUM + 4, y, size: 9, font: bold, color: NEGRO });
+    page.drawText("Cantidad", { x: colCantidad + 4, y, size: 9, font: bold, color: NEGRO });
     y -= 22;
   }
 
@@ -115,10 +111,9 @@ export async function generarPackingListAcopioPdf({
       y = ALTO - 50;
       encabezadoTabla();
     }
-    page.drawText(linea.tarjaNumero, { x: colTarja + 4, y, size: 9, font: regular, color: NEGRO });
-    page.drawText(linea.palletNumero, { x: colPallet + 4, y, size: 9, font: regular, color: NEGRO });
-    page.drawText(String(linea.cantidadBandejas), { x: colBandejas + 4, y, size: 9, font: regular, color: NEGRO });
-    page.drawText(linea.pesoNetoKg.toFixed(2), { x: colNeto + 4, y, size: 9, font: regular, color: NEGRO });
+    page.drawText(linea.descripcion, { x: colDescripcion + 4, y, size: 9, font: regular, color: NEGRO });
+    page.drawText("KG", { x: colUM + 4, y, size: 9, font: regular, color: NEGRO });
+    page.drawText(linea.pesoNetoKg.toFixed(2), { x: colCantidad + 4, y, size: 9, font: regular, color: NEGRO });
     y -= 16;
   }
 
@@ -126,10 +121,11 @@ export async function generarPackingListAcopioPdf({
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO - MARGEN, y }, thickness: 0.5, color: GRIS });
   y -= 20;
 
-  page.drawText("Total bandejas:", { x: colBandejas - 90, y, size: 10, font: regular, color: GRIS });
-  page.drawText(String(totalBandejas), { x: colBandejas + 4, y, size: 11, font: bold, color: NEGRO });
-  page.drawText("Peso neto total:", { x: colNeto - 90, y, size: 10, font: regular, color: GRIS });
-  page.drawText(`${pesoNetoTotalKg.toFixed(2)} kg`, { x: colNeto + 4, y, size: 12, font: bold, color: AZUL });
+  page.drawText("Total bandejas:", { x: MARGEN, y, size: 10, font: regular, color: GRIS });
+  page.drawText(String(totalBandejas), { x: MARGEN + 110, y, size: 11, font: bold, color: NEGRO });
+  y -= 18;
+  page.drawText("Total kg:", { x: MARGEN, y, size: 10, font: regular, color: GRIS });
+  page.drawText(`${pesoNetoTotalKg.toFixed(2)} kg`, { x: MARGEN + 110, y, size: 12, font: bold, color: AZUL });
 
   for (const pagina of pdfDoc.getPages()) {
     pagina.drawText("Documento interno — no válido como comprobante SUNAT.", {

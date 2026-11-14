@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate } from "@/lib/utils";
+import { variedadDePallet, descripcionPackingList } from "@/lib/acopio";
 import { PackingListAcopioView } from "./packing-list-acopio-view";
 
 export default async function DespachoDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -9,7 +10,7 @@ export default async function DespachoDetallePage({ params }: { params: Promise<
 
   const despacho = await prisma.despacho.findUnique({
     where: { id },
-    include: { tarjas: { include: { pallet: true }, orderBy: { numero: "asc" } } },
+    include: { tarjas: { include: { pallet: { include: { lineas: true } } }, orderBy: { numero: "asc" } } },
   });
   if (!despacho) notFound();
 
@@ -34,9 +35,7 @@ export default async function DespachoDetallePage({ params }: { params: Promise<
         }}
         tarjas={despacho.tarjas.map((t) => ({
           id: t.id,
-          numero: t.numero,
-          palletNumero: t.pallet.numero,
-          cantidadBandejas: t.pallet.cantidadBandejas,
+          descripcion: descripcionPackingList(t.pallet.cantidadBandejas, variedadDePallet(t.pallet), t.numero),
           pesoNetoKg: Number(t.pallet.pesoNetoKg),
         }))}
         totalBandejas={totalBandejas}
