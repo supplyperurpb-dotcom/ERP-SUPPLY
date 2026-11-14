@@ -22,7 +22,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TIPOS_CAMION } from "@/lib/validations/transporte";
+import { CamionCombobox, type CamionOpcionCombobox } from "@/components/shared/camion-combobox";
+import { ConductorCombobox, type ConductorOpcionCombobox } from "@/components/shared/conductor-combobox";
 import { formatKg, formatCantidad, fechaLocalHoy, horaLocalAhora } from "@/lib/utils";
 import { ingresoFrutaSchema, type IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 import { crearIngresoFrutaAction, actualizarIngresoFrutaAction } from "@/lib/actions/ingreso-fruta-actions";
@@ -40,10 +41,9 @@ type ProveedorOption = { id: string; razonSocial: string };
 type TipoBandejaOption = { id: string; nombre: string; pesoTaraKg: string };
 type TipoPalletOption = { id: string; nombre: string; pesoTaraKg: string };
 type PalletAbierto = { id: string; numero: string; cantidadBandejas: number };
-type CamionOption = { id: string; placa: string; tipo: string };
-type ConductorOption = { id: string; nombre: string };
+type CamionOption = CamionOpcionCombobox;
+type ConductorOption = ConductorOpcionCombobox;
 
-const TIPO_CAMION_LABEL = Object.fromEntries(TIPOS_CAMION.map((t) => [t.valor, t.nombre])) as Record<string, string>;
 // "fruta" arma un Pallet normal (líneas "Exportable"); "industrial" arma un
 // PalletIndustrial (líneas "Descarte Campo"), para que su tarja salga en Tarjas
 // Industrial. Un mismo pallet nunca mezcla ambos tipos de producto.
@@ -325,18 +325,7 @@ export function IngresoFrutaForm({
               control={form.control}
               name="placaTransporte"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="placaTransporte">
-                    <SelectValue placeholder="Selecciona un camión" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {camiones.map((c) => (
-                      <SelectItem key={c.id} value={c.placa}>
-                        {c.placa} — {TIPO_CAMION_LABEL[c.tipo] ?? c.tipo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CamionCombobox camiones={camiones} value={field.value} onSelect={(c) => field.onChange(c.placa)} />
               )}
             />
             {camiones.length === 0 && (
@@ -355,18 +344,7 @@ export function IngresoFrutaForm({
               control={form.control}
               name="conductor"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="conductor">
-                    <SelectValue placeholder="Selecciona un conductor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {conductores.map((c) => (
-                      <SelectItem key={c.id} value={c.nombre}>
-                        {c.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ConductorCombobox conductores={conductores} value={field.value} onSelect={(c) => field.onChange(c.nombre)} />
               )}
             />
             {conductores.length === 0 && (
