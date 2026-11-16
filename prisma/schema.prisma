@@ -875,6 +875,11 @@ model OrdenCompraItem {
   // CENTRO_COSTO — ya no es el enum AreaEmpresa. Normalmente se precarga
   // desde SolicitudPedidoItem.centroCosto.
   centroCosto           String
+  // Campo/fundo al que corresponde (ver SolicitudPedidoItem.campo): nombre
+  // de un valor activo (o ya desactivado) de ListaValor con tipo CAMPO. Se
+  // precarga desde SolicitudPedidoItem.campo cuando la orden viene de una
+  // Solped; en una orden Directa se elige directamente.
+  campo                 String?
   // Solo para categoría Servicio (OS): se precarga desde
   // SolicitudPedidoItem.descripcion y se puede seguir editando aquí para
   // afinar el detalle y alcance del servicio.

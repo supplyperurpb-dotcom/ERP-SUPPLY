@@ -29,6 +29,8 @@ import { crearOrdenCompraDirectaAction } from "@/lib/actions/orden-compra-action
 
 type SkuOpcion = SkuOpcionCombobox & { categoria: string };
 
+const SIN_CAMPO = "__sin_campo__";
+
 type FilaItem = {
   skuId: string;
   codigo: string;
@@ -38,6 +40,7 @@ type FilaItem = {
   precioUnitario: string;
   gravado: boolean;
   centroCosto: string;
+  campo: string;
   descripcion: string;
 };
 
@@ -51,6 +54,7 @@ function filaVacia(centroCostoInicial: string): FilaItem {
     precioUnitario: "",
     gravado: true,
     centroCosto: centroCostoInicial,
+    campo: "",
     descripcion: "",
   };
 }
@@ -61,6 +65,7 @@ export function OrdenCompraDirectaForm({
   tipoOrden,
   proveedores,
   centrosCosto,
+  campos,
   numerosTentativos,
 }: {
   skus: SkuOpcion[];
@@ -70,6 +75,7 @@ export function OrdenCompraDirectaForm({
   tipoOrden: TipoOrdenCodigo;
   proveedores: ProveedorOpcionSelect[];
   centrosCosto: string[];
+  campos: string[];
   numerosTentativos: Record<CategoriaCompraCodigo, string>;
 }) {
   const router = useRouter();
@@ -164,6 +170,7 @@ export function OrdenCompraDirectaForm({
           precioUnitario: Number(f.precioUnitario),
           gravado: f.gravado,
           centroCosto: f.centroCosto,
+          campo: f.campo || undefined,
           descripcion: f.descripcion,
         })),
       });
@@ -338,6 +345,7 @@ export function OrdenCompraDirectaForm({
                   <TableHead className="w-28">Precio unitario</TableHead>
                   <TableHead className="w-16">Gravado</TableHead>
                   <TableHead className="w-44">Centro de costo</TableHead>
+                  <TableHead className="w-44">Campo</TableHead>
                   <TableHead className="text-right w-24">Subtotal</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
@@ -396,6 +404,24 @@ export function OrdenCompraDirectaForm({
                         </SelectTrigger>
                         <SelectContent>
                           {centrosCosto.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <Select
+                        value={fila.campo || SIN_CAMPO}
+                        onValueChange={(v) => actualizarFila(index, { campo: v === SIN_CAMPO ? "" : v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SIN_CAMPO}>—</SelectItem>
+                          {campos.map((c) => (
                             <SelectItem key={c} value={c}>
                               {c}
                             </SelectItem>

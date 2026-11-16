@@ -35,6 +35,7 @@ export type ItemPendiente = {
   cantidadPendiente: number;
   unidadMedida: string;
   centroCosto: string;
+  campo: string | null;
   // Solo para categoría Servicio: detalle puntual del servicio (el campo
   // `descripcion` de arriba es el nombre del SKU, p. ej. "Apicultura").
   descripcionServicio: string | null;
@@ -109,6 +110,7 @@ export async function calcularSolicitudesConPendientes(
         cantidadPendiente,
         unidadMedida: item.unidadMedida,
         centroCosto: item.centroCosto,
+        campo: item.campo,
         descripcionServicio: item.descripcion,
       });
     }

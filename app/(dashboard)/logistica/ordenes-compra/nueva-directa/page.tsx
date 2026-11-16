@@ -20,12 +20,13 @@ export default async function NuevaOrdenCompraDirectaPage({
   const categoriaSeleccionada: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
   const tipoOrden: TipoOrdenCodigo = tipo === "ABIERTA" ? "ABIERTA" : "ESTANDAR";
 
-  const [skus, ordenesCompra, ordenesServicio, proveedores, centrosCosto] = await Promise.all([
+  const [skus, ordenesCompra, ordenesServicio, proveedores, centrosCosto, campos] = await Promise.all([
     prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
     prisma.ordenCompra.findMany({ where: { categoria: "COMPRA", tipoOrden }, select: { numero: true } }),
     prisma.ordenCompra.findMany({ where: { categoria: "SERVICIO", tipoOrden }, select: { numero: true } }),
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     obtenerValoresActivos("CENTRO_COSTO"),
+    obtenerValoresActivos("CAMPO"),
   ]);
   // Solo un adelanto por cada categoría posible — el número real se asigna
   // recién al guardar, según la categoría que el usuario elija en el
@@ -53,6 +54,7 @@ export default async function NuevaOrdenCompraDirectaPage({
           condicionPago: p.condicionPago,
         }))}
         centrosCosto={centrosCosto}
+        campos={campos}
         numerosTentativos={numerosTentativos}
       />
     </div>

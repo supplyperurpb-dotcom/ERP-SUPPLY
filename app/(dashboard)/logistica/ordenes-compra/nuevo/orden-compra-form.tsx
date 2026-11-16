@@ -34,6 +34,7 @@ type FilaSeleccion = {
   precioUnitario: string;
   gravado: boolean;
   centroCosto: string;
+  campo: string | null;
   descripcion: string;
 };
 
@@ -46,6 +47,7 @@ type ItemPlano = {
   cantidadPendiente: number;
   unidadMedida: string;
   centroCosto: string;
+  campo: string | null;
   solicitudId: string;
   solicitudNumero: string;
   solicitudArea: string;
@@ -58,6 +60,7 @@ function filaVacia(item: ItemPlano): FilaSeleccion {
     precioUnitario: "",
     gravado: true,
     centroCosto: item.centroCosto,
+    campo: item.campo,
     descripcion: item.descripcionServicio ?? "",
   };
 }
@@ -114,6 +117,7 @@ export function OrdenCompraForm({
           cantidadPendiente: item.cantidadPendiente,
           unidadMedida: item.unidadMedida,
           centroCosto: item.centroCosto,
+          campo: item.campo,
           solicitudId: solicitud.id,
           solicitudNumero: solicitud.numero,
           solicitudArea: solicitud.area,
@@ -262,6 +266,7 @@ export function OrdenCompraForm({
             precioUnitario: Number(fila.precioUnitario),
             gravado: fila.gravado,
             centroCosto: fila.centroCosto,
+            campo: fila.campo || undefined,
             descripcion: fila.descripcion,
           };
         }),
@@ -451,6 +456,7 @@ export function OrdenCompraForm({
                     <TableHead className="w-28">Precio unitario</TableHead>
                     <TableHead className="w-16">Gravado</TableHead>
                     <TableHead className="w-40">Centro de costo</TableHead>
+                    <TableHead className="w-40">Campo</TableHead>
                     <TableHead className="text-right w-24">Subtotal</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
@@ -496,8 +502,9 @@ export function OrdenCompraForm({
                             onChange={(e) => actualizarFila(item.id, { gravado: e.target.checked })}
                           />
                         </TableCell>
-                        {/* Viene fijo de la solicitud de pedido (item.centroCosto) — no editable acá, para que la OC/OS no se desvíe de a qué centro de costo se aprobó el gasto. */}
+                        {/* Viene fijo de la solicitud de pedido (item.centroCosto/campo) — no editable acá, para que la OC/OS no se desvíe de a qué centro de costo/campo se aprobó el gasto. */}
                         <TableCell className="align-top">{fila.centroCosto}</TableCell>
+                        <TableCell className="align-top">{fila.campo || "—"}</TableCell>
                         <TableCell className="text-right align-top pt-4 font-medium">
                           {formatMoneda(subtotalesPorFila.get(item.id) ?? 0, moneda)}
                         </TableCell>

@@ -26,7 +26,10 @@ type ItemEditable = {
   codigo: string;
   descripcion: string;
   centroCosto: string;
+  campo: string | null;
 };
+
+const SIN_CAMPO = "__sin_campo__";
 
 type FilaEditable = {
   cantidad: string;
@@ -50,6 +53,7 @@ type FilaNueva = {
   gravado: boolean;
   descripcionServicio: string;
   centroCosto: string;
+  campo: string;
   solicitudPedidoItemId?: string;
   cantidadPendiente?: number;
 };
@@ -65,6 +69,7 @@ function nuevaFilaDesdeSku(sku: SkuOpcion, centroCostoInicial: string): FilaNuev
     gravado: true,
     descripcionServicio: "",
     centroCosto: centroCostoInicial,
+    campo: "",
   };
 }
 
@@ -76,6 +81,7 @@ export function OrdenCompraEditarForm({
   items,
   skus,
   centrosCosto,
+  campos,
   solicitudesPendientes,
   valoresIniciales,
 }: {
@@ -86,6 +92,7 @@ export function OrdenCompraEditarForm({
   items: ItemEditable[];
   skus: SkuOpcion[];
   centrosCosto: string[];
+  campos: string[];
   solicitudesPendientes: SolicitudConPendientes[];
   valoresIniciales: {
     proveedorId: string;
@@ -166,6 +173,7 @@ export function OrdenCompraEditarForm({
         gravado: true,
         descripcionServicio: item.descripcionServicio ?? "",
         centroCosto: item.centroCosto,
+        campo: item.campo ?? "",
         solicitudPedidoItemId: item.id,
         cantidadPendiente: item.cantidadPendiente,
       },
@@ -256,6 +264,7 @@ export function OrdenCompraEditarForm({
           ...nuevasFilas.map((f) => ({
             skuId: f.skuId,
             centroCosto: f.centroCosto,
+            campo: f.campo || undefined,
             solicitudPedidoItemId: f.solicitudPedidoItemId,
             cantidad: Number(f.cantidad),
             precioUnitario: Number(f.precioUnitario),
@@ -384,6 +393,7 @@ export function OrdenCompraEditarForm({
                   <TableHead className="min-w-[180px]">Producto</TableHead>
                   {categoria === "SERVICIO" && <TableHead className="min-w-[220px]">Descripción del servicio</TableHead>}
                   <TableHead>Centro de costo</TableHead>
+                  <TableHead>Campo</TableHead>
                   <TableHead className="w-24">Cantidad</TableHead>
                   <TableHead className="w-28">Precio unitario</TableHead>
                   <TableHead className="w-16">Gravado</TableHead>
@@ -408,6 +418,7 @@ export function OrdenCompraEditarForm({
                         </TableCell>
                       )}
                       <TableCell className="align-top">{item.centroCosto}</TableCell>
+                      <TableCell className="align-top">{item.campo ?? "—"}</TableCell>
                       <TableCell className="align-top">
                         <NumberInput value={fila.cantidad} onChange={(v) => actualizarFila(item.id, { cantidad: v })} />
                       </TableCell>
@@ -476,6 +487,28 @@ export function OrdenCompraEditarForm({
                         </Select>
                       ) : (
                         f.centroCosto
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      {esDirecta ? (
+                        <Select
+                          value={f.campo || SIN_CAMPO}
+                          onValueChange={(v) => actualizarFilaNueva(f.tempId, { campo: v === SIN_CAMPO ? "" : v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SIN_CAMPO}>—</SelectItem>
+                            {campos.map((c) => (
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        f.campo || "—"
                       )}
                     </TableCell>
                     <TableCell className="align-top">

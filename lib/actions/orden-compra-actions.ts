@@ -137,6 +137,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
             subtotal: subtotales[i],
             gravado: item.gravado,
             centroCosto: item.centroCosto,
+            campo: item.campo || null,
             descripcion: item.descripcion || null,
           },
         });
@@ -238,6 +239,7 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
             subtotal: subtotales[i],
             gravado: item.gravado,
             centroCosto: item.centroCosto,
+            campo: item.campo || null,
             descripcion: item.descripcion || null,
           },
         });
@@ -591,6 +593,7 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
             subtotal: subtotalesNuevos[i],
             gravado: item.gravado,
             centroCosto: item.centroCosto!,
+            campo: item.campo || null,
             descripcion: item.descripcion || null,
           },
         });

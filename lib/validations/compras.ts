@@ -99,6 +99,7 @@ const itemOrdenCompraSchema = z.object({
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   gravado: z.coerce.boolean().default(true),
   centroCosto: z.string().min(1, "Selecciona el centro de costo"),
+  campo: z.string().optional().or(z.literal("")),
   // Solo para categoría Servicio (OS): detalle y alcance del servicio,
   // precargado de la solicitud y editable aquí.
   descripcion: z.string().max(500).optional().or(z.literal("")),
@@ -149,6 +150,7 @@ const itemOrdenCompraEditSchema = z.object({
   id: z.string().optional(),
   skuId: z.string().optional(),
   centroCosto: z.string().optional(),
+  campo: z.string().optional().or(z.literal("")),
   solicitudPedidoItemId: z.string().optional(),
   cantidad: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
@@ -194,6 +196,7 @@ const itemOrdenCompraDirectaSchema = z.object({
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   gravado: z.coerce.boolean().default(true),
   centroCosto: z.string().min(1, "Selecciona el centro de costo"),
+  campo: z.string().optional().or(z.literal("")),
   descripcion: z.string().max(500).optional().or(z.literal("")),
 });
 

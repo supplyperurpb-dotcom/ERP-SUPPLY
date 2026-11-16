@@ -378,8 +378,9 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                   <TableHead>Código</TableHead>
                   <TableHead>Producto</TableHead>
                   {esServicio && <TableHead className="min-w-[220px]">Descripción del servicio</TableHead>}
-                  <TableHead>Solicitud origen</TableHead>
+                  <TableHead>Solicitud de Pedido</TableHead>
                   <TableHead>Centro de costo</TableHead>
+                  <TableHead>Campo</TableHead>
                   <TableHead className="text-right">Cantidad</TableHead>
                   <TableHead className="text-right">P. Unit.</TableHead>
                   <TableHead>Gravado</TableHead>
@@ -411,6 +412,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                       )}
                     </TableCell>
                     <TableCell>{nombreArea(item.centroCosto)}</TableCell>
+                    <TableCell>{item.campo ?? "—"}</TableCell>
                     <TableCell className="text-right">
                       {formatCantidad(Number(item.cantidad))} {item.sku.unidadMedida}
                     </TableCell>
