@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
 import { formatCantidad, formatDateTime, formatMoneda } from "@/lib/utils";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { esComprador } from "@/lib/compras";
 import { RegistrarAvanceBoton } from "./registrar-avance-boton";
+import { EliminarRegistroBoton } from "./eliminar-registro-boton";
 
 const ESTADO_LABEL = {
   ABIERTO: "Abierto",
@@ -35,6 +38,9 @@ const ESTADO_VARIANT = {
 // por sesión, en /registro/[numero].
 export default async function AvanceOsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const usuario = await getUsuarioActual();
+  const puedeEliminar = !!usuario && esComprador(usuario);
 
   const servicio = await prisma.servicioGestionado.findUnique({
     where: { ordenCompraId: id },
@@ -142,9 +148,12 @@ export default async function AvanceOsPage({ params }: { params: Promise<{ id: s
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDateTime(registro.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/logistica/gestion-servicios/${id}/registro/${registro.numero}`}>Ver</Link>
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/logistica/gestion-servicios/${id}/registro/${registro.numero}`}>Ver</Link>
+                      </Button>
+                      {puedeEliminar && <EliminarRegistroBoton registroAvanceId={registro.id} numero={registro.numero} />}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

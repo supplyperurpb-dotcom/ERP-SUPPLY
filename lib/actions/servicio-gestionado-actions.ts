@@ -281,6 +281,34 @@ export async function culminarRegistroAvanceAction(registroAvanceId: string): Pr
   }
 }
 
+// Elimina un Registro de Avance completo — exclusivo del Comprador que
+// gestiona la OS, pedido explícito. Cualquier estado se puede borrar
+// (items/avances/sustentos caen en cascada, ver onDelete: Cascade en el
+// schema); si tenía avances ya APROBADOS, borrarlos puede hacer que la OS
+// deba reabrirse, por eso se recalcula el cierre después.
+export async function eliminarRegistroAvanceAction(registroAvanceId: string): Promise<ServicioGestionadoActionState> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+    if (!esComprador(usuario)) return { error: "Solo un Comprador puede eliminar un registro de avance." };
+
+    const registro = await prisma.registroAvance.findUnique({
+      where: { id: registroAvanceId },
+      include: { servicioGestionado: true },
+    });
+    if (!registro) return { error: "Este registro de avance ya no existe." };
+
+    await prisma.registroAvance.delete({ where: { id: registroAvanceId } });
+    await recalcularCierreServicio(registro.servicioGestionadoId);
+
+    revalidatePath(`/logistica/gestion-servicios/${registro.servicioGestionado.ordenCompraId}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en eliminarRegistroAvanceAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al eliminar el registro." };
+  }
+}
+
 // Sube el archivo de UN sustento (mismo patrón que subirGuiaRemisionIngresoAction
 // en ingreso-almacen-actions.ts) — el registro en la base de datos lo hace
 // agregarSustentoRegistroAvanceAction, recién con la ruta ya subida.
@@ -323,7 +351,6 @@ export async function agregarSustentoRegistroAvanceAction(
   try {
     const usuario = await getUsuarioActual();
     if (!usuario) return { error: "Debes iniciar sesión." };
-    if (!descripcion.trim()) return { error: "Escribe una descripción del sustento." };
 
     const datos = await rutaRegistro(registroAvanceId);
     if (!datos) return { error: "Este registro de avance ya no existe." };

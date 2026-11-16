@@ -119,14 +119,10 @@ function SustentoBorrador({
 
   // Pedido explícito: no hay botón "Subir archivo" — elegir el archivo en
   // el selector ya sube y guarda el sustento (descripción + archivo
-  // juntos, ver agregarSustentoRegistroAvanceAction).
+  // juntos, ver agregarSustentoRegistroAvanceAction). La descripción es
+  // opcional — pedido explícito: no debe bloquear la subida del archivo.
   function handleArchivoElegido(archivo: File | undefined) {
     if (!archivo) return;
-    if (!descripcion.trim()) {
-      toast.error("Escribe una descripción del sustento antes de elegir el archivo.");
-      if (inputArchivoRef.current) inputArchivoRef.current.value = "";
-      return;
-    }
     startTransition(async () => {
       const formData = new FormData();
       formData.set("archivo", archivo);
