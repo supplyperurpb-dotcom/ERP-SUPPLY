@@ -185,7 +185,9 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
         puedeEditar={puedeEditar}
       />
 
-      <SustentosSection registroAvanceId={registro.id} sustentos={sustentos} soloLectura={soloLectura} />
+      {registro.items.length > 0 && (
+        <SustentosSection registroAvanceId={registro.id} sustentos={sustentos} soloLectura={soloLectura} />
+      )}
     </div>
   );
 }
