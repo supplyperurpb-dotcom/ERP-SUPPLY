@@ -117,7 +117,7 @@ export function ServicioForm({ skusExistentes }: { skusExistentes: SkuExistente[
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => router.push("/logistica/sku")}>
-            Volver a SKU
+            Anterior
           </Button>
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Creando..." : "Crear"}
