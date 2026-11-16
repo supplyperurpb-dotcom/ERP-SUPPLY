@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatKg, formatCantidad, rangoFechaIngreso } from "@/lib/utils";
+import { fechaLocalHoy, formatDate, formatKg, formatCantidad, rangoFechaIngreso } from "@/lib/utils";
 import type { EstadoDocumento, Prisma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -34,7 +34,13 @@ export default async function IngresosFrutaPage({
   searchParams: Promise<{ desde?: string; hasta?: string; numero?: string; fundo?: string; variedad?: string; pagina?: string }>;
 }) {
   const { desde, hasta, numero, fundo, variedad, pagina: paginaParam } = await searchParams;
-  const fechaIngreso = rangoFechaIngreso(desde, hasta);
+  // Por defecto (nadie tocó el filtro todavía, ni siquiera lo dejó vacío a
+  // propósito) se muestra solo lo de hoy — pedido explícito. `desde`/`hasta`
+  // ausentes del todo (primera visita) son distintos de "" (el usuario
+  // vació el campo a propósito): solo el primer caso cae a hoy.
+  const desdeEfectivo = desde === undefined ? fechaLocalHoy() : desde;
+  const hastaEfectivo = hasta === undefined ? fechaLocalHoy() : hasta;
+  const fechaIngreso = rangoFechaIngreso(desdeEfectivo, hastaEfectivo);
   const pagina = calcularPagina(paginaParam);
 
   const where: Prisma.IngresoFrutaWhereInput = {
@@ -62,8 +68,8 @@ export default async function IngresosFrutaPage({
   const totalPaginas = Math.max(1, Math.ceil(total / REGISTROS_POR_PAGINA));
 
   const queryExcel = new URLSearchParams();
-  if (desde) queryExcel.set("desde", desde);
-  if (hasta) queryExcel.set("hasta", hasta);
+  if (desdeEfectivo) queryExcel.set("desde", desdeEfectivo);
+  if (hastaEfectivo) queryExcel.set("hasta", hastaEfectivo);
 
   const hayFiltro = Boolean(desde || hasta || numero || fundo || variedad);
 
@@ -105,11 +111,11 @@ export default async function IngresosFrutaPage({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="desde">Desde (fecha de ingreso)</Label>
-          <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[170px]" />
+          <Input id="desde" name="desde" type="date" defaultValue={desdeEfectivo} className="w-[170px]" />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="hasta">Hasta (fecha de ingreso)</Label>
-          <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[170px]" />
+          <Input id="hasta" name="hasta" type="date" defaultValue={hastaEfectivo} className="w-[170px]" />
         </div>
         <Button type="submit" variant="secondary">
           Filtrar
@@ -182,7 +188,7 @@ export default async function IngresosFrutaPage({
             paginaActual={pagina}
             totalPaginas={totalPaginas}
             total={total}
-            searchParams={{ desde, hasta, numero, fundo, variedad }}
+            searchParams={{ desde: desdeEfectivo, hasta: hastaEfectivo, numero, fundo, variedad }}
           />
         </>
       )}
