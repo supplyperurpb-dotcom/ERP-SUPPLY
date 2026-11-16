@@ -13,6 +13,7 @@ const ESTADO_LABEL = {
   CULMINADO: "Culminado",
   PENDIENTE_VB: "Pendiente de VB",
   APROBADO: "Aprobado",
+  APROBADO_PARCIAL: "Aprobado Parcial",
   RECHAZADO: "Rechazado",
 } as const;
 
@@ -21,6 +22,7 @@ const ESTADO_VARIANT = {
   CULMINADO: "secondary",
   PENDIENTE_VB: "secondary",
   APROBADO: "success",
+  APROBADO_PARCIAL: "warning",
   RECHAZADO: "destructive",
 } as const;
 

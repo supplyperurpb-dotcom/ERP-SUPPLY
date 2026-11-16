@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { formatCantidad, formatDateTime } from "@/lib/utils";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { esComprador } from "@/lib/compras";
 import { AnadirItemsDialog, type ItemOcDisponible } from "./anadir-items-dialog";
 import { TablaAvanceItems, type FilaAvanceItem } from "./tabla-avance-items";
 import { SustentosSection, type SustentoGuardado } from "./sustentos-section";
@@ -16,6 +17,7 @@ const ESTADO_LABEL = {
   CULMINADO: "Culminado",
   PENDIENTE_VB: "Pendiente de VB",
   APROBADO: "Aprobado",
+  APROBADO_PARCIAL: "Aprobado Parcial",
   RECHAZADO: "Rechazado",
 } as const;
 
@@ -24,6 +26,7 @@ const ESTADO_VARIANT = {
   CULMINADO: "secondary",
   PENDIENTE_VB: "secondary",
   APROBADO: "success",
+  APROBADO_PARCIAL: "warning",
   RECHAZADO: "destructive",
 } as const;
 
@@ -119,9 +122,20 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
     usuariosParaVb = usuarios.map((u) => ({ id: u.id, nombreCompleto: `${u.nombres} ${u.apellidos}` }));
   }
 
+  // Puede decidir/revertir: el aprobador asignado (o ADMIN), en cualquier
+  // estado posterior a CULMINADO — una línea RECHAZADA se puede revertir
+  // a APROBADO aunque el registro ya no esté PENDIENTE_VB (ver
+  // decidirVbItemAction).
   const puedeDecidirVb =
-    registro.estado === "PENDIENTE_VB" && !!usuario && (registro.aprobadorId === usuario.id || usuario.roles.includes("ADMIN"));
-  const mostrarVb = registro.estado === "PENDIENTE_VB" || registro.estado === "APROBADO" || registro.estado === "RECHAZADO";
+    !!usuario &&
+    registro.estado !== "ABIERTO" &&
+    registro.estado !== "CULMINADO" &&
+    (registro.aprobadorId === usuario.id || usuario.roles.includes("ADMIN"));
+  const mostrarVb = registro.estado !== "ABIERTO" && registro.estado !== "CULMINADO";
+  // Comprador: puede "Editar" cualquier línea (aprobada, rechazada o
+  // pendiente) una vez pasado ABIERTO, sin pedir VB de nuevo para todo el
+  // registro (ver reabrirItemParaEdicionAction).
+  const puedeEditar = !!usuario && esComprador(usuario);
 
   return (
     <div>
@@ -134,11 +148,7 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
 
       <PageHeader
         titulo={`OS ${servicio.ordenCompra.numero} - Registro de Avance ${numero}`}
-        descripcion={
-          registro.fechaDecision
-            ? `${registro.estado === "RECHAZADO" ? "Rechazado" : "Aprobado"} el ${formatDateTime(registro.fechaDecision)}`
-            : undefined
-        }
+        descripcion={registro.fechaDecision ? `Resuelto el ${formatDateTime(registro.fechaDecision)}` : undefined}
         acciones={
           <div className="flex items-center gap-2">
             <Badge variant={ESTADO_VARIANT[registro.estado]}>{ESTADO_LABEL[registro.estado]}</Badge>
@@ -149,7 +159,13 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
         }
       />
 
-      <TablaAvanceItems filas={filasAvance} soloLectura={soloLectura} mostrarVb={mostrarVb} puedeDecidirVb={puedeDecidirVb} />
+      <TablaAvanceItems
+        filas={filasAvance}
+        soloLectura={soloLectura}
+        mostrarVb={mostrarVb}
+        puedeDecidirVb={puedeDecidirVb}
+        puedeEditar={puedeEditar}
+      />
 
       <SustentosSection registroAvanceId={registro.id} sustentos={sustentos} soloLectura={soloLectura} />
     </div>

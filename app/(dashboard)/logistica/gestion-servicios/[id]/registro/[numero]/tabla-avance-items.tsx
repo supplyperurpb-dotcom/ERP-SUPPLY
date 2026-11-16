@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCantidad, formatMoneda } from "@/lib/utils";
 import {
   decidirVbItemAction,
+  reabrirItemParaEdicionAction,
   registrarAvanceServicioAction,
   type TipoRegistroAvanceInput,
 } from "@/lib/actions/servicio-gestionado-actions";
@@ -36,6 +37,7 @@ export function TablaAvanceItems({
   soloLectura = false,
   mostrarVb = false,
   puedeDecidirVb = false,
+  puedeEditar = false,
 }: {
   filas: FilaAvanceItem[];
   soloLectura?: boolean;
@@ -43,10 +45,14 @@ export function TablaAvanceItems({
   mostrarVb?: boolean;
   /** El usuario actual es a quien se le pidió el VB (o ADMIN) — puede usar Aprobado/Rechazado en líneas aún PENDIENTE. */
   puedeDecidirVb?: boolean;
+  /** El usuario actual es Comprador — puede "Editar" cualquier línea (aprobada, rechazada o aún pendiente) una vez pasado ABIERTO. */
+  puedeEditar?: boolean;
 }) {
   if (filas.length === 0) {
     return <p className="mt-4 text-sm text-muted-foreground">Todavía no hay ítems añadidos a este registro. Usa &quot;Añadir Items&quot;.</p>;
   }
+
+  const mostrarColumnasRegistro = !soloLectura || puedeEditar;
 
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border">
@@ -57,8 +63,8 @@ export function TablaAvanceItems({
             <TableHead>Descripción</TableHead>
             <TableHead numeric>Cant.</TableHead>
             <TableHead numeric>Valorizado</TableHead>
-            {!soloLectura && <TableHead className="min-w-[160px]">Tipo de registro</TableHead>}
-            {!soloLectura && <TableHead className="min-w-[220px]">Avance a registrar</TableHead>}
+            {mostrarColumnasRegistro && <TableHead className="min-w-[160px]">Tipo de registro</TableHead>}
+            {mostrarColumnasRegistro && <TableHead className="min-w-[220px]">Avance a registrar</TableHead>}
             <TableHead numeric>Saldo cant.</TableHead>
             <TableHead numeric>Saldo valor</TableHead>
             {mostrarVb && <TableHead className="min-w-[260px]">Visto bueno</TableHead>}
@@ -66,7 +72,14 @@ export function TablaAvanceItems({
         </TableHeader>
         <TableBody>
           {filas.map((fila) => (
-            <FilaAvance key={fila.itemRegistroAvanceId} fila={fila} soloLectura={soloLectura} mostrarVb={mostrarVb} puedeDecidirVb={puedeDecidirVb} />
+            <FilaAvance
+              key={fila.itemRegistroAvanceId}
+              fila={fila}
+              soloLectura={soloLectura}
+              mostrarVb={mostrarVb}
+              puedeDecidirVb={puedeDecidirVb}
+              puedeEditar={puedeEditar}
+            />
           ))}
         </TableBody>
       </Table>
@@ -79,17 +92,21 @@ function FilaAvance({
   soloLectura,
   mostrarVb,
   puedeDecidirVb,
+  puedeEditar,
 }: {
   fila: FilaAvanceItem;
   soloLectura: boolean;
   mostrarVb: boolean;
   puedeDecidirVb: boolean;
+  puedeEditar: boolean;
 }) {
   const [tipo, setTipo] = useState<TipoRegistroAvanceInput | "">("");
   const [valor, setValor] = useState("");
   const [observacionesVB, setObservacionesVB] = useState("");
+  const [modoEdicion, setModoEdicion] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const mostrarControlesRegistro = !soloLectura || modoEdicion;
 
   const valorNumerico = Number(valor);
   const esValido = tipo !== "" && valor.trim() !== "" && Number.isFinite(valorNumerico) && valorNumerico > 0;
@@ -111,6 +128,23 @@ function FilaAvance({
       }
       toast.success("Avance registrado");
       setValor("");
+      router.refresh();
+    });
+  }
+
+  function handleEditar() {
+    if (fila.estadoVB === "PENDIENTE") {
+      setModoEdicion(true);
+      return;
+    }
+    startTransition(async () => {
+      const resultado = await reabrirItemParaEdicionAction(fila.itemRegistroAvanceId);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success("Línea habilitada para editar");
+      setModoEdicion(true);
       router.refresh();
     });
   }
@@ -139,22 +173,30 @@ function FilaAvance({
         {formatCantidad(fila.cantidadTotal)} {fila.unidadMedida}
       </TableCell>
       <TableCell numeric>{formatMoneda((fila.cantidadTotal * fila.precioUnitario).toString(), fila.moneda)}</TableCell>
-      {!soloLectura && (
+      {(mostrarControlesRegistro || puedeEditar) && (
         <TableCell>
-          <Select value={tipo} onValueChange={(v) => setTipo(v as TipoRegistroAvanceInput)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PORCENTUAL">Avance Porcentual</SelectItem>
-              <SelectItem value="CANTIDAD">Avance por Cantidad</SelectItem>
-            </SelectContent>
-          </Select>
+          {mostrarControlesRegistro ? (
+            <Select value={tipo} onValueChange={(v) => setTipo(v as TipoRegistroAvanceInput)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PORCENTUAL">Avance Porcentual</SelectItem>
+                <SelectItem value="CANTIDAD">Avance por Cantidad</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            puedeEditar && (
+              <Button type="button" size="sm" variant="outline" disabled={pending} onClick={handleEditar}>
+                Editar
+              </Button>
+            )
+          )}
         </TableCell>
       )}
-      {!soloLectura && (
+      {(mostrarControlesRegistro || puedeEditar) && (
         <TableCell>
-          {tipo !== "" && (
+          {mostrarControlesRegistro && tipo !== "" && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <Input
@@ -223,11 +265,23 @@ function FilaAvance({
               <Badge variant="secondary">Pendiente</Badge>
             )
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Badge variant={fila.estadoVB === "APROBADO" ? "success" : "destructive"}>
                 {fila.estadoVB === "APROBADO" ? "Aprobado" : "Rechazado"}
               </Badge>
               {fila.observacionesVB && <p className="text-xs text-muted-foreground">&quot;{fila.observacionesVB}&quot;</p>}
+              {fila.estadoVB === "RECHAZADO" && puedeDecidirVb && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => handleDecidirVb("APROBADO")}
+                  className="text-green-700 hover:text-green-800"
+                >
+                  Revertir a Aprobado
+                </Button>
+              )}
             </div>
           )}
         </TableCell>

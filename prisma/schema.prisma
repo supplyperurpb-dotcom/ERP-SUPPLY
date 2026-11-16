@@ -682,6 +682,10 @@ enum EstadoRegistroAvance {
   CULMINADO
   PENDIENTE_VB
   APROBADO
+  // Pedido explícito: si alguna línea se rechaza pero no todas, el
+  // registro completo queda así (no RECHAZADO a secas) — ver
+  // decidirVbItemAction.
+  APROBADO_PARCIAL
   RECHAZADO
 }
 
