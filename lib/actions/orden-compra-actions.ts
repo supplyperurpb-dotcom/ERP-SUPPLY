@@ -142,15 +142,10 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
         });
       }
 
-      // Según el monto (en USD equivalente) y si hay algún ítem de RRHH, se
-      // crea una firma PENDIENTE por cada rol que debe aprobar antes de que
-      // la orden quede del todo APROBADA (ver rolesFirmaRequeridos).
-      const centroCostos = [...new Set(items.map((i) => i.centroCosto))];
-      const roles = rolesFirmaRequeridos(montoEnUsd(montoTotal, moneda), centroCostos);
-      for (const rol of roles) {
-        await tx.ordenCompraFirma.create({ data: { ordenCompraId: orden.id, rol } });
-      }
-
+      // Las firmas requeridas (ver rolesFirmaRequeridos) ya no se crean
+      // acá — nacen recién con enviarAprobacionOrdenCompraAction, para que
+      // ningún aprobador vea esta orden mientras sigue siendo un borrador
+      // que el comprador todavía puede estar editando.
       return orden;
     });
 
@@ -248,12 +243,8 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
         });
       }
 
-      const centroCostos = [...new Set(items.map((i) => i.centroCosto))];
-      const roles = rolesFirmaRequeridos(montoEnUsd(montoTotal, moneda), centroCostos);
-      for (const rol of roles) {
-        await tx.ordenCompraFirma.create({ data: { ordenCompraId: orden.id, rol } });
-      }
-
+      // Igual que en crearOrdenCompraAction: las firmas nacen recién al
+      // enviar la orden a aprobación, no al crearla.
       return orden;
     });
 
@@ -265,12 +256,58 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
   }
 }
 
+// Saca la orden del estado "borrador invisible para aprobadores" y crea
+// las firmas requeridas (ver rolesFirmaRequeridos) recién en este momento
+// — pedido explícito: nadie del lado de aprobación debe ver ni poder
+// actuar sobre la orden hasta que el comprador la envíe a propósito.
+// Solo aplica a una orden recién creada (BORRADOR sin ninguna firma
+// todavía); una orden que volvió a BORRADOR porque se deshizo una firma
+// (ver anularFirmaOrdenCompraAction) ya tiene sus firmas y no pasa por acá.
+export async function enviarAprobacionOrdenCompraAction(id: string): Promise<{ error?: string } | undefined> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión para enviar la orden a aprobación." };
+
+    const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { items: true, firmas: true } });
+    if (!orden) return { error: "La orden ya no existe." };
+    if (!puedeEditarOrden(usuario, orden)) {
+      return { error: "No tienes permiso para enviar esta orden a aprobación." };
+    }
+    if (orden.estado !== "BORRADOR") {
+      return { error: "Esta orden ya fue enviada a aprobación." };
+    }
+    if (orden.firmas.length > 0) {
+      return { error: "Esta orden ya tiene firmas registradas." };
+    }
+    if (orden.items.length === 0) {
+      return { error: "Agrega al menos un ítem antes de enviar la orden a aprobación." };
+    }
+
+    const centroCostos = [...new Set(orden.items.map((i) => i.centroCosto))];
+    const roles = rolesFirmaRequeridos(montoEnUsd(Number(orden.montoTotal), orden.moneda), centroCostos);
+
+    await prisma.$transaction(async (tx) => {
+      for (const rol of roles) {
+        await tx.ordenCompraFirma.create({ data: { ordenCompraId: id, rol } });
+      }
+      await tx.ordenCompra.update({ where: { id }, data: { estado: "PENDIENTE" } });
+    });
+
+    revalidatePath("/logistica/ordenes-compra");
+    revalidatePath(`/logistica/ordenes-compra/${id}`);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en enviarAprobacionOrdenCompraAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al enviar la orden a aprobación." };
+  }
+}
+
 // Reemplaza al antiguo aprobar/rechazar de un solo clic por ADMIN: cada OC/OS
 // tiene una o más firmas requeridas (ver rolesFirmaRequeridos, calculadas al
-// crearla) y cada una la resuelve el titular de ese rol especial (o un ADMIN,
-// como respaldo). La orden entera queda APROBADA recién cuando todas sus
-// firmas están en APROBADO; si cualquiera se RECHAZA, la orden completa pasa
-// a RECHAZADO de inmediato.
+// enviarla a aprobación) y cada una la resuelve el titular de ese rol
+// especial (o un ADMIN, como respaldo). La orden entera queda APROBADA
+// recién cuando todas sus firmas están en APROBADO; si cualquiera se
+// RECHAZA, la orden completa pasa a RECHAZADO de inmediato.
 export async function firmarOrdenCompraAction(
   id: string,
   decision: "APROBADO" | "RECHAZADO",
@@ -282,8 +319,10 @@ export async function firmarOrdenCompraAction(
 
     const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { firmas: true } });
     if (!orden) return { error: "La orden ya no existe." };
-    // BORRADOR (recién creada o recién desaprobada del todo) también se
-    // puede firmar — la primera firma ya la saca de BORRADOR (ver abajo).
+    // BORRADOR también se puede firmar: no una recién creada (todavía sin
+    // firmas, ver enviarAprobacionOrdenCompraAction), sino una que volvió a
+    // BORRADOR porque se deshizo una firma (ver anularFirmaOrdenCompraAction)
+    // — ahí sigue teniendo sus firmas, solo que ya no todas aprobadas.
     if (orden.estado !== "BORRADOR" && orden.estado !== "PENDIENTE") {
       return { error: "Solo se pueden firmar órdenes en borrador o pendientes." };
     }

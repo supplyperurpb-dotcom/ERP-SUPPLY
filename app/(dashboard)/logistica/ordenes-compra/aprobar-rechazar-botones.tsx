@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Ban, Undo2, Lock, LockOpen } from "lucide-react";
+import { Check, X, Ban, Undo2, Lock, LockOpen, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useConfirm, usePrompt } from "@/components/shared/confirm-dialog-provider";
@@ -12,7 +12,40 @@ import {
   anularFirmaOrdenCompraAction,
   cerrarPosicionOrdenCompraItemAction,
   reabrirPosicionOrdenCompraItemAction,
+  enviarAprobacionOrdenCompraAction,
 } from "@/lib/actions/orden-compra-actions";
+
+// Saca la orden de "borrador invisible" y crea sus firmas — recién ahí
+// la ven los aprobadores (ver enviarAprobacionOrdenCompraAction). Solo
+// aparece en el detalle mientras la orden es BORRADOR y todavía no tiene
+// ninguna firma (una orden nunca enviada, no una que volvió a BORRADOR
+// por deshacerse una firma).
+export function EnviarAprobacionBoton({ id, numero }: { id: string; numero: string }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const confirmar = useConfirm();
+
+  async function handleEnviar() {
+    if (!(await confirmar(`¿Enviar ${numero} a aprobación? Dejará de poder editarse y los aprobadores empezarán a verla.`)))
+      return;
+    startTransition(async () => {
+      const resultado = await enviarAprobacionOrdenCompraAction(id);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`${numero} enviada a aprobación`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Button disabled={pending} onClick={handleEnviar}>
+      <Send className="mr-2 h-4 w-4" />
+      Enviar a Aprobación
+    </Button>
+  );
+}
 
 // Firma el rol de aprobación pendiente del usuario actual en esta OC/OS
 // (ver firmarOrdenCompraAction: cada orden puede necesitar varias firmas

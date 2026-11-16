@@ -12,6 +12,7 @@ import {
   AnularFirmaBoton,
   CerrarPosicionBoton,
   ReabrirPosicionBoton,
+  EnviarAprobacionBoton,
 } from "../aprobar-rechazar-botones";
 import { SeguimientoOrdenDialog, type ItemSeguimientoOrden } from "./seguimiento-orden-dialog";
 import type { ResumenSolped } from "@/components/shared/resumen-solped-dialog";
@@ -102,6 +103,12 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   // crear) — y solo si está en BORRADOR (nadie la firmó aún, o todos
   // anularon su firma — ver AnularFirmaBoton más abajo).
   const puedeEditar = !!usuario && orden.estado === "BORRADOR" && (esComprador(usuario) || orden.creadoPorId === usuario.id);
+
+  // "Enviar a Aprobación": mismo criterio que editar, pero solo si todavía
+  // no se envió — una orden que volvió a BORRADOR por deshacerse una firma
+  // ya tiene sus firmas (ver enviarAprobacionOrdenCompraAction) y no pasa
+  // por acá, sigue el flujo normal de firmas.
+  const puedeEnviarAprobacion = puedeEditar && orden.firmas.length === 0;
 
   // Cerrar/reabrir una posición: exclusivo de Compradores/ADMIN, a
   // diferencia de editar la orden completa (acá no basta con ser quien la
@@ -204,6 +211,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
                 </Link>
               </Button>
             )}
+            {puedeEnviarAprobacion && <EnviarAprobacionBoton id={orden.id} numero={orden.numero} />}
             {firmaQuePuedeUsar && (
               <FirmarOrdenBotones
                 id={orden.id}

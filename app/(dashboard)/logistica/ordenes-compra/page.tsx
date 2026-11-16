@@ -24,8 +24,18 @@ export default async function OrdenesCompraPage() {
   // de su propia área; ADMIN, Compradores y aprobadores generales ven todas.
   const areaUsuario = usuario && !esCompradorUsuario && !esAprobadorGeneral ? usuario.area : null;
 
+  // Un borrador que todavía no se envió a aprobación (sin ninguna firma,
+  // ver enviarAprobacionOrdenCompraAction) no debe aparecer para nadie que
+  // no sea Comprador — ni siquiera un aprobador general. Una orden que
+  // volvió a BORRADOR por deshacerse una firma ya tiene sus firmas y sigue
+  // siendo visible, como antes.
   const ordenes = await prisma.ordenCompra.findMany({
-    where: areaUsuario ? { items: { some: { centroCosto: areaUsuario as AreaEmpresa } } } : undefined,
+    where: {
+      AND: [
+        areaUsuario ? { items: { some: { centroCosto: areaUsuario as AreaEmpresa } } } : {},
+        esCompradorUsuario ? {} : { NOT: { estado: "BORRADOR", firmas: { none: {} } } },
+      ],
+    },
     include: { proveedor: true },
     orderBy: { createdAt: "desc" },
     take: 100,
