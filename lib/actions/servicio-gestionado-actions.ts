@@ -494,7 +494,10 @@ export async function reabrirItemParaEdicionAction(itemRegistroAvanceId: string)
     });
 
     const registro = item.registroAvance;
-    await prisma.registroAvance.update({ where: { id: registro.id }, data: { estado: "PENDIENTE_VB" } });
+    await prisma.registroAvance.update({
+      where: { id: registro.id },
+      data: { estado: "PENDIENTE_VB", decididoPorId: null, fechaDecision: null },
+    });
     await recalcularCierreServicio(registro.servicioGestionadoId);
 
     revalidatePath(`/logistica/gestion-servicios/${registro.servicioGestionado.ordenCompraId}/registro/${registro.numero}`);

@@ -14,10 +14,11 @@ export type NotificacionPendiente = {
 // 1) OC/OS con firma pendiente del rol especial del usuario actual (mismo
 //    criterio de "quién puede firmar ahora" que ordenes-compra/[id]/page.tsx,
 //    ver firmaQuePuedeUsar: el ADMIN siempre cuenta como respaldo); y
-// 2) Registros de avance (Gestión de Servicios) pendientes de VB, acotado
-//    estrictamente a quien el comprador le pidió el VB (sin respaldo ADMIN,
-//    pedido explícito: "que le llegue la notificacion solo a la persona que
-//    el comprador le pidio el VB").
+// 2) Registros de avance (Gestión de Servicios) pendientes de VB — llega a
+//    quien el comprador le pidió el VB al enviar la solicitud, y además
+//    siempre al ADMIN (pedido explícito: "debe quedar asignado a quien se
+//    le solicita... al admin siempre le debe llegar todo", mismo criterio
+//    de respaldo que el resto de flujos de aprobación de este ERP).
 export async function obtenerNotificacionesPendientes(usuario: UsuarioActual): Promise<NotificacionPendiente[]> {
   const esAdmin = usuario.roles.includes("ADMIN");
 
@@ -31,7 +32,7 @@ export async function obtenerNotificacionesPendientes(usuario: UsuarioActual): P
       include: { ordenCompra: { include: { proveedor: true } } },
     }),
     prisma.registroAvance.findMany({
-      where: { estado: "PENDIENTE_VB", aprobadorId: usuario.id },
+      where: { estado: "PENDIENTE_VB", ...(esAdmin ? {} : { aprobadorId: usuario.id }) },
       include: { servicioGestionado: { include: { ordenCompra: { include: { proveedor: true } } } } },
     }),
   ]);
