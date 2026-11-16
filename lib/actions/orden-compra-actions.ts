@@ -386,9 +386,14 @@ export async function firmarOrdenCompraAction(
 // Deshace UNA firma ya aprobada (solo quien firmó, o un ADMIN) — pedido
 // explícito: "desliberación" firma por firma, no un botón que tumbe todas
 // de una. Mientras quede al menos otra firma en APROBADO, la orden vuelve
-// a PENDIENTE (sigue el proceso normal de firmas); recién cuando la
-// última también se deshace, la orden regresa a BORRADOR y se puede
-// editar de nuevo (ver editarOrdenCompraAction).
+// a PENDIENTE (sigue el proceso normal de firmas). Recién cuando la
+// última también se deshace (ej. las 3 firmas requeridas se anulan), la
+// orden regresa a BORRADOR y se puede editar — y, pedido explícito, en
+// ese punto se BORRAN todas sus firmas (no quedan "pendientes" en el
+// aire): deja de aparecer para los aprobadores y, para volver a
+// necesitar su visto bueno, alguien tiene que enviarla a aprobación de
+// nuevo (ver enviarAprobacionOrdenCompraAction), exactamente como una
+// orden recién creada.
 export async function anularFirmaOrdenCompraAction(
   id: string,
   firmaId: string,
@@ -414,13 +419,18 @@ export async function anularFirmaOrdenCompraAction(
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.ordenCompraFirma.update({
-        where: { id: firmaId },
-        data: { estado: "PENDIENTE", usuarioId: null, fecha: null, comentario: comentario || null },
-      });
+      const quedaAlgunaAprobada = orden.firmas.some((f) => (f.id === firmaId ? false : f.estado === "APROBADO"));
 
-      const todasLasFirmas = await tx.ordenCompraFirma.findMany({ where: { ordenCompraId: id } });
-      const quedaAlgunaAprobada = todasLasFirmas.some((f) => (f.id === firmaId ? false : f.estado === "APROBADO"));
+      if (quedaAlgunaAprobada) {
+        await tx.ordenCompraFirma.update({
+          where: { id: firmaId },
+          data: { estado: "PENDIENTE", usuarioId: null, fecha: null, comentario: comentario || null },
+        });
+      } else {
+        // Última firma aprobada que se deshace: se borran todas (ver
+        // comentario de la función) en vez de dejarlas resetadas.
+        await tx.ordenCompraFirma.deleteMany({ where: { ordenCompraId: id } });
+      }
 
       await tx.ordenCompra.update({
         where: { id },
@@ -452,9 +462,12 @@ function puedeEditarOrden(usuario: { id: string; roles: RolNombre[] }, orden: { 
 
 // Edita los datos generales y las líneas YA EXISTENTES de una orden en
 // BORRADOR (no se agregan ni quitan líneas acá — para eso se anula y se
-// genera una nueva desde la Solped). Como en BORRADOR todas las firmas
-// están en blanco (ver arriba), se recalculan desde cero por si el monto
-// editado cambia de tramo de aprobación (ver rolesFirmaRequeridos).
+// genera una nueva desde la Solped). En BORRADOR nunca debería quedar
+// ninguna firma (nacen recién con enviarAprobacionOrdenCompraAction), pero
+// por si acaso se limpian acá sin volver a crearlas — el monto editado
+// puede cambiar de tramo de aprobación (ver rolesFirmaRequeridos), así que
+// quien edite tiene que volver a enviarla a aprobación a propósito, nunca
+// de forma automática al guardar.
 export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompraInput): Promise<OrdenCompraActionState> {
   const parsed = editarOrdenCompraSchema.safeParse(data);
   if (!parsed.success) {
@@ -566,10 +579,8 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
         });
       }
 
-      const centroCostosNuevos: string[] = [];
       for (let i = 0; i < itemsNuevos.length; i++) {
         const item = itemsNuevos[i];
-        centroCostosNuevos.push(item.centroCosto!);
         await tx.ordenCompraItem.create({
           data: {
             ordenCompraId: id,
@@ -586,11 +597,6 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
       }
 
       await tx.ordenCompraFirma.deleteMany({ where: { ordenCompraId: id } });
-      const centroCostos = [...new Set([...orden.items.map((i) => i.centroCosto), ...centroCostosNuevos])];
-      const roles = rolesFirmaRequeridos(montoEnUsd(montoTotal, moneda), centroCostos);
-      for (const rol of roles) {
-        await tx.ordenCompraFirma.create({ data: { ordenCompraId: id, rol } });
-      }
     });
 
     revalidatePath("/logistica/ordenes-compra");
