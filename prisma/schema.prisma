@@ -662,10 +662,29 @@ model ServicioGestionado {
   creadoPorId   String?
   createdAt     DateTime @default(now())
 
-  ordenCompra OrdenCompra              @relation(fields: [ordenCompraId], references: [id])
-  items       ItemServicioGestionado[]
+  ordenCompra OrdenCompra      @relation(fields: [ordenCompraId], references: [id])
+  registros   RegistroAvance[]
 
   @@map("servicios_gestionados")
+}
+
+// Una sesión numerada de registro de avance ("OS XXX - Registro de
+// Avance N", pedido explícito) — cada clic en "Registrar Avance" crea una
+// nueva (numero correlativo por ServicioGestionado, empieza en 1). Un
+// mismo OrdenCompraItem puede añadirse en varios registros distintos a lo
+// largo del tiempo (ver ItemRegistroAvance), hasta agotar su saldo.
+model RegistroAvance {
+  id                   String   @id @default(cuid())
+  servicioGestionadoId String
+  numero               Int
+  creadoPorId          String?
+  createdAt            DateTime @default(now())
+
+  servicioGestionado ServicioGestionado   @relation(fields: [servicioGestionadoId], references: [id], onDelete: Cascade)
+  items              ItemRegistroAvance[]
+
+  @@unique([servicioGestionadoId, numero])
+  @@map("registros_avance")
 }
 
 // Decisión de aprobación de UNA línea (ítem) de una SolicitudPedido. Antes
@@ -819,27 +838,29 @@ model OrdenCompraItem {
   ordenCompra            OrdenCompra             @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
   solicitudPedidoItem    SolicitudPedidoItem?    @relation(fields: [solicitudPedidoItemId], references: [id])
   sku                    Sku                     @relation(fields: [skuId], references: [id])
-  ingresosAlmacenItem    IngresoAlmacenItem[]
-  itemServicioGestionado ItemServicioGestionado?
+  ingresosAlmacenItem IngresoAlmacenItem[]
+  itemsRegistroAvance ItemRegistroAvance[]
 
   @@map("orden_compra_items")
 }
 
-// Avance de servicio (módulo Gestión de Servicios): una línea de una OS ya
-// agregada (ver ServicioGestionado) se "añade" a propósito acá para
-// hacerle seguimiento — @unique en ordenCompraItemId porque una línea solo
-// se añade una vez (ver agregarItemsServicioGestionadoAction).
-model ItemServicioGestionado {
-  id                   String   @id @default(cuid())
-  servicioGestionadoId String
-  ordenCompraItemId    String   @unique
-  createdAt            DateTime @default(now())
+// Una línea de la OS añadida a propósito dentro de un RegistroAvance
+// puntual (ver "Añadir Items" en ese registro) — único por
+// [registroAvanceId, ordenCompraItemId]: no se puede repetir DENTRO del
+// mismo registro, pero sí puede volver a añadirse en un registro
+// posterior distinto (para seguir registrando avance contra su saldo).
+model ItemRegistroAvance {
+  id               String   @id @default(cuid())
+  registroAvanceId String
+  ordenCompraItemId String
+  createdAt        DateTime @default(now())
 
-  servicioGestionado ServicioGestionado   @relation(fields: [servicioGestionadoId], references: [id], onDelete: Cascade)
-  ordenCompraItem    OrdenCompraItem      @relation(fields: [ordenCompraItemId], references: [id])
-  avances            AvanceServicioItem[]
+  registroAvance  RegistroAvance       @relation(fields: [registroAvanceId], references: [id], onDelete: Cascade)
+  ordenCompraItem OrdenCompraItem      @relation(fields: [ordenCompraItemId], references: [id])
+  avances         AvanceServicioItem[]
 
-  @@map("items_servicio_gestionado")
+  @@unique([registroAvanceId, ordenCompraItemId])
+  @@map("items_registro_avance")
 }
 
 enum TipoRegistroAvance {
@@ -848,22 +869,23 @@ enum TipoRegistroAvance {
 }
 
 // Un registro de avance NO reemplaza al anterior: se van acumulando (ver
-// registrarAvanceServicioAction) y el saldo de la línea = su cantidad
-// (OrdenCompraItem.cantidad) menos la suma de cantidad de todos sus
-// avances. "porcentaje" solo se guarda cuando tipoRegistro = PORCENTUAL
-// (la cantidad/valorizado de ese % ya quedan calculados en cantidad/
-// valorizado, igual que un registro por CANTIDAD).
+// registrarAvanceServicioAction) y el saldo de la línea (a través de TODOS
+// sus registros, no solo el actual) = su cantidad (OrdenCompraItem.cantidad)
+// menos la suma de cantidad de todos sus avances. "porcentaje" solo se
+// guarda cuando tipoRegistro = PORCENTUAL (la cantidad/valorizado de ese %
+// ya quedan calculados en cantidad/valorizado, igual que un registro por
+// CANTIDAD).
 model AvanceServicioItem {
-  id                       String             @id @default(cuid())
-  itemServicioGestionadoId String
-  tipoRegistro             TipoRegistroAvance
-  porcentaje               Decimal?           @db.Decimal(5, 2)
-  cantidad                 Decimal            @db.Decimal(12, 3)
-  valorizado               Decimal            @db.Decimal(12, 2)
-  creadoPorId              String?
-  createdAt                DateTime           @default(now())
+  id                   String             @id @default(cuid())
+  itemRegistroAvanceId String
+  tipoRegistro         TipoRegistroAvance
+  porcentaje           Decimal?           @db.Decimal(5, 2)
+  cantidad             Decimal            @db.Decimal(12, 3)
+  valorizado           Decimal            @db.Decimal(12, 2)
+  creadoPorId          String?
+  createdAt            DateTime           @default(now())
 
-  itemServicioGestionado ItemServicioGestionado @relation(fields: [itemServicioGestionadoId], references: [id], onDelete: Cascade)
+  itemRegistroAvance ItemRegistroAvance @relation(fields: [itemRegistroAvanceId], references: [id], onDelete: Cascade)
 
   @@map("avances_servicio_item")
 }

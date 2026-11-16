@@ -11,7 +11,7 @@ import { formatCantidad, formatMoneda } from "@/lib/utils";
 import { registrarAvanceServicioAction, type TipoRegistroAvanceInput } from "@/lib/actions/servicio-gestionado-actions";
 
 export type FilaAvanceItem = {
-  itemServicioGestionadoId: string;
+  itemRegistroAvanceId: string;
   codigo: string;
   descripcion: string;
   unidadMedida: string;
@@ -24,7 +24,7 @@ export type FilaAvanceItem = {
 
 export function TablaAvanceItems({ filas }: { filas: FilaAvanceItem[] }) {
   if (filas.length === 0) {
-    return <p className="mt-4 text-sm text-muted-foreground">Todavía no hay ítems en seguimiento. Usa &quot;Añadir Items&quot;.</p>;
+    return <p className="mt-4 text-sm text-muted-foreground">Todavía no hay ítems añadidos a este registro. Usa &quot;Añadir Items&quot;.</p>;
   }
 
   return (
@@ -44,7 +44,7 @@ export function TablaAvanceItems({ filas }: { filas: FilaAvanceItem[] }) {
         </TableHeader>
         <TableBody>
           {filas.map((fila) => (
-            <FilaAvance key={fila.itemServicioGestionadoId} fila={fila} />
+            <FilaAvance key={fila.itemRegistroAvanceId} fila={fila} />
           ))}
         </TableBody>
       </Table>
@@ -71,7 +71,7 @@ function FilaAvance({ fila }: { fila: FilaAvanceItem }) {
   function handleRegistrar() {
     if (!esValido || !tipo) return;
     startTransition(async () => {
-      const resultado = await registrarAvanceServicioAction(fila.itemServicioGestionadoId, tipo, valorNumerico);
+      const resultado = await registrarAvanceServicioAction(fila.itemRegistroAvanceId, tipo, valorNumerico);
       if (resultado?.error) {
         toast.error(resultado.error);
         return;

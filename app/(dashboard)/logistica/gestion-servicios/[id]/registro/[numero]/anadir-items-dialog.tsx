@@ -12,10 +12,11 @@ import { agregarItemsServicioGestionadoAction } from "@/lib/actions/servicio-ges
 
 export type ItemOcDisponible = { id: string; codigo: string; descripcion: string; cantidad: string };
 
-// Elegir una o varias líneas de la OS (las que ya están en seguimiento no
-// llegan acá, ver page.tsx) — "Seleccionar todos" alterna todo de una,
-// "Añadir"/"Cancelar" son los 2 únicos botones, pedido explícito.
-export function AnadirItemsDialog({ servicioGestionadoId, items }: { servicioGestionadoId: string; items: ItemOcDisponible[] }) {
+// Elegir una o varias líneas de la OS para ESTE registro de avance (las
+// ya añadidas acá, o sin saldo, no llegan — ver page.tsx) —
+// "Seleccionar todos" alterna todo de una, "Añadir"/"Cancelar" son los 2
+// únicos botones, pedido explícito.
+export function AnadirItemsDialog({ registroAvanceId, items }: { registroAvanceId: string; items: ItemOcDisponible[] }) {
   const [open, setOpen] = useState(false);
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -45,7 +46,7 @@ export function AnadirItemsDialog({ servicioGestionadoId, items }: { servicioGes
   function handleAnadir() {
     if (seleccionados.size === 0) return;
     startTransition(async () => {
-      const resultado = await agregarItemsServicioGestionadoAction(servicioGestionadoId, Array.from(seleccionados));
+      const resultado = await agregarItemsServicioGestionadoAction(registroAvanceId, Array.from(seleccionados));
       if (resultado?.error) {
         toast.error(resultado.error);
         return;
@@ -70,7 +71,9 @@ export function AnadirItemsDialog({ servicioGestionadoId, items }: { servicioGes
         </DialogHeader>
 
         {items.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Todos los ítems de esta orden ya están en seguimiento.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No hay ítems con saldo disponibles para añadir a este registro.
+          </p>
         ) : (
           <>
             <Button type="button" variant="outline" size="sm" onClick={toggleTodos} className="w-fit">
