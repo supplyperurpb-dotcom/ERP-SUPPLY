@@ -202,9 +202,15 @@ function FilaAvance({
       )}
       {(mostrarControlesRegistro || puedeEditar || fila.avanceRegistrado) && (
         <TableCell>
-          {mostrarControlesRegistro ? (
-            tipo !== "" && (
-              <div className="space-y-1.5">
+          <div className="space-y-1.5">
+            {fila.avanceRegistrado && (
+              <p className="text-sm font-medium">
+                {formatCantidad(fila.avanceRegistrado.cantidad)} {fila.unidadMedida} ·{" "}
+                {formatMoneda(fila.avanceRegistrado.valorizado.toString(), fila.moneda)}
+              </p>
+            )}
+            {mostrarControlesRegistro && tipo !== "" && (
+              <>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -225,16 +231,12 @@ function FilaAvance({
                     {formatCantidad(preview.cantidad)} {fila.unidadMedida} · {formatMoneda(preview.valorizado.toString(), fila.moneda)}
                   </p>
                 )}
-              </div>
-            )
-          ) : fila.avanceRegistrado ? (
-            <p className="text-sm font-medium">
-              {formatCantidad(fila.avanceRegistrado.cantidad)} {fila.unidadMedida} ·{" "}
-              {formatMoneda(fila.avanceRegistrado.valorizado.toString(), fila.moneda)}
-            </p>
-          ) : (
-            <span className="text-sm text-muted-foreground">—</span>
-          )}
+              </>
+            )}
+            {!fila.avanceRegistrado && !(mostrarControlesRegistro && tipo !== "") && (
+              <span className="text-sm text-muted-foreground">—</span>
+            )}
+          </div>
         </TableCell>
       )}
       <TableCell numeric className="font-medium">
