@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wrench } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -116,6 +117,7 @@ export default async function GestionServiciosPage({
               <TableHead>Fecha de la orden</TableHead>
               <TableHead numeric>Monto</TableHead>
               <TableHead>Agregado</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -133,6 +135,9 @@ export default async function GestionServiciosPage({
                   {formatMoneda(servicio.ordenCompra.montoTotal.toString(), servicio.ordenCompra.moneda)}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{formatDateTime(servicio.createdAt)}</TableCell>
+                <TableCell>
+                  <Badge variant={servicio.cerrado ? "success" : "secondary"}>{servicio.cerrado ? "Cerrada" : "Abierta"}</Badge>
+                </TableCell>
                 <TableCell className="text-right">
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/logistica/gestion-servicios/${servicio.ordenCompraId}`}>Gestionar OS</Link>

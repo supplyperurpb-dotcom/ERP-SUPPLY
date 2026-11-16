@@ -50,6 +50,46 @@ async function recalcularEstadoRegistro(registroAvanceId: string, usuarioId: str
   });
 }
 
+// La OS se cierra sola solo cuando el saldo de TODAS sus líneas llega a
+// cero contando únicamente avances con estadoVB = APROBADO (uno
+// PENDIENTE o RECHAZADO no cuenta, aunque la cantidad ya esté
+// registrada) — pedido explícito. Se reabre sola si el saldo aprobado
+// vuelve a quedar por encima de cero (ej. se reabre una línea ya
+// aprobada para editarla, ver reabrirItemParaEdicionAction).
+async function recalcularCierreServicio(servicioGestionadoId: string) {
+  const servicio = await prisma.servicioGestionado.findUnique({
+    where: { id: servicioGestionadoId },
+    include: { ordenCompra: { include: { items: true } } },
+  });
+  if (!servicio) return;
+
+  const itemIds = servicio.ordenCompra.items.map((i) => i.id);
+  const itemsAprobados = itemIds.length
+    ? await prisma.itemRegistroAvance.findMany({
+        where: { ordenCompraItemId: { in: itemIds }, estadoVB: "APROBADO" },
+        include: { avances: true },
+      })
+    : [];
+  const aprobadoPorItem = new Map<string, number>();
+  for (const ig of itemsAprobados) {
+    const suma = ig.avances.reduce((acc, a) => acc + Number(a.cantidad), 0);
+    aprobadoPorItem.set(ig.ordenCompraItemId, (aprobadoPorItem.get(ig.ordenCompraItemId) ?? 0) + suma);
+  }
+  const saldoAprobadoTotal = servicio.ordenCompra.items.reduce((acc, item) => {
+    const cantidadTotal = Number(item.cantidad);
+    const aprobado = aprobadoPorItem.get(item.id) ?? 0;
+    return acc + Math.max(cantidadTotal - aprobado, 0);
+  }, 0);
+
+  const debeEstarCerrado = servicio.ordenCompra.items.length > 0 && saldoAprobadoTotal <= 0.001;
+  if (debeEstarCerrado !== servicio.cerrado) {
+    await prisma.servicioGestionado.update({
+      where: { id: servicioGestionadoId },
+      data: { cerrado: debeEstarCerrado, fechaCierre: debeEstarCerrado ? new Date() : null },
+    });
+  }
+}
+
 // Agrega una Orden de Servicio ya APROBADA al módulo de Gestión de
 // Servicios — pedido explícito: esto nunca pasa solo, alguien lo elige a
 // propósito (ver ordenesServicioDisponiblesParaGestion en lib/compras.ts
@@ -420,6 +460,7 @@ export async function decidirVbItemAction(
     });
 
     await recalcularEstadoRegistro(registro.id, usuario.id);
+    await recalcularCierreServicio(registro.servicioGestionadoId);
 
     revalidatePath(`/logistica/gestion-servicios/${registro.servicioGestionado.ordenCompraId}/registro/${registro.numero}`);
     return undefined;
@@ -454,6 +495,7 @@ export async function reabrirItemParaEdicionAction(itemRegistroAvanceId: string)
 
     const registro = item.registroAvance;
     await prisma.registroAvance.update({ where: { id: registro.id }, data: { estado: "PENDIENTE_VB" } });
+    await recalcularCierreServicio(registro.servicioGestionadoId);
 
     revalidatePath(`/logistica/gestion-servicios/${registro.servicioGestionado.ordenCompraId}/registro/${registro.numero}`);
     return undefined;

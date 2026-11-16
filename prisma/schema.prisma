@@ -661,6 +661,14 @@ model ServicioGestionado {
   ordenCompraId String   @unique
   creadoPorId   String?
   createdAt     DateTime @default(now())
+  // Pedido explícito: la OS se cierra sola solo cuando el saldo de TODAS
+  // sus líneas llega a cero contando únicamente avances ya APROBADOS (no
+  // alcanza con que la cantidad esté registrada si todavía está PENDIENTE
+  // o fue RECHAZADA) — ver recalcularCierreServicio en
+  // lib/actions/servicio-gestionado-actions.ts. Mismo criterio de nombre
+  // que OrdenCompraItem.cerrado/fechaCierre, ya usado en este ERP.
+  cerrado       Boolean   @default(false)
+  fechaCierre   DateTime?
 
   ordenCompra OrdenCompra      @relation(fields: [ordenCompraId], references: [id])
   registros   RegistroAvance[]

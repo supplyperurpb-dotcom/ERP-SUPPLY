@@ -65,9 +65,15 @@ export default async function AvanceOsPage({ params }: { params: Promise<{ id: s
 
   return (
     <div>
-      <PageHeader titulo={`Avance OS ${servicio.ordenCompra.numero}`} descripcion={servicio.ordenCompra.proveedor.razonSocial} />
+      <PageHeader
+        titulo={`Avance OS ${servicio.ordenCompra.numero}`}
+        descripcion={servicio.ordenCompra.proveedor.razonSocial}
+        acciones={
+          <Badge variant={servicio.cerrado ? "success" : "secondary"}>{servicio.cerrado ? "Cerrada" : "Abierta"}</Badge>
+        }
+      />
       <div className="mb-6 flex gap-3">
-        <RegistrarAvanceBoton servicioGestionadoId={servicio.id} ordenCompraId={servicio.ordenCompraId} />
+        {!servicio.cerrado && <RegistrarAvanceBoton servicioGestionadoId={servicio.id} ordenCompraId={servicio.ordenCompraId} />}
         <Button variant="outline" asChild>
           <Link href="/logistica/gestion-servicios">Anterior</Link>
         </Button>
