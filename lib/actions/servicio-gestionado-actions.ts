@@ -3,9 +3,31 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { subirArchivo } from "@/lib/storage";
 
 export type ServicioGestionadoActionState = { error?: string } | undefined;
 export type TipoRegistroAvanceInput = "PORCENTUAL" | "CANTIDAD";
+
+const TIPOS_SUSTENTO_PERMITIDOS = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+];
+
+async function rutaRegistro(registroAvanceId: string) {
+  const registro = await prisma.registroAvance.findUnique({
+    where: { id: registroAvanceId },
+    include: { servicioGestionado: true },
+  });
+  if (!registro) return null;
+  return { registro, ruta: `/logistica/gestion-servicios/${registro.servicioGestionado.ordenCompraId}/registro/${registro.numero}` };
+}
 
 // Agrega una Orden de Servicio ya APROBADA al módulo de Gestión de
 // Servicios — pedido explícito: esto nunca pasa solo, alguien lo elige a
@@ -172,5 +194,197 @@ export async function registrarAvanceServicioAction(
   } catch (e) {
     console.error("Error inesperado en registrarAvanceServicioAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al registrar el avance." };
+  }
+}
+
+// Cierra la edición del registro (ya no se puede añadir ítems, registrar
+// avance ni tocar sustentos) — pedido explícito, habilita "Solicitar VB".
+export async function culminarRegistroAvanceAction(registroAvanceId: string): Promise<ServicioGestionadoActionState> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+
+    const datos = await rutaRegistro(registroAvanceId);
+    if (!datos) return { error: "Este registro de avance ya no existe." };
+    if (datos.registro.estado !== "ABIERTO") return { error: "Este registro ya fue culminado." };
+
+    await prisma.registroAvance.update({ where: { id: registroAvanceId }, data: { estado: "CULMINADO" } });
+    revalidatePath(datos.ruta);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en culminarRegistroAvanceAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al culminar el registro." };
+  }
+}
+
+// Sube el archivo de UN sustento (mismo patrón que subirGuiaRemisionIngresoAction
+// en ingreso-almacen-actions.ts) — el registro en la base de datos lo hace
+// agregarSustentoRegistroAvanceAction, recién con la ruta ya subida.
+export async function subirArchivoSustentoAction(formData: FormData): Promise<{ path?: string; nombreArchivo?: string; error?: string }> {
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Selecciona un archivo." };
+  }
+  if (!TIPOS_SUSTENTO_PERMITIDOS.includes(archivo.type)) {
+    return { error: "Formato no permitido. Sube un PDF, Word, Excel o una foto." };
+  }
+  if (archivo.size > 15 * 1024 * 1024) {
+    return { error: "El archivo no puede superar 15 MB." };
+  }
+
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const extension = archivo.name.includes(".") ? archivo.name.split(".").pop() : "bin";
+  const ruta = `gestion-servicios/sustentos/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+
+  try {
+    const path = await subirArchivo(ruta, archivo);
+    return { path, nombreArchivo: archivo.name };
+  } catch (e) {
+    console.error("Error subiendo sustento:", e);
+    return { error: e instanceof Error ? e.message : "No se pudo subir el archivo." };
+  }
+}
+
+// Crea el sustento Nro {siguiente correlativo} con el archivo YA subido
+// (ver subirArchivoSustentoAction) — solo 1 archivo por sustento, pedido
+// explícito; otro archivo va en OTRO sustento.
+export async function agregarSustentoRegistroAvanceAction(
+  registroAvanceId: string,
+  descripcion: string,
+  archivo: string,
+  nombreArchivo: string
+): Promise<ServicioGestionadoActionState> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+    if (!descripcion.trim()) return { error: "Escribe una descripción del sustento." };
+
+    const datos = await rutaRegistro(registroAvanceId);
+    if (!datos) return { error: "Este registro de avance ya no existe." };
+    if (datos.registro.estado !== "ABIERTO") return { error: "Este registro ya no se puede editar." };
+
+    const ultimo = await prisma.sustentoRegistroAvance.findFirst({ where: { registroAvanceId }, orderBy: { numero: "desc" } });
+    const numero = (ultimo?.numero ?? 0) + 1;
+
+    await prisma.sustentoRegistroAvance.create({
+      data: { registroAvanceId, numero, descripcion: descripcion.trim(), archivo, nombreArchivo, creadoPorId: usuario.id },
+    });
+
+    revalidatePath(datos.ruta);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en agregarSustentoRegistroAvanceAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al añadir el sustento." };
+  }
+}
+
+// Elimina un sustento y renumera los siguientes de ese mismo registro
+// para no dejar huecos (sustento 3 pasa a ser el 2, etc.) — pedido
+// explícito.
+export async function eliminarSustentoRegistroAvanceAction(sustentoId: string): Promise<ServicioGestionadoActionState> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+
+    const sustento = await prisma.sustentoRegistroAvance.findUnique({
+      where: { id: sustentoId },
+      include: { registroAvance: { include: { servicioGestionado: true } } },
+    });
+    if (!sustento) return { error: "Este sustento ya no existe." };
+    if (sustento.registroAvance.estado !== "ABIERTO") return { error: "Este registro ya no se puede editar." };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.sustentoRegistroAvance.delete({ where: { id: sustentoId } });
+      const siguientes = await tx.sustentoRegistroAvance.findMany({
+        where: { registroAvanceId: sustento.registroAvanceId, numero: { gt: sustento.numero } },
+        orderBy: { numero: "asc" },
+      });
+      for (const s of siguientes) {
+        await tx.sustentoRegistroAvance.update({ where: { id: s.id }, data: { numero: s.numero - 1 } });
+      }
+    });
+
+    revalidatePath(
+      `/logistica/gestion-servicios/${sustento.registroAvance.servicioGestionado.ordenCompraId}/registro/${sustento.registroAvance.numero}`
+    );
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en eliminarSustentoRegistroAvanceAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al eliminar el sustento." };
+  }
+}
+
+// Envía el registro CULMINADO al usuario elegido para que dé su VB.
+export async function solicitarVbRegistroAvanceAction(
+  registroAvanceId: string,
+  aprobadorId: string
+): Promise<ServicioGestionadoActionState> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+    if (!aprobadorId) return { error: "Selecciona a quién le pides el VB." };
+
+    const datos = await rutaRegistro(registroAvanceId);
+    if (!datos) return { error: "Este registro de avance ya no existe." };
+    if (datos.registro.estado !== "CULMINADO") return { error: "Primero debes culminar el registro." };
+
+    const aprobador = await prisma.usuario.findUnique({ where: { id: aprobadorId } });
+    if (!aprobador) return { error: "El usuario seleccionado ya no existe." };
+
+    await prisma.registroAvance.update({
+      where: { id: registroAvanceId },
+      data: { estado: "PENDIENTE_VB", aprobadorId },
+    });
+
+    revalidatePath(datos.ruta);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en solicitarVbRegistroAvanceAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al solicitar el VB." };
+  }
+}
+
+// Resuelve el VB — observaciones obligatorias solo al rechazar, pedido
+// explícito. Solo lo puede hacer el usuario al que se le pidió, o un
+// ADMIN (mismo criterio de respaldo que el resto de flujos de aprobación
+// de este ERP, ver firmarOrdenCompraAction).
+export async function decidirVbRegistroAvanceAction(
+  registroAvanceId: string,
+  decision: "APROBADO" | "RECHAZADO",
+  observaciones: string | undefined
+): Promise<ServicioGestionadoActionState> {
+  try {
+    const usuario = await getUsuarioActual();
+    if (!usuario) return { error: "Debes iniciar sesión." };
+    if (decision === "RECHAZADO" && !observaciones?.trim()) {
+      return { error: "Las observaciones son obligatorias para rechazar." };
+    }
+
+    const datos = await rutaRegistro(registroAvanceId);
+    if (!datos) return { error: "Este registro de avance ya no existe." };
+    if (datos.registro.estado !== "PENDIENTE_VB") return { error: "Este registro no está pendiente de VB." };
+
+    const esAdmin = usuario.roles.includes("ADMIN");
+    if (datos.registro.aprobadorId !== usuario.id && !esAdmin) {
+      return { error: "No te corresponde dar el VB de este registro." };
+    }
+
+    await prisma.registroAvance.update({
+      where: { id: registroAvanceId },
+      data: {
+        estado: decision,
+        decididoPorId: usuario.id,
+        observacionesVB: observaciones?.trim() || null,
+        fechaDecision: new Date(),
+      },
+    });
+
+    revalidatePath(datos.ruta);
+    return undefined;
+  } catch (e) {
+    console.error("Error inesperado en decidirVbRegistroAvanceAction:", e);
+    return { error: e instanceof Error ? e.message : "Error inesperado al resolver el VB." };
   }
 }

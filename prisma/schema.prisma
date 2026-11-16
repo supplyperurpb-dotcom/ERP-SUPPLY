@@ -673,18 +673,61 @@ model ServicioGestionado {
 // nueva (numero correlativo por ServicioGestionado, empieza en 1). Un
 // mismo OrdenCompraItem puede añadirse en varios registros distintos a lo
 // largo del tiempo (ver ItemRegistroAvance), hasta agotar su saldo.
+// ABIERTO: se puede añadir ítems/registrar avance y añadir/quitar
+// sustentos. CULMINADO: ya no (ver culminarRegistroAvanceAction), falta
+// "Solicitar VB". PENDIENTE_VB: esperando que el usuario elegido decida.
+// APROBADO/RECHAZADO: decisión final (ver decidirVbRegistroAvanceAction).
+enum EstadoRegistroAvance {
+  ABIERTO
+  CULMINADO
+  PENDIENTE_VB
+  APROBADO
+  RECHAZADO
+}
+
 model RegistroAvance {
-  id                   String   @id @default(cuid())
+  id                   String               @id @default(cuid())
   servicioGestionadoId String
   numero               Int
+  estado               EstadoRegistroAvance @default(ABIERTO)
+  // A quién se le pidió el VB (ver solicitarVbRegistroAvanceAction) y
+  // quién finalmente decidió (normalmente la misma persona; separado por
+  // si un ADMIN resuelve en su lugar, mismo criterio que el resto de
+  // flujos de aprobación de este ERP).
+  aprobadorId          String?
+  decididoPorId        String?
+  observacionesVB      String?
+  fechaDecision        DateTime?
   creadoPorId          String?
-  createdAt            DateTime @default(now())
+  createdAt            DateTime             @default(now())
 
-  servicioGestionado ServicioGestionado   @relation(fields: [servicioGestionadoId], references: [id], onDelete: Cascade)
+  servicioGestionado ServicioGestionado       @relation(fields: [servicioGestionadoId], references: [id], onDelete: Cascade)
   items              ItemRegistroAvance[]
+  sustentos          SustentoRegistroAvance[]
 
   @@unique([servicioGestionadoId, numero])
   @@map("registros_avance")
+}
+
+// Archivo de sustento (PDF/Word/Excel/foto) de un RegistroAvance —
+// "numero" correlativo visible ("Sustento Nro 1", "Nro 2"...); al
+// eliminar uno se renumeran los siguientes para no dejar huecos (ver
+// eliminarSustentoRegistroAvanceAction). Solo 1 archivo por sustento,
+// pedido explícito — para otro archivo se añade OTRO sustento.
+model SustentoRegistroAvance {
+  id               String   @id @default(cuid())
+  registroAvanceId String
+  numero           Int
+  descripcion      String
+  archivo          String // ruta dentro del bucket privado, ver lib/storage.ts
+  nombreArchivo    String // nombre original, solo para mostrarlo
+  creadoPorId      String?
+  createdAt        DateTime @default(now())
+
+  registroAvance RegistroAvance @relation(fields: [registroAvanceId], references: [id], onDelete: Cascade)
+
+  @@unique([registroAvanceId, numero])
+  @@map("sustentos_registro_avance")
 }
 
 // Decisión de aprobación de UNA línea (ítem) de una SolicitudPedido. Antes

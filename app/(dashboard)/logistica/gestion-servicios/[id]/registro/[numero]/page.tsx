@@ -1,21 +1,43 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
-import { formatCantidad } from "@/lib/utils";
+import { formatCantidad, formatDateTime } from "@/lib/utils";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { AnadirItemsDialog, type ItemOcDisponible } from "./anadir-items-dialog";
 import { TablaAvanceItems, type FilaAvanceItem } from "./tabla-avance-items";
+import { SustentosSection, type SustentoGuardado } from "./sustentos-section";
+import { CulminarRegistroBoton } from "./culminar-registro-boton";
+import { SolicitarVbDialog, type UsuarioOpcion } from "./solicitar-vb-dialog";
+import { DecidirVbSection } from "./decidir-vb-section";
 
-// "OS {número} - Registro de Avance {N}": acá viven "Añadir Items" y la
-// tabla de avance de ESTA sesión puntual (ver [id]/page.tsx para la
-// landing con "Registrar Avance"/"Anterior"). El saldo de cada línea
-// considera los avances de TODOS sus registros, no solo este — una
-// misma línea de la OC puede añadirse en varios registros a lo largo del
-// tiempo hasta agotar su saldo.
+const ESTADO_LABEL = {
+  ABIERTO: "Abierto",
+  CULMINADO: "Culminado",
+  PENDIENTE_VB: "Pendiente de VB",
+  APROBADO: "Aprobado",
+  RECHAZADO: "Rechazado",
+} as const;
+
+const ESTADO_VARIANT = {
+  ABIERTO: "secondary",
+  CULMINADO: "secondary",
+  PENDIENTE_VB: "secondary",
+  APROBADO: "success",
+  RECHAZADO: "destructive",
+} as const;
+
+// "OS {número} - Registro de Avance {N}": acá viven "Añadir Items", la
+// tabla de avance, "Sustento" y, según el estado (ver
+// EstadoRegistroAvance), "Culminar Registro" / "Solicitar VB" / la
+// decisión del VB. El saldo de cada línea considera los avances de TODOS
+// sus registros, no solo este — ver [id]/page.tsx para la landing.
 export default async function RegistroAvancePage({ params }: { params: Promise<{ id: string; numero: string }> }) {
   const { id, numero: numeroParam } = await params;
   const numero = Number(numeroParam);
 
+  const usuario = await getUsuarioActual();
   const servicio = await prisma.servicioGestionado.findUnique({
     where: { ordenCompraId: id },
     include: { ordenCompra: { include: { items: { include: { sku: true } } } } },
@@ -24,7 +46,10 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
 
   const registro = await prisma.registroAvance.findUnique({
     where: { servicioGestionadoId_numero: { servicioGestionadoId: servicio.id, numero } },
-    include: { items: { include: { ordenCompraItem: { include: { sku: true } } } } },
+    include: {
+      items: { include: { ordenCompraItem: { include: { sku: true } } } },
+      sustentos: { orderBy: { numero: "asc" } },
+    },
   });
   if (!registro) notFound();
 
@@ -48,16 +73,20 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
     acumuladoPorItem.set(itemGestionado.ordenCompraItemId, actual);
   }
 
+  const soloLectura = registro.estado !== "ABIERTO";
+
   const idsYaEnEsteRegistro = new Set(registro.items.map((i) => i.ordenCompraItemId));
-  const itemsDisponibles: ItemOcDisponible[] = servicio.ordenCompra.items
-    .filter((item) => !idsYaEnEsteRegistro.has(item.id))
-    .filter((item) => Number(item.cantidad) - (acumuladoPorItem.get(item.id)?.cantidad ?? 0) > 0.001)
-    .map((item) => ({
-      id: item.id,
-      codigo: item.sku.codigo,
-      descripcion: item.descripcion || item.sku.descripcion,
-      cantidad: `${formatCantidad(Number(item.cantidad))} ${item.sku.unidadMedida}`,
-    }));
+  const itemsDisponibles: ItemOcDisponible[] = soloLectura
+    ? []
+    : servicio.ordenCompra.items
+        .filter((item) => !idsYaEnEsteRegistro.has(item.id))
+        .filter((item) => Number(item.cantidad) - (acumuladoPorItem.get(item.id)?.cantidad ?? 0) > 0.001)
+        .map((item) => ({
+          id: item.id,
+          codigo: item.sku.codigo,
+          descripcion: item.descripcion || item.sku.descripcion,
+          cantidad: `${formatCantidad(Number(item.cantidad))} ${item.sku.unidadMedida}`,
+        }));
 
   const filasAvance: FilaAvanceItem[] = registro.items.map((itemGestionado) => {
     const cantidadTotal = Number(itemGestionado.ordenCompraItem.cantidad);
@@ -76,6 +105,22 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
     };
   });
 
+  const sustentos: SustentoGuardado[] = registro.sustentos.map((s) => ({
+    id: s.id,
+    numero: s.numero,
+    descripcion: s.descripcion,
+    nombreArchivo: s.nombreArchivo,
+  }));
+
+  let usuariosParaVb: UsuarioOpcion[] = [];
+  if (registro.estado === "CULMINADO") {
+    const usuarios = await prisma.usuario.findMany({ where: { activo: true }, orderBy: { nombres: "asc" } });
+    usuariosParaVb = usuarios.map((u) => ({ id: u.id, nombreCompleto: `${u.nombres} ${u.apellidos}` }));
+  }
+
+  const puedeDecidirVb =
+    registro.estado === "PENDIENTE_VB" && !!usuario && (registro.aprobadorId === usuario.id || usuario.roles.includes("ADMIN"));
+
   return (
     <div>
       <Link
@@ -87,10 +132,28 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
 
       <PageHeader
         titulo={`OS ${servicio.ordenCompra.numero} - Registro de Avance ${numero}`}
-        acciones={<AnadirItemsDialog registroAvanceId={registro.id} items={itemsDisponibles} />}
+        descripcion={
+          registro.estado === "RECHAZADO" && registro.observacionesVB
+            ? `Rechazado: "${registro.observacionesVB}"`
+            : registro.estado === "APROBADO" && registro.fechaDecision
+              ? `Aprobado el ${formatDateTime(registro.fechaDecision)}`
+              : undefined
+        }
+        acciones={
+          <div className="flex items-center gap-2">
+            <Badge variant={ESTADO_VARIANT[registro.estado]}>{ESTADO_LABEL[registro.estado]}</Badge>
+            {registro.estado === "ABIERTO" && <AnadirItemsDialog registroAvanceId={registro.id} items={itemsDisponibles} />}
+            {registro.estado === "ABIERTO" && <CulminarRegistroBoton registroAvanceId={registro.id} />}
+            {registro.estado === "CULMINADO" && <SolicitarVbDialog registroAvanceId={registro.id} usuarios={usuariosParaVb} />}
+          </div>
+        }
       />
 
-      <TablaAvanceItems filas={filasAvance} />
+      <TablaAvanceItems filas={filasAvance} soloLectura={soloLectura} />
+
+      <SustentosSection registroAvanceId={registro.id} sustentos={sustentos} soloLectura={soloLectura} />
+
+      {puedeDecidirVb && <DecidirVbSection registroAvanceId={registro.id} />}
     </div>
   );
 }

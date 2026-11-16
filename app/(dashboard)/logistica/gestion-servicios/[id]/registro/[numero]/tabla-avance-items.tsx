@@ -22,7 +22,7 @@ export type FilaAvanceItem = {
   saldoValor: number;
 };
 
-export function TablaAvanceItems({ filas }: { filas: FilaAvanceItem[] }) {
+export function TablaAvanceItems({ filas, soloLectura = false }: { filas: FilaAvanceItem[]; soloLectura?: boolean }) {
   if (filas.length === 0) {
     return <p className="mt-4 text-sm text-muted-foreground">Todavía no hay ítems añadidos a este registro. Usa &quot;Añadir Items&quot;.</p>;
   }
@@ -36,15 +36,15 @@ export function TablaAvanceItems({ filas }: { filas: FilaAvanceItem[] }) {
             <TableHead>Descripción</TableHead>
             <TableHead numeric>Cant.</TableHead>
             <TableHead numeric>Valorizado</TableHead>
-            <TableHead className="min-w-[160px]">Tipo de registro</TableHead>
-            <TableHead className="min-w-[220px]">Avance a registrar</TableHead>
+            {!soloLectura && <TableHead className="min-w-[160px]">Tipo de registro</TableHead>}
+            {!soloLectura && <TableHead className="min-w-[220px]">Avance a registrar</TableHead>}
             <TableHead numeric>Saldo cant.</TableHead>
             <TableHead numeric>Saldo valor</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filas.map((fila) => (
-            <FilaAvance key={fila.itemRegistroAvanceId} fila={fila} />
+            <FilaAvance key={fila.itemRegistroAvanceId} fila={fila} soloLectura={soloLectura} />
           ))}
         </TableBody>
       </Table>
@@ -52,7 +52,7 @@ export function TablaAvanceItems({ filas }: { filas: FilaAvanceItem[] }) {
   );
 }
 
-function FilaAvance({ fila }: { fila: FilaAvanceItem }) {
+function FilaAvance({ fila, soloLectura }: { fila: FilaAvanceItem; soloLectura: boolean }) {
   const [tipo, setTipo] = useState<TipoRegistroAvanceInput | "">("");
   const [valor, setValor] = useState("");
   const [pending, startTransition] = useTransition();
@@ -90,43 +90,47 @@ function FilaAvance({ fila }: { fila: FilaAvanceItem }) {
         {formatCantidad(fila.cantidadTotal)} {fila.unidadMedida}
       </TableCell>
       <TableCell numeric>{formatMoneda((fila.cantidadTotal * fila.precioUnitario).toString(), fila.moneda)}</TableCell>
-      <TableCell>
-        <Select value={tipo} onValueChange={(v) => setTipo(v as TipoRegistroAvanceInput)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecciona..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="PORCENTUAL">Avance Porcentual</SelectItem>
-            <SelectItem value="CANTIDAD">Avance por Cantidad</SelectItem>
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell>
-        {tipo !== "" && (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                step="any"
-                placeholder={tipo === "PORCENTUAL" ? "% de avance" : `Cantidad (${fila.unidadMedida})`}
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                className="w-28"
-              />
-              <Button type="button" size="sm" disabled={!esValido || pending} onClick={handleRegistrar}>
-                Registrar
-              </Button>
+      {!soloLectura && (
+        <TableCell>
+          <Select value={tipo} onValueChange={(v) => setTipo(v as TipoRegistroAvanceInput)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PORCENTUAL">Avance Porcentual</SelectItem>
+              <SelectItem value="CANTIDAD">Avance por Cantidad</SelectItem>
+            </SelectContent>
+          </Select>
+        </TableCell>
+      )}
+      {!soloLectura && (
+        <TableCell>
+          {tipo !== "" && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  placeholder={tipo === "PORCENTUAL" ? "% de avance" : `Cantidad (${fila.unidadMedida})`}
+                  value={valor}
+                  onChange={(e) => setValor(e.target.value)}
+                  className="w-28"
+                />
+                <Button type="button" size="sm" disabled={!esValido || pending} onClick={handleRegistrar}>
+                  Registrar
+                </Button>
+              </div>
+              {preview && (
+                <p className="text-xs text-muted-foreground">
+                  {tipo === "PORCENTUAL" && `${valorNumerico.toFixed(1)}% = `}
+                  {formatCantidad(preview.cantidad)} {fila.unidadMedida} · {formatMoneda(preview.valorizado.toString(), fila.moneda)}
+                </p>
+              )}
             </div>
-            {preview && (
-              <p className="text-xs text-muted-foreground">
-                {tipo === "PORCENTUAL" && `${valorNumerico.toFixed(1)}% = `}
-                {formatCantidad(preview.cantidad)} {fila.unidadMedida} · {formatMoneda(preview.valorizado.toString(), fila.moneda)}
-              </p>
-            )}
-          </div>
-        )}
-      </TableCell>
+          )}
+        </TableCell>
+      )}
       <TableCell numeric className="font-medium">
         {formatCantidad(fila.saldoCantidad)} {fila.unidadMedida}
       </TableCell>
