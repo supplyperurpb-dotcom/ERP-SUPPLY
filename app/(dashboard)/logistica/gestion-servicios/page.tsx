@@ -116,6 +116,7 @@ export default async function GestionServiciosPage({
               <TableHead>Fecha de la orden</TableHead>
               <TableHead numeric>Monto</TableHead>
               <TableHead>Agregado</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -132,6 +133,11 @@ export default async function GestionServiciosPage({
                   {formatMoneda(servicio.ordenCompra.montoTotal.toString(), servicio.ordenCompra.moneda)}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{formatDateTime(servicio.createdAt)}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/logistica/gestion-servicios/${servicio.ordenCompraId}`}>Gestionar OS</Link>
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
