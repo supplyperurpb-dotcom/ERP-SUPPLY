@@ -8,7 +8,18 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { eliminarRegistroAvanceAction } from "@/lib/actions/servicio-gestionado-actions";
 
-export function EliminarRegistroBoton({ registroAvanceId, numero }: { registroAvanceId: string; numero: number }) {
+// `volverA`: dentro de la propia vista del registro, al eliminarlo esa
+// ruta deja de existir — hay que navegar a la landing de la OS en vez de
+// solo refrescar (ver [id]/registro/[numero]/page.tsx).
+export function EliminarRegistroBoton({
+  registroAvanceId,
+  numero,
+  volverA,
+}: {
+  registroAvanceId: string;
+  numero: number;
+  volverA?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const confirmar = useConfirm();
@@ -27,7 +38,11 @@ export function EliminarRegistroBoton({ registroAvanceId, numero }: { registroAv
         return;
       }
       toast.success("Registro eliminado");
-      router.refresh();
+      if (volverA) {
+        router.push(volverA);
+      } else {
+        router.refresh();
+      }
     });
   }
 

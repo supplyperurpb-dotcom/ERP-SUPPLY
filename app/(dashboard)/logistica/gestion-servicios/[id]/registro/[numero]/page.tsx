@@ -11,6 +11,7 @@ import { TablaAvanceItems, type FilaAvanceItem } from "./tabla-avance-items";
 import { SustentosSection, type SustentoGuardado } from "./sustentos-section";
 import { CulminarRegistroBoton } from "./culminar-registro-boton";
 import { SolicitarVbDialog, type UsuarioOpcion } from "./solicitar-vb-dialog";
+import { EliminarRegistroBoton } from "../../eliminar-registro-boton";
 
 const ESTADO_LABEL = {
   ABIERTO: "Abierto",
@@ -161,8 +162,17 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
           <div className="flex items-center gap-2">
             <Badge variant={ESTADO_VARIANT[registro.estado]}>{ESTADO_LABEL[registro.estado]}</Badge>
             {registro.estado === "ABIERTO" && <AnadirItemsDialog registroAvanceId={registro.id} items={itemsDisponibles} />}
-            {registro.estado === "ABIERTO" && <CulminarRegistroBoton registroAvanceId={registro.id} />}
+            {registro.estado === "ABIERTO" && registro.items.length > 0 && (
+              <CulminarRegistroBoton registroAvanceId={registro.id} />
+            )}
             {registro.estado === "CULMINADO" && <SolicitarVbDialog registroAvanceId={registro.id} usuarios={usuariosParaVb} />}
+            {puedeEditar && (
+              <EliminarRegistroBoton
+                registroAvanceId={registro.id}
+                numero={numero}
+                volverA={`/logistica/gestion-servicios/${id}`}
+              />
+            )}
           </div>
         }
       />

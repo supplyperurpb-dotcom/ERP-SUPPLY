@@ -272,6 +272,14 @@ export async function culminarRegistroAvanceAction(registroAvanceId: string): Pr
     if (!datos) return { error: "Este registro de avance ya no existe." };
     if (datos.registro.estado !== "ABIERTO") return { error: "Este registro ya fue culminado." };
 
+    // Pedido explícito: no se puede culminar sin ítems añadidos ni sin
+    // haber registrado al menos un avance de cantidad en alguno de ellos.
+    const items = await prisma.itemRegistroAvance.findMany({ where: { registroAvanceId }, include: { avances: true } });
+    if (items.length === 0) return { error: "Añade al menos un ítem antes de culminar el registro." };
+    if (!items.some((i) => i.avances.length > 0)) {
+      return { error: "Registra al menos un avance de cantidad antes de culminar el registro." };
+    }
+
     await prisma.registroAvance.update({ where: { id: registroAvanceId }, data: { estado: "CULMINADO" } });
     revalidatePath(datos.ruta);
     return undefined;
