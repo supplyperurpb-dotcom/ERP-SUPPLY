@@ -3,12 +3,19 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCantidad, formatMoneda } from "@/lib/utils";
-import { registrarAvanceServicioAction, type TipoRegistroAvanceInput } from "@/lib/actions/servicio-gestionado-actions";
+import {
+  decidirVbItemAction,
+  registrarAvanceServicioAction,
+  type TipoRegistroAvanceInput,
+} from "@/lib/actions/servicio-gestionado-actions";
+
+export type EstadoVBItem = "PENDIENTE" | "APROBADO" | "RECHAZADO";
 
 export type FilaAvanceItem = {
   itemRegistroAvanceId: string;
@@ -20,9 +27,23 @@ export type FilaAvanceItem = {
   moneda: string;
   saldoCantidad: number;
   saldoValor: number;
+  estadoVB: EstadoVBItem;
+  observacionesVB: string | null;
 };
 
-export function TablaAvanceItems({ filas, soloLectura = false }: { filas: FilaAvanceItem[]; soloLectura?: boolean }) {
+export function TablaAvanceItems({
+  filas,
+  soloLectura = false,
+  mostrarVb = false,
+  puedeDecidirVb = false,
+}: {
+  filas: FilaAvanceItem[];
+  soloLectura?: boolean;
+  /** El registro ya está en (o pasó por) VB — se muestra la columna, aunque el visitante actual no pueda decidir. */
+  mostrarVb?: boolean;
+  /** El usuario actual es a quien se le pidió el VB (o ADMIN) — puede usar Aprobado/Rechazado en líneas aún PENDIENTE. */
+  puedeDecidirVb?: boolean;
+}) {
   if (filas.length === 0) {
     return <p className="mt-4 text-sm text-muted-foreground">Todavía no hay ítems añadidos a este registro. Usa &quot;Añadir Items&quot;.</p>;
   }
@@ -40,11 +61,12 @@ export function TablaAvanceItems({ filas, soloLectura = false }: { filas: FilaAv
             {!soloLectura && <TableHead className="min-w-[220px]">Avance a registrar</TableHead>}
             <TableHead numeric>Saldo cant.</TableHead>
             <TableHead numeric>Saldo valor</TableHead>
+            {mostrarVb && <TableHead className="min-w-[260px]">Visto bueno</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {filas.map((fila) => (
-            <FilaAvance key={fila.itemRegistroAvanceId} fila={fila} soloLectura={soloLectura} />
+            <FilaAvance key={fila.itemRegistroAvanceId} fila={fila} soloLectura={soloLectura} mostrarVb={mostrarVb} puedeDecidirVb={puedeDecidirVb} />
           ))}
         </TableBody>
       </Table>
@@ -52,9 +74,20 @@ export function TablaAvanceItems({ filas, soloLectura = false }: { filas: FilaAv
   );
 }
 
-function FilaAvance({ fila, soloLectura }: { fila: FilaAvanceItem; soloLectura: boolean }) {
+function FilaAvance({
+  fila,
+  soloLectura,
+  mostrarVb,
+  puedeDecidirVb,
+}: {
+  fila: FilaAvanceItem;
+  soloLectura: boolean;
+  mostrarVb: boolean;
+  puedeDecidirVb: boolean;
+}) {
   const [tipo, setTipo] = useState<TipoRegistroAvanceInput | "">("");
   const [valor, setValor] = useState("");
+  const [observacionesVB, setObservacionesVB] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -78,6 +111,22 @@ function FilaAvance({ fila, soloLectura }: { fila: FilaAvanceItem; soloLectura: 
       }
       toast.success("Avance registrado");
       setValor("");
+      router.refresh();
+    });
+  }
+
+  function handleDecidirVb(decision: "APROBADO" | "RECHAZADO") {
+    if (decision === "RECHAZADO" && !observacionesVB.trim()) {
+      toast.error("Las observaciones son obligatorias para rechazar.");
+      return;
+    }
+    startTransition(async () => {
+      const resultado = await decidirVbItemAction(fila.itemRegistroAvanceId, decision, observacionesVB);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(decision === "APROBADO" ? "Línea aprobada" : "Línea rechazada");
       router.refresh();
     });
   }
@@ -137,6 +186,52 @@ function FilaAvance({ fila, soloLectura }: { fila: FilaAvanceItem; soloLectura: 
       <TableCell numeric className="font-medium">
         {formatMoneda(fila.saldoValor.toString(), fila.moneda)}
       </TableCell>
+      {mostrarVb && (
+        <TableCell>
+          {fila.estadoVB === "PENDIENTE" ? (
+            puedeDecidirVb ? (
+              <div className="space-y-1.5">
+                <Input
+                  placeholder="Observaciones (obligatorias si rechazas)"
+                  value={observacionesVB}
+                  onChange={(e) => setObservacionesVB(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => handleDecidirVb("APROBADO")}
+                    className="text-green-700 hover:text-green-800"
+                  >
+                    Aprobado
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => handleDecidirVb("RECHAZADO")}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    Rechazado
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Badge variant="secondary">Pendiente</Badge>
+            )
+          ) : (
+            <div className="space-y-1">
+              <Badge variant={fila.estadoVB === "APROBADO" ? "success" : "destructive"}>
+                {fila.estadoVB === "APROBADO" ? "Aprobado" : "Rechazado"}
+              </Badge>
+              {fila.observacionesVB && <p className="text-xs text-muted-foreground">&quot;{fila.observacionesVB}&quot;</p>}
+            </div>
+          )}
+        </TableCell>
+      )}
     </TableRow>
   );
 }

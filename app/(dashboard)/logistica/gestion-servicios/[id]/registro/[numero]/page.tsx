@@ -10,7 +10,6 @@ import { TablaAvanceItems, type FilaAvanceItem } from "./tabla-avance-items";
 import { SustentosSection, type SustentoGuardado } from "./sustentos-section";
 import { CulminarRegistroBoton } from "./culminar-registro-boton";
 import { SolicitarVbDialog, type UsuarioOpcion } from "./solicitar-vb-dialog";
-import { DecidirVbSection } from "./decidir-vb-section";
 
 const ESTADO_LABEL = {
   ABIERTO: "Abierto",
@@ -102,6 +101,8 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
       moneda: servicio.ordenCompra.moneda,
       saldoCantidad: cantidadTotal - acumulado.cantidad,
       saldoValor: valorTotal - acumulado.valorizado,
+      estadoVB: itemGestionado.estadoVB,
+      observacionesVB: itemGestionado.observacionesVB,
     };
   });
 
@@ -120,6 +121,7 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
 
   const puedeDecidirVb =
     registro.estado === "PENDIENTE_VB" && !!usuario && (registro.aprobadorId === usuario.id || usuario.roles.includes("ADMIN"));
+  const mostrarVb = registro.estado === "PENDIENTE_VB" || registro.estado === "APROBADO" || registro.estado === "RECHAZADO";
 
   return (
     <div>
@@ -133,11 +135,9 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
       <PageHeader
         titulo={`OS ${servicio.ordenCompra.numero} - Registro de Avance ${numero}`}
         descripcion={
-          registro.estado === "RECHAZADO" && registro.observacionesVB
-            ? `Rechazado: "${registro.observacionesVB}"`
-            : registro.estado === "APROBADO" && registro.fechaDecision
-              ? `Aprobado el ${formatDateTime(registro.fechaDecision)}`
-              : undefined
+          registro.fechaDecision
+            ? `${registro.estado === "RECHAZADO" ? "Rechazado" : "Aprobado"} el ${formatDateTime(registro.fechaDecision)}`
+            : undefined
         }
         acciones={
           <div className="flex items-center gap-2">
@@ -149,11 +149,9 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
         }
       />
 
-      <TablaAvanceItems filas={filasAvance} soloLectura={soloLectura} />
+      <TablaAvanceItems filas={filasAvance} soloLectura={soloLectura} mostrarVb={mostrarVb} puedeDecidirVb={puedeDecidirVb} />
 
       <SustentosSection registroAvanceId={registro.id} sustentos={sustentos} soloLectura={soloLectura} />
-
-      {puedeDecidirVb && <DecidirVbSection registroAvanceId={registro.id} />}
     </div>
   );
 }

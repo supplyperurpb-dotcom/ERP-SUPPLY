@@ -893,10 +893,21 @@ model OrdenCompraItem {
 // mismo registro, pero sí puede volver a añadirse en un registro
 // posterior distinto (para seguir registrando avance contra su saldo).
 model ItemRegistroAvance {
-  id               String   @id @default(cuid())
-  registroAvanceId String
+  id                String      @id @default(cuid())
+  registroAvanceId  String
   ordenCompraItemId String
-  createdAt        DateTime @default(now())
+  // VB por LÍNEA (pedido explícito: el comentario y los botones de
+  // Aprobado/Rechazado van al costado de cada línea, no uno solo para
+  // todo el registro) — reusa EstadoFirma (PENDIENTE/APROBADO/RECHAZADO),
+  // el mismo enum que OrdenCompraFirma. Cuando ninguna línea del registro
+  // queda PENDIENTE, se recalcula el estado del RegistroAvance completo
+  // (ver decidirVbItemAction): RECHAZADO si alguna línea se rechazó, si
+  // no APROBADO.
+  estadoVB          EstadoFirma @default(PENDIENTE)
+  observacionesVB   String?
+  decididoPorId     String?
+  fechaDecisionVB   DateTime?
+  createdAt         DateTime    @default(now())
 
   registroAvance  RegistroAvance       @relation(fields: [registroAvanceId], references: [id], onDelete: Cascade)
   ordenCompraItem OrdenCompraItem      @relation(fields: [ordenCompraItemId], references: [id])

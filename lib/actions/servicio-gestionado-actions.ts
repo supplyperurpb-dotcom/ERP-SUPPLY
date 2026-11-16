@@ -350,8 +350,8 @@ export async function solicitarVbRegistroAvanceAction(
 // explícito. Solo lo puede hacer el usuario al que se le pidió, o un
 // ADMIN (mismo criterio de respaldo que el resto de flujos de aprobación
 // de este ERP, ver firmarOrdenCompraAction).
-export async function decidirVbRegistroAvanceAction(
-  registroAvanceId: string,
+export async function decidirVbItemAction(
+  itemRegistroAvanceId: string,
   decision: "APROBADO" | "RECHAZADO",
   observaciones: string | undefined
 ): Promise<ServicioGestionadoActionState> {
@@ -362,29 +362,53 @@ export async function decidirVbRegistroAvanceAction(
       return { error: "Las observaciones son obligatorias para rechazar." };
     }
 
-    const datos = await rutaRegistro(registroAvanceId);
-    if (!datos) return { error: "Este registro de avance ya no existe." };
-    if (datos.registro.estado !== "PENDIENTE_VB") return { error: "Este registro no está pendiente de VB." };
+    const item = await prisma.itemRegistroAvance.findUnique({
+      where: { id: itemRegistroAvanceId },
+      include: { registroAvance: { include: { servicioGestionado: true } } },
+    });
+    if (!item) return { error: "Esta línea ya no existe." };
+    const registro = item.registroAvance;
+    if (registro.estado !== "PENDIENTE_VB") return { error: "Este registro no está pendiente de VB." };
 
     const esAdmin = usuario.roles.includes("ADMIN");
-    if (datos.registro.aprobadorId !== usuario.id && !esAdmin) {
+    if (registro.aprobadorId !== usuario.id && !esAdmin) {
       return { error: "No te corresponde dar el VB de este registro." };
     }
 
-    await prisma.registroAvance.update({
-      where: { id: registroAvanceId },
+    await prisma.itemRegistroAvance.update({
+      where: { id: itemRegistroAvanceId },
       data: {
-        estado: decision,
-        decididoPorId: usuario.id,
+        estadoVB: decision,
         observacionesVB: observaciones?.trim() || null,
-        fechaDecision: new Date(),
+        decididoPorId: usuario.id,
+        fechaDecisionVB: new Date(),
       },
     });
 
-    revalidatePath(datos.ruta);
+    // Recalcula el estado del RegistroAvance completo una vez que ninguna
+    // de sus líneas queda PENDIENTE: RECHAZADO si alguna se rechazó, si
+    // no APROBADO.
+    const todasLasLineas = await prisma.itemRegistroAvance.findMany({
+      where: { registroAvanceId: registro.id },
+      select: { estadoVB: true },
+    });
+    const quedaAlgunaPendiente = todasLasLineas.some((l) => l.estadoVB === "PENDIENTE");
+    if (!quedaAlgunaPendiente) {
+      const algunaRechazada = todasLasLineas.some((l) => l.estadoVB === "RECHAZADO");
+      await prisma.registroAvance.update({
+        where: { id: registro.id },
+        data: {
+          estado: algunaRechazada ? "RECHAZADO" : "APROBADO",
+          decididoPorId: usuario.id,
+          fechaDecision: new Date(),
+        },
+      });
+    }
+
+    revalidatePath(`/logistica/gestion-servicios/${registro.servicioGestionado.ordenCompraId}/registro/${registro.numero}`);
     return undefined;
   } catch (e) {
-    console.error("Error inesperado en decidirVbRegistroAvanceAction:", e);
+    console.error("Error inesperado en decidirVbItemAction:", e);
     return { error: e instanceof Error ? e.message : "Error inesperado al resolver el VB." };
   }
 }
