@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSearch } from "@/components/ui/data-table";
 import { cn } from "@/lib/utils";
 import { agregarServicioGestionadoAction } from "@/lib/actions/servicio-gestionado-actions";
 
@@ -26,12 +27,24 @@ export type OrdenServicioDisponible = {
 export function AgregarServicioDialog({ ordenes }: { ordenes: OrdenServicioDisponible[] }) {
   const [open, setOpen] = useState(false);
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  const ordenesFiltradas = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase();
+    if (!termino) return ordenes;
+    return ordenes.filter(
+      (o) => o.numero.toLowerCase().includes(termino) || o.proveedorRazonSocial.toLowerCase().includes(termino)
+    );
+  }, [ordenes, busqueda]);
+
   function handleOpenChange(valor: boolean) {
     setOpen(valor);
-    if (!valor) setSeleccionadaId(null);
+    if (!valor) {
+      setSeleccionadaId(null);
+      setBusqueda("");
+    }
   }
 
   function handleAgregar() {
@@ -66,32 +79,48 @@ export function AgregarServicioDialog({ ordenes }: { ordenes: OrdenServicioDispo
             No hay órdenes de servicio aprobadas disponibles para agregar.
           </p>
         ) : (
-          <div className="max-h-[420px] overflow-y-auto rounded-md border">
-            <Table>
-              <TableHeader className="sticky top-0 bg-muted/40">
-                <TableRow>
-                  <TableHead>N.º de orden</TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead numeric>Monto</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ordenes.map((orden) => (
-                  <TableRow
-                    key={orden.id}
-                    className={cn("cursor-pointer", seleccionadaId === orden.id && "bg-muted")}
-                    onClick={() => setSeleccionadaId(orden.id)}
-                  >
-                    <TableCell className="font-mono font-medium">{orden.numero}</TableCell>
-                    <TableCell>{orden.proveedorRazonSocial}</TableCell>
-                    <TableCell>{orden.fecha}</TableCell>
-                    <TableCell numeric>{orden.montoTotal}</TableCell>
+          <>
+            <TableSearch
+              placeholder="Buscar por N.º de orden o proveedor..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="mb-3 max-w-none"
+            />
+            <div className="max-h-[420px] overflow-y-auto rounded-md border">
+              <Table>
+                <TableHeader className="sticky top-0 bg-muted/40">
+                  <TableRow>
+                    <TableHead>N.º de orden</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead numeric>Monto</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {ordenesFiltradas.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                        Ningún resultado coincide con la búsqueda.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    ordenesFiltradas.map((orden) => (
+                      <TableRow
+                        key={orden.id}
+                        className={cn("cursor-pointer", seleccionadaId === orden.id && "bg-muted")}
+                        onClick={() => setSeleccionadaId(orden.id)}
+                      >
+                        <TableCell className="font-mono font-medium">{orden.numero}</TableCell>
+                        <TableCell>{orden.proveedorRazonSocial}</TableCell>
+                        <TableCell>{orden.fecha}</TableCell>
+                        <TableCell numeric>{orden.montoTotal}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
 
         <DialogFooter>
