@@ -217,14 +217,15 @@ export function IngresoAlmacenWizard({
     setResultado(null);
   }
 
-  // Paso 1: "Anterior" (vuelve a dejar el almacén editable) y "Siguiente"
-  // (pasa al paso 2) van juntos arriba a la derecha, a la altura del
-  // título — no al costado del campo Almacén ni al pie de la tarjeta.
+  // Paso 1: "Cambiar almacén" (vuelve a dejar el almacén editable — no es
+  // un "volver atrás" de navegación, por eso no se llama "Anterior"; ver
+  // el link "Volver a Almacenes" para eso) y "Siguiente" (pasa al paso 2)
+  // van juntos arriba a la derecha, a la altura del título.
   const accionesPaso1 = (
     <>
       {almacenBloqueado && (
         <Button type="button" variant="outline" onClick={() => setAlmacenBloqueado(false)}>
-          Anterior
+          Cambiar almacén
         </Button>
       )}
       <Button type="button" onClick={irAPaso2}>
@@ -233,9 +234,16 @@ export function IngresoAlmacenWizard({
     </>
   );
 
+  const volverAAlmacenes = (
+    <Link href="/logistica/almacenes" className="mb-3 inline-block text-sm text-muted-foreground hover:text-foreground">
+      ← Volver a Almacenes
+    </Link>
+  );
+
   if (paso === 3 && resultado) {
     return (
       <div className="space-y-6">
+        {volverAAlmacenes}
         <PageHeader titulo={titulo} />
         <Card>
           <CardHeader>
@@ -305,6 +313,7 @@ export function IngresoAlmacenWizard({
   if (paso === 2) {
     return (
       <div className="space-y-6">
+        {volverAAlmacenes}
         <PageHeader titulo={titulo} />
         <Card>
           <CardHeader>
@@ -474,6 +483,7 @@ export function IngresoAlmacenWizard({
 
   return (
     <div className="space-y-6">
+      {volverAAlmacenes}
       <PageHeader titulo={titulo} descripcion={descripcion} acciones={accionesPaso1} />
       <Card>
         <CardHeader>
