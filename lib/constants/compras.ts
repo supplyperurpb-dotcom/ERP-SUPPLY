@@ -230,7 +230,7 @@ export const CONDICIONES_PAGO = [
   "ADELANTO 30%",
   "ADELANTO 40%",
   "ADELANTO 50%",
-  "SEGUN OBSERVACION",
+  "SEGUN NEGOCIACION",
 ] as const;
 
 export type CondicionPagoCodigo = (typeof CONDICIONES_PAGO)[number];
