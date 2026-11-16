@@ -217,17 +217,14 @@ export function IngresoAlmacenWizard({
     setResultado(null);
   }
 
-  // Paso 1: "Cambiar almacén" (vuelve a dejar el almacén editable — no es
-  // un "volver atrás" de navegación, por eso no se llama "Anterior"; ver
-  // el link "Volver a Almacenes" para eso) y "Siguiente" (pasa al paso 2)
-  // van juntos arriba a la derecha, a la altura del título.
+  // Paso 1: "Anterior" (pedido explícito: vuelve a la lista de Almacenes,
+  // no solo desbloquea el campo) y "Siguiente" (pasa al paso 2) van
+  // juntos arriba a la derecha, a la altura del título.
   const accionesPaso1 = (
     <>
-      {almacenBloqueado && (
-        <Button type="button" variant="outline" onClick={() => setAlmacenBloqueado(false)}>
-          Cambiar almacén
-        </Button>
-      )}
+      <Button type="button" variant="outline" asChild>
+        <Link href="/logistica/almacenes">Anterior</Link>
+      </Button>
       <Button type="button" onClick={irAPaso2}>
         Siguiente
       </Button>
@@ -483,7 +480,6 @@ export function IngresoAlmacenWizard({
 
   return (
     <div className="space-y-6">
-      {volverAAlmacenes}
       <PageHeader titulo={titulo} descripcion={descripcion} acciones={accionesPaso1} />
       <Card>
         <CardHeader>
