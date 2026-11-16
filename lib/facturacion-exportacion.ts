@@ -269,6 +269,46 @@ export function calcularParticipacionLiquidado(filas: FilaFacturacion[], campo: 
     .sort((a, b) => b.netWeight - a.netWeight);
 }
 
+// Misma idea que calcularParticipacion, pero la participación (%) se
+// calcula sobre invoicedAmount (valorizado facturado) en vez de netWeight
+// — pedido explícito, para comparar Premium vs. Convencional por su peso
+// en valor, no en kg. netWeight/puCif se siguen mostrando igual, solo
+// cambia la base del %.
+export function calcularParticipacionPorValor(filas: FilaFacturacion[], campo: CampoDimension): Participacion[] {
+  const agrupado = agruparPorDimension(filas, campo);
+  const totalValor = agrupado.reduce((acc, d) => acc + d.invoicedAmount, 0);
+  if (totalValor === 0) return [];
+  return agrupado.map((d) => ({
+    etiqueta: d.etiqueta,
+    netWeight: d.netWeight,
+    participacionPct: (d.invoicedAmount / totalValor) * 100,
+    puCif: d.netWeight > 0 ? d.invoicedAmount / d.netWeight : null,
+  }));
+}
+
+// Misma idea que calcularParticipacionLiquidado, pero la participación
+// (%) se calcula sobre el valor liquidado en vez de los kg liquidados.
+export function calcularParticipacionLiquidadoPorValor(filas: FilaFacturacion[], campo: CampoDimension): Participacion[] {
+  const mapa = new Map<string, { kg: number; valor: number }>();
+  for (const f of filas) {
+    const etiqueta = f[campo];
+    const actual = mapa.get(etiqueta) ?? { kg: 0, valor: 0 };
+    actual.kg += kgLiquidadoValido(f);
+    actual.valor += valorLiquidadoValido(f);
+    mapa.set(etiqueta, actual);
+  }
+  const totalValor = [...mapa.values()].reduce((acc, t) => acc + t.valor, 0);
+  if (totalValor === 0) return [];
+  return [...mapa.entries()]
+    .map(([etiqueta, t]) => ({
+      etiqueta,
+      netWeight: t.kg,
+      participacionPct: (t.valor / totalValor) * 100,
+      puCif: t.kg > 0 ? t.valor / t.kg : null,
+    }))
+    .sort((a, b) => b.netWeight - a.netWeight);
+}
+
 export type OpcionesFiltro = {
   weeks: number[];
   markets: string[];

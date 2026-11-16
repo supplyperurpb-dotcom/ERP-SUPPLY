@@ -8,6 +8,8 @@ import {
   calcularEvolucionPrecioSemanal,
   calcularParticipacion,
   calcularParticipacionLiquidado,
+  calcularParticipacionPorValor,
+  calcularParticipacionLiquidadoPorValor,
   obtenerOpcionesFiltro,
   calcularExportacionesPorVariedadYMercado,
   calcularExportacionesPorVariedadYTipo,
@@ -43,6 +45,11 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
   const porLiquidar = useMemo(() => calcularPorLiquidar(filasFiltradas), [filasFiltradas]);
   const participacionTipo = useMemo(() => calcularParticipacion(filasFiltradas, "type"), [filasFiltradas]);
   const participacionTipoLiquidado = useMemo(() => calcularParticipacionLiquidado(filasFiltradas, "type"), [filasFiltradas]);
+  const participacionTipoValor = useMemo(() => calcularParticipacionPorValor(filasFiltradas, "type"), [filasFiltradas]);
+  const participacionTipoLiquidadoValor = useMemo(
+    () => calcularParticipacionLiquidadoPorValor(filasFiltradas, "type"),
+    [filasFiltradas]
+  );
   const porDestino = useMemo(() => agruparPorDimension(filasFiltradas, "destinationCountry"), [filasFiltradas]);
   const porMercado = useMemo(() => agruparPorDimension(filasFiltradas, "market"), [filasFiltradas]);
   const porOrigen = useMemo(() => agruparPorDimension(filasFiltradas, "originPort"), [filasFiltradas]);
@@ -83,6 +90,14 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <PremiumConvencionalCard titulo="Kg Facturados" datos={participacionTipo} variante="facturado" />
           <PremiumConvencionalCard titulo="Kg Liquidados" datos={participacionTipoLiquidado} variante="liquidado" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Premium vs Convencional (por valorizado)</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <PremiumConvencionalCard titulo="Valorizado Facturado" datos={participacionTipoValor} variante="facturado" />
+          <PremiumConvencionalCard titulo="Valorizado Liquidado" datos={participacionTipoLiquidadoValor} variante="liquidado" />
         </div>
       </div>
 
