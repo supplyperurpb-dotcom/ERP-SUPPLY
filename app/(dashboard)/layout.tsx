@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/shared/dashboard-shell";
 import { ConfirmDialogProvider } from "@/components/shared/confirm-dialog-provider";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { rutaPermitida } from "@/lib/auth/acceso-modulos";
+import { obtenerNotificacionesPendientes } from "@/lib/notificaciones";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const usuario = await getUsuarioActual();
@@ -29,8 +30,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/inicio");
   }
 
+  const notificaciones = await obtenerNotificacionesPendientes(usuario);
+
   return (
-    <DashboardShell roles={usuario.roles} usuario={usuario}>
+    <DashboardShell roles={usuario.roles} usuario={usuario} notificaciones={notificaciones}>
       <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
     </DashboardShell>
   );

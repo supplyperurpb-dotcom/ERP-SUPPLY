@@ -13,14 +13,18 @@ import {
 import { ROL_LABELS, type RolNombre } from "@/lib/auth/constants";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import type { UsuarioActual } from "@/lib/auth/session";
+import { NotificacionesBell } from "@/components/shared/notificaciones-bell";
+import type { NotificacionPendiente } from "@/lib/notificaciones";
 
 export function Topbar({
   usuario,
+  notificaciones,
   onAbrirMenu,
   sidebarColapsado = false,
   onMostrarSidebar,
 }: {
   usuario: UsuarioActual;
+  notificaciones: NotificacionPendiente[];
   onAbrirMenu?: () => void;
   /** Si el menú lateral está oculto en escritorio (ver DashboardShell). */
   sidebarColapsado?: boolean;
@@ -55,37 +59,40 @@ export function Topbar({
         </div>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 px-2">
-            <Avatar>
-              <AvatarFallback>{iniciales || "US"}</AvatarFallback>
-            </Avatar>
-            <span className="hidden text-sm font-medium sm:inline">
-              {usuario.nombres} {usuario.apellidos}
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>
-            <div className="flex flex-col">
-              <span className="font-medium">{usuario.nombres} {usuario.apellidos}</span>
-              <span className="text-xs font-normal text-muted-foreground">{usuario.email}</span>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <form action={logoutAction}>
-            <button type="submit" className="w-full">
-              <DropdownMenuItem asChild>
-                <div className="flex cursor-pointer items-center gap-2 text-destructive">
-                  <LogOut className="h-4 w-4" />
-                  Cerrar sesión
-                </div>
-              </DropdownMenuItem>
-            </button>
-          </form>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-1">
+        <NotificacionesBell notificaciones={notificaciones} />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 px-2">
+              <Avatar>
+                <AvatarFallback>{iniciales || "US"}</AvatarFallback>
+              </Avatar>
+              <span className="hidden text-sm font-medium sm:inline">
+                {usuario.nombres} {usuario.apellidos}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col">
+                <span className="font-medium">{usuario.nombres} {usuario.apellidos}</span>
+                <span className="text-xs font-normal text-muted-foreground">{usuario.email}</span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <form action={logoutAction}>
+              <button type="submit" className="w-full">
+                <DropdownMenuItem asChild>
+                  <div className="flex cursor-pointer items-center gap-2 text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    Cerrar sesión
+                  </div>
+                </DropdownMenuItem>
+              </button>
+            </form>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

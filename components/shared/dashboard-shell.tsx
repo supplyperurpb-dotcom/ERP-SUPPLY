@@ -5,6 +5,7 @@ import { SidebarNav } from "@/components/shared/sidebar-nav";
 import { Topbar } from "@/components/shared/topbar";
 import type { RolNombre } from "@/lib/auth/constants";
 import type { UsuarioActual } from "@/lib/auth/session";
+import type { NotificacionPendiente } from "@/lib/notificaciones";
 
 // Se recuerda entre sesiones para que, p. ej., alguien viendo seguido el
 // Resumen de Exportaciones no tenga que volver a ocultar el menú cada vez.
@@ -13,10 +14,12 @@ const CLAVE_SIDEBAR_COLAPSADO = "sidebar-colapsado";
 export function DashboardShell({
   roles,
   usuario,
+  notificaciones,
   children,
 }: {
   roles: RolNombre[];
   usuario: UsuarioActual;
+  notificaciones: NotificacionPendiente[];
   children: React.ReactNode;
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -66,6 +69,7 @@ export function DashboardShell({
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar
           usuario={usuario}
+          notificaciones={notificaciones}
           onAbrirMenu={() => setMenuAbierto(true)}
           sidebarColapsado={sidebarColapsado}
           onMostrarSidebar={alternarSidebar}
