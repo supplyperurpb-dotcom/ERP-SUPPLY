@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Eye, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,8 +70,10 @@ export function SustentosSection({
                 href={`/api/gestion-servicios/sustento/${s.id}/archivo`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-primary hover:underline"
+                title="Ver archivo"
               >
+                <Eye className="h-3.5 w-3.5 shrink-0" />
                 {s.nombreArchivo}
               </a>
             </div>
@@ -112,16 +114,17 @@ function SustentoBorrador({
   onGuardado: () => void;
   onCancelar: () => void;
 }) {
-  const [archivo, setArchivo] = useState<File | null>(null);
   const [pending, startTransition] = useTransition();
+  const inputArchivoRef = useRef<HTMLInputElement>(null);
 
-  function handleSubir() {
+  // Pedido explícito: no hay botón "Subir archivo" — elegir el archivo en
+  // el selector ya sube y guarda el sustento (descripción + archivo
+  // juntos, ver agregarSustentoRegistroAvanceAction).
+  function handleArchivoElegido(archivo: File | undefined) {
+    if (!archivo) return;
     if (!descripcion.trim()) {
-      toast.error("Escribe una descripción del sustento.");
-      return;
-    }
-    if (!archivo) {
-      toast.error("Selecciona un archivo.");
+      toast.error("Escribe una descripción del sustento antes de elegir el archivo.");
+      if (inputArchivoRef.current) inputArchivoRef.current.value = "";
       return;
     }
     startTransition(async () => {
@@ -130,11 +133,13 @@ function SustentoBorrador({
       const subida = await subirArchivoSustentoAction(formData);
       if (subida.error || !subida.path || !subida.nombreArchivo) {
         toast.error(subida.error ?? "No se pudo subir el archivo");
+        if (inputArchivoRef.current) inputArchivoRef.current.value = "";
         return;
       }
       const resultado = await agregarSustentoRegistroAvanceAction(registroAvanceId, descripcion, subida.path, subida.nombreArchivo);
       if (resultado?.error) {
         toast.error(resultado.error);
+        if (inputArchivoRef.current) inputArchivoRef.current.value = "";
         return;
       }
       toast.success("Sustento añadido");
@@ -146,21 +151,23 @@ function SustentoBorrador({
     <div className="space-y-2 rounded-md border p-3">
       <p className="text-sm font-medium">Sustento Nro {numero}</p>
       <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-        <Input placeholder="Descripción" value={descripcion} onChange={(e) => onDescripcionChange(e.target.value)} />
         <Input
+          placeholder="Descripción"
+          value={descripcion}
+          onChange={(e) => onDescripcionChange(e.target.value)}
+          disabled={pending}
+        />
+        <Input
+          ref={inputArchivoRef}
           type="file"
           accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-          onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+          disabled={pending}
+          onChange={(e) => handleArchivoElegido(e.target.files?.[0])}
           className="sm:w-56"
         />
-        <div className="flex gap-2">
-          <Button type="button" size="sm" disabled={pending} onClick={handleSubir}>
-            Subir archivo
-          </Button>
-          <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onCancelar}>
-            Cancelar
-          </Button>
-        </div>
+        <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onCancelar}>
+          Cancelar
+        </Button>
       </div>
     </div>
   );
