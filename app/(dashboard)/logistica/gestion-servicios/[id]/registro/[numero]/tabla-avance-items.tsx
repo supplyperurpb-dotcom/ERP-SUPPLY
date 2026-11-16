@@ -30,6 +30,8 @@ export type FilaAvanceItem = {
   saldoValor: number;
   estadoVB: EstadoVBItem;
   observacionesVB: string | null;
+  /** Lo ya registrado en este ítem de ESTE registro (null = nada registrado todavía). */
+  avanceRegistrado: { cantidad: number; valorizado: number } | null;
 };
 
 export function TablaAvanceItems({
@@ -52,7 +54,11 @@ export function TablaAvanceItems({
     return <p className="mt-4 text-sm text-muted-foreground">Todavía no hay ítems añadidos a este registro. Usa &quot;Añadir Items&quot;.</p>;
   }
 
-  const mostrarColumnasRegistro = !soloLectura || puedeEditar;
+  // Pedido explícito: una vez enviado a aprobación, debe seguir viéndose
+  // lo que se registró — así que las columnas también se muestran si
+  // alguna línea ya tiene avance registrado, aunque el visitante no sea
+  // Comprador ni el registro siga ABIERTO.
+  const mostrarColumnasRegistro = !soloLectura || puedeEditar || filas.some((f) => f.avanceRegistrado !== null);
 
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border">
@@ -173,7 +179,7 @@ function FilaAvance({
         {formatCantidad(fila.cantidadTotal)} {fila.unidadMedida}
       </TableCell>
       <TableCell numeric>{formatMoneda((fila.cantidadTotal * fila.precioUnitario).toString(), fila.moneda)}</TableCell>
-      {(mostrarControlesRegistro || puedeEditar) && (
+      {(mostrarControlesRegistro || puedeEditar || fila.avanceRegistrado) && (
         <TableCell>
           {mostrarControlesRegistro ? (
             <Select value={tipo} onValueChange={(v) => setTipo(v as TipoRegistroAvanceInput)}>
@@ -194,31 +200,40 @@ function FilaAvance({
           )}
         </TableCell>
       )}
-      {(mostrarControlesRegistro || puedeEditar) && (
+      {(mostrarControlesRegistro || puedeEditar || fila.avanceRegistrado) && (
         <TableCell>
-          {mostrarControlesRegistro && tipo !== "" && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={0}
-                  step="any"
-                  placeholder={tipo === "PORCENTUAL" ? "% de avance" : `Cantidad (${fila.unidadMedida})`}
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                  className="w-28"
-                />
-                <Button type="button" size="sm" disabled={!esValido || pending} onClick={handleRegistrar}>
-                  Registrar
-                </Button>
+          {mostrarControlesRegistro ? (
+            tipo !== "" && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder={tipo === "PORCENTUAL" ? "% de avance" : `Cantidad (${fila.unidadMedida})`}
+                    value={valor}
+                    onChange={(e) => setValor(e.target.value)}
+                    className="w-28"
+                  />
+                  <Button type="button" size="sm" disabled={!esValido || pending} onClick={handleRegistrar}>
+                    Registrar
+                  </Button>
+                </div>
+                {preview && (
+                  <p className="text-xs text-muted-foreground">
+                    {tipo === "PORCENTUAL" && `${valorNumerico.toFixed(1)}% = `}
+                    {formatCantidad(preview.cantidad)} {fila.unidadMedida} · {formatMoneda(preview.valorizado.toString(), fila.moneda)}
+                  </p>
+                )}
               </div>
-              {preview && (
-                <p className="text-xs text-muted-foreground">
-                  {tipo === "PORCENTUAL" && `${valorNumerico.toFixed(1)}% = `}
-                  {formatCantidad(preview.cantidad)} {fila.unidadMedida} · {formatMoneda(preview.valorizado.toString(), fila.moneda)}
-                </p>
-              )}
-            </div>
+            )
+          ) : fila.avanceRegistrado ? (
+            <p className="text-sm font-medium">
+              {formatCantidad(fila.avanceRegistrado.cantidad)} {fila.unidadMedida} ·{" "}
+              {formatMoneda(fila.avanceRegistrado.valorizado.toString(), fila.moneda)}
+            </p>
+          ) : (
+            <span className="text-sm text-muted-foreground">—</span>
           )}
         </TableCell>
       )}

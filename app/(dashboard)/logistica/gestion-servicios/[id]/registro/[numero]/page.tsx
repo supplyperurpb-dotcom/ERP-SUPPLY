@@ -49,7 +49,7 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
   const registro = await prisma.registroAvance.findUnique({
     where: { servicioGestionadoId_numero: { servicioGestionadoId: servicio.id, numero } },
     include: {
-      items: { include: { ordenCompraItem: { include: { sku: true } } } },
+      items: { include: { ordenCompraItem: { include: { sku: true } }, avances: true } },
       sustentos: { orderBy: { numero: "asc" } },
     },
   });
@@ -94,6 +94,13 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
     const cantidadTotal = Number(itemGestionado.ordenCompraItem.cantidad);
     const valorTotal = Number(itemGestionado.ordenCompraItem.subtotal);
     const acumulado = acumuladoPorItem.get(itemGestionado.ordenCompraItemId) ?? { cantidad: 0, valorizado: 0 };
+    // Lo ya registrado en ESTE ítem de ESTE registro (no el acumulado de
+    // toda la OS) — pedido explícito: debe seguir viéndose una vez
+    // enviado a aprobación, no solo mientras está ABIERTO.
+    const avanceRegistrado = itemGestionado.avances.reduce(
+      (acc, a) => ({ cantidad: acc.cantidad + Number(a.cantidad), valorizado: acc.valorizado + Number(a.valorizado) }),
+      { cantidad: 0, valorizado: 0 }
+    );
     return {
       itemRegistroAvanceId: itemGestionado.id,
       codigo: itemGestionado.ordenCompraItem.sku.codigo,
@@ -106,6 +113,7 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
       saldoValor: valorTotal - acumulado.valorizado,
       estadoVB: itemGestionado.estadoVB,
       observacionesVB: itemGestionado.observacionesVB,
+      avanceRegistrado: avanceRegistrado.cantidad > 0 ? avanceRegistrado : null,
     };
   });
 
