@@ -44,6 +44,8 @@ function claveFila(skuId: string, areaDetalle: string | null): string {
   return `${skuId}::${areaDetalle ?? "__sin_area__"}`;
 }
 
+const SIN_CAMPO = "__sin_campo__";
+
 export function SolicitudDespachoForm({
   skus,
   stockPorArea,
@@ -110,6 +112,7 @@ export function SolicitudDespachoForm({
   const [filaElegida, setFilaElegida] = useState<FilaStockArea | null>(null);
   const [cantidadNueva, setCantidadNueva] = useState("");
   const [centroCostoNuevo, setCentroCostoNuevo] = useState(centroCostoInicial);
+  const [campoNuevo, setCampoNuevo] = useState("");
 
   function abrirPicker() {
     setPickerOpen(true);
@@ -133,6 +136,7 @@ export function SolicitudDespachoForm({
     setFilaElegida(fila);
     setCantidadNueva("");
     setCentroCostoNuevo(centroCostoInicial);
+    setCampoNuevo("");
   }
 
   function restanteDeFila(fila: FilaStockArea): number {
@@ -168,12 +172,13 @@ export function SolicitudDespachoForm({
       cantidad,
       unidadMedida: filaElegida.unidadMedida,
       centroCosto: centroCostoNuevo,
-      campo: "",
+      campo: campoNuevo,
     });
     setAreaPorItem((prev) => [...prev, filaElegida.areaDetalle]);
     toast.success("Producto agregado");
     setFilaElegida(null);
     setCantidadNueva("");
+    setCampoNuevo("");
   }
 
   async function onSubmit(data: SolicitudDespachoInput) {
@@ -293,6 +298,7 @@ export function SolicitudDespachoForm({
                     <TableHead className="w-28 text-right">Cantidad</TableHead>
                     <TableHead className="w-20">U.M.</TableHead>
                     <TableHead className="w-44">Centro de costo</TableHead>
+                    <TableHead className="w-36">Campo</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -308,6 +314,7 @@ export function SolicitudDespachoForm({
                         <TableCell className="text-right">{formatCantidad(Number(items[index]?.cantidad) || 0)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{items[index]?.unidadMedida || "—"}</TableCell>
                         <TableCell className="text-sm">{items[index]?.centroCosto || "—"}</TableCell>
+                        <TableCell className="text-sm">{items[index]?.campo || "—"}</TableCell>
                         <TableCell>
                           <Button type="button" variant="ghost" size="icon" onClick={() => removerItem(index)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -416,6 +423,22 @@ export function SolicitudDespachoForm({
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Campo</Label>
+                  <Select value={campoNuevo || SIN_CAMPO} onValueChange={(v) => setCampoNuevo(v === SIN_CAMPO ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SIN_CAMPO}>—</SelectItem>
+                      {campos.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setFilaElegida(null)}>
                     Cancelar
@@ -443,6 +466,7 @@ export function SolicitudDespachoForm({
           setFilaElegida(filaCandidata);
           setCantidadNueva("");
           setCentroCostoNuevo(centroCostoInicial);
+          setCampoNuevo("");
           setFilaCandidata(null);
         }}
       />
