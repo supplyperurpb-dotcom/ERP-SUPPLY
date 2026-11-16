@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FileDown, ShoppingCart, Pencil } from "lucide-react";
+import { FileDown, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,10 +109,8 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     (usuario?.roles.includes("ANULADOR") ?? false) &&
     solicitud.estado !== "RECHAZADO" &&
     solicitud.estado !== "ANULADO";
-  // Los Compradores generan las OC/OS para toda la empresa, y son los
-  // únicos que pueden cerrar la posición de una línea pendiente (ver
-  // esComprador en lib/compras.ts).
-  const puedeGenerarOrden = !!usuario && esComprador(usuario);
+  // Los Compradores son los únicos que pueden cerrar la posición de una
+  // línea pendiente (ver esComprador en lib/compras.ts).
   const puedeCerrarPosicionesSolped = !!usuario && esComprador(usuario);
   // Editar: quien la creó, o Supply Chain/ADMIN (mismo criterio que
   // "areaEditable" al crear) — y solo si todavía no la jaló ninguna OC/OS
@@ -127,14 +125,6 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
     solicitud.estado !== "ANULADO" &&
     !fueJalada &&
     (usuario.roles.includes("ADMIN") || usuario.area === "SUPPLY_CHAIN" || solicitud.creadoPorId === usuario.id);
-  const tienePendiente = solicitud.items.some((item) => {
-    if (item.estado === "RECHAZADO" || item.cerrado) return false;
-    const jalado = item.ordenCompraItems
-      .filter((oci) => oci.ordenCompra.estado !== "RECHAZADO" && oci.ordenCompra.estado !== "ANULADO")
-      .reduce((acc, oci) => acc + Number(oci.cantidad), 0);
-    return Number(item.cantidad) - jalado > 0;
-  });
-
   // Para el seguimiento: por cada línea, cuánto ya se recibió en almacén (a
   // través de las OC activas que jalaron de ella) y con qué guía(s) de
   // remisión — una línea puede recibirse en más de un ingreso.
@@ -233,23 +223,6 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
               items={itemsSeguimiento}
               resumenesOrdenes={resumenesOrdenes}
             />
-            {puedeGenerarOrden &&
-              solicitud.estado === "APROBADO" &&
-              (tienePendiente ? (
-                <Button asChild>
-                  <Link
-                    href={`/logistica/ordenes-compra/nuevo?categoria=${solicitud.categoria}&solicitudId=${solicitud.id}`}
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
-                  </Link>
-                </Button>
-              ) : (
-                <Button disabled title="Ya no quedan ítems pendientes de esta solicitud para jalar a una orden">
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  Generar {solicitud.categoria === "SERVICIO" ? "OS" : "OC"}
-                </Button>
-              ))}
           </div>
         }
       />
@@ -334,7 +307,7 @@ export default async function SolicitudPedidoDetallePage({ params }: { params: P
                   <TableHead className="text-right">Pendiente</TableHead>
                   <TableHead>Centro de costo</TableHead>
                   <TableHead>Campo</TableHead>
-                  <TableHead>Órdenes de compra</TableHead>
+                  <TableHead>Orden de Compra</TableHead>
                   <TableHead>Decisión</TableHead>
                   <TableHead>Posición</TableHead>
                 </TableRow>

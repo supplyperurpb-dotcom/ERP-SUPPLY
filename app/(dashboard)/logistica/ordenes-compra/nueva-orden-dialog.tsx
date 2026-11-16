@@ -83,10 +83,10 @@ export function NuevaOrdenDialog({
             </DialogHeader>
             <div className="grid grid-cols-2 gap-3">
               <Button variant="outline" onClick={() => ir("ESTANDAR")}>
-                {nombreDocumento} Estándar
+                Estándar
               </Button>
               <Button variant="outline" onClick={() => ir("ABIERTA")}>
-                {nombreDocumento} Abierta
+                Abierta
               </Button>
             </div>
           </>
