@@ -650,6 +650,23 @@ model OrdenCompraFirma {
   @@map("orden_compra_firmas")
 }
 
+// Módulo de Gestión de Servicios: un registro por cada Orden de Servicio
+// (OrdenCompra.categoria = SERVICIO) ya APROBADA que alguien "agregó" acá
+// a propósito (ver agregarServicioGestionadoAction) — no se crea
+// automáticamente al aprobarse. @unique en ordenCompraId: una vez
+// agregada, esa orden ya no vuelve a salir en el selector (ver
+// ordenesServicioDisponiblesParaGestion en lib/compras.ts).
+model ServicioGestionado {
+  id            String   @id @default(cuid())
+  ordenCompraId String   @unique
+  creadoPorId   String?
+  createdAt     DateTime @default(now())
+
+  ordenCompra OrdenCompra @relation(fields: [ordenCompraId], references: [id])
+
+  @@map("servicios_gestionados")
+}
+
 // Decisión de aprobación de UNA línea (ítem) de una SolicitudPedido. Antes
 // la decisión era solo a nivel de documento completo; ahora cada ítem se
 // aprueba/rechaza por separado (ver decidirItemSolicitudAction) y recién
@@ -754,10 +771,11 @@ model OrdenCompra {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  proveedor       Proveedor          @relation(fields: [proveedorId], references: [id])
-  items           OrdenCompraItem[]
-  firmas          OrdenCompraFirma[]
-  ingresosAlmacen IngresoAlmacen[]
+  proveedor          Proveedor          @relation(fields: [proveedorId], references: [id])
+  items              OrdenCompraItem[]
+  firmas             OrdenCompraFirma[]
+  ingresosAlmacen    IngresoAlmacen[]
+  servicioGestionado ServicioGestionado?
 
   @@map("ordenes_compra")
 }

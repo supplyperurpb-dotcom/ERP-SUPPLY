@@ -23,6 +23,7 @@ import {
   Truck,
   Users,
   Warehouse,
+  Wrench,
 } from "lucide-react";
 import { MODULOS, type Modulo } from "@/lib/auth/constants";
 
@@ -48,6 +49,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
       { titulo: "Inicio", href: "/logistica", icono: LayoutGrid },
       { titulo: "Solicitudes de pedido", href: "/logistica/solicitudes-pedido", icono: ClipboardList },
       { titulo: "Órdenes de compra", href: "/logistica/ordenes-compra", icono: ShoppingCart },
+      { titulo: "Gestión de Servicios", href: "/logistica/gestion-servicios", icono: Wrench },
       { titulo: "Proveedores", href: "/logistica/proveedores", icono: Users },
       { titulo: "Creación de Materiales", href: "/logistica/sku", icono: Package },
       { titulo: "Inventario", href: "/logistica/inventario", icono: PackageSearch },
