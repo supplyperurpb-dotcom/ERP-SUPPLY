@@ -1977,6 +1977,12 @@ model FacturacionExportacion {
   // "LABEL" — etiqueta del empaque (JB / S&C / SB / YL en los datos
   // vistos; se guarda tal cual venga, sin validar contra esa lista).
   label                String
+  // "Destino" (columna de liquidación, distinta de "DESTINATION COUNTRY"
+  // de arriba) — normalmente vacía; cuando trae "TERMINAL MARKET" o "NON
+  // FRESH" ese kg liquidado se reclasifica a esa categoría y deja de
+  // contar como Premium/Convencional, sin importar lo que diga TYPE (ver
+  // categoriaLiquidacion en lib/facturacion-exportacion.ts).
+  destino              String?
   // "USD TOTAL FOB"
   totalFob             Decimal  @db.Decimal(14, 2)
   // "INVOICED AMOUNT - 1 (CIF)"

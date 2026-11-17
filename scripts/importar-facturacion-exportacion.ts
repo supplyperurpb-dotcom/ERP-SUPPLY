@@ -40,6 +40,7 @@ const COLUMNAS = {
   variety: "VARIETY",
   type: "TYPE",
   label: "LABEL",
+  destino: "Destino",
   totalFob: "USD TOTAL FOB",
   invoicedAmount: "INVOICED AMOUNT - 1 (CIF)",
   cifLiquidatedTariffs: "CIF Liquidated (Tariffs)",
@@ -63,6 +64,16 @@ function aTexto(valor: unknown): string {
 function aFecha(valor: unknown): Date | null {
   if (valor instanceof Date && !Number.isNaN(valor.getTime())) return valor;
   return null;
+}
+
+// La columna "Destino" trae otros valores sin relación (ej. "S") además de
+// "TERMINAL MARKET"/"NON FRESH" — solo estos dos importan para reclasificar
+// el kg liquidado (ver categoriaLiquidacion en lib/facturacion-exportacion.ts),
+// cualquier otra cosa se guarda como null.
+const DESTINOS_VALIDOS = new Set(["TERMINAL MARKET", "NON FRESH"]);
+function aDestino(valor: unknown): string | null {
+  const texto = normalizar(valor).toUpperCase();
+  return DESTINOS_VALIDOS.has(texto) ? texto : null;
 }
 
 // Para WEEK ETA / WEE ATA: el Excel usa "-" (o vacío) cuando el embarque
@@ -119,6 +130,7 @@ async function main() {
       variety: aTexto(fila[indicePorColumna.variety]),
       type: aTexto(fila[indicePorColumna.type]),
       label: aTexto(fila[indicePorColumna.label]),
+      destino: aDestino(fila[indicePorColumna.destino]),
       totalFob: aNumero(fila[indicePorColumna.totalFob]),
       invoicedAmount: aNumero(fila[indicePorColumna.invoicedAmount]),
       cifLiquidatedTariffs: aNumero(fila[indicePorColumna.cifLiquidatedTariffs]),

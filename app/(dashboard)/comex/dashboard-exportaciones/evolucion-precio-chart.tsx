@@ -1,29 +1,103 @@
 "use client";
 
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import type { TooltipContentProps } from "recharts";
 import { SectionCard } from "@/components/ui/cards/section-card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
-import { PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
+import { colorPara, PALETA_SOBRIA, COLOR_GRILLA, COLOR_EJE, ESTILO_LEYENDA, GROSOR_MAX_BARRA } from "./colores";
 import type { PuntoEvolucionPrecio } from "@/lib/facturacion-exportacion";
 
 // Mismos colores que las tarjetas KPI: azul claro para Facturado, plomo
 // claro para Liquidado — para que se lea como la misma historia.
 const AZUL = PALETA_SOBRIA[1];
 const GRIS = PALETA_SOBRIA[2];
-// Verde salvia para los Kg Liquidados: distinto de los dos tonos de
-// precio de arriba, para no confundirlo con ninguna de las dos líneas.
-const VERDE = PALETA_SOBRIA[4];
+// Premium/Convencional: mismos tonos semánticos que "Kg por semana de
+// despacho según tipo de producto" (ver COLOR_SEMANTICO en colores.ts).
+const COLOR_PREMIUM = colorPara("PREMIUM", 0);
+const COLOR_CONVENCIONAL = colorPara("CONVENCIONAL", 1);
+// Terminal Market y Non Fresh comparten un único color en la barra (pedido
+// explícito, 2026-11-17): son canales de menor valor que no interesa
+// diferenciar a simple vista, solo en el detalle del tooltip.
+const COLOR_TM_NF = PALETA_SOBRIA[4];
 
 const ETIQUETA_SERIE: Record<string, string> = {
   puFacturado: "PU CIF Facturado",
   puLiquidado: "PU CIF Liquidado",
-  kgLiquidado: "Kg Liquidado",
+  kgPremium: "PL = PREMIUM",
+  kgConvencional: "YL = CONVENCIONAL",
+  kgTerminalMarket: "TM = Terminal Market",
+  kgNonFresh: "NF = Non Fresh",
 };
 
-// Evolución semanal del precio unitario CIF (facturado y liquidado), con
-// los kg de cada uno en el tooltip y la semana mostrada como "W<n>" al
-// pasar el cursor. Genérico: no calcula nada, solo dibuja los puntos que
-// ya le llegan de calcularEvolucionPrecioSemanal (lib/facturacion-exportacion.ts).
+const FILAS_DESGLOSE: {
+  etiqueta: string;
+  color: string;
+  kg: keyof PuntoEvolucionPrecio;
+  precio: keyof PuntoEvolucionPrecio;
+}[] = [
+  { etiqueta: "PL", color: COLOR_PREMIUM, kg: "kgPremium", precio: "puLiquidadoPremium" },
+  { etiqueta: "YL", color: COLOR_CONVENCIONAL, kg: "kgConvencional", precio: "puLiquidadoConvencional" },
+  { etiqueta: "TM", color: COLOR_TM_NF, kg: "kgTerminalMarket", precio: "puLiquidadoTerminalMarket" },
+  { etiqueta: "NF", color: COLOR_TM_NF, kg: "kgNonFresh", precio: "puLiquidadoNonFresh" },
+];
+
+// Tooltip a medida: primero los 2 precios generales, una línea divisoria,
+// el total de Kg Liquidado y recién debajo una tabla con el P. CIF LIQ y
+// el % de cada categoría (PL/YL/TM/NF) — pedido explícito, 2026-11-17.
+function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const punto = payload[0]?.payload as PuntoEvolucionPrecio | undefined;
+  if (!punto) return null;
+
+  return (
+    <div className="min-w-[220px] rounded-md border bg-popover p-3 text-sm text-popover-foreground shadow-md">
+      <p className="mb-1.5 font-medium">W{label}</p>
+      <p className="flex items-center gap-1.5">
+        <span className="inline-block h-0.5 w-3" style={{ backgroundColor: AZUL }} />
+        PU CIF Facturado: {punto.puFacturado === null ? "Sin datos esa semana" : formatMoneda(punto.puFacturado, "USD")}
+      </p>
+      <p className="flex items-center gap-1.5">
+        <span className="inline-block h-0.5 w-3" style={{ backgroundColor: GRIS }} />
+        PU CIF Liquidado: {punto.puLiquidado === null ? "Sin datos esa semana" : formatMoneda(punto.puLiquidado, "USD")}
+      </p>
+
+      <div className="my-2 border-t" />
+      <p className="flex items-center justify-between gap-3 font-medium">
+        <span>Total Kg Liquidado</span>
+        <span className="tabular-nums">{formatCantidad(punto.kgLiquidado)} Kg</span>
+      </p>
+
+      <div className="my-2 border-t" />
+      <div className="grid grid-cols-[auto_64px_46px] items-center gap-x-2 border-b pb-1 text-xs uppercase tracking-wide text-muted-foreground">
+        <span />
+        <span className="text-right">P. CIF LIQ</span>
+        <span className="text-center">%</span>
+      </div>
+      {FILAS_DESGLOSE.map((f) => {
+        const kg = Number(punto[f.kg] ?? 0);
+        const precio = punto[f.precio] as number | null;
+        const pct = punto.kgLiquidado > 0 ? (kg / punto.kgLiquidado) * 100 : 0;
+        return (
+          <div key={f.etiqueta} className="grid grid-cols-[auto_64px_46px] items-center gap-x-2">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: f.color }} />
+              {f.etiqueta}
+            </span>
+            <span className="text-right tabular-nums">{precio === null ? "—" : formatMoneda(precio, "USD")}</span>
+            <span className="text-right tabular-nums">{pct.toFixed(1)}%</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Evolución semanal del precio unitario CIF (facturado y liquidado), con el
+// Kg Liquidado desglosado en 4 categorías mutuamente excluyentes (PL/YL/TM/
+// NF, ver categoriaLiquidacion en lib/facturacion-exportacion.ts). TM y NF
+// comparten color en la barra pero se calculan y muestran por separado en
+// el tooltip. Genérico: no calcula nada, solo dibuja los puntos que ya le
+// llegan de calcularEvolucionPrecioSemanal.
 export function EvolucionPrecioChart({
   titulo,
   descripcion,
@@ -56,34 +130,56 @@ export function EvolucionPrecioChart({
                 orientation="right"
                 tickFormatter={(v) => formatCantidad(v)}
                 fontSize={12}
-                stroke={VERDE}
+                stroke={COLOR_TM_NF}
                 tickLine={false}
                 axisLine={false}
               />
-              <Tooltip
-                labelFormatter={(label) => `W${label}`}
-                formatter={(value, name, item) => {
-                  const etiqueta = ETIQUETA_SERIE[String(name)] ?? String(name);
-                  if (value === null || value === undefined) return ["Sin datos esa semana", etiqueta];
-                  if (name === "kgLiquidado") return [`${formatCantidad(Number(value))} Kg`, etiqueta];
-                  const payload = item?.payload as PuntoEvolucionPrecio | undefined;
-                  const kg = name === "puFacturado" ? payload?.kgFacturado : payload?.kgLiquidado;
-                  return [`${formatMoneda(Number(value), "USD")} (${formatCantidad(kg ?? 0)} Kg)`, etiqueta];
-                }}
-              />
+              <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
               <Legend formatter={(value) => ETIQUETA_SERIE[value] ?? value} wrapperStyle={ESTILO_LEYENDA} />
               {/* Barras primero para que las líneas de precio queden
-                  encima; opacidad reducida y eje propio (a la derecha, en
-                  el mismo tono verde) para que no se lean como si
-                  compartieran escala con el precio. */}
+                  encima; opacidad reducida y eje propio (a la derecha) para
+                  que no se lean como si compartieran escala con el precio. */}
               <Bar
                 yAxisId="kg"
-                dataKey="kgLiquidado"
-                fill={VERDE}
-                fillOpacity={0.55}
+                dataKey="kgPremium"
+                stackId="kg"
+                fill={COLOR_PREMIUM}
+                fillOpacity={0.85}
+                maxBarSize={GROSOR_MAX_BARRA}
+                isAnimationActive
+                animationDuration={700}
+                animationEasing="ease-out"
+              />
+              <Bar
+                yAxisId="kg"
+                dataKey="kgConvencional"
+                stackId="kg"
+                fill={COLOR_CONVENCIONAL}
+                fillOpacity={0.85}
+                maxBarSize={GROSOR_MAX_BARRA}
+                isAnimationActive
+                animationDuration={700}
+                animationEasing="ease-out"
+              />
+              <Bar
+                yAxisId="kg"
+                dataKey="kgTerminalMarket"
+                stackId="kg"
+                fill={COLOR_TM_NF}
+                fillOpacity={0.85}
+                maxBarSize={GROSOR_MAX_BARRA}
+                isAnimationActive
+                animationDuration={700}
+                animationEasing="ease-out"
+              />
+              <Bar
+                yAxisId="kg"
+                dataKey="kgNonFresh"
+                stackId="kg"
+                fill={COLOR_TM_NF}
+                fillOpacity={0.85}
                 radius={[8, 8, 0, 0]}
                 maxBarSize={GROSOR_MAX_BARRA}
-                activeBar={{ fillOpacity: 0.8 }}
                 isAnimationActive
                 animationDuration={700}
                 animationEasing="ease-out"

@@ -25,6 +25,8 @@ export type FilaFacturacion = {
   variety: string;
   type: string;
   label: string;
+  /** "Destino" — TERMINAL MARKET / NON FRESH / null. Ver categoriaLiquidacion. */
+  destino: string | null;
   totalFob: number;
   invoicedAmount: number;
   cifLiquidatedTariffs: number;
@@ -61,6 +63,18 @@ function kgLiquidadoValido(f: FilaFacturacion): number {
 }
 function valorLiquidadoValido(f: FilaFacturacion): number {
   return f.settlementStatus === "LIQUIDADO" ? f.cifLiquidatedTariffs : 0;
+}
+
+// Pedido explícito (2026-11-17): el Kg Liquidado de "Evolución semanal de
+// precios" se reclasifica en 4 categorías mutuamente excluyentes — si la
+// columna "Destino" marca TERMINAL MARKET o NON FRESH, ese kg cuenta ahí y
+// deja de sumar en Premium/Convencional, sin importar lo que diga TYPE.
+export type CategoriaLiquidacion = "PREMIUM" | "CONVENCIONAL" | "TERMINAL_MARKET" | "NON_FRESH";
+
+function categoriaLiquidacion(f: FilaFacturacion): CategoriaLiquidacion {
+  if (f.destino === "TERMINAL MARKET") return "TERMINAL_MARKET";
+  if (f.destino === "NON FRESH") return "NON_FRESH";
+  return f.type === "PREMIUM" ? "PREMIUM" : "CONVENCIONAL";
 }
 
 export function filtrarFacturacion(filas: FilaFacturacion[], filtros: FiltrosFacturacion): FilaFacturacion[] {
@@ -138,39 +152,84 @@ export type PuntoEvolucionPrecio = {
   /** null = sin kg liquidado esa semana. */
   puLiquidado: number | null;
   kgLiquidado: number;
+  // Desglose del Kg Liquidado en 4 categorías mutuamente excluyentes (ver
+  // categoriaLiquidacion) — para la barra apilada y el detalle del
+  // tooltip de "Evolución semanal de precios". kgTerminalMarket y
+  // kgNonFresh comparten color en la barra pero se calculan y muestran
+  // por separado.
+  kgPremium: number;
+  kgConvencional: number;
+  kgTerminalMarket: number;
+  kgNonFresh: number;
+  puLiquidadoPremium: number | null;
+  puLiquidadoConvencional: number | null;
+  puLiquidadoTerminalMarket: number | null;
+  puLiquidadoNonFresh: number | null;
 };
 
 // Evolución semanal del precio unitario CIF: PU facturado (invoicedAmount
 // / netWeight) y PU liquidado (cifLiquidatedTariffs / netKilosLiquidated)
 // de cada semana de despacho (misma semana que usa el filtro principal),
-// con sus kg para mostrar en el tooltip.
+// con sus kg para mostrar en el tooltip, más el desglose por categoría de
+// liquidación (ver categoriaLiquidacion).
 export function calcularEvolucionPrecioSemanal(filas: FilaFacturacion[]): PuntoEvolucionPrecio[] {
-  const mapa = new Map<
-    number,
-    { invoicedAmount: number; netWeight: number; cifLiquidatedTariffs: number; netKilosLiquidated: number }
-  >();
+  type Acumulado = {
+    invoicedAmount: number;
+    netWeight: number;
+    cifLiquidatedTariffs: number;
+    netKilosLiquidated: number;
+    porCategoria: Record<CategoriaLiquidacion, { kg: number; valor: number }>;
+  };
+  const nuevoAcumulado = (): Acumulado => ({
+    invoicedAmount: 0,
+    netWeight: 0,
+    cifLiquidatedTariffs: 0,
+    netKilosLiquidated: 0,
+    porCategoria: {
+      PREMIUM: { kg: 0, valor: 0 },
+      CONVENCIONAL: { kg: 0, valor: 0 },
+      TERMINAL_MARKET: { kg: 0, valor: 0 },
+      NON_FRESH: { kg: 0, valor: 0 },
+    },
+  });
+
+  const mapa = new Map<number, Acumulado>();
   for (const f of filas) {
-    const actual = mapa.get(f.dispWeek) ?? {
-      invoicedAmount: 0,
-      netWeight: 0,
-      cifLiquidatedTariffs: 0,
-      netKilosLiquidated: 0,
-    };
+    const actual = mapa.get(f.dispWeek) ?? nuevoAcumulado();
+    const kg = kgLiquidadoValido(f);
+    const valor = valorLiquidadoValido(f);
     actual.invoicedAmount += f.invoicedAmount;
     actual.netWeight += f.netWeight;
-    actual.cifLiquidatedTariffs += valorLiquidadoValido(f);
-    actual.netKilosLiquidated += kgLiquidadoValido(f);
+    actual.cifLiquidatedTariffs += valor;
+    actual.netKilosLiquidated += kg;
+    const categoria = actual.porCategoria[categoriaLiquidacion(f)];
+    categoria.kg += kg;
+    categoria.valor += valor;
     mapa.set(f.dispWeek, actual);
   }
   return [...mapa.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([semana, t]) => ({
-      semana,
-      puFacturado: t.netWeight > 0 ? t.invoicedAmount / t.netWeight : null,
-      kgFacturado: t.netWeight,
-      puLiquidado: t.netKilosLiquidated > 0 ? t.cifLiquidatedTariffs / t.netKilosLiquidated : null,
-      kgLiquidado: t.netKilosLiquidated,
-    }));
+    .map(([semana, t]) => {
+      const premium = t.porCategoria.PREMIUM;
+      const convencional = t.porCategoria.CONVENCIONAL;
+      const terminalMarket = t.porCategoria.TERMINAL_MARKET;
+      const nonFresh = t.porCategoria.NON_FRESH;
+      return {
+        semana,
+        puFacturado: t.netWeight > 0 ? t.invoicedAmount / t.netWeight : null,
+        kgFacturado: t.netWeight,
+        puLiquidado: t.netKilosLiquidated > 0 ? t.cifLiquidatedTariffs / t.netKilosLiquidated : null,
+        kgLiquidado: t.netKilosLiquidated,
+        kgPremium: premium.kg,
+        kgConvencional: convencional.kg,
+        kgTerminalMarket: terminalMarket.kg,
+        kgNonFresh: nonFresh.kg,
+        puLiquidadoPremium: premium.kg > 0 ? premium.valor / premium.kg : null,
+        puLiquidadoConvencional: convencional.kg > 0 ? convencional.valor / convencional.kg : null,
+        puLiquidadoTerminalMarket: terminalMarket.kg > 0 ? terminalMarket.valor / terminalMarket.kg : null,
+        puLiquidadoNonFresh: nonFresh.kg > 0 ? nonFresh.valor / nonFresh.kg : null,
+      };
+    });
 }
 
 export type FilaImpactoLiquidacion = {
