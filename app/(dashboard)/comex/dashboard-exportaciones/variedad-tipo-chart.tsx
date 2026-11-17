@@ -129,7 +129,7 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
           <p key={tipo} style={{ color: p.color }}>
             {ETIQUETA_TIPO[tipo] ?? tipo}: {formatCantidad(Number(p.value))} Kg
             {typeof pct === "number" ? ` (${pct.toFixed(0)}%)` : ""}
-            {typeof pu === "number" ? ` · PU CIF Fact.: ${formatMoneda(pu, "USD")}` : ""}
+            {typeof pu === "number" ? ` · PU CIF Pond.: ${formatMoneda(pu, "USD")}` : ""}
           </p>
         );
       })}
@@ -140,7 +140,8 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
 // Kg exportados por variedad, con una barra de Premium y otra de
 // Convencional al lado (no apiladas) — el % de cada una sobre el total
 // de kg de esa variedad va dentro de la barra, y encima de cada barra
-// salen sus kg y su PU CIF facturado. Datos ya calculados por
+// salen sus kg y su PU CIF ponderado (liquidado para lo LIQUIDADO,
+// facturado para lo pendiente). Datos ya calculados por
 // calcularExportacionesPorVariedadYTipo (lib/facturacion-exportacion.ts).
 export function VariedadTipoChart({ titulo, datos }: { titulo: string; datos: FilaVariedadTipo[] }) {
   const puntos: Punto[] = datos.map((f) => {

@@ -65,6 +65,16 @@ function valorLiquidadoValido(f: FilaFacturacion): number {
   return f.settlementStatus === "LIQUIDADO" ? f.cifLiquidatedTariffs : 0;
 }
 
+// Pedido explícito (2026-11-17): para el PU CIF ponderado de "Kg
+// exportados por variedad, según tipo" y "Mezcla de etiquetas Premium por
+// variedad" — cada fila aporta su valorizado liquidado si ya está
+// LIQUIDADO, o su valorizado facturado si todavía está pendiente. El
+// precio ponderado sale de sumar esos valorizados y dividir entre el
+// total de kg facturado (netWeight), nunca mezclando ambos kg.
+function valorPonderado(f: FilaFacturacion): number {
+  return f.settlementStatus === "LIQUIDADO" ? f.cifLiquidatedTariffs : f.invoicedAmount;
+}
+
 // Pedido explícito (2026-11-17): el Kg Liquidado de "Evolución semanal de
 // precios" se reclasifica en 4 categorías mutuamente excluyentes — si la
 // columna "Destino" marca TERMINAL MARKET o NON FRESH, ese kg cuenta ahí y
@@ -576,21 +586,21 @@ export type FilaVariedadTipoSerie = {
   kg: number;
   /** % que representa este tipo sobre el total de kg de la variedad. */
   pct: number;
-  /** invoicedAmount / netWeight de esta combinación variedad+tipo. */
+  /** PU CIF ponderado de esta combinación variedad+tipo (ver valorPonderado): liquidado para lo ya LIQUIDADO, facturado para lo pendiente, entre el total de kg facturado. */
   puCifFacturado: number;
 };
 export type FilaVariedadTipo = { variedad: string; totalKg: number; porTipo: FilaVariedadTipoSerie[] };
 
 // Kg exportados por variedad, segmentado por tipo (PREMIUM/CONVENCIONAL) —
 // % que representa cada tipo dentro del total de esa variedad, y el PU
-// CIF facturado (invoicedAmount/netWeight) de cada combinación.
+// CIF ponderado (ver valorPonderado) de cada combinación.
 export function calcularExportacionesPorVariedadYTipo(filas: FilaFacturacion[]): FilaVariedadTipo[] {
   const porVariedad = new Map<string, Map<string, { kg: number; valor: number }>>();
   for (const f of filas) {
     const porTipo = porVariedad.get(f.variety) ?? new Map<string, { kg: number; valor: number }>();
     const actual = porTipo.get(f.type) ?? { kg: 0, valor: 0 };
     actual.kg += f.netWeight;
-    actual.valor += f.invoicedAmount;
+    actual.valor += valorPonderado(f);
     porTipo.set(f.type, actual);
     porVariedad.set(f.variety, porTipo);
   }
@@ -613,16 +623,16 @@ export type FilaVariedadEtiquetaSerie = {
   kg: number;
   /** % que representa esta etiqueta sobre el total de kg PREMIUM de la variedad. */
   pct: number;
-  /** invoicedAmount / netWeight de esta combinación variedad+etiqueta. */
+  /** PU CIF ponderado de esta combinación variedad+etiqueta (ver valorPonderado): liquidado para lo ya LIQUIDADO, facturado para lo pendiente, entre el total de kg facturado. */
   puCifFacturado: number;
 };
 export type FilaVariedadEtiqueta = { variedad: string; totalKg: number; porEtiqueta: FilaVariedadEtiquetaSerie[] };
 
 // Mezcla de etiquetas (JB/SB/S&C) solo dentro de lo PREMIUM, por
 // variedad — % que representa cada etiqueta sobre el total PREMIUM de
-// esa variedad (no sobre el total general), y el PU CIF facturado de
-// cada combinación. YL no aparece acá porque en los datos solo se usa
-// para CONVENCIONAL.
+// esa variedad (no sobre el total general), y el PU CIF ponderado (ver
+// valorPonderado) de cada combinación. YL no aparece acá porque en los
+// datos solo se usa para CONVENCIONAL.
 export function calcularExportacionesPorVariedadYEtiquetaPremium(filas: FilaFacturacion[]): FilaVariedadEtiqueta[] {
   const soloPremium = filas.filter((f) => f.type === "PREMIUM");
   const porVariedad = new Map<string, Map<string, { kg: number; valor: number }>>();
@@ -630,7 +640,7 @@ export function calcularExportacionesPorVariedadYEtiquetaPremium(filas: FilaFact
     const porEtiqueta = porVariedad.get(f.variety) ?? new Map<string, { kg: number; valor: number }>();
     const actual = porEtiqueta.get(f.label) ?? { kg: 0, valor: 0 };
     actual.kg += f.netWeight;
-    actual.valor += f.invoicedAmount;
+    actual.valor += valorPonderado(f);
     porEtiqueta.set(f.label, actual);
     porVariedad.set(f.variety, porEtiqueta);
   }

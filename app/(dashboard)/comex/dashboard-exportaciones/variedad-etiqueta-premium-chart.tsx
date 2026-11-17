@@ -115,7 +115,7 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
           <p key={etiqueta} style={{ color: p.color }}>
             {etiqueta}: {formatCantidad(Number(p.value))} Kg
             {typeof pct === "number" ? ` (${pct.toFixed(0)}%)` : ""}
-            {typeof pu === "number" ? ` · PU CIF Fact.: ${formatMoneda(pu, "USD")}` : ""}
+            {typeof pu === "number" ? ` · PU CIF Pond.: ${formatMoneda(pu, "USD")}` : ""}
           </p>
         );
       })}
@@ -126,8 +126,9 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
 // Mezcla de etiquetas (JB/SB/S&C) dentro de lo PREMIUM, por variedad —
 // 2 o 3 barras según cuáles etiquetas tenga esa variedad, con el % de
 // cada una sobre el total PREMIUM de la variedad adentro de la barra, y
-// encima de cada barra sus kg y su PU CIF facturado. Datos ya calculados
-// por calcularExportacionesPorVariedadYEtiquetaPremium
+// encima de cada barra sus kg y su PU CIF ponderado (liquidado para lo
+// LIQUIDADO, facturado para lo pendiente). Datos ya calculados por
+// calcularExportacionesPorVariedadYEtiquetaPremium
 // (lib/facturacion-exportacion.ts).
 export function VariedadEtiquetaPremiumChart({ titulo, datos }: { titulo: string; datos: FilaVariedadEtiqueta[] }) {
   const etiquetasPresentes = new Set(datos.flatMap((f) => f.porEtiqueta.map((s) => s.etiqueta)));
