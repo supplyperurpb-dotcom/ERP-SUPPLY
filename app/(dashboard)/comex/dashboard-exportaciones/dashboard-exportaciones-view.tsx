@@ -112,7 +112,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       <ImpactoLiquidacionCard resumen={impactoLiquidacion} />
 
       <StackedBarChart
-        titulo="Estatus de embarques por semana"
+        titulo="Estatus de Arribos por Semana"
         puntos={embarquesCombinadoPorSemana.puntos}
         series={embarquesCombinadoPorSemana.series}
         etiquetaSerie={(s) => (s === "ARRIBADO" ? "Arribado" : s === "EN TRANSITO" ? "En tránsito" : s)}
