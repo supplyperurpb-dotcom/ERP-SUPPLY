@@ -23,11 +23,43 @@ const COLOR_TM_NF = PALETA_SOBRIA[4];
 const ETIQUETA_SERIE: Record<string, string> = {
   puFacturado: "PU CIF Facturado",
   puLiquidado: "PU CIF Liquidado",
-  kgPremium: "PL = PREMIUM",
-  kgConvencional: "YL = CONVENCIONAL",
+  kgPremium: "PL = Premium",
+  kgConvencional: "YL = Convencional",
   kgTerminalMarket: "TM = Terminal Market",
   kgNonFresh: "NF = Non Fresh",
 };
+
+// Orden de la leyenda (pedido explícito, 2026-11-17): YL, PL, TM, NF y
+// recién después las 2 líneas de precio — independiente del orden de
+// apilado de las barras (Premium abajo, Convencional, Terminal Market,
+// Non Fresh arriba), que no cambia. Recharts 3 ya no expone `payload`
+// como prop pública de <Legend>, así que el orden se fija con un
+// `content` propio en vez de reordenar las series del chart.
+const LEYENDA_ITEMS: { dataKey: string; tipo: "square" | "line"; color: string }[] = [
+  { dataKey: "kgConvencional", tipo: "square", color: COLOR_CONVENCIONAL },
+  { dataKey: "kgPremium", tipo: "square", color: COLOR_PREMIUM },
+  { dataKey: "kgTerminalMarket", tipo: "square", color: COLOR_TM_NF },
+  { dataKey: "kgNonFresh", tipo: "square", color: COLOR_TM_NF },
+  { dataKey: "puFacturado", tipo: "line", color: AZUL },
+  { dataKey: "puLiquidado", tipo: "line", color: GRIS },
+];
+
+function ContenidoLeyenda() {
+  return (
+    <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-2 text-[13px]">
+      {LEYENDA_ITEMS.map((item) => (
+        <li key={item.dataKey} className="flex items-center gap-1.5">
+          {item.tipo === "square" ? (
+            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
+          ) : (
+            <span className="inline-block h-0.5 w-3.5" style={{ backgroundColor: item.color }} />
+          )}
+          <span>{ETIQUETA_SERIE[item.dataKey]}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const FILAS_DESGLOSE: {
   etiqueta: string;
@@ -135,7 +167,7 @@ export function EvolucionPrecioChart({
                 axisLine={false}
               />
               <Tooltip content={(props) => <ContenidoTooltip {...props} />} />
-              <Legend formatter={(value) => ETIQUETA_SERIE[value] ?? value} wrapperStyle={ESTILO_LEYENDA} />
+              <Legend content={<ContenidoLeyenda />} wrapperStyle={ESTILO_LEYENDA} />
               {/* Barras primero para que las líneas de precio queden
                   encima; opacidad reducida y eje propio (a la derecha) para
                   que no se lean como si compartieran escala con el precio. */}
