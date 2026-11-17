@@ -543,7 +543,7 @@ export type FilaVariedadMercadoSerie = {
   kg: number;
   /** % que representa este mercado sobre el total de kg de la variedad. */
   pct: number;
-  /** invoicedAmount / netWeight de esta combinación variedad+mercado. */
+  /** PU CIF ponderado de esta combinación variedad+mercado (ver valorPonderado): liquidado para lo ya LIQUIDADO, facturado para lo pendiente, entre el total de kg facturado. */
   puCifFacturado: number;
   /** N° de embarques (PO) distintos. */
   embarques: number;
@@ -551,15 +551,15 @@ export type FilaVariedadMercadoSerie = {
 export type FilaVariedadMercado = { variedad: string; totalKg: number; porMercado: FilaVariedadMercadoSerie[] };
 
 // Kg exportados por variedad, segmentado por mercado — % que representa
-// cada mercado dentro del total de esa variedad, y el PU CIF facturado
-// (invoicedAmount/netWeight) de cada combinación variedad+mercado.
+// cada mercado dentro del total de esa variedad, y el PU CIF ponderado
+// (ver valorPonderado) de cada combinación variedad+mercado.
 export function calcularExportacionesPorVariedadYMercado(filas: FilaFacturacion[]): FilaVariedadMercado[] {
   const porVariedad = new Map<string, Map<string, { kg: number; valor: number; pos: Set<string> }>>();
   for (const f of filas) {
     const porMercado = porVariedad.get(f.variety) ?? new Map<string, { kg: number; valor: number; pos: Set<string> }>();
     const actual = porMercado.get(f.market) ?? { kg: 0, valor: 0, pos: new Set<string>() };
     actual.kg += f.netWeight;
-    actual.valor += f.invoicedAmount;
+    actual.valor += valorPonderado(f);
     actual.pos.add(f.po);
     porMercado.set(f.market, actual);
     porVariedad.set(f.variety, porMercado);

@@ -48,7 +48,7 @@ function ContenidoTooltip({ active, payload, label }: TooltipContentProps) {
         return (
           <p key={mercado} style={{ color: p.color }}>
             {mercado}: {Number(p.value).toFixed(0)}%
-            {typeof pu === "number" ? ` · PU CIF Fact.: ${formatMoneda(pu, "USD")}` : ""}
+            {typeof pu === "number" ? ` · PU CIF Pond.: ${formatMoneda(pu, "USD")}` : ""}
           </p>
         );
       })}
