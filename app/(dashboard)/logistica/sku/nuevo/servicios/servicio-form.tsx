@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSearch } from "@/components/ui/data-table";
 import { skuServicioSchema, type SkuServicioInput } from "@/lib/validations/sku";
 import { crearSkuServicioAction } from "@/lib/actions/sku-actions";
 
@@ -20,6 +21,15 @@ export function ServicioForm({ skusExistentes }: { skusExistentes: SkuExistente[
   const router = useRouter();
   const [lista, setLista] = useState(skusExistentes);
   const [creado, setCreado] = useState<SkuExistente | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+
+  const listaFiltrada = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase();
+    if (!termino) return lista;
+    return lista.filter(
+      (s) => s.codigo.toLowerCase().includes(termino) || s.descripcion.toLowerCase().includes(termino)
+    );
+  }, [lista, busqueda]);
 
   const form = useForm<SkuServicioInput>({
     resolver: zodResolver(skuServicioSchema),
@@ -60,28 +70,43 @@ export function ServicioForm({ skusExistentes }: { skusExistentes: SkuExistente[
             para no duplicarla.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           {lista.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aún no hay ningún SKU de Servicios creado.</p>
           ) : (
-            <div className="max-h-64 overflow-y-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-28">Código</TableHead>
-                    <TableHead>Nombre</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lista.map((s) => (
-                    <TableRow key={s.codigo}>
-                      <TableCell className="w-28 font-medium">{s.codigo}</TableCell>
-                      <TableCell>{s.descripcion}</TableCell>
+            <>
+              <TableSearch
+                placeholder="Buscar por código o descripción..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+              <div className="max-h-64 overflow-y-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-28">Código</TableHead>
+                      <TableHead>Nombre</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {listaFiltrada.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">
+                          Ningún servicio coincide con la búsqueda.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      listaFiltrada.map((s) => (
+                        <TableRow key={s.codigo}>
+                          <TableCell className="w-28 font-medium">{s.codigo}</TableCell>
+                          <TableCell>{s.descripcion}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -117,10 +142,10 @@ export function ServicioForm({ skusExistentes }: { skusExistentes: SkuExistente[
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => router.push("/logistica/sku")}>
-            Anterior
+            Cancelar
           </Button>
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Creando..." : "Crear"}
+            {form.formState.isSubmitting ? "Creando..." : "Crear código"}
           </Button>
         </div>
       </form>

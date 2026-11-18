@@ -206,30 +206,24 @@ export const LUGARES_ENTREGA = [
 
 export type LugarEntregaCodigo = (typeof LUGARES_ENTREGA)[number];
 
-// Los primeros 8 valores son los originales — se mantiene su orden/posición
-// para no romper los `CONDICIONES_PAGO[2]` ya usados en otros formularios
-// (ver CONDICION_PAGO_POR_DEFECTO más abajo, el reemplazo recomendado). El
-// resto se agregó al importar la base de proveedores real (ver
-// scripts/importar-proveedores.ts): son condiciones que de verdad se usan y
-// no tenían equivalente en esta lista.
+// Lista reemplazada por completo (pedido explícito, 2026-11-17) — ya no
+// incluye las condiciones ADELANTO X% ni los códigos previos de crédito
+// 10/75 días; un proveedor u OC con un valor que ya no está en esta lista
+// conserva su texto guardado, solo deja de aparecer como opción al elegir.
 export const CONDICIONES_PAGO = [
+  "CONTADO",
   "CREDITO 7 DIAS",
   "CREDITO 15 DIAS",
   "CREDITO 30 DIAS",
+  "CREDITO 45 DIAS",
   "CREDITO 60 DIAS",
-  "FACTURA NEGOCIABLE 30 DIAS",
-  "FACTURA NEGOCIABLE 45 DIAS",
-  "FACTURA NEGOCIABLE 60 DIAS",
-  "FACTURA NEGOCIABLE 120 DIAS",
-  "CONTADO",
-  "CREDITO 10 DIAS",
-  "CREDITO 75 DIAS",
   "CREDITO 90 DIAS",
-  "FACTURA NEGOCIABLE 90 DIAS",
-  "ADELANTO 20%",
-  "ADELANTO 30%",
-  "ADELANTO 40%",
-  "ADELANTO 50%",
+  "CREDITO 120 DIAS",
+  "FN 30 DIAS",
+  "FN 45 DIAS",
+  "FN 60 DIAS",
+  "FN 90 DIAS",
+  "FN 120 DIAS",
   "SEGUN NEGOCIACION",
 ] as const;
 

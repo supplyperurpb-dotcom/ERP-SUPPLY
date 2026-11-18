@@ -72,7 +72,7 @@ function condicionPago(raw: string): string {
 
 type FilaProveedor = {
   procedencia: "NACIONAL" | "EXTRANJERO";
-  tipoDocumento: "RUC" | "DNI" | "EXTRANJERO";
+  tipoDocumento: "RUC" | "EXTRANJERO";
   numeroDocumento: string;
   razonSocial: string;
   nombreComercial: string | null;
@@ -97,15 +97,15 @@ function procesarFila(fila: unknown[], numeroExcel: number): FilaProveedor | { e
   if (!razonSocial) return { error: `fila ${numeroExcel}: sin razón social` };
   if (!codigo) return { error: `fila ${numeroExcel} (${razonSocial}): sin código` };
 
-  let tipoDocumento: "RUC" | "DNI" | "EXTRANJERO";
+  // Un proveedor Nacional siempre es RUC (ya no se admite DNI, ver
+  // TipoDocumentoIdentidad en prisma/schema.prisma).
+  let tipoDocumento: "RUC" | "EXTRANJERO";
   if (procedencia === "EXTRANJERO") {
     tipoDocumento = "EXTRANJERO";
   } else if (/^\d{11}$/.test(codigo)) {
     tipoDocumento = "RUC";
-  } else if (/^\d{8}$/.test(codigo)) {
-    tipoDocumento = "DNI";
   } else {
-    return { error: `fila ${numeroExcel} (${razonSocial}): código nacional "${codigo}" no es RUC (11 dígitos) ni DNI (8 dígitos)` };
+    return { error: `fila ${numeroExcel} (${razonSocial}): código nacional "${codigo}" no es RUC (11 dígitos)` };
   }
 
   const rubro = limpiar(fila[10]);

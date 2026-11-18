@@ -109,7 +109,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <TableSearch
-          placeholder="Buscar por razón social, RUC/DNI, rubro o lugar..."
+          placeholder="Buscar por razón social, RUC, rubro o ubicación..."
           value={busqueda}
           onChange={(e) => cambiarBusqueda(e.target.value)}
         />

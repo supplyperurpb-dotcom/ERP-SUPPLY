@@ -42,11 +42,12 @@ enum AccionPermiso {
 }
 
 enum TipoDocumentoIdentidad {
+  // Un proveedor Nacional siempre es RUC (pedido explícito, 2026-11-17: ya
+  // no se admite DNI como proveedor).
   RUC
-  DNI
   // Proveedor del extranjero: su identificador tributario no sigue el
-  // formato RUC (11 dígitos) ni DNI (8 dígitos) — ver proveedorSchema, que
-  // por eso no le exige ese formato.
+  // formato RUC (11 dígitos) — ver proveedorSchema, que por eso no le
+  // exige ese formato.
   EXTRANJERO
 }
 

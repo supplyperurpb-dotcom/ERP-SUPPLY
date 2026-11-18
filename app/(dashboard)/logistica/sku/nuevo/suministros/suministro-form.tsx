@@ -196,7 +196,7 @@ export function SuministroForm() {
           Cancelar
         </Button>
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Creando..." : "Crear SKU"}
+          {form.formState.isSubmitting ? "Creando..." : "Crear código"}
         </Button>
       </div>
     </form>

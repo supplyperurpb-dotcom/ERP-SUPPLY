@@ -17,8 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { BANCOS_PROVEEDOR } from "@/lib/validations/proveedor";
 import { CONDICIONES_PAGO, CONDICION_PAGO_POR_DEFECTO } from "@/lib/constants/compras";
+import { PAISES } from "@/lib/constants/paises";
 import {
   crearProveedorAction,
   actualizarProveedorAction,
@@ -27,6 +29,7 @@ import {
 
 const SIN_BANCO = "__sin_banco__";
 const OTRO_BANCO = "OTRO";
+const PAIS_NACIONAL = "Perú";
 
 export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
   const [open, setOpen] = useState(false);
@@ -35,7 +38,15 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
   const [state, formAction] = useFormState<ProveedorActionState, FormData>(action, undefined);
 
   const [procedencia, setProcedencia] = useState<"NACIONAL" | "EXTRANJERO">(proveedor?.procedencia ?? "NACIONAL");
-  const [tipoDocumento, setTipoDocumento] = useState<"RUC" | "DNI" | "EXTRANJERO">(proveedor?.tipoDocumento ?? "RUC");
+  // Nacional siempre es RUC (ya no se elige DNI); Extranjero usa su propio
+  // código, sin selector — el tipo de documento se deriva de procedencia.
+  const tipoDocumento = procedencia === "EXTRANJERO" ? "EXTRANJERO" : "RUC";
+
+  // País: Nacional siempre guarda "Perú" automáticamente (no se elige);
+  // Extranjero elige de PAISES con el buscador de Combobox.
+  const [pais, setPais] = useState(
+    (proveedor?.procedencia ?? "NACIONAL") === "NACIONAL" ? PAIS_NACIONAL : (proveedor?.pais ?? "")
+  );
 
   // Banco: si el valor guardado está en la lista fija, el select arranca
   // en ese banco; si no (texto libre escrito al elegir "Otro"), el select
@@ -56,10 +67,7 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
 
   function cambiarProcedencia(valor: "NACIONAL" | "EXTRANJERO") {
     setProcedencia(valor);
-    // Un proveedor del extranjero no tiene RUC/DNI: su documento queda
-    // fijo en "EXTRANJERO" (ver proveedorSchema, que no le exige formato).
-    // Uno nacional vuelve a RUC por defecto.
-    setTipoDocumento(valor === "EXTRANJERO" ? "EXTRANJERO" : "RUC");
+    setPais(valor === "NACIONAL" ? PAIS_NACIONAL : "");
   }
 
   return (
@@ -97,22 +105,12 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="tipoDocumento">Tipo de documento</Label>
-              {procedencia === "EXTRANJERO" ? (
-                <>
-                  <Input disabled className="cursor-not-allowed bg-muted opacity-70" value="Extranjero" />
-                  <input type="hidden" name="tipoDocumento" value="EXTRANJERO" />
-                </>
-              ) : (
-                <Select name="tipoDocumento" value={tipoDocumento} onValueChange={(v) => setTipoDocumento(v as "RUC" | "DNI")}>
-                  <SelectTrigger id="tipoDocumento">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RUC">RUC</SelectItem>
-                    <SelectItem value="DNI">DNI</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
+              <Input
+                disabled
+                className="cursor-not-allowed bg-muted opacity-70"
+                value={procedencia === "EXTRANJERO" ? "Extranjero" : "RUC"}
+              />
+              <input type="hidden" name="tipoDocumento" value={tipoDocumento} />
             </div>
           </div>
 
@@ -202,8 +200,8 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="numeroCuenta">Número de cuenta (opcional)</Label>
-              <Input id="numeroCuenta" name="numeroCuenta" defaultValue={proveedor?.numeroCuenta ?? ""} />
+              <Label htmlFor="numeroCuenta">Número de cuenta</Label>
+              <Input id="numeroCuenta" name="numeroCuenta" defaultValue={proveedor?.numeroCuenta ?? ""} required />
             </div>
           </div>
 
@@ -215,23 +213,38 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
           {procedencia === "EXTRANJERO" ? (
             <div className="space-y-2">
               <Label htmlFor="pais">País</Label>
-              <Input id="pais" name="pais" defaultValue={proveedor?.pais ?? ""} />
+              <Combobox
+                items={[...PAISES]}
+                value={pais}
+                onSelect={setPais}
+                itemKey={(p) => p}
+                matchValue={(p) => p}
+                searchValue={(p) => p}
+                renderItem={(p) => p}
+                placeholder="Selecciona un país..."
+                searchPlaceholder="Buscar país..."
+                emptyMessage="No se encontró ningún país."
+              />
+              <input type="hidden" name="pais" value={pais} />
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="departamento">Departamento</Label>
-                <Input id="departamento" name="departamento" defaultValue={proveedor?.departamento ?? ""} />
+            <>
+              <input type="hidden" name="pais" value={PAIS_NACIONAL} />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="departamento">Departamento</Label>
+                  <Input id="departamento" name="departamento" defaultValue={proveedor?.departamento ?? ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="provincia">Provincia</Label>
+                  <Input id="provincia" name="provincia" defaultValue={proveedor?.provincia ?? ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="distrito">Distrito</Label>
+                  <Input id="distrito" name="distrito" defaultValue={proveedor?.distrito ?? ""} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="provincia">Provincia</Label>
-                <Input id="provincia" name="provincia" defaultValue={proveedor?.provincia ?? ""} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="distrito">Distrito</Label>
-                <Input id="distrito" name="distrito" defaultValue={proveedor?.distrito ?? ""} />
-              </div>
-            </div>
+            </>
           )}
 
           <div className="grid grid-cols-2 gap-4">

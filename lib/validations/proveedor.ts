@@ -12,7 +12,9 @@ const opcional = (max: number) =>
 export const proveedorSchema = z
   .object({
     procedencia: z.enum(["NACIONAL", "EXTRANJERO"], { required_error: "Selecciona la procedencia" }),
-    tipoDocumento: z.enum(["RUC", "DNI", "EXTRANJERO"], { required_error: "Selecciona el tipo de documento" }),
+    // Un proveedor Nacional siempre es RUC (ya no se admite DNI); Extranjero
+    // usa su propio código, sin formato exigido.
+    tipoDocumento: z.enum(["RUC", "EXTRANJERO"], { required_error: "Selecciona el tipo de documento" }),
     numeroDocumento: z.string().min(1, "El número de documento es obligatorio").max(20),
     razonSocial: z.string().min(1, "La razón social es obligatoria").max(200),
     nombreComercial: opcional(200),
@@ -36,7 +38,7 @@ export const proveedorSchema = z
     // elegir "Otro" (ver ProveedorFormDialog) — siempre llega como texto
     // normal, "OTRO" nunca se guarda literal.
     banco: opcional(100),
-    numeroCuenta: opcional(50),
+    numeroCuenta: z.string().trim().min(1, "El número de cuenta es obligatorio").max(50),
     activo: z.coerce.boolean().default(true),
   })
   .superRefine((data, ctx) => {
@@ -44,13 +46,6 @@ export const proveedorSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "El RUC debe tener 11 dígitos",
-        path: ["numeroDocumento"],
-      });
-    }
-    if (data.tipoDocumento === "DNI" && !/^\d{8}$/.test(data.numeroDocumento)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El DNI debe tener 8 dígitos",
         path: ["numeroDocumento"],
       });
     }
