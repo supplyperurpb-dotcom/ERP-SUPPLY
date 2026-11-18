@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, Plus, Power } from "lucide-react";
+import { Pencil, Plus, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ListaValor } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { crearListaValorAction, renombrarListaValorAction, toggleActivoListaValorAction } from "@/lib/actions/lista-actions";
+import {
+  crearListaValorAction,
+  renombrarListaValorAction,
+  toggleActivoListaValorAction,
+  eliminarListaValorAction,
+} from "@/lib/actions/lista-actions";
 import type { TipoListaCodigo } from "@/lib/constants/listas";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 
 export function ListaValoresTable({
   tipo,
@@ -31,6 +37,7 @@ export function ListaValoresTable({
   nombreSingular: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const confirmar = useConfirm();
 
   function handleToggle(valor: ListaValor) {
     startTransition(async () => {
@@ -40,6 +47,18 @@ export function ListaValoresTable({
         return;
       }
       toast.success(valor.activo ? `"${valor.nombre}" desactivado` : `"${valor.nombre}" activado`);
+    });
+  }
+
+  async function handleEliminar(valor: ListaValor) {
+    if (!(await confirmar(`¿Eliminar "${valor.nombre}"? Esta acción no se puede deshacer.`))) return;
+    startTransition(async () => {
+      const resultado = await eliminarListaValorAction(valor.id);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(`"${valor.nombre}" eliminado`);
     });
   }
 
@@ -76,6 +95,9 @@ export function ListaValoresTable({
                   <ValorFormDialog tipo={tipo} nombreSingular={nombreSingular} valor={valor} />
                   <Button variant="ghost" size="icon" disabled={isPending} onClick={() => handleToggle(valor)}>
                     <Power className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" disabled={isPending} onClick={() => handleEliminar(valor)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>
               </TableRow>

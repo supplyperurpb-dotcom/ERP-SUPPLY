@@ -84,3 +84,22 @@ export async function toggleActivoListaValorAction(id: string): Promise<{ error?
   revalidarListas(TIPOS_LISTA.find((t) => t.tipo === valor.tipo)!.slug);
   return undefined;
 }
+
+// Borrado real (no solo desactivar) — pedido explícito. A diferencia de
+// otros catálogos de este ERP, un documento que usó este valor (Campo,
+// Centro de costo) guarda su propio texto copiado en ese momento
+// (OrdenCompraItem.campo, SolicitudPedidoItem.centroCosto, etc., todos
+// String simple, no una relación a ListaValor) — así que borrar la fila
+// de acá no cambia nada en los documentos ya emitidos.
+export async function eliminarListaValorAction(id: string): Promise<{ error?: string } | undefined> {
+  const permiso = await verificarAdmin();
+  if (permiso.error) return permiso;
+
+  const valor = await prisma.listaValor.findUnique({ where: { id } });
+  if (!valor) return { error: "Ese valor ya no existe." };
+
+  await prisma.listaValor.delete({ where: { id } });
+
+  revalidarListas(TIPOS_LISTA.find((t) => t.tipo === valor.tipo)!.slug);
+  return undefined;
+}
