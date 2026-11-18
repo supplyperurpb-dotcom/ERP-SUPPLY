@@ -37,7 +37,7 @@ export const proveedorSchema = z
     // Banco: uno de BANCOS_PROVEEDOR, o el texto libre que se escribió al
     // elegir "Otro" (ver ProveedorFormDialog) — siempre llega como texto
     // normal, "OTRO" nunca se guarda literal.
-    banco: opcional(100),
+    banco: z.string().trim().min(1, "El banco es obligatorio").max(100),
     numeroCuenta: z.string().trim().min(1, "El número de cuenta es obligatorio").max(50),
     activo: z.coerce.boolean().default(true),
   })

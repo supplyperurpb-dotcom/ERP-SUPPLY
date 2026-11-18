@@ -27,7 +27,6 @@ import {
   type ProveedorActionState,
 } from "@/lib/actions/proveedor-actions";
 
-const SIN_BANCO = "__sin_banco__";
 const OTRO_BANCO = "OTRO";
 const PAIS_NACIONAL = "Perú";
 
@@ -54,7 +53,7 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
   const bancoGuardado = proveedor?.banco ?? "";
   const bancoListado = (BANCOS_PROVEEDOR as readonly string[]).includes(bancoGuardado);
   const [bancoSeleccion, setBancoSeleccion] = useState<string>(
-    bancoGuardado === "" ? SIN_BANCO : bancoListado ? bancoGuardado : OTRO_BANCO
+    bancoGuardado === "" ? "" : bancoListado ? bancoGuardado : OTRO_BANCO
   );
   const [bancoOtro, setBancoOtro] = useState(bancoListado ? "" : bancoGuardado);
 
@@ -165,7 +164,7 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="banco">Banco (opcional)</Label>
+              <Label htmlFor="banco">Banco</Label>
               <Select
                 value={bancoSeleccion}
                 onValueChange={(v) => {
@@ -177,7 +176,6 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
                   <SelectValue placeholder="Selecciona..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SIN_BANCO}>—</SelectItem>
                   {BANCOS_PROVEEDOR.map((b) => (
                     <SelectItem key={b} value={b}>
                       {b}
@@ -192,12 +190,11 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
                   value={bancoOtro}
                   onChange={(e) => setBancoOtro(e.target.value)}
                   placeholder="Nombre del banco"
+                  required
                   className="mt-2"
                 />
               )}
-              {bancoSeleccion !== OTRO_BANCO && (
-                <input type="hidden" name="banco" value={bancoSeleccion === SIN_BANCO ? "" : bancoSeleccion} />
-              )}
+              {bancoSeleccion !== OTRO_BANCO && <input type="hidden" name="banco" value={bancoSeleccion} />}
             </div>
             <div className="space-y-2">
               <Label htmlFor="numeroCuenta">Número de cuenta</Label>
