@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { generarActaServicioPdf, type LineaActaServicioPdf } from "@/lib/pdf/acta-servicio-pdf";
+import { generarActaServicioPdf, fusionarActaConSustentos, type LineaActaServicioPdf } from "@/lib/pdf/acta-servicio-pdf";
 import { codigoAprobador } from "@/lib/utils";
+import { descargarArchivo } from "@/lib/storage";
 
 // Solo se emite para un Registro de Avance ya totalmente APROBADO (todas
 // sus líneas con VB) — ver el botón "Descargar Acta" en
@@ -15,6 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ reg
     include: {
       servicioGestionado: { include: { ordenCompra: { include: { proveedor: true } } } },
       items: { include: { ordenCompraItem: { include: { sku: true } }, avances: true } },
+      sustentos: { orderBy: { numero: "asc" } },
     },
   });
 
@@ -52,7 +54,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ reg
   const montoTotal = lineas.reduce((acc, l) => acc + l.valorizado, 0);
 
   const orden = registro.servicioGestionado.ordenCompra;
-  const bytes = await generarActaServicioPdf({
+  const actaBytes = await generarActaServicioPdf({
     numeroOrden: orden.numero,
     numeroRegistro: registro.numero,
     fechaDecision: registro.fechaDecision ?? new Date(),
@@ -64,6 +66,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ reg
     gestionadoPor,
     aprobadoPor,
   });
+
+  // El Acta queda de primera hoja y cada sustento se añade a continuación
+  // (pedido explícito), con la glosa "APROBADO POR" encima de cada una de
+  // sus hojas — ver fusionarActaConSustentos. Una descarga que falle para
+  // un sustento puntual no debe tumbar el Acta entera: queda como bytes
+  // vacíos, que esa función ya convierte en una hoja de aviso.
+  const sustentosConBytes = await Promise.all(
+    registro.sustentos.map(async (s) => {
+      try {
+        return { nombreArchivo: s.nombreArchivo, bytes: await descargarArchivo(s.archivo) };
+      } catch (e) {
+        console.error(`No se pudo descargar el sustento ${s.id} para el Acta:`, e);
+        return { nombreArchivo: s.nombreArchivo, bytes: new Uint8Array() };
+      }
+    })
+  );
+  const bytes = await fusionarActaConSustentos(actaBytes, sustentosConBytes, aprobadoPor);
 
   return new NextResponse(new Uint8Array(bytes), {
     headers: {

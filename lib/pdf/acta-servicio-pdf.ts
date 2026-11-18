@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 const GRIS = rgb(0.35, 0.35, 0.35);
 const GRIS_CLARO = rgb(0.88, 0.88, 0.88);
@@ -200,6 +200,119 @@ export async function generarActaServicioPdf({
   filaPie("APROBADO POR:", aprobadoPor.length > 0 ? aprobadoPor.join("; ") : "—");
 
   return pdfDoc.save();
+}
+
+export type SustentoParaFusion = { nombreArchivo: string; bytes: Uint8Array };
+
+function extension(nombreArchivo: string): string {
+  const i = nombreArchivo.lastIndexOf(".");
+  return i === -1 ? "" : nombreArchivo.slice(i + 1).toLowerCase();
+}
+
+const EXTENSIONES_IMAGEN = new Set(["jpg", "jpeg", "png"]);
+
+// Glosa fija en la parte de arriba de cada hoja de sustento (pedido
+// explícito): una banda blanca para que se lea encima de lo que haya
+// debajo (un PDF escaneado, una foto), con el texto centrado y achicado
+// si la hoja es más angosta de lo normal (un comprobante, no A4).
+function dibujarGlosaAprobacion(pagina: PDFPage, font: PDFFont, texto: string) {
+  const { width, height } = pagina.getSize();
+  const altoBanda = 18;
+  let size = 9;
+  while (size > 6 && font.widthOfTextAtSize(texto, size) > width - 16) size -= 0.5;
+  pagina.drawRectangle({ x: 0, y: height - altoBanda, width, height: altoBanda, color: rgb(1, 1, 1), opacity: 0.88 });
+  pagina.drawLine({
+    start: { x: 0, y: height - altoBanda },
+    end: { x: width, y: height - altoBanda },
+    thickness: 0.5,
+    color: GRIS_CLARO,
+  });
+  const anchoTexto = font.widthOfTextAtSize(texto, size);
+  pagina.drawText(texto, {
+    x: (width - anchoTexto) / 2,
+    y: height - altoBanda + (altoBanda - size) / 2 - 1,
+    size,
+    font,
+    color: NEGRO,
+  });
+}
+
+// Hoja de reemplazo para un sustento cuyo formato pdf-lib no puede
+// incrustar (Word/Excel, o un PDF/imagen corrupto) — nunca se omite en
+// silencio, siempre queda constancia de que ese sustento existe.
+function agregarPaginaNoCompatible(doc: PDFDocument, bold: PDFFont, regular: PDFFont, nombreArchivo: string, glosa: string) {
+  const pagina = doc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+  dibujarGlosaAprobacion(pagina, bold, glosa);
+  pagina.drawText("Sustento adjunto:", { x: MARGEN_X, y: ALTO_PAGINA - 80, size: 11, font: bold, color: NEGRO });
+  pagina.drawText(nombreArchivo, { x: MARGEN_X, y: ALTO_PAGINA - 96, size: 10, font: regular, color: NEGRO });
+  pagina.drawText("Este formato no se pudo incorporar automáticamente a este PDF.", {
+    x: MARGEN_X,
+    y: ALTO_PAGINA - 116,
+    size: 9,
+    font: regular,
+    color: GRIS,
+  });
+  pagina.drawText("Descárguelo por separado desde la sección Sustento del registro de avance.", {
+    x: MARGEN_X,
+    y: ALTO_PAGINA - 130,
+    size: 9,
+    font: regular,
+    color: GRIS,
+  });
+}
+
+// Une el Acta (ya generada) con los sustentos del registro, en el orden
+// en que se subieron: el Acta queda de primera hoja, cada sustento PDF
+// aporta sus propias páginas y cada imagen (jpg/png) se agrega como una
+// hoja — todas con la glosa "APROBADO POR: ..." encima (mismo texto que
+// el pie del Acta). Un formato que pdf-lib no puede incrustar (Word/
+// Excel, webp/heic, un archivo corrupto) no se pierde: queda como una
+// hoja de aviso en su lugar, ver agregarPaginaNoCompatible.
+export async function fusionarActaConSustentos(
+  actaBytes: Uint8Array,
+  sustentos: SustentoParaFusion[],
+  aprobadoPor: string[]
+): Promise<Uint8Array> {
+  const glosa = `APROBADO POR: ${aprobadoPor.length > 0 ? aprobadoPor.join("; ") : "—"}`;
+  if (sustentos.length === 0) return actaBytes;
+
+  const finalDoc = await PDFDocument.load(actaBytes);
+  const bold = await finalDoc.embedFont(StandardFonts.HelveticaBold);
+  const regular = await finalDoc.embedFont(StandardFonts.Helvetica);
+
+  for (const sustento of sustentos) {
+    const ext = extension(sustento.nombreArchivo);
+    if (ext === "pdf") {
+      try {
+        const srcDoc = await PDFDocument.load(sustento.bytes, { ignoreEncryption: true });
+        const copiadas = await finalDoc.copyPages(srcDoc, srcDoc.getPageIndices());
+        for (const pagina of copiadas) {
+          finalDoc.addPage(pagina);
+          dibujarGlosaAprobacion(pagina, bold, glosa);
+        }
+      } catch {
+        agregarPaginaNoCompatible(finalDoc, bold, regular, sustento.nombreArchivo, glosa);
+      }
+    } else if (EXTENSIONES_IMAGEN.has(ext)) {
+      try {
+        const imagen = ext === "png" ? await finalDoc.embedPng(sustento.bytes) : await finalDoc.embedJpg(sustento.bytes);
+        const maxAncho = ANCHO_PAGINA - 72;
+        const maxAlto = ALTO_PAGINA - 110;
+        const escala = Math.min(maxAncho / imagen.width, maxAlto / imagen.height, 1);
+        const w = imagen.width * escala;
+        const h = imagen.height * escala;
+        const pagina = finalDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+        pagina.drawImage(imagen, { x: (ANCHO_PAGINA - w) / 2, y: (ALTO_PAGINA - h) / 2 - 10, width: w, height: h });
+        dibujarGlosaAprobacion(pagina, bold, glosa);
+      } catch {
+        agregarPaginaNoCompatible(finalDoc, bold, regular, sustento.nombreArchivo, glosa);
+      }
+    } else {
+      agregarPaginaNoCompatible(finalDoc, bold, regular, sustento.nombreArchivo, glosa);
+    }
+  }
+
+  return finalDoc.save();
 }
 
 function partirTexto(texto: string, max: number): string[] {
