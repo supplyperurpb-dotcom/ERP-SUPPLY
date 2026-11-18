@@ -165,11 +165,15 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
         acciones={
           <div className="flex items-center gap-2">
             <Badge variant={ESTADO_VARIANT[registro.estado]}>{ESTADO_LABEL[registro.estado]}</Badge>
-            {registro.estado === "ABIERTO" && <AnadirItemsDialog registroAvanceId={registro.id} items={itemsDisponibles} />}
-            {registro.estado === "ABIERTO" && registro.items.length > 0 && (
+            {puedeEditar && registro.estado === "ABIERTO" && (
+              <AnadirItemsDialog registroAvanceId={registro.id} items={itemsDisponibles} />
+            )}
+            {puedeEditar && registro.estado === "ABIERTO" && registro.items.length > 0 && (
               <CulminarRegistroBoton registroAvanceId={registro.id} />
             )}
-            {registro.estado === "CULMINADO" && <SolicitarVbDialog registroAvanceId={registro.id} usuarios={usuariosParaVb} />}
+            {puedeEditar && registro.estado === "CULMINADO" && (
+              <SolicitarVbDialog registroAvanceId={registro.id} usuarios={usuariosParaVb} />
+            )}
             {puedeEditar && (
               <EliminarRegistroBoton
                 registroAvanceId={registro.id}

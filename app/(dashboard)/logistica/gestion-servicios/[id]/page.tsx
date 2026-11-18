@@ -40,7 +40,10 @@ export default async function AvanceOsPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
 
   const usuario = await getUsuarioActual();
-  const puedeEliminar = !!usuario && esComprador(usuario);
+  // Pedido explícito: solo Comprador gestiona (crea/elimina) registros de
+  // avance; a quien se le pide el VB solo ve Aceptar/Rechazar dentro de
+  // cada registro (ver [numero]/page.tsx).
+  const puedeGestionar = !!usuario && esComprador(usuario);
 
   const servicio = await prisma.servicioGestionado.findUnique({
     where: { ordenCompraId: id },
@@ -79,7 +82,9 @@ export default async function AvanceOsPage({ params }: { params: Promise<{ id: s
         }
       />
       <div className="mb-6 flex gap-3">
-        {!servicio.cerrado && <RegistrarAvanceBoton servicioGestionadoId={servicio.id} ordenCompraId={servicio.ordenCompraId} />}
+        {!servicio.cerrado && puedeGestionar && (
+          <RegistrarAvanceBoton servicioGestionadoId={servicio.id} ordenCompraId={servicio.ordenCompraId} />
+        )}
         <Button variant="outline" asChild>
           <Link href="/logistica/gestion-servicios">Anterior</Link>
         </Button>
@@ -152,7 +157,7 @@ export default async function AvanceOsPage({ params }: { params: Promise<{ id: s
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/logistica/gestion-servicios/${id}/registro/${registro.numero}`}>Ver</Link>
                       </Button>
-                      {puedeEliminar && <EliminarRegistroBoton registroAvanceId={registro.id} numero={registro.numero} />}
+                      {puedeGestionar && <EliminarRegistroBoton registroAvanceId={registro.id} numero={registro.numero} />}
                     </div>
                   </TableCell>
                 </TableRow>

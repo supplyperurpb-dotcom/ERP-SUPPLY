@@ -118,7 +118,11 @@ function FilaAvance({
   const [modoEdicion, setModoEdicion] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  const mostrarControlesRegistro = !soloLectura || modoEdicion;
+  // Pedido explícito: registrar avance por línea (y por lo tanto "Editar")
+  // es exclusivo de Comprador — a quien se le pidió el VB solo debe ver
+  // Aprobado/Rechazado, nunca estos controles (sí sigue viendo el valor ya
+  // registrado como texto, vía fila.avanceRegistrado más abajo).
+  const mostrarControlesRegistro = puedeEditar && (!soloLectura || modoEdicion);
 
   const valorNumerico = Number(valor);
   const esValido = tipo !== "" && valor.trim() !== "" && Number.isFinite(valorNumerico) && valorNumerico > 0;
