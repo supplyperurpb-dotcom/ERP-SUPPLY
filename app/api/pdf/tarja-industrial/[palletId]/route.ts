@@ -13,7 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
         orderBy: { numeroPallet: "asc" },
       },
       lineasFruta: {
-        include: { tipoBandeja: true, proveedor: true },
+        include: { tipoBandeja: true },
         orderBy: { numeroPallet: "asc" },
       },
     },
@@ -23,15 +23,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pal
     return NextResponse.json({ error: "No se encontró la tarja de este pallet." }, { status: 404 });
   }
 
-  // El descarte de planta (pallet.lineas / IngresoIndustrial) ya no tiene fundo —
-  // solo el descarte de campo (lineasFruta / IngresoFruta) puede aportar uno.
-  const proveedores = Array.from(new Set(pallet.lineasFruta.map((l) => l.proveedor.razonSocial)));
-
   const bytes = await generarTarjaIndustrialPdf({
     tarjaNumero: pallet.tarja.numero,
     palletNumero: pallet.numero,
     fechaEmision: pallet.tarja.fechaEmision,
-    proveedor: proveedores.join(", ") || "—",
     tipoProducto: pallet.origen === "DESCARTE_CAMPO" ? "Descarte Campo" : "Descarte Planta",
     lineas: [
       ...pallet.lineas.map((l) => ({

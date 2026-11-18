@@ -27,7 +27,6 @@ export async function generarTarjaPdf({
   tarjaNumero,
   palletNumero,
   fechaEmision,
-  proveedor,
   lineas,
   totalBandejas,
   pesoBrutoTotalKg,
@@ -38,7 +37,6 @@ export async function generarTarjaPdf({
   tarjaNumero: string;
   palletNumero: string;
   fechaEmision: Date;
-  proveedor: string;
   lineas: LineaTarja[];
   totalBandejas: number;
   pesoBrutoTotalKg: number;
@@ -91,10 +89,10 @@ export async function generarTarjaPdf({
     font: regular,
     color: NEGRO,
   });
-  y -= 10;
-  page.drawText(`Proveedor / Fundo: ${proveedor}`, { x: margen, y, size: 7, font: regular, color: NEGRO });
   y -= 12;
 
+  // Pedido explícito, 2026-11-18: ya no sale Proveedor/Fundo en la tarja
+  // (sigue guardado en la línea de ingreso, solo se deja de imprimir acá).
   page.drawLine({ start: { x: margen, y }, end: { x: ANCHO - margen, y }, thickness: 0.5, color: NEGRO });
   y -= 11;
 

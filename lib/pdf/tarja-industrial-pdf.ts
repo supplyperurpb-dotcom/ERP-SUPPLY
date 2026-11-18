@@ -25,7 +25,6 @@ export async function generarTarjaIndustrialPdf({
   tarjaNumero,
   palletNumero,
   fechaEmision,
-  proveedor,
   tipoProducto,
   lineas,
   totalBandejas,
@@ -37,7 +36,6 @@ export async function generarTarjaIndustrialPdf({
   tarjaNumero: string;
   palletNumero: string;
   fechaEmision: Date;
-  proveedor: string;
   /** "Descarte Campo" o "Descarte Planta", según el origen del pallet. */
   tipoProducto: string;
   lineas: LineaTarjaIndustrial[];
@@ -95,8 +93,8 @@ export async function generarTarjaIndustrialPdf({
     color: NEGRO,
   });
   y -= 10;
-  page.drawText(`Proveedor / Fundo: ${proveedor}`, { x: margen, y, size: 7, font: regular, color: NEGRO });
-  y -= 10;
+  // Pedido explícito, 2026-11-18: ya no sale Proveedor/Fundo en la tarja
+  // (sigue guardado en la línea de ingreso, solo se deja de imprimir acá).
   page.drawText(`Tipo de producto: ${tipoProducto}`, { x: margen, y, size: 7, font: regular, color: NEGRO });
   y -= 12;
 
