@@ -11,6 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     include: {
       proveedor: true,
       items: { include: { sku: true, solicitudPedidoItem: { include: { solicitudPedido: true } } } },
+      firmas: true,
     },
   });
 
@@ -18,9 +19,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "No se encontró la orden de compra." }, { status: 404 });
   }
 
+  // Una OC/OS por monto puede requerir más de una firma (ver
+  // rolesFirmaRequeridos en lib/compras.ts) — orden.aprobadoPorId solo
+  // guarda quién puso la ÚLTIMA (ver firmarOrdenCompraAction), así que la
+  // trazabilidad del pie usa cada firma ya APROBADA; si la orden no tuvo
+  // firmas por monto (quedó aprobada directo), cae a aprobadoPorId solo.
+  const idsFirmantesAprobados = [...new Set(orden.firmas.filter((f) => f.estado === "APROBADO").map((f) => f.usuarioId).filter((v): v is string => !!v))];
+  const idsAprobadores = idsFirmantesAprobados.length > 0 ? idsFirmantesAprobados : orden.aprobadoPorId ? [orden.aprobadoPorId] : [];
+
   const idsUsuarios = new Set<string>();
   if (orden.creadoPorId) idsUsuarios.add(orden.creadoPorId);
-  if (orden.aprobadoPorId) idsUsuarios.add(orden.aprobadoPorId);
+  for (const id of idsAprobadores) idsUsuarios.add(id);
   const idsSolicitantes = new Set(
     orden.items
       .map((item) => item.solicitudPedidoItem?.solicitudPedido.solicitanteId)
@@ -44,6 +53,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   };
 
   const codigosSolicitantes = [...new Set([...idsSolicitantes].map((id) => codigoUsuario(id)).filter((n): n is string => !!n))];
+  // Pedido explícito: 2+ aprobadores de la OC/OS van uno al lado del otro
+  // separados por " / " (no coma, para distinguirlo del resto de listas
+  // de códigos de este pie que sí usan ", ").
+  const codigosAprobadores = [...new Set(idsAprobadores.map((id) => codigoUsuario(id)).filter((n): n is string => !!n))];
   const codigosAprobadoresSolped = [
     ...new Set([...idsAprobadoresSolped].map((id) => codigoUsuario(id)).filter((n): n is string => !!n)),
   ];
@@ -92,7 +105,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     montoTotal: Number(orden.montoTotal),
     aprobado: orden.estado === "APROBADO",
     anulado: orden.estado === "ANULADO",
-    aprobadoPorCodigo: codigoUsuario(orden.aprobadoPorId),
+    aprobadoPorCodigo: codigosAprobadores.length > 0 ? codigosAprobadores.join(" / ") : null,
     usuarioSolped: codigosSolicitantes.length > 0 ? codigosSolicitantes.join(", ") : null,
     usuarioCreacion: codigoUsuario(orden.creadoPorId),
     solpedAprobadoPor: codigosAprobadoresSolped.length > 0 ? codigosAprobadoresSolped.join(", ") : null,
