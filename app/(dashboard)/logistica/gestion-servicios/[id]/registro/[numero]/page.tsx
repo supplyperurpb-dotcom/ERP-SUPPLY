@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { FileDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { formatCantidad, formatDateTime } from "@/lib/utils";
@@ -173,6 +175,14 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
             )}
             {puedeEditar && registro.estado === "CULMINADO" && (
               <SolicitarVbDialog registroAvanceId={registro.id} usuarios={usuariosParaVb} />
+            )}
+            {registro.estado === "APROBADO" && (
+              <Button variant="outline" asChild>
+                <a href={`/api/pdf/acta-servicio/${registro.id}`} target="_blank" rel="noopener noreferrer">
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Descargar Acta
+                </a>
+              </Button>
             )}
             {puedeEditar && (
               <EliminarRegistroBoton
