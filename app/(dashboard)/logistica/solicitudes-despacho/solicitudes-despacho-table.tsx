@@ -35,11 +35,22 @@ export type FilaSolicitudDespacho = {
   /** Valor crudo del enum (ver AreaEmpresa) — para comparar, no para mostrar. */
   areaCodigo: string;
   fecha: string;
+  /** "YYYY-MM-DD", para el filtro por rango de fechas — ver fecha para el texto mostrado en la tabla. */
+  fechaISO: string;
   solicitante: string;
   numItems: number;
   estado: EstadoSolicitudDespacho;
   puedeEliminar: boolean;
 };
+
+// Fecha de hoy en el calendario local del navegador (no UTC: evita que a
+// ciertas horas del día la fecha "de hoy" quede corrida un día).
+function hoyISO(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
 
 export function SolicitudesDespachoTable({
   filas,
@@ -54,14 +65,20 @@ export function SolicitudesDespachoTable({
   const router = useRouter();
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<EstadoSolicitudDespacho | "TODOS">("TODOS");
+  // Rango de fechas — por defecto hoy a hoy (pedido explícito), igual de
+  // editable que cualquier filtro de fecha para ver otros días.
+  const [fechaDesde, setFechaDesde] = useState(hoyISO());
+  const [fechaHasta, setFechaHasta] = useState(hoyISO());
+
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
 
   const filasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
     return filas
       .filter((f) => !termino || f.numero.toLowerCase().includes(termino))
-      .filter((f) => filtroEstado === "TODOS" || f.estado === filtroEstado);
-  }, [filas, busqueda, filtroEstado]);
+      .filter((f) => filtroEstado === "TODOS" || f.estado === filtroEstado)
+      .filter((f) => (!fechaDesde || f.fechaISO >= fechaDesde) && (!fechaHasta || f.fechaISO <= fechaHasta));
+  }, [filas, busqueda, filtroEstado, fechaDesde, fechaHasta]);
 
   const filaPorId = new Map(filas.map((f) => [f.id, f]));
   const areaSeleccionada = [...seleccionadas][0] ? filaPorId.get([...seleccionadas][0])?.areaCodigo : null;
@@ -97,6 +114,21 @@ export function SolicitudesDespachoTable({
               className="pl-8"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              className="w-[150px]"
+            />
+            <span className="text-sm text-muted-foreground">a</span>
+            <Input
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              className="w-[150px]"
+            />
+          </div>
           <Select value={filtroEstado} onValueChange={(v) => setFiltroEstado(v as EstadoSolicitudDespacho | "TODOS")}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Estatus" />
@@ -122,7 +154,7 @@ export function SolicitudesDespachoTable({
         <p className="py-6 text-center text-sm text-muted-foreground">
           {busqueda
             ? `No se encontró ninguna solicitud que coincida con "${busqueda}".`
-            : "Ninguna solicitud coincide con el estatus elegido."}
+            : "Ninguna solicitud coincide con el estatus o el rango de fechas elegido."}
         </p>
       ) : (
         <Table>

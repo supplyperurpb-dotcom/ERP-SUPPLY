@@ -55,6 +55,9 @@ export default async function SolicitudesDespachoPage() {
       area: AREAS_EMPRESA.find((a) => a.valor === solicitud.area)?.nombre ?? solicitud.area,
       areaCodigo: solicitud.area,
       fecha: formatDate(solicitud.fecha),
+      // Para el filtro por rango de fechas (comparación de texto, mismo
+      // formato que usa formatDate internamente) — ver SolicitudesDespachoTable.
+      fechaISO: solicitud.fecha.toISOString().slice(0, 10),
       solicitante: solicitud.solicitanteId ? solicitantePorId.get(solicitud.solicitanteId) ?? "—" : "—",
       numItems: solicitud._count.items,
       estado,
