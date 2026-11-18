@@ -47,6 +47,15 @@ export function siguienteNumero(numerosExistentes: string[], prefijo: string, an
   return `${prefijo}${String(maximoNumero(numerosExistentes, prefijo) + 1).padStart(ancho, "0")}`;
 }
 
+// Número de tarja a partir del pallet que la originó (pedido explícito,
+// 2026-11-18): ya no es un correlativo propio de la tarja, sigue el
+// correlativo del pallet (ej. pallet "PAL-1265" -> "RPB MP 26-1265"). Se
+// toma todo lo que va después del último "-" del número de pallet.
+export function numeroTarjaDesdePallet(numeroPallet: string, prefijoTarja: string): string {
+  const correlativo = numeroPallet.slice(numeroPallet.lastIndexOf("-") + 1);
+  return `${prefijoTarja}${correlativo}`;
+}
+
 // Reparte un monto total (p. ej. el flete de un ingreso/traslado/consumo)
 // entre varias líneas según su peso (p. ej. el subtotal de cada línea), de
 // forma que la suma de lo repartido sea exactamente igual al total (el

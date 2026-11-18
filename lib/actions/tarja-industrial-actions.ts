@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { siguienteNumero } from "@/lib/utils";
+import { numeroTarjaDesdePallet } from "@/lib/utils";
 
 export type TarjaIndustrialActionState = { error?: string; success?: boolean } | undefined;
 
@@ -18,8 +18,10 @@ export async function crearTarjaIndustrialAction(palletId: string): Promise<Tarj
 
   try {
     const usuario = await getUsuarioActual();
-    const tarjasExistentes = await prisma.tarjaIndustrial.findMany({ select: { numero: true } });
-    const numero = siguienteNumero(tarjasExistentes.map((t) => t.numero), "INDUSTRIAL26-");
+    // Pedido explícito, 2026-11-18: mismo criterio que la tarja de materia
+    // prima — el número sigue al del pallet (ej. pallet PINDUSTRIAL-0123 ->
+    // tarja RPB IND 26-0123).
+    const numero = numeroTarjaDesdePallet(pallet.numero, "RPB IND 26-");
 
     await prisma.tarjaIndustrial.create({
       data: { numero, palletId, creadoPorId: usuario?.id },

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { siguienteNumero } from "@/lib/utils";
+import { numeroTarjaDesdePallet } from "@/lib/utils";
 
 export type TarjaActionState = { error?: string; success?: boolean } | undefined;
 
@@ -18,8 +18,10 @@ export async function crearTarjaAction(palletId: string): Promise<TarjaActionSta
 
   try {
     const usuario = await getUsuarioActual();
-    const tarjasExistentes = await prisma.tarja.findMany({ select: { numero: true } });
-    const numero = siguienteNumero(tarjasExistentes.map((t) => t.numero), "RPB26-");
+    // Pedido explícito, 2026-11-18: el número de la tarja ya no es
+    // correlativo propio, sigue el número del pallet del que se generó
+    // (ej. pallet PAL-1265 -> tarja RPB MP 26-1265).
+    const numero = numeroTarjaDesdePallet(pallet.numero, "RPB MP 26-");
 
     await prisma.tarja.create({
       data: { numero, palletId, creadoPorId: usuario?.id },
