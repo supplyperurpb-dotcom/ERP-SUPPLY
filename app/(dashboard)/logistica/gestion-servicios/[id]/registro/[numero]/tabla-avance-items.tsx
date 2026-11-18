@@ -39,6 +39,7 @@ export function TablaAvanceItems({
   soloLectura = false,
   mostrarVb = false,
   puedeDecidirVb = false,
+  puedeRevertir = false,
   puedeEditar = false,
 }: {
   filas: FilaAvanceItem[];
@@ -47,6 +48,8 @@ export function TablaAvanceItems({
   mostrarVb?: boolean;
   /** El usuario actual es a quien se le pidió el VB (o ADMIN) — puede usar Aprobado/Rechazado en líneas aún PENDIENTE. */
   puedeDecidirVb?: boolean;
+  /** El usuario actual es exactamente a quien se le pidió el VB (nunca ADMIN) — único que puede "Revertir a Aprobado" una línea rechazada. */
+  puedeRevertir?: boolean;
   /** El usuario actual es Comprador — puede "Editar" cualquier línea (aprobada, rechazada o aún pendiente) una vez pasado ABIERTO. */
   puedeEditar?: boolean;
 }) {
@@ -84,6 +87,7 @@ export function TablaAvanceItems({
               soloLectura={soloLectura}
               mostrarVb={mostrarVb}
               puedeDecidirVb={puedeDecidirVb}
+              puedeRevertir={puedeRevertir}
               puedeEditar={puedeEditar}
             />
           ))}
@@ -98,12 +102,14 @@ function FilaAvance({
   soloLectura,
   mostrarVb,
   puedeDecidirVb,
+  puedeRevertir,
   puedeEditar,
 }: {
   fila: FilaAvanceItem;
   soloLectura: boolean;
   mostrarVb: boolean;
   puedeDecidirVb: boolean;
+  puedeRevertir: boolean;
   puedeEditar: boolean;
 }) {
   const [tipo, setTipo] = useState<TipoRegistroAvanceInput | "">("");
@@ -287,7 +293,7 @@ function FilaAvance({
                 {fila.estadoVB === "APROBADO" ? "Aprobado" : "Rechazado"}
               </Badge>
               {fila.observacionesVB && <p className="text-xs text-muted-foreground">&quot;{fila.observacionesVB}&quot;</p>}
-              {fila.estadoVB === "RECHAZADO" && puedeDecidirVb && (
+              {fila.estadoVB === "RECHAZADO" && puedeRevertir && (
                 <Button
                   type="button"
                   size="sm"

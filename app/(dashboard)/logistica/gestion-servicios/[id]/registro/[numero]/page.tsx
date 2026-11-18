@@ -140,6 +140,10 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
     registro.estado !== "ABIERTO" &&
     registro.estado !== "CULMINADO" &&
     (registro.aprobadorId === usuario.id || usuario.roles.includes("ADMIN"));
+  // "Revertir a Aprobado" (pedido explícito): a diferencia del resto del
+  // VB, esto es exclusivo de a quién se le pidió el VB de este registro —
+  // ni ADMIN ni otro rol lo ve, aunque sí pueda decidir Aprobado/Rechazado.
+  const esAprobadorAsignado = !!usuario && registro.aprobadorId === usuario.id;
   const mostrarVb = registro.estado !== "ABIERTO" && registro.estado !== "CULMINADO";
   // Comprador: puede "Editar" cualquier línea (aprobada, rechazada o
   // pendiente) una vez pasado ABIERTO, sin pedir VB de nuevo para todo el
@@ -182,6 +186,7 @@ export default async function RegistroAvancePage({ params }: { params: Promise<{
         soloLectura={soloLectura}
         mostrarVb={mostrarVb}
         puedeDecidirVb={puedeDecidirVb}
+        puedeRevertir={esAprobadorAsignado}
         puedeEditar={puedeEditar}
       />
 
