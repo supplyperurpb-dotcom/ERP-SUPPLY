@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { calcularStockAlmacen, calcularStockPorLote, almacenPermitidoParaConsumo, type FilaStockAlmacen } from "@/lib/stock-almacen";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
+import { nombreCompletoRetirador } from "@/lib/utils";
 import { ConsumoAlmacenForm } from "../../nuevo/consumo-almacen-form";
 import type { ConsumoAlmacenInput } from "@/lib/validations/almacen";
 
@@ -15,7 +16,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
       include: { almacenesPermitidos: true },
-      orderBy: { apellidos: "asc" },
+      orderBy: { apellidoPaterno: "asc" },
     }),
     prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
   ]);
@@ -131,7 +132,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
         lotesPorAlmacen={lotesPorAlmacen}
         retiradores={retiradores.map((r) => ({
           id: r.id,
-          nombreCompleto: `${r.nombres} ${r.apellidos}`,
+          nombreCompleto: nombreCompletoRetirador(r),
           dni: r.dni,
           area: r.area,
           almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),

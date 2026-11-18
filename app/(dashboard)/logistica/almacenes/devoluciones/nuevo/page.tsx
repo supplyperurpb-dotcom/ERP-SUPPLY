@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { siguienteNumero } from "@/lib/utils";
+import { siguienteNumero, nombreCompletoRetirador } from "@/lib/utils";
 import { DevolucionAlmacenForm } from "./devolucion-almacen-form";
 
 export default async function NuevaDevolucionAlmacenPage({
@@ -18,7 +18,7 @@ export default async function NuevaDevolucionAlmacenPage({
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
       include: { almacenesPermitidos: true },
-      orderBy: { apellidos: "asc" },
+      orderBy: { apellidoPaterno: "asc" },
     }),
     prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
     prisma.devolucionAlmacen.findMany({ select: { numero: true } }),
@@ -41,7 +41,7 @@ export default async function NuevaDevolucionAlmacenPage({
         almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         retiradores={retiradores.map((r) => ({
           id: r.id,
-          nombreCompleto: `${r.nombres} ${r.apellidos}`,
+          nombreCompleto: nombreCompletoRetirador(r),
           dni: r.dni,
           area: r.area,
           almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),

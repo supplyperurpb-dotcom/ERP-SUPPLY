@@ -456,14 +456,20 @@ model ListaValor {
 // al crearlo/editarlo (ver RetiradorAlmacenPermitido). Nunca se borra un
 // registro ya usado: se desactiva (activo=false), igual que ListaValor.
 model RetiradorAutorizado {
-  id        String      @id @default(cuid())
-  nombres   String
-  apellidos String
-  dni       String      @unique
-  area      AreaEmpresa
-  activo    Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id              String       @id @default(cuid())
+  nombres         String
+  apellidoPaterno String
+  apellidoMaterno String?
+  dni             String       @unique
+  // Gerencia (ver GERENCIAS_SOLPED en lib/constants/compras.ts).
+  area            AreaEmpresa
+  // Área puntual (nivel 2) dentro de esa Gerencia — mismo organigrama que
+  // Usuario.areaDetalle (ver AREAS_SOLPED en lib/constants/compras.ts).
+  // Nulo solo en retiradores creados antes de este campo.
+  areaDetalle     String?
+  activo          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   almacenesPermitidos RetiradorAlmacenPermitido[]
 

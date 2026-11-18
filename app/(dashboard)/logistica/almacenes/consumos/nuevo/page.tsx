@@ -7,7 +7,7 @@ import {
   calcularSolicitudesDespachoPendientes,
   almacenPermitidoParaConsumo,
 } from "@/lib/stock-almacen";
-import { siguienteNumero } from "@/lib/utils";
+import { siguienteNumero, nombreCompletoRetirador } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "./consumo-almacen-form";
@@ -30,7 +30,7 @@ export default async function NuevoConsumoAlmacenPage({
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
       include: { almacenesPermitidos: true },
-      orderBy: { apellidos: "asc" },
+      orderBy: { apellidoPaterno: "asc" },
     }),
     prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
     prisma.consumoAlmacen.findMany({ select: { numero: true } }),
@@ -117,7 +117,7 @@ export default async function NuevoConsumoAlmacenPage({
         lotesPorAlmacen={lotesPorAlmacen}
         retiradores={retiradores.map((r) => ({
           id: r.id,
-          nombreCompleto: `${r.nombres} ${r.apellidos}`,
+          nombreCompleto: nombreCompletoRetirador(r),
           dni: r.dni,
           area: r.area,
           almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),

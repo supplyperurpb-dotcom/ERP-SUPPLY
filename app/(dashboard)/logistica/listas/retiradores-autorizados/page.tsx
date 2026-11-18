@@ -4,23 +4,28 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db/prisma";
-import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { GERENCIAS_SOLPED, AREAS_SOLPED } from "@/lib/constants/compras";
+import { nombreCompletoRetirador } from "@/lib/utils";
 import { RetiradoresAutorizadosTable, type FilaRetiradorAutorizado } from "./retiradores-autorizados-table";
 
 export default async function RetiradoresAutorizadosPage() {
   const retiradores = await prisma.retiradorAutorizado.findMany({
     include: { almacenesPermitidos: { include: { almacen: true } } },
-    orderBy: [{ activo: "desc" }, { apellidos: "asc" }],
+    orderBy: [{ activo: "desc" }, { apellidoPaterno: "asc" }],
   });
 
-  const filas: FilaRetiradorAutorizado[] = retiradores.map((r) => ({
-    id: r.id,
-    nombreCompleto: `${r.nombres} ${r.apellidos}`,
-    dni: r.dni,
-    area: AREAS_EMPRESA.find((a) => a.valor === r.area)?.nombre ?? r.area,
-    almacenes: r.almacenesPermitidos.map((p) => p.almacen.nombre),
-    activo: r.activo,
-  }));
+  const filas: FilaRetiradorAutorizado[] = retiradores.map((r) => {
+    const nombreGerencia = GERENCIAS_SOLPED.find((g) => g.valor === r.area)?.nombre ?? r.area;
+    const nombreArea = AREAS_SOLPED.find((a) => a.valor === r.areaDetalle)?.nombre;
+    return {
+      id: r.id,
+      nombreCompleto: nombreCompletoRetirador(r),
+      dni: r.dni,
+      area: nombreArea && nombreArea !== nombreGerencia ? `${nombreGerencia} — ${nombreArea}` : nombreGerencia,
+      almacenes: r.almacenesPermitidos.map((p) => p.almacen.nombre),
+      activo: r.activo,
+    };
+  });
 
   return (
     <div>

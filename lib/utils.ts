@@ -15,6 +15,13 @@ export function codigoAprobador(nombres: string, apellidos: string): string {
   return `${inicial}${apellido}`.toUpperCase();
 }
 
+// Nombre completo de un RetiradorAutorizado (apellidoMaterno es opcional,
+// ver prisma/schema.prisma) — centralizado acá porque se arma igual en
+// varias páginas (tabla, combobox, PDF de consumo).
+export function nombreCompletoRetirador(r: { nombres: string; apellidoPaterno: string; apellidoMaterno: string | null }): string {
+  return [r.nombres, r.apellidoPaterno, r.apellidoMaterno].filter(Boolean).join(" ");
+}
+
 // Calcula el siguiente número de una serie tipo "IF-0001" a partir del
 // MÁXIMO correlativo ya usado (no de `count()` de filas). Usar `count()+1`
 // para numerar es frágil: si alguna fila se borra (o el conteo no coincide

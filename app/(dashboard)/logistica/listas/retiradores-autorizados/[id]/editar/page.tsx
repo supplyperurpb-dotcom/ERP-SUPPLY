@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { nombreCompletoRetirador } from "@/lib/utils";
+import { areasDeGerenciaSolped, type GerenciaSolpedCodigo } from "@/lib/constants/compras";
 import { RetiradorAutorizadoForm } from "../../retirador-autorizado-form";
 import type { RetiradorAutorizadoInput } from "@/lib/validations/retirador-autorizado";
 
@@ -13,19 +15,25 @@ export default async function EditarRetiradorAutorizadoPage({ params }: { params
   ]);
   if (!retirador) notFound();
 
+  const gerencia = retirador.area as GerenciaSolpedCodigo;
   const valoresIniciales: RetiradorAutorizadoInput = {
     nombres: retirador.nombres,
-    apellidos: retirador.apellidos,
+    apellidoPaterno: retirador.apellidoPaterno,
+    apellidoMaterno: retirador.apellidoMaterno ?? undefined,
     dni: retirador.dni,
     // Ver nota equivalente en devoluciones/[id]/editar/page.tsx.
-    area: retirador.area as RetiradorAutorizadoInput["area"],
+    area: gerencia,
+    // Retiradores creados antes de este campo no tienen areaDetalle: se
+    // precarga con la primera área de su gerencia para que el formulario
+    // no arranque con un valor inválido.
+    areaDetalle: retirador.areaDetalle ?? areasDeGerenciaSolped(gerencia)[0]?.valor ?? "",
     almacenesPermitidosIds: retirador.almacenesPermitidos.map((p) => p.almacenId),
   };
 
   return (
     <div>
       <PageHeader
-        titulo={`Editar retirador: ${retirador.nombres} ${retirador.apellidos}`}
+        titulo={`Editar retirador: ${nombreCompletoRetirador(retirador)}`}
         descripcion="Modifica los datos o los almacenes permitidos de este retirador."
       />
       <RetiradorAutorizadoForm

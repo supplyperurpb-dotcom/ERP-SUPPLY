@@ -37,9 +37,11 @@ export async function crearRetiradorAutorizadoAction(
     const nuevo = await prisma.retiradorAutorizado.create({
       data: {
         nombres: parsed.data.nombres,
-        apellidos: parsed.data.apellidos,
+        apellidoPaterno: parsed.data.apellidoPaterno,
+        apellidoMaterno: parsed.data.apellidoMaterno?.trim() || null,
         dni: parsed.data.dni,
         area: parsed.data.area,
+        areaDetalle: parsed.data.areaDetalle,
         almacenesPermitidos: {
           create: parsed.data.almacenesPermitidosIds.map((almacenId) => ({ almacenId })),
         },
@@ -77,9 +79,11 @@ export async function actualizarRetiradorAutorizadoAction(
         where: { id },
         data: {
           nombres: parsed.data.nombres,
-          apellidos: parsed.data.apellidos,
+          apellidoPaterno: parsed.data.apellidoPaterno,
+          apellidoMaterno: parsed.data.apellidoMaterno?.trim() || null,
           dni: parsed.data.dni,
           area: parsed.data.area,
+          areaDetalle: parsed.data.areaDetalle,
         },
       });
       await tx.retiradorAlmacenPermitido.deleteMany({ where: { retiradorAutorizadoId: id } });

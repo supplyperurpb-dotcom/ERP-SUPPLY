@@ -60,7 +60,7 @@ function truncarTexto(font: PDFFont, texto: string, size: number, anchoMax: numb
 // en vez de eso se abrevia a inicial + apellido(s) (el DNI, aparte, va en
 // su propia línea debajo — ver filaRetiradoRegistrado). Asume que la
 // primera palabra es el nombre y el resto apellido(s), que es como se
-// arma hoy (RetiradorAutorizado.nombres + " " + apellidos).
+// arma hoy (ver nombreCompletoRetirador en lib/utils.ts).
 function formatearNombreInicial(nombreCompleto: string): string {
   const partes = nombreCompleto.trim().split(/\s+/).filter(Boolean);
   if (partes.length <= 1) return nombreCompleto;

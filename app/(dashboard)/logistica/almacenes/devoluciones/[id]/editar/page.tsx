@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { nombreCompletoRetirador } from "@/lib/utils";
 import { DevolucionAlmacenForm } from "../../nuevo/devolucion-almacen-form";
 import type { DevolucionAlmacenInput } from "@/lib/validations/devolucion-almacen";
 
@@ -13,7 +14,7 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
       include: { almacenesPermitidos: true },
-      orderBy: { apellidos: "asc" },
+      orderBy: { apellidoPaterno: "asc" },
     }),
     prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
   ]);
@@ -61,7 +62,7 @@ export default async function EditarDevolucionAlmacenPage({ params }: { params: 
         almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         retiradores={retiradores.map((r) => ({
           id: r.id,
-          nombreCompleto: `${r.nombres} ${r.apellidos}`,
+          nombreCompleto: nombreCompletoRetirador(r),
           dni: r.dni,
           area: r.area,
           almacenesIds: r.almacenesPermitidos.map((p) => p.almacenId),

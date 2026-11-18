@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { GERENCIAS_SOLPED, areasDeGerenciaSolped, type GerenciaSolpedCodigo } from "@/lib/constants/compras";
 import {
   crearRetiradorAutorizadoAction,
   actualizarRetiradorAutorizadoAction,
@@ -28,13 +28,29 @@ export function RetiradorAutorizadoForm({
   const esEdicion = !!edicion;
 
   const [nombres, setNombres] = useState(edicion?.valoresIniciales.nombres ?? "");
-  const [apellidos, setApellidos] = useState(edicion?.valoresIniciales.apellidos ?? "");
+  const [apellidoPaterno, setApellidoPaterno] = useState(edicion?.valoresIniciales.apellidoPaterno ?? "");
+  const [apellidoMaterno, setApellidoMaterno] = useState(edicion?.valoresIniciales.apellidoMaterno ?? "");
   const [dni, setDni] = useState(edicion?.valoresIniciales.dni ?? "");
-  const [area, setArea] = useState(edicion?.valoresIniciales.area ?? "");
+  const [gerencia, setGerencia] = useState<GerenciaSolpedCodigo | "">(
+    (edicion?.valoresIniciales.area as GerenciaSolpedCodigo | undefined) ?? ""
+  );
+  const [areaDetalle, setAreaDetalle] = useState(edicion?.valoresIniciales.areaDetalle ?? "");
   const [almacenesIds, setAlmacenesIds] = useState<Set<string>>(
     new Set(edicion?.valoresIniciales.almacenesPermitidosIds ?? [])
   );
   const [enviando, setEnviando] = useState(false);
+
+  const areasDeGerenciaActual = gerencia ? areasDeGerenciaSolped(gerencia) : [];
+
+  function cambiarGerencia(valor: string) {
+    const nuevaGerencia = valor as GerenciaSolpedCodigo;
+    setGerencia(nuevaGerencia);
+    // Mismo criterio que el selector de Usuario: si la gerencia no se
+    // subdivide, el área queda precargada sola (no se muestra el segundo
+    // selector, ver areasDeGerenciaActual.length > 1 más abajo).
+    const primeraArea = areasDeGerenciaSolped(nuevaGerencia)[0]?.valor;
+    setAreaDetalle(primeraArea ?? "");
+  }
 
   function alternarAlmacen(id: string) {
     setAlmacenesIds((prev) => {
@@ -45,16 +61,25 @@ export function RetiradorAutorizadoForm({
     });
   }
 
+  const todosSeleccionados = almacenes.length > 0 && almacenes.every((a) => almacenesIds.has(a.id));
+  function alternarTodos() {
+    setAlmacenesIds(todosSeleccionados ? new Set() : new Set(almacenes.map((a) => a.id)));
+  }
+
   async function handleSubmit() {
-    if (!nombres.trim() || !apellidos.trim()) {
-      toast.error("Nombres y apellidos son obligatorios");
+    if (!nombres.trim() || !apellidoPaterno.trim()) {
+      toast.error("Nombres y apellido paterno son obligatorios");
       return;
     }
     if (!/^\d{8}$/.test(dni.trim())) {
       toast.error("El DNI debe tener 8 dígitos");
       return;
     }
-    if (!area) {
+    if (!gerencia) {
+      toast.error("Selecciona la gerencia");
+      return;
+    }
+    if (!areaDetalle) {
       toast.error("Selecciona el área");
       return;
     }
@@ -65,9 +90,11 @@ export function RetiradorAutorizadoForm({
 
     const payload: RetiradorAutorizadoInput = {
       nombres,
-      apellidos,
+      apellidoPaterno,
+      apellidoMaterno: apellidoMaterno.trim() || undefined,
       dni,
-      area: area as RetiradorAutorizadoInput["area"],
+      area: gerencia,
+      areaDetalle,
       almacenesPermitidosIds: [...almacenesIds],
     };
 
@@ -103,8 +130,12 @@ export function RetiradorAutorizadoForm({
             <Input id="nombres" value={nombres} onChange={(e) => setNombres(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="apellidos">Apellidos</Label>
-            <Input id="apellidos" value={apellidos} onChange={(e) => setApellidos(e.target.value)} />
+            <Label htmlFor="apellidoPaterno">Apellido paterno</Label>
+            <Input id="apellidoPaterno" value={apellidoPaterno} onChange={(e) => setApellidoPaterno(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="apellidoMaterno">Apellido materno (opcional)</Label>
+            <Input id="apellidoMaterno" value={apellidoMaterno} onChange={(e) => setApellidoMaterno(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="dni">DNI</Label>
@@ -117,20 +148,37 @@ export function RetiradorAutorizadoForm({
             />
           </div>
           <div className="space-y-2">
-            <Label>Área</Label>
-            <Select value={area} onValueChange={setArea}>
+            <Label>Gerencia</Label>
+            <Select value={gerencia} onValueChange={cambiarGerencia}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona el área" />
+                <SelectValue placeholder="Selecciona la gerencia" />
               </SelectTrigger>
               <SelectContent>
-                {AREAS_EMPRESA.map((a) => (
-                  <SelectItem key={a.valor} value={a.valor}>
-                    {a.nombre}
+                {GERENCIAS_SOLPED.map((g) => (
+                  <SelectItem key={g.valor} value={g.valor}>
+                    {g.nombre}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+          {areasDeGerenciaActual.length > 1 && (
+            <div className="space-y-2">
+              <Label>Área</Label>
+              <Select value={areaDetalle} onValueChange={setAreaDetalle}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el área" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areasDeGerenciaActual.map((a) => (
+                    <SelectItem key={a.valor} value={a.valor}>
+                      {a.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -141,7 +189,16 @@ export function RetiradorAutorizadoForm({
             Marca de qué almacenes puede retirar materiales esta persona. No todos pueden retirar de todos.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <label className="flex w-fit items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={todosSeleccionados}
+              onChange={alternarTodos}
+            />
+            Seleccionar todos
+          </label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {almacenes.map((a) => (
               <label key={a.id} className="flex items-center gap-2 rounded-md border p-2 text-sm">

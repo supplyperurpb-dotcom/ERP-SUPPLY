@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { siguienteNumero } from "@/lib/utils";
+import { siguienteNumero, nombreCompletoRetirador } from "@/lib/utils";
 import {
   costosParaValidacion,
   costosAFecha,
@@ -146,7 +146,7 @@ async function verificarRetiradorAutorizado(dni: string, almacenIds: string[]): 
   }
   const permitidos = new Set(retirador.almacenesPermitidos.map((p) => p.almacenId));
   if (!almacenIds.every((id) => permitidos.has(id))) {
-    return { error: `${retirador.nombres} ${retirador.apellidos} no tiene permiso de retirar de todos los almacenes de esta lista.` };
+    return { error: `${nombreCompletoRetirador(retirador)} no tiene permiso de retirar de todos los almacenes de esta lista.` };
   }
   return {};
 }
