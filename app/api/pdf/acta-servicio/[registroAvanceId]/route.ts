@@ -26,10 +26,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ reg
   }
 
   const idsAprobadores = [...new Set(registro.items.map((i) => i.decididoPorId).filter((v): v is string => !!v))];
-  const usuariosAprobadores = idsAprobadores.length
-    ? await prisma.usuario.findMany({ where: { id: { in: idsAprobadores } } })
-    : [];
-  const aprobadoPor = usuariosAprobadores.map((u) => codigoAprobador(u.nombres, u.apellidos));
+  const idsUsuarios = new Set(idsAprobadores);
+  if (registro.creadoPorId) idsUsuarios.add(registro.creadoPorId);
+  const usuarios = idsUsuarios.size ? await prisma.usuario.findMany({ where: { id: { in: [...idsUsuarios] } } }) : [];
+  const usuarioPorId = new Map(usuarios.map((u) => [u.id, u]));
+  const codigoUsuario = (id: string | null) => {
+    const u = id ? usuarioPorId.get(id) : null;
+    return u ? codigoAprobador(u.nombres, u.apellidos) : null;
+  };
+  const aprobadoPor = idsAprobadores.map((id) => codigoUsuario(id)).filter((v): v is string => !!v);
+  const gestionadoPor = codigoUsuario(registro.creadoPorId);
 
   const lineas: LineaActaServicioPdf[] = registro.items.map((item) => {
     const cantidadAvanzada = item.avances.reduce((acc, a) => acc + Number(a.cantidad), 0);
@@ -55,6 +61,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ reg
     moneda: orden.moneda,
     lineas,
     montoTotal,
+    gestionadoPor,
     aprobadoPor,
   });
 

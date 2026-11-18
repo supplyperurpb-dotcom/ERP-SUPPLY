@@ -45,6 +45,7 @@ export async function generarActaServicioPdf({
   moneda,
   lineas,
   montoTotal,
+  gestionadoPor,
   aprobadoPor,
 }: {
   numeroOrden: string;
@@ -55,6 +56,8 @@ export async function generarActaServicioPdf({
   moneda: string;
   lineas: LineaActaServicioPdf[];
   montoTotal: number;
+  /** Código (ver codigoAprobador en lib/utils.ts) del Comprador que registró este avance. */
+  gestionadoPor: string | null;
   /** Códigos (ver codigoAprobador en lib/utils.ts) de quienes dieron VB, ya sin duplicados. */
   aprobadoPor: string[];
 }): Promise<Uint8Array> {
@@ -110,7 +113,9 @@ export async function generarActaServicioPdf({
   // Datos del proveedor y del servicio.
   // ---------------------------------------------------------------------
   const xEtiqueta = MARGEN_X;
-  const xValor = MARGEN_X + 95;
+  // 135 (no 95) para que quepa la etiqueta más larga, "FECHA DE
+  // APROBACIÓN:", sin pisar el valor — se veía superpuesto antes.
+  const xValor = MARGEN_X + 135;
   const filaDato = (label: string, value: string) => {
     page.drawText(label, { x: xEtiqueta, y, size: 8, font: bold, color: GRIS });
     page.drawText(value, { x: xValor, y, size: 8, font: regular, color: NEGRO });
@@ -177,21 +182,22 @@ export async function generarActaServicioPdf({
   page.drawText("TOTAL VALORIZADO", { x: ANCHO_PAGINA - MARGEN_X - 200, y, size: 9, font: bold, color: NEGRO });
   page.drawText(moneda, { x: ANCHO_PAGINA - MARGEN_X - 95, y, size: 9, font: bold, color: NEGRO });
   drawTextRight(moneyFmt(montoTotal), ANCHO_PAGINA - MARGEN_X - 2, y, 9, bold);
-  y -= 40;
+  y -= 24;
 
   // ---------------------------------------------------------------------
-  // Pie: firma de quien(es) dio el VB.
+  // Pie: trazabilidad de quién gestionó y quién aprobó — mismo formato que
+  // el pie de la Orden de Compra (ver filaPie en orden-compra-pdf.ts),
+  // pegado a continuación de donde haya terminado el total (dinámico: si
+  // el total se corrió de página, este pie baja con él).
   // ---------------------------------------------------------------------
-  const altoFirma = 50;
-  if (y < MARGEN_INFERIOR + altoFirma) nuevaPagina();
-  y -= 20;
-  const textoAprobado = `APROBADO POR: ${aprobadoPor.length > 0 ? aprobadoPor.join("; ") : "—"}`;
-  const anchoLinea = Math.min(260, ANCHO_PAGINA - MARGEN_X * 2);
-  const xFirma = (ANCHO_PAGINA - anchoLinea) / 2;
-  page.drawLine({ start: { x: xFirma, y }, end: { x: xFirma + anchoLinea, y }, thickness: 0.75, color: NEGRO });
-  y -= 12;
-  const anchoTextoAprobado = bold.widthOfTextAtSize(textoAprobado, 9);
-  page.drawText(textoAprobado, { x: (ANCHO_PAGINA - anchoTextoAprobado) / 2, y, size: 9, font: bold, color: NEGRO });
+  if (y < MARGEN_INFERIOR - 22) nuevaPagina();
+  const filaPie = (label: string, value: string) => {
+    page.drawText(label, { x: MARGEN_X, y, size: 7, font: bold, color: GRIS });
+    page.drawText(value, { x: MARGEN_X + 125, y, size: 7, font: regular, color: NEGRO });
+    y -= 11;
+  };
+  filaPie("GESTIONADO POR:", gestionadoPor || "—");
+  filaPie("APROBADO POR:", aprobadoPor.length > 0 ? aprobadoPor.join("; ") : "—");
 
   return pdfDoc.save();
 }
