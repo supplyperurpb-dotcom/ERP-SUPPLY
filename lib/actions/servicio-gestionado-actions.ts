@@ -523,10 +523,17 @@ export async function reabrirItemParaEdicionAction(itemRegistroAvanceId: string)
     if (!item) return { error: "Esta línea ya no existe." };
     if (item.estadoVB === "PENDIENTE") return { error: "Esta línea ya está habilitada para editar." };
 
-    await prisma.itemRegistroAvance.update({
-      where: { id: itemRegistroAvanceId },
-      data: { estadoVB: "PENDIENTE", observacionesVB: null, decididoPorId: null, fechaDecisionVB: null },
-    });
+    // Pedido explícito: editar reemplaza lo antes enviado a VB (aprobado o
+    // rechazado), nunca se suma a lo nuevo — se borra el avance anterior de
+    // ESTA línea antes de dejarla PENDIENTE, así el saldo y "Registrar"
+    // arrancan limpios para el valor corregido.
+    await prisma.$transaction([
+      prisma.avanceServicioItem.deleteMany({ where: { itemRegistroAvanceId } }),
+      prisma.itemRegistroAvance.update({
+        where: { id: itemRegistroAvanceId },
+        data: { estadoVB: "PENDIENTE", observacionesVB: null, decididoPorId: null, fechaDecisionVB: null },
+      }),
+    ]);
 
     const registro = item.registroAvance;
     await prisma.registroAvance.update({
