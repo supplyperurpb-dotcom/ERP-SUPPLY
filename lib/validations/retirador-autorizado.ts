@@ -19,7 +19,7 @@ export const retiradorAutorizadoSchema = z
   .object({
     nombres: z.string().trim().min(1, "El nombre es obligatorio").max(100),
     apellidoPaterno: z.string().trim().min(1, "El apellido paterno es obligatorio").max(100),
-    apellidoMaterno: z.string().trim().max(100).optional(),
+    apellidoMaterno: z.string().trim().min(1, "El apellido materno es obligatorio").max(100),
     dni: z
       .string()
       .trim()

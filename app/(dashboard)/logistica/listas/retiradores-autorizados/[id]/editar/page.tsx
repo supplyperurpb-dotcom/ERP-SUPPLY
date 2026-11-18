@@ -19,7 +19,9 @@ export default async function EditarRetiradorAutorizadoPage({ params }: { params
   const valoresIniciales: RetiradorAutorizadoInput = {
     nombres: retirador.nombres,
     apellidoPaterno: retirador.apellidoPaterno,
-    apellidoMaterno: retirador.apellidoMaterno ?? undefined,
+    // "" para un retirador creado antes de que este campo fuera
+    // obligatorio: el formulario lo deja en blanco y exige completarlo.
+    apellidoMaterno: retirador.apellidoMaterno ?? "",
     dni: retirador.dni,
     // Ver nota equivalente en devoluciones/[id]/editar/page.tsx.
     area: gerencia,

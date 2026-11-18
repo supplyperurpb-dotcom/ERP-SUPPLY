@@ -67,8 +67,8 @@ export function RetiradorAutorizadoForm({
   }
 
   async function handleSubmit() {
-    if (!nombres.trim() || !apellidoPaterno.trim()) {
-      toast.error("Nombres y apellido paterno son obligatorios");
+    if (!nombres.trim() || !apellidoPaterno.trim() || !apellidoMaterno.trim()) {
+      toast.error("Nombres, apellido paterno y apellido materno son obligatorios");
       return;
     }
     if (!/^\d{8}$/.test(dni.trim())) {
@@ -91,7 +91,7 @@ export function RetiradorAutorizadoForm({
     const payload: RetiradorAutorizadoInput = {
       nombres,
       apellidoPaterno,
-      apellidoMaterno: apellidoMaterno.trim() || undefined,
+      apellidoMaterno,
       dni,
       area: gerencia,
       areaDetalle,
@@ -134,7 +134,7 @@ export function RetiradorAutorizadoForm({
             <Input id="apellidoPaterno" value={apellidoPaterno} onChange={(e) => setApellidoPaterno(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="apellidoMaterno">Apellido materno (opcional)</Label>
+            <Label htmlFor="apellidoMaterno">Apellido materno</Label>
             <Input id="apellidoMaterno" value={apellidoMaterno} onChange={(e) => setApellidoMaterno(e.target.value)} />
           </div>
           <div className="space-y-2">
@@ -162,23 +162,21 @@ export function RetiradorAutorizadoForm({
               </SelectContent>
             </Select>
           </div>
-          {areasDeGerenciaActual.length > 1 && (
-            <div className="space-y-2">
-              <Label>Área</Label>
-              <Select value={areaDetalle} onValueChange={setAreaDetalle}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona el área" />
-                </SelectTrigger>
-                <SelectContent>
-                  {areasDeGerenciaActual.map((a) => (
-                    <SelectItem key={a.valor} value={a.valor}>
-                      {a.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label>Área</Label>
+            <Select value={areaDetalle} onValueChange={setAreaDetalle} disabled={!gerencia}>
+              <SelectTrigger>
+                <SelectValue placeholder={gerencia ? "Selecciona el área" : "Selecciona primero la gerencia"} />
+              </SelectTrigger>
+              <SelectContent>
+                {areasDeGerenciaActual.map((a) => (
+                  <SelectItem key={a.valor} value={a.valor}>
+                    {a.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
