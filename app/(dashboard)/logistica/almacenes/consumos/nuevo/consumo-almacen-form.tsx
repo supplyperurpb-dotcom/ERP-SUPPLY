@@ -1029,13 +1029,17 @@ export function ConsumoAlmacenForm({
                       </div>
                     </div>
                   ))}
-                  <p className="text-sm">
-                    Total repartido:{" "}
-                    <span className={sumaSplit > restanteProducto + 0.001 ? "font-medium text-destructive" : "font-medium"}>
-                      {formatCantidad(sumaSplit)}
-                    </span>{" "}
-                    / {formatCantidad(restanteProducto)}
-                  </p>
+                  <div className="space-y-1 text-sm">
+                    <p>
+                      Total Atendido:{" "}
+                      <span className={sumaSplit > restanteProducto + 0.001 ? "font-medium text-destructive" : "font-medium"}>
+                        {formatCantidad(sumaSplit)}
+                      </span>
+                    </p>
+                    <p>
+                      Total solicitado: <span className="font-medium">{formatCantidad(restanteProducto)}</span>
+                    </p>
+                  </div>
                   <div className="flex justify-end">
                     <Button type="button" onClick={agregarSplit}>
                       Agregar
