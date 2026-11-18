@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EliminarMovimientoButton } from "@/components/shared/eliminar-movimiento-button";
 import { eliminarSolicitudDespachoAction } from "@/lib/actions/solicitud-despacho-actions";
@@ -52,13 +53,15 @@ export function SolicitudesDespachoTable({
 }) {
   const router = useRouter();
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<EstadoSolicitudDespacho | "TODOS">("TODOS");
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
 
   const filasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
-    if (!termino) return filas;
-    return filas.filter((f) => f.numero.toLowerCase().includes(termino));
-  }, [filas, busqueda]);
+    return filas
+      .filter((f) => !termino || f.numero.toLowerCase().includes(termino))
+      .filter((f) => filtroEstado === "TODOS" || f.estado === filtroEstado);
+  }, [filas, busqueda, filtroEstado]);
 
   const filaPorId = new Map(filas.map((f) => [f.id, f]));
   const areaSeleccionada = [...seleccionadas][0] ? filaPorId.get([...seleccionadas][0])?.areaCodigo : null;
@@ -84,14 +87,29 @@ export function SolicitudesDespachoTable({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative max-w-sm flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por número de solicitud..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="pl-8"
-          />
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <div className="relative max-w-sm flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por número de solicitud..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Select value={filtroEstado} onValueChange={(v) => setFiltroEstado(v as EstadoSolicitudDespacho | "TODOS")}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Estatus" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos los estatus</SelectItem>
+              {(Object.keys(ESTADO_LABEL) as EstadoSolicitudDespacho[]).map((estado) => (
+                <SelectItem key={estado} value={estado}>
+                  {ESTADO_LABEL[estado]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {puedeAtender && seleccionadas.size > 0 && (
           <Button onClick={atenderSeleccionadas}>
@@ -102,7 +120,9 @@ export function SolicitudesDespachoTable({
 
       {filasFiltradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          No se encontró ninguna solicitud que coincida con &quot;{busqueda}&quot;.
+          {busqueda
+            ? `No se encontró ninguna solicitud que coincida con "${busqueda}".`
+            : "Ninguna solicitud coincide con el estatus elegido."}
         </p>
       ) : (
         <Table>
