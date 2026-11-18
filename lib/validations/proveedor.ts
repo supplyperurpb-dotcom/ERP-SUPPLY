@@ -16,16 +16,13 @@ export const proveedorSchema = z
     numeroDocumento: z.string().min(1, "El número de documento es obligatorio").max(20),
     razonSocial: z.string().min(1, "La razón social es obligatoria").max(200),
     nombreComercial: opcional(200),
-    // Se usa para filtrar: Acopio solo ofrece FUNDO/AMBOS como proveedor de
-    // fruta en "Nuevo ingreso" (ver app/(dashboard)/acopio/ingreso*/page.tsx) —
-    // no quitar este campo sin revisar esos usos primero.
-    tipo: z.enum(["INSUMOS", "FUNDO", "AMBOS", "TRANSPORTE", "MATERIALES_EMPAQUE", "ALMACEN"], {
-      required_error: "Selecciona el tipo de proveedor",
-    }),
-    // Actividad económica / rubro (texto libre) — distinto de `tipo`.
-    rubro: opcional(250),
+    rubro: z.string().trim().min(1, "El rubro / actividad económica es obligatorio").max(250),
     direccion: z.string().trim().min(1, "La dirección es obligatoria").max(300),
-    lugar: opcional(150),
+    // Ubicación: solo uno de los dos grupos aplica según procedencia (ver
+    // ProveedorFormDialog) — pais si es EXTRANJERO, departamento/provincia/
+    // distrito si es NACIONAL. Ambos opcionales a nivel de validación, el
+    // formulario ya solo muestra el grupo que corresponde.
+    pais: opcional(100),
     distrito: opcional(100),
     provincia: opcional(100),
     departamento: opcional(100),
@@ -35,6 +32,11 @@ export const proveedorSchema = z
     email: z.string().trim().min(1, "El email es obligatorio").max(200),
     contactoNombre: z.string().trim().min(1, "El nombre de contacto es obligatorio").max(150),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    // Banco: uno de BANCOS_PROVEEDOR, o el texto libre que se escribió al
+    // elegir "Otro" (ver ProveedorFormDialog) — siempre llega como texto
+    // normal, "OTRO" nunca se guarda literal.
+    banco: opcional(100),
+    numeroCuenta: opcional(50),
     activo: z.coerce.boolean().default(true),
   })
   .superRefine((data, ctx) => {
@@ -56,11 +58,4 @@ export const proveedorSchema = z
 
 export type ProveedorInput = z.infer<typeof proveedorSchema>;
 
-export const TIPOS_PROVEEDOR = [
-  { valor: "INSUMOS", nombre: "Insumos" },
-  { valor: "FUNDO", nombre: "Fundo" },
-  { valor: "AMBOS", nombre: "Ambos" },
-  { valor: "TRANSPORTE", nombre: "Transporte" },
-  { valor: "MATERIALES_EMPAQUE", nombre: "Materiales de Empaque" },
-  { valor: "ALMACEN", nombre: "Almacén" },
-] as const;
+export const BANCOS_PROVEEDOR = ["BCP", "INTERBANK", "SCOTIABANK", "BBVA", "BANBIF", "SANTANDER"] as const;

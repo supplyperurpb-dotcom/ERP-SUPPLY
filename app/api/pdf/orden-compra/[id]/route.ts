@@ -48,13 +48,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     ...new Set([...idsAprobadoresSolped].map((id) => codigoUsuario(id)).filter((n): n is string => !!n)),
   ];
 
-  // `lugar` es el campo nuevo (un solo texto libre, ver Proveedor.lugar);
-  // distrito/provincia/departamento solo quedan con datos en proveedores
-  // creados antes de ese cambio.
+  // Ubicación: pais (extranjero) o departamento/provincia/distrito
+  // (nacional) es lo que llena el formulario hoy (ver Proveedor.pais);
+  // `lugar` solo queda con datos en proveedores creados antes de ese
+  // cambio, se usa como último recurso.
   const direccionProveedor = [
     orden.proveedor.direccion,
-    orden.proveedor.lugar ||
-      [orden.proveedor.distrito, orden.proveedor.provincia, orden.proveedor.departamento].filter(Boolean).join(" - "),
+    orden.proveedor.pais ||
+      [orden.proveedor.distrito, orden.proveedor.provincia, orden.proveedor.departamento].filter(Boolean).join(" - ") ||
+      orden.proveedor.lugar,
   ]
     .filter(Boolean)
     .join(" ");

@@ -11,7 +11,7 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
     await Promise.all([
       prisma.ingresoFruta.findUnique({ where: { id }, include: { pallets: true } }),
       prisma.proveedor.findMany({
-        where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
+        where: { activo: true },
         orderBy: { razonSocial: "asc" },
       }),
       prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),

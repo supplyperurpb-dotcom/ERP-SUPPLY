@@ -76,7 +76,6 @@ type FilaProveedor = {
   numeroDocumento: string;
   razonSocial: string;
   nombreComercial: string | null;
-  tipo: "INSUMOS" | "TRANSPORTE";
   rubro: string | null;
   direccion: string | null;
   lugar: string | null;
@@ -110,11 +109,6 @@ function procesarFila(fila: unknown[], numeroExcel: number): FilaProveedor | { e
   }
 
   const rubro = limpiar(fila[10]);
-  // `tipo` es el campo que filtra Acopio (FUNDO/AMBOS = proveedor de
-  // fruta) — esta fuente no lo trae, así que todo entra como INSUMOS
-  // salvo que el rubro diga TRANSPORTE. Un proveedor que de verdad sea
-  // Fundo se reclasifica a mano después desde el catálogo.
-  const tipo: "INSUMOS" | "TRANSPORTE" = /TRANSPORTE/i.test(rubro) ? "TRANSPORTE" : "INSUMOS";
 
   return {
     procedencia,
@@ -122,7 +116,6 @@ function procesarFila(fila: unknown[], numeroExcel: number): FilaProveedor | { e
     numeroDocumento: codigo,
     razonSocial,
     nombreComercial: limpiar(fila[9]) || null,
-    tipo,
     rubro: rubro || null,
     direccion: limpiar(fila[3]) || null,
     lugar: limpiar(fila[8]) || null,

@@ -55,19 +55,6 @@ enum Procedencia {
   EXTRANJERO
 }
 
-// Se usa para filtrar qué proveedores aparecen en cada flujo: Acopio solo
-// ofrece FUNDO/AMBOS en "Nuevo ingreso" de fruta/Industrial (ver esas páginas en
-// app/(dashboard)/acopio/ingreso*/), el resto del sistema usa proveedores
-// en general. No quitar sin revisar esos usos primero.
-enum TipoProveedor {
-  INSUMOS
-  FUNDO
-  AMBOS
-  TRANSPORTE
-  MATERIALES_EMPAQUE
-  ALMACEN
-}
-
 enum TipoAlmacen {
   INSUMOS
   AGROQUIMICOS
@@ -264,23 +251,31 @@ model Proveedor {
   numeroDocumento String
   razonSocial     String
   nombreComercial String?
-  tipo            TipoProveedor
-  // Actividad económica / rubro tal como lo trae la fuente (texto libre,
-  // p. ej. "TRANSPORTE DE CARGA POR CARRETERA") — distinto de `tipo`
-  // (la clasificación fija que sí filtra Acopio).
+  // Actividad económica / rubro (texto libre, obligatorio para proveedores
+  // nuevos — ver proveedorSchema).
   rubro           String?
   direccion       String?
-  // Campo único de ubicación (ciudad/región), como lo trae la fuente —
-  // reemplaza a distrito/provincia/departamento para proveedores nuevos.
-  // Esos tres campos se conservan solo por los proveedores ya existentes
-  // que los tenían (ver el armado de dirección en el PDF de OC).
+  // Campo único de ubicación (ciudad/región) usado por proveedores creados
+  // antes de separar la ubicación en pais/departamento/provincia/distrito
+  // (ver el armado de dirección en el PDF de OC) — ya no se llena desde el
+  // formulario, se conserva solo por compatibilidad con esos registros.
   lugar           String?
+  // Ubicación de proveedores nuevos (ver proveedorSchema): si procedencia
+  // es EXTRANJERO solo se pide pais; si es NACIONAL, departamento/provincia/
+  // distrito.
+  pais            String?
   distrito        String?
   provincia       String?
   departamento    String?
   telefono        String?
   email           String?
   contactoNombre  String?
+  // Banco del proveedor, de una lista fija con "OTRO" como escape a texto
+  // libre (ver BANCOS_PROVEEDOR en lib/validations/proveedor.ts) — el valor
+  // final (sea un banco de la lista o el texto escrito) se guarda tal cual
+  // en este mismo campo, nunca "OTRO" literal.
+  banco           String?
+  numeroCuenta    String?
   // Condición de pago por defecto de este proveedor (p. ej. "CREDITO 30
   // DIAS"), de una lista fija (ver CONDICIONES_PAGO en
   // lib/constants/compras.ts). Al crear una Orden de Compra se precarga

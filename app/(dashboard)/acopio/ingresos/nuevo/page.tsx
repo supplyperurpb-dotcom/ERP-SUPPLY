@@ -6,7 +6,7 @@ export default async function NuevoIngresoPage() {
   const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIndustrialDb, camionesDb, conductoresDb] =
     await Promise.all([
       prisma.proveedor.findMany({
-        where: { activo: true, tipo: { in: ["FUNDO", "AMBOS"] } },
+        where: { activo: true },
         orderBy: { razonSocial: "asc" },
       }),
       prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),

@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import { Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Proveedor } from "@prisma/client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/buttons";
 import { ActivoBadge } from "@/components/ui/estado-badge";
@@ -26,14 +25,17 @@ import { ProveedorFormDialog } from "./proveedor-form-dialog";
 
 const POR_PAGINA = 50;
 
-const TIPO_LABEL: Record<Proveedor["tipo"], string> = {
-  INSUMOS: "Insumos",
-  FUNDO: "Fundo",
-  AMBOS: "Ambos",
-  TRANSPORTE: "Transporte",
-  MATERIALES_EMPAQUE: "Materiales de Empaque",
-  ALMACEN: "Almacén",
-};
+// Ubicación a mostrar: país (extranjero), o departamento/provincia/distrito
+// (nacional), o "lugar" como último recurso para proveedores creados antes
+// de este cambio — nunca una lista fija, el primero que tenga datos.
+function ubicacion(p: Proveedor): string {
+  return (
+    p.pais ||
+    [p.departamento, p.provincia, p.distrito].filter(Boolean).join(" - ") ||
+    p.lugar ||
+    "—"
+  );
+}
 
 export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
   const [isPending, startTransition] = useTransition();
@@ -51,7 +53,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
         (p.nombreComercial ?? "").toLowerCase().includes(termino) ||
         p.numeroDocumento.toLowerCase().includes(termino) ||
         (p.rubro ?? "").toLowerCase().includes(termino) ||
-        (p.lugar ?? "").toLowerCase().includes(termino)
+        ubicacion(p).toLowerCase().includes(termino)
     );
   }, [proveedores, busqueda]);
 
@@ -82,10 +84,11 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
         "Número de documento": p.numeroDocumento,
         "Razón social": p.razonSocial,
         "Nombre comercial": p.nombreComercial ?? "",
-        Tipo: TIPO_LABEL[p.tipo],
         Rubro: p.rubro ?? "",
         Dirección: p.direccion,
-        Lugar: p.lugar ?? "",
+        Ubicación: ubicacion(p) === "—" ? "" : ubicacion(p),
+        Banco: p.banco ?? "",
+        "Número de cuenta": p.numeroCuenta ?? "",
         Teléfono: p.telefono,
         Email: p.email,
         Contacto: p.contactoNombre,
@@ -121,9 +124,8 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
           <TableRow>
             <TableHead>Documento</TableHead>
             <TableHead>Razón social</TableHead>
-            <TableHead>Tipo</TableHead>
             <TableHead>Rubro</TableHead>
-            <TableHead>Lugar</TableHead>
+            <TableHead>Ubicación</TableHead>
             <TableHead>Contacto</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
@@ -141,11 +143,8 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
                   <p className="text-xs text-muted-foreground">{proveedor.nombreComercial}</p>
                 )}
               </TableCell>
-              <TableCell>
-                <Badge variant="outline">{TIPO_LABEL[proveedor.tipo]}</Badge>
-              </TableCell>
               <TableCell>{proveedor.rubro || "—"}</TableCell>
-              <TableCell>{proveedor.lugar || "—"}</TableCell>
+              <TableCell>{ubicacion(proveedor)}</TableCell>
               <TableCell>{proveedor.telefono || proveedor.email || "—"}</TableCell>
               <TableCell>
                 <ActivoBadge activo={proveedor.activo} />
