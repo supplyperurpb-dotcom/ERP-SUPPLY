@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Search } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,21 @@ import { prisma } from "@/lib/db/prisma";
 import { cn, rangoFechaCosecha, rangoSemanaISO, semanaISOConAnio } from "@/lib/utils";
 import { ReporteAcopioView } from "./reporte-acopio-view";
 
+// Filtro "Tipo de operación" (pedido explícito): acota IngresoFrutaPallet
+// (Materia Prima) a Exportable o Descarte Campo — Industrial no tiene esta
+// distinción (su tipoProducto es fijo "Descarte Planta"), así que el
+// filtro no se aplica a esa pestaña.
+const TIPOS_OPERACION = ["Exportable", "Descarte Campo"] as const;
+
 export default async function ReporteAcopioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string; semana?: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string; semana?: string; tipo?: string }>;
 }) {
-  const { desde, hasta, semana: semanaParam } = await searchParams;
+  const { desde, hasta, semana: semanaParam, tipo: tipoParam } = await searchParams;
+  const tipoOperacion = TIPOS_OPERACION.includes(tipoParam as (typeof TIPOS_OPERACION)[number])
+    ? (tipoParam as (typeof TIPOS_OPERACION)[number])
+    : null;
 
   let fechaCosecha = rangoFechaCosecha(desde, hasta);
   const [anioFiltro, semanaFiltro] = (semanaParam ?? "").split("-").map(Number);
@@ -27,8 +36,12 @@ export default async function ReporteAcopioPage({
 
   const [lineasFruta, lineasIndustrial, fechasFruta, fechasIndustrial] = await Promise.all([
     prisma.ingresoFrutaPallet.findMany({
-      where: fechaCosecha ? { ingresoFruta: { fechaCosecha } } : undefined,
+      where: {
+        ...(fechaCosecha ? { ingresoFruta: { fechaCosecha } } : {}),
+        ...(tipoOperacion ? { tipoProducto: tipoOperacion } : {}),
+      },
       select: {
+        id: true,
         ingresoFrutaId: true,
         variedad: true,
         modulo: true,
@@ -84,51 +97,40 @@ export default async function ReporteAcopioPage({
   const pctAprovechable = kgRecepcionado > 0 ? (kgAprovechable / kgRecepcionado) * 100 : 0;
   const pctNacionalCampo = kgRecepcionado > 0 ? (kgNacionalCampo / kgRecepcionado) * 100 : 0;
 
-  // Matriz Kg recepcionado por Módulo × Variedad (Exportable + Descarte
-  // Campo combinados: ambos tienen módulo en la base de datos).
-  const modulosSet = new Set<string>();
-  const variedadesSet = new Set<string>();
-  const matrizPorModulo = new Map<string, Map<string, number>>();
+  // --- Sección "2. Resumen por variedad y módulo" (pedido explícito, calca
+  // la estructura del reporte de referencia): una fila por combinación
+  // módulo+variedad, con el Kg desglosado en Aprovechable (Exportable) y
+  // Nacional (Descarte Campo) — no un pivot de variedades como columnas.
+  type FilaResumen = { modulo: string; variedad: string; aprovechableKg: number; nacionalKg: number; total: number };
+  const resumenPorModuloVariedad = new Map<string, FilaResumen>();
   for (const l of lineasFruta) {
-    modulosSet.add(l.modulo);
-    variedadesSet.add(l.variedad);
-    const porVariedad = matrizPorModulo.get(l.modulo) ?? new Map<string, number>();
-    porVariedad.set(l.variedad, (porVariedad.get(l.variedad) ?? 0) + Number(l.pesoNetoKg));
-    matrizPorModulo.set(l.modulo, porVariedad);
-  }
-  const modulosMatriz = Array.from(modulosSet).sort();
-  const variedadesMatriz = Array.from(variedadesSet).sort();
-  const filasMatriz = modulosMatriz.map((modulo) => {
-    const porVariedad = matrizPorModulo.get(modulo)!;
-    const valores = variedadesMatriz.map((v) => porVariedad.get(v) ?? 0);
-    return { modulo, valores, total: valores.reduce((a, b) => a + b, 0) };
-  });
-  const totalesPorVariedadMatriz = variedadesMatriz.map((_, i) => filasMatriz.reduce((acc, f) => acc + f.valores[i], 0));
-  const totalGeneralMatriz = totalesPorVariedadMatriz.reduce((a, b) => a + b, 0);
-
-  // Control horario de recepción: una fila por VIAJE (un mismo IngresoFruta
-  // puede tener varias líneas de pallet, ej. distinta variedad/módulo o
-  // Exportable + Descarte Campo) — se agrupa por ingresoFrutaId y se suma
-  // todo lo que trajo ese camión, sin importar su clasificación. Pedido
-  // explícito: "considera todo lo que trajo el camión".
-  type FilaViaje = { ingresoFrutaId: string; placa: string; hora: string; kg: number };
-  const viajesPorId = new Map<string, FilaViaje>();
-  for (const l of lineasFruta) {
-    const existente = viajesPorId.get(l.ingresoFrutaId);
+    const clave = `${l.modulo}__${l.variedad}`;
+    const fila = resumenPorModuloVariedad.get(clave) ?? { modulo: l.modulo, variedad: l.variedad, aprovechableKg: 0, nacionalKg: 0, total: 0 };
     const kg = Number(l.pesoNetoKg);
-    if (existente) {
-      existente.kg += kg;
-    } else {
-      viajesPorId.set(l.ingresoFrutaId, {
-        ingresoFrutaId: l.ingresoFrutaId,
-        placa: l.ingresoFruta.placaTransporte || "—",
-        hora: l.ingresoFruta.horaIngreso || "—",
-        kg,
-      });
-    }
+    if (l.tipoProducto === "Exportable") fila.aprovechableKg += kg;
+    else fila.nacionalKg += kg;
+    fila.total += kg;
+    resumenPorModuloVariedad.set(clave, fila);
   }
-  const filasControlHorario = Array.from(viajesPorId.values()).sort((a, b) => a.hora.localeCompare(b.hora));
-  const totalControlHorarioKg = filasControlHorario.reduce((acc, f) => acc + f.kg, 0);
+  const filasResumen = Array.from(resumenPorModuloVariedad.values()).sort(
+    (a, b) => a.modulo.localeCompare(b.modulo) || a.variedad.localeCompare(b.variedad)
+  );
+
+  // --- Sección "3. Detalle de recepción": una fila por LÍNEA de pallet
+  // (no agrupada por viaje) con su placa/hora/variedad/módulo/turno/kg/jabas,
+  // igual que el reporte de referencia.
+  const filasDetalle = lineasFruta
+    .map((l) => ({
+      id: l.id,
+      placa: l.ingresoFruta.placaTransporte || "—",
+      hora: l.ingresoFruta.horaIngreso || "—",
+      variedad: l.variedad,
+      modulo: l.modulo,
+      turno: l.turno,
+      kg: Number(l.pesoNetoKg),
+      jabas: l.cantidadBandejas,
+    }))
+    .sort((a, b) => a.hora.localeCompare(b.hora));
 
   // --- Pestaña 2: Recepción Industrial — únicamente por variedad (sin
   // módulo: IngresoIndustrialPallet no tiene ese campo en la base de datos).
@@ -144,7 +146,8 @@ export default async function ReporteAcopioPage({
   const totalIndustrialKg = filasIndustrial.reduce((acc, f) => acc + f.kg, 0);
   const totalIndustrialJabas = filasIndustrial.reduce((acc, f) => acc + f.jabas, 0);
 
-  const hayFiltro = Boolean(desde || hasta || semanaParam);
+  const cantidadIngresos = new Set(lineasFruta.map((l) => l.ingresoFrutaId)).size;
+  const hayFiltro = Boolean(desde || hasta || semanaParam || tipoOperacion);
   const semanaSeleccionada = semanaParam ? semanasDisponibles.find((s) => s.valor === semanaParam) ?? null : null;
   const sinDatos = lineasFruta.length === 0 && lineasIndustrial.length === 0;
   const generadoEn = new Date().toLocaleString("es-PE", {
@@ -163,13 +166,13 @@ export default async function ReporteAcopioPage({
 
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4 print:hidden">
         <div className="grid gap-1.5">
-          <Label htmlFor="semana">Semana de cosecha</Label>
+          <Label htmlFor="semana">Semana</Label>
           <select
             id="semana"
             name="semana"
             defaultValue={semanaParam ?? ""}
             className={cn(
-              "flex h-10 w-[190px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+              "flex h-10 w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             )}
           >
@@ -183,15 +186,35 @@ export default async function ReporteAcopioPage({
           </select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="desde">Desde (fecha de cosecha)</Label>
-          <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[170px]" />
+          <Label htmlFor="tipo">Tipo de operación</Label>
+          <select
+            id="tipo"
+            name="tipo"
+            defaultValue={tipoOperacion ?? ""}
+            className={cn(
+              "flex h-10 w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            )}
+          >
+            <option value="">Todos</option>
+            {TIPOS_OPERACION.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="hasta">Hasta (fecha de cosecha)</Label>
-          <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[170px]" />
+          <Label htmlFor="desde">Fecha de cosecha</Label>
+          <div className="flex items-center gap-2">
+            <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[150px]" />
+            <span className="text-sm text-muted-foreground">a</span>
+            <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[150px]" />
+          </div>
         </div>
-        <Button type="submit" variant="secondary">
-          Filtrar
+        <Button type="submit">
+          <Search className="mr-2 h-4 w-4" />
+          Aplicar filtros
         </Button>
         {hayFiltro && (
           <Button type="button" variant="ghost" asChild>
@@ -211,7 +234,7 @@ export default async function ReporteAcopioPage({
           generadoEn={generadoEn}
           semanaTexto={semanaSeleccionada ? `Semana ${semanaSeleccionada.semana}${mostrarAnio ? ` (${semanaSeleccionada.anio})` : ""}` : "Todas las semanas"}
           rangoFechas={{ desde: desde ?? null, hasta: hasta ?? null }}
-          cantidadIngresos={viajesPorId.size}
+          cantidadIngresos={cantidadIngresos}
           materiaPrima={{
             kgAprovechable,
             jabasAprovechable,
@@ -221,8 +244,8 @@ export default async function ReporteAcopioPage({
             jabasRecepcionado,
             pctAprovechable,
             pctNacionalCampo,
-            matriz: { modulos: modulosMatriz, variedades: variedadesMatriz, filas: filasMatriz, totalesPorVariedad: totalesPorVariedadMatriz, totalGeneral: totalGeneralMatriz },
-            controlHorario: { filas: filasControlHorario, totalKg: totalControlHorarioKg },
+            resumen: filasResumen,
+            detalle: filasDetalle,
           }}
           industrial={{ filas: filasIndustrial, totalKg: totalIndustrialKg, totalJabas: totalIndustrialJabas }}
         />
