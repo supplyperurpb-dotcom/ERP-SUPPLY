@@ -82,39 +82,35 @@ export function ReporteAcopioView({
   const subtitulo = `${generadoEn} · ${rangoTexto}${semanaTexto}`;
 
   // Pedido explícito: los botones abren una VISTA (nueva pestaña), no
-  // fuerzan la descarga automática — desde ahí el usuario puede guardar si
-  // quiere (mantener pulsado en la imagen, o el botón de descarga del
-  // visor de PDF del navegador). `window.open` se llama de forma síncrona
-  // dentro del click (antes de los await) para que Safari/Chrome en
-  // celular no lo bloqueen como popup; recién después se le asigna la URL.
-  async function verPng(ref: React.RefObject<HTMLDivElement>) {
-    const ventana = window.open("", "_blank");
-    if (!ref.current) {
-      ventana?.close();
-      return;
+  // fuerzan la descarga automática. Importante: NO se abre una pestaña en
+  // blanco primero para redirigirla después — los navegadores modernos
+  // (Chrome/Edge/Safari) bloquean en silencio esa navegación tardía de una
+  // pestaña ya abierta hacia una URL blob: (no tira error, queda en blanco
+  // para siempre). Por eso `window.open` recibe directamente la URL ya
+  // lista, en un solo paso.
+  function abrirBlobEnNuevaPestana(url: string) {
+    if (!window.open(url, "_blank")) {
+      toast.error("El navegador bloqueó la vista. Permite ventanas emergentes para este sitio e inténtalo de nuevo.");
     }
+  }
+
+  async function verPng(ref: React.RefObject<HTMLDivElement>) {
+    if (!ref.current) return;
     setExportando("png");
     try {
       const { toBlob } = await import("html-to-image");
       const blob = await toBlob(ref.current, { pixelRatio: 2, backgroundColor: "#ffffff" });
       if (!blob) throw new Error("No se pudo generar la imagen");
-      const url = URL.createObjectURL(blob);
-      if (ventana) ventana.location.href = url;
-      else window.open(url, "_blank");
+      abrirBlobEnNuevaPestana(URL.createObjectURL(blob));
     } catch {
       toast.error("No se pudo generar la imagen");
-      ventana?.close();
     } finally {
       setExportando(null);
     }
   }
 
   async function verPdf(ref: React.RefObject<HTMLDivElement>) {
-    const ventana = window.open("", "_blank");
-    if (!ref.current) {
-      ventana?.close();
-      return;
-    }
+    if (!ref.current) return;
     setExportando("pdf");
     try {
       const [{ toPng }, { default: jsPDF }] = await Promise.all([import("html-to-image"), import("jspdf")]);
@@ -133,15 +129,11 @@ export function ReporteAcopioView({
       pdf.addImage(dataUrl, "PNG", 0, 0, imagen.width, imagen.height);
       // pdf.output("bloburl") está mal tipado en jspdf@4.2.1: el .d.ts dice
       // que devuelve `URL`, pero en runtime devuelve directamente el string
-      // de URL.createObjectURL (ver node_modules/jspdf/dist/jspdf.es.min.js),
-      // así que `.href` quedaba `undefined` y la pestaña no mostraba nada.
+      // de URL.createObjectURL (ver node_modules/jspdf/dist/jspdf.es.min.js).
       // Se construye la blob URL a mano, igual que en verPng.
-      const url = URL.createObjectURL(pdf.output("blob"));
-      if (ventana) ventana.location.href = url;
-      else window.open(url, "_blank");
+      abrirBlobEnNuevaPestana(URL.createObjectURL(pdf.output("blob")));
     } catch {
       toast.error("No se pudo generar el PDF");
-      ventana?.close();
     } finally {
       setExportando(null);
     }
