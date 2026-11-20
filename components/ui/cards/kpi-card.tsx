@@ -41,15 +41,19 @@ export function KPICard({
       className={cn("border-l-4", !colorAcento && "border-l-primary", className)}
       style={colorAcento ? { borderLeftColor: colorAcento } : undefined}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        {Icon && <Icon className="h-4 w-4 shrink-0" style={colorAcento ? { color: colorAcento } : undefined} />}
+      {/* Padding y tipografía responsive (antes fijos en p-6/text-2xl): en
+          pantallas chicas varias tarjetas KPI deben leerse a la vez (ej. 2
+          por fila en el Reporte de Recepción) sin que el texto se corte o
+          se superponga — a partir de `sm:` vuelve al tamaño de siempre. */}
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 sm:p-6 sm:pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">{label}</CardTitle>
+        {Icon && <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" style={colorAcento ? { color: colorAcento } : undefined} />}
       </CardHeader>
-      <CardContent className="space-y-1">
-        <p className="text-2xl font-semibold tabular-nums">{value}</p>
+      <CardContent className="space-y-0.5 p-3 pt-0 sm:space-y-1 sm:p-6 sm:pt-0">
+        <p className="text-lg font-semibold tabular-nums sm:text-2xl">{value}</p>
         {secondaryLine && (
           <p
-            className={cn("text-sm tabular-nums", colorAcento ? "font-medium" : "text-muted-foreground")}
+            className={cn("text-xs tabular-nums sm:text-sm", colorAcento ? "font-medium" : "text-muted-foreground")}
             style={colorAcento ? { color: colorAcento } : undefined}
           >
             {secondaryLine}

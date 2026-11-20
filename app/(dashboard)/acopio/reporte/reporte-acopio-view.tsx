@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Download, FileDown, Leaf, Truck } from "lucide-react";
+import { Eye, Leaf, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,25 +81,40 @@ export function ReporteAcopioView({
   const rangoTexto = rangoFechas.desde || rangoFechas.hasta ? `Cosecha ${rangoFechas.desde ?? "…"} – ${rangoFechas.hasta ?? "…"} · ` : "";
   const subtitulo = `${generadoEn} · ${rangoTexto}${semanaTexto}`;
 
-  async function exportarPng(ref: React.RefObject<HTMLDivElement>, nombreArchivo: string) {
-    if (!ref.current) return;
+  // Pedido explícito: los botones abren una VISTA (nueva pestaña), no
+  // fuerzan la descarga automática — desde ahí el usuario puede guardar si
+  // quiere (mantener pulsado en la imagen, o el botón de descarga del
+  // visor de PDF del navegador). `window.open` se llama de forma síncrona
+  // dentro del click (antes de los await) para que Safari/Chrome en
+  // celular no lo bloqueen como popup; recién después se le asigna la URL.
+  async function verPng(ref: React.RefObject<HTMLDivElement>) {
+    const ventana = window.open("", "_blank");
+    if (!ref.current) {
+      ventana?.close();
+      return;
+    }
     setExportando("png");
     try {
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(ref.current, { pixelRatio: 2, backgroundColor: "#ffffff" });
-      const link = document.createElement("a");
-      link.download = `${nombreArchivo}.png`;
-      link.href = dataUrl;
-      link.click();
+      const { toBlob } = await import("html-to-image");
+      const blob = await toBlob(ref.current, { pixelRatio: 2, backgroundColor: "#ffffff" });
+      if (!blob) throw new Error("No se pudo generar la imagen");
+      const url = URL.createObjectURL(blob);
+      if (ventana) ventana.location.href = url;
+      else window.open(url, "_blank");
     } catch {
-      toast.error("No se pudo exportar la imagen");
+      toast.error("No se pudo generar la imagen");
+      ventana?.close();
     } finally {
       setExportando(null);
     }
   }
 
-  async function exportarPdf(ref: React.RefObject<HTMLDivElement>, nombreArchivo: string) {
-    if (!ref.current) return;
+  async function verPdf(ref: React.RefObject<HTMLDivElement>) {
+    const ventana = window.open("", "_blank");
+    if (!ref.current) {
+      ventana?.close();
+      return;
+    }
     setExportando("pdf");
     try {
       const [{ toPng }, { default: jsPDF }] = await Promise.all([import("html-to-image"), import("jspdf")]);
@@ -116,9 +131,12 @@ export function ReporteAcopioView({
         format: [imagen.width, imagen.height],
       });
       pdf.addImage(dataUrl, "PNG", 0, 0, imagen.width, imagen.height);
-      pdf.save(`${nombreArchivo}.pdf`);
+      const url = pdf.output("bloburl").href;
+      if (ventana) ventana.location.href = url;
+      else window.open(url, "_blank");
     } catch {
-      toast.error("No se pudo exportar el PDF");
+      toast.error("No se pudo generar el PDF");
+      ventana?.close();
     } finally {
       setExportando(null);
     }
@@ -135,23 +153,13 @@ export function ReporteAcopioView({
 
       <TabsContent value="materia-prima">
         <div className="mb-3 flex justify-end gap-2 print:hidden">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={exportando !== null}
-            onClick={() => exportarPng(refMateriaPrima, "recepcion-materia-prima")}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {exportando === "png" ? "Exportando..." : "PNG"}
+          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => verPng(refMateriaPrima)}>
+            <Eye className="mr-2 h-4 w-4" />
+            {exportando === "png" ? "Abriendo..." : "Ver PNG"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={exportando !== null}
-            onClick={() => exportarPdf(refMateriaPrima, "recepcion-materia-prima")}
-          >
-            <FileDown className="mr-2 h-4 w-4" />
-            {exportando === "pdf" ? "Exportando..." : "PDF"}
+          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => verPdf(refMateriaPrima)}>
+            <Eye className="mr-2 h-4 w-4" />
+            {exportando === "pdf" ? "Abriendo..." : "Ver PDF"}
           </Button>
         </div>
 
@@ -161,7 +169,11 @@ export function ReporteAcopioView({
           <div className="my-5 border-t" />
 
           <SeccionTitulo numero={1}>Indicadores generales</SeccionTitulo>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* grid-cols-2 fijo (no grid-cols-1 en mobile): pedido explícito,
+              ambas tarjetas deben leerse al mismo tiempo en celular — ver
+              el padding/tipografía responsive de KPICard para que no se
+              corten a ese ancho. */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <KPICard
               label="Total recibido"
               value={`${formatNumero(materiaPrima.kgRecepcionado)} Kg`}
@@ -192,23 +204,13 @@ export function ReporteAcopioView({
 
       <TabsContent value="industrial">
         <div className="mb-3 flex justify-end gap-2 print:hidden">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={exportando !== null}
-            onClick={() => exportarPng(refIndustrial, "recepcion-industrial")}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {exportando === "png" ? "Exportando..." : "PNG"}
+          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => verPng(refIndustrial)}>
+            <Eye className="mr-2 h-4 w-4" />
+            {exportando === "png" ? "Abriendo..." : "Ver PNG"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={exportando !== null}
-            onClick={() => exportarPdf(refIndustrial, "recepcion-industrial")}
-          >
-            <FileDown className="mr-2 h-4 w-4" />
-            {exportando === "pdf" ? "Exportando..." : "PDF"}
+          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => verPdf(refIndustrial)}>
+            <Eye className="mr-2 h-4 w-4" />
+            {exportando === "pdf" ? "Abriendo..." : "Ver PDF"}
           </Button>
         </div>
 
