@@ -131,7 +131,12 @@ export function ReporteAcopioView({
         format: [imagen.width, imagen.height],
       });
       pdf.addImage(dataUrl, "PNG", 0, 0, imagen.width, imagen.height);
-      const url = pdf.output("bloburl").href;
+      // pdf.output("bloburl") está mal tipado en jspdf@4.2.1: el .d.ts dice
+      // que devuelve `URL`, pero en runtime devuelve directamente el string
+      // de URL.createObjectURL (ver node_modules/jspdf/dist/jspdf.es.min.js),
+      // así que `.href` quedaba `undefined` y la pestaña no mostraba nada.
+      // Se construye la blob URL a mano, igual que en verPng.
+      const url = URL.createObjectURL(pdf.output("blob"));
       if (ventana) ventana.location.href = url;
       else window.open(url, "_blank");
     } catch {
@@ -177,14 +182,12 @@ export function ReporteAcopioView({
             <KPICard
               label="Total recibido"
               value={`${formatNumero(materiaPrima.kgRecepcionado)} Kg`}
-              secondaryLine={`${materiaPrima.jabasRecepcionado.toLocaleString("es-PE")} jabas`}
               paleta={PALETA_TOTAL}
               icon={Truck}
             />
             <KPICard
               label="Aprovechable"
               value={`${formatNumero(materiaPrima.kgAprovechable)} Kg (${formatPorcentaje(materiaPrima.pctAprovechable)})`}
-              secondaryLine={`${materiaPrima.jabasAprovechable.toLocaleString("es-PE")} jabas`}
               paleta={PALETA_APROVECHABLE}
               icon={Leaf}
             />
