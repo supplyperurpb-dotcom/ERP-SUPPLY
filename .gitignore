@@ -35,3 +35,7 @@ next-env.d.ts
 
 # prisma
 prisma/dev.db
+
+# tesseract.js descarga esto al correr OCR en Node (ej. scripts de prueba) —
+# el feature real corre OCR en el navegador, esto es solo caché local.
+*.traineddata

@@ -1916,9 +1916,10 @@ model Embarque {
   importadoPorId        String?
   importadoEn            DateTime?
 
-  cliente      Cliente?         @relation(fields: [clienteId], references: [id])
-  packingLists PackingList[]
-  pallets      EmbarquePallet[]
+  cliente        Cliente?         @relation(fields: [clienteId], references: [id])
+  packingLists   PackingList[]
+  pallets        EmbarquePallet[]
+  rechazoCorreos RechazoCorreo[]
 
   @@map("embarques")
 }
@@ -1950,13 +1951,100 @@ model EmbarquePallet {
   fechaCosecha        DateTime?
   createdAt           DateTime  @default(now())
 
-  embarque Embarque @relation(fields: [embarqueId], references: [id], onDelete: Cascade)
+  embarque     Embarque      @relation(fields: [embarqueId], references: [id], onDelete: Cascade)
+  rechazoItems RechazoItem[]
 
   @@index([palletNumber])
   @@index([trazabilityCodeDoc])
   @@index([lpnDriscolls])
   @@index([variedad])
   @@map("embarque_pallets")
+}
+
+// =========================================================================
+// REGISTRO DE RECHAZOS (COMEX) — OCR de capturas de correos de rechazo,
+// cruzadas por LPN contra los pallets ya importados en EmbarquePallet.
+// =========================================================================
+
+enum EstadoRechazoCorreo {
+  PENDIENTE
+  CONFIRMADO
+  ANULADO
+}
+
+enum EstadoRechazoItem {
+  PENDIENTE
+  CONFIRMADO
+  ANULADO
+  DISPUTADO
+}
+
+enum CategoriaRechazo {
+  TERMINAL_MARKET
+  NON_FRESH
+  OTRO
+  PENDIENTE_CLASIFICAR
+}
+
+// Una captura de correo importada. embarqueId queda null si no se pudo
+// determinar el Ship Number del correo (o si no corresponde a ningún
+// Embarque ya importado) — no bloquea el registro, solo queda sin ese
+// enlace para revisión manual.
+model RechazoCorreo {
+  id                         String              @id @default(cuid())
+  embarqueId                 String?
+  poNumber                   String?
+  asuntoCorreo                String?
+  remitente                  String?
+  fechaCorreo                 DateTime?
+  archivoOriginalUrl          String // imagen del correo en Supabase Storage
+  archivoOriginalNombre       String
+  archivoHash                 String              @unique // detecta el mismo correo re-subido
+  textoExtraido                String              @db.Text // texto OCR crudo, para auditoría/depuración
+  totalPalletsCorreo           Int?
+  totalCajasRechazadasCorreo   Int?
+  estado                      EstadoRechazoCorreo @default(PENDIENTE)
+  creadoPorId                  String?
+  createdAt                    DateTime            @default(now())
+
+  embarque Embarque?    @relation(fields: [embarqueId], references: [id])
+  items    RechazoItem[]
+
+  @@map("rechazo_correos")
+}
+
+// Una línea de rechazo (un LPN) dentro de un correo. embarquePalletId queda
+// null si el LPN no se encontró en ningún Packing List ya importado — el
+// LPN no es único (puede repetirse en más de una fila del mismo pallet,
+// confirmado contra datos reales), por eso "cajasOriginales" se calcula en
+// el server action sumando TODAS las filas de EmbarquePallet con ese LPN,
+// no se asume una sola fila.
+model RechazoItem {
+  id                       String            @id @default(cuid())
+  rechazoCorreoId          String
+  embarquePalletId         String?
+  lpn                      String
+  itemCode                 String?
+  descripcionSku           String?
+  variedad                 String?
+  cajasOriginales          Int?
+  cajasRechazadas          Int
+  disposicionSugerida      String?
+  categoriaSugerida        CategoriaRechazo  @default(PENDIENTE_CLASIFICAR)
+  categoriaFinal           CategoriaRechazo?
+  motivoRechazo            String?
+  estado                   EstadoRechazoItem @default(PENDIENTE)
+  alertaLpnNoEncontrado    Boolean           @default(false)
+  alertaVariedadNoCoincide Boolean           @default(false)
+  alertaExcedeOriginales   Boolean           @default(false)
+  createdAt                DateTime          @default(now())
+
+  rechazoCorreo  RechazoCorreo   @relation(fields: [rechazoCorreoId], references: [id], onDelete: Cascade)
+  embarquePallet EmbarquePallet? @relation(fields: [embarquePalletId], references: [id])
+
+  @@index([lpn])
+  @@index([embarquePalletId])
+  @@map("rechazo_items")
 }
 
 model PackingList {
