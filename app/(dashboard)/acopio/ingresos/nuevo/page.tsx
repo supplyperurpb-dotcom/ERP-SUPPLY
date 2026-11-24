@@ -1,12 +1,16 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { FUNDOS_MATERIA_PRIMA } from "@/lib/constants/modulos";
 import { IngresoFrutaForm } from "./ingreso-fruta-form";
 
 export default async function NuevoIngresoPage() {
   const [proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIndustrialDb, camionesDb, conductoresDb] =
     await Promise.all([
+      // Pedido explícito: el Fundo de Materia Prima solo puede ser uno de
+      // los 2 fundos Achirana, no cualquier Proveedor (transportistas,
+      // agencias de aduana, etc. también viven en esa misma tabla).
       prisma.proveedor.findMany({
-        where: { activo: true },
+        where: { activo: true, razonSocial: { in: FUNDOS_MATERIA_PRIMA } },
         orderBy: { razonSocial: "asc" },
       }),
       prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),

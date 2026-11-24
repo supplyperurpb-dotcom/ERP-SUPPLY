@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { FUNDOS_MATERIA_PRIMA } from "@/lib/constants/modulos";
 import { IngresoFrutaForm } from "../../nuevo/ingreso-fruta-form";
 import type { IngresoFrutaInput } from "@/lib/validations/ingreso-fruta";
 
@@ -10,8 +11,13 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
   const [ingreso, proveedoresDb, tiposBandejaDb, tiposPalletDb, palletsAbiertosDb, palletsAbiertosIndustrialDb, camionesDb, conductoresDb] =
     await Promise.all([
       prisma.ingresoFruta.findUnique({ where: { id }, include: { pallets: true } }),
+      // Pedido explícito: el Fundo de Materia Prima solo puede ser uno de
+      // los 2 fundos Achirana, no cualquier Proveedor. Las líneas ya
+      // guardadas se completan más abajo (idsProveedorLegado) por si algún
+      // ingreso viejo quedó con otro proveedor como fundo, para no dejar
+      // esa línea con un valor que ya no aparece en la lista.
       prisma.proveedor.findMany({
-        where: { activo: true },
+        where: { activo: true, razonSocial: { in: FUNDOS_MATERIA_PRIMA } },
         orderBy: { razonSocial: "asc" },
       }),
       prisma.tipoBandeja.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
@@ -45,7 +51,18 @@ export default async function EditarIngresoPage({ params }: { params: Promise<{ 
     idsPalletsPropiosIndustrial.length ? prisma.palletIndustrial.findMany({ where: { id: { in: idsPalletsPropiosIndustrial } } }) : [],
   ]);
 
-  const proveedores = proveedoresDb.map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
+  // Si alguna línea ya guardada quedó con un proveedor que no es uno de los
+  // 2 fundos válidos (dato de antes de esta restricción), se agrega igual
+  // a la lista — si no, esa línea mostraría el Fundo vacío al editar.
+  const idsProveedorEnLista = new Set(proveedoresDb.map((p) => p.id));
+  const idsProveedorLegado = Array.from(
+    new Set(ingreso.pallets.map((l) => l.proveedorId).filter((id) => !idsProveedorEnLista.has(id)))
+  );
+  const proveedoresLegadoDb = idsProveedorLegado.length
+    ? await prisma.proveedor.findMany({ where: { id: { in: idsProveedorLegado } } })
+    : [];
+
+  const proveedores = [...proveedoresDb, ...proveedoresLegadoDb].map((p) => ({ id: p.id, razonSocial: p.razonSocial }));
   const tiposBandeja = tiposBandejaDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const tiposPallet = tiposPalletDb.map((t) => ({ id: t.id, nombre: t.nombre, pesoTaraKg: t.pesoTaraKg.toString() }));
   const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));

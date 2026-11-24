@@ -78,3 +78,11 @@ export const MODULOS_POR_FUNDO: Record<string, string[]> = {
   "ACHIRANA M 01-02-03": ["MODULO 1", "MODULO 2", "MODULO 3"],
   "ACHIRANA M 04": ["MODULO 4"],
 };
+
+// Nombres reales (Proveedor.razonSocial, con su mayúscula/minúscula tal
+// cual está guardada) de los únicos 2 fundos válidos para Ingreso de
+// Materia Prima — pedido explícito: el selector de Fundo no debe listar
+// el resto de proveedores (transportistas, agencias de aduana, etc.), solo
+// estos 2. Mismos fundos que MODULOS_POR_FUNDO, ahí en mayúsculas porque
+// esa comparación ya los normaliza con .toUpperCase().
+export const FUNDOS_MATERIA_PRIMA = ["Achirana M 01-02-03", "Achirana M 04"];
