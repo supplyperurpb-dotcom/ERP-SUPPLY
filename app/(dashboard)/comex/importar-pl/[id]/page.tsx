@@ -4,10 +4,10 @@ import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatCantidad } from "@/lib/utils";
 import { obtenerUrlFirmadaArchivo } from "@/lib/storage";
+import { EmbarquePalletsTabla } from "./embarque-pallets-tabla";
 
 export default async function DetalleImportacionPLPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -68,47 +68,7 @@ export default async function DetalleImportacionPLPage({ params }: { params: Pro
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Pallets ({pallets.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader className="bg-muted/40">
-                <TableRow>
-                  <TableHead>Pallet</TableHead>
-                  <TableHead>Variedad</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Label</TableHead>
-                  <TableHead>Tipo fruta</TableHead>
-                  <TableHead numeric>Cases</TableHead>
-                  <TableHead numeric>Net Weight</TableHead>
-                  <TableHead>Cosecha</TableHead>
-                  <TableHead>LPN</TableHead>
-                  <TableHead>Trazabilidad</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pallets.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono font-medium">{p.palletNumber}</TableCell>
-                    <TableCell>{p.variedad}</TableCell>
-                    <TableCell>{p.descripcionSku ?? "—"}</TableCell>
-                    <TableCell>{p.label ?? "—"}</TableCell>
-                    <TableCell>{p.fruitType ?? "—"}</TableCell>
-                    <TableCell numeric>{formatCantidad(p.cases)}</TableCell>
-                    <TableCell numeric>{formatCantidad(p.pesoNetoKg)}</TableCell>
-                    <TableCell>{p.fechaCosecha ? formatDate(p.fechaCosecha) : "—"}</TableCell>
-                    <TableCell className="font-mono">{p.lpnDriscolls ?? "—"}</TableCell>
-                    <TableCell className="font-mono">{p.trazabilityCodeDoc ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <EmbarquePalletsTabla pallets={pallets} />
     </div>
   );
 }
