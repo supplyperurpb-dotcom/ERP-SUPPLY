@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { PaginationControls } from "@/components/shared/pagination-controls";
+import { fechaHoyPeru } from "@/lib/utils";
 import { calcularTrazabilidad, obtenerOpcionesFiltroTrazabilidad, type EstadoAtencionLinea } from "@/lib/trazabilidad";
 import { FiltrosTrazabilidadBar } from "./filtros-trazabilidad";
 import { ResumenTrazabilidadCards } from "./resumen-trazabilidad";
@@ -13,11 +14,14 @@ export default async function ReportesTrazabilidadPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
+  // Por defecto (campo ausente de la URL) se cae a "hoy" — mismo criterio
+  // que el resto de los filtros de fecha del sistema, aplicado acá a cada
+  // uno de los 2 rangos (Creación/Aprobación) por separado.
   const filtros = {
-    creacionDesde: sp.creacionDesde,
-    creacionHasta: sp.creacionHasta,
-    aprobacionDesde: sp.aprobacionDesde,
-    aprobacionHasta: sp.aprobacionHasta,
+    creacionDesde: sp.creacionDesde ?? fechaHoyPeru(),
+    creacionHasta: sp.creacionHasta ?? fechaHoyPeru(),
+    aprobacionDesde: sp.aprobacionDesde ?? fechaHoyPeru(),
+    aprobacionHasta: sp.aprobacionHasta ?? fechaHoyPeru(),
     familia: sp.familia,
     subfamilia: sp.subfamilia,
     codigo: sp.codigo,

@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
+import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 import { prisma } from "@/lib/db/prisma";
-import { formatKg, formatCantidad, rangoFechaCosecha } from "@/lib/utils";
+import { fechaHoyPeru, formatKg, formatCantidad, rangoFechaCosecha } from "@/lib/utils";
 import { CAPACIDAD_MAXIMA_BANDEJAS_POR_PALLET } from "@/lib/constants/pallet";
 import type { Prisma } from "@prisma/client";
 import { CerrarPalletBoton } from "@/components/shared/cerrar-pallet-boton";
@@ -36,7 +37,13 @@ export default async function TarjasIndustrialPage({
 }) {
   const { pallet, variedad, desde, hasta, ingresoFrutaId, ingresoIndustrialId, pagina: paginaParam } = await searchParams;
   const pagina = calcularPagina(paginaParam);
-  const fechaCosecha = rangoFechaCosecha(desde, hasta);
+  // Por defecto (primera visita, sin tocar el filtro) se muestra solo lo de
+  // hoy — mismo criterio que el resto de los filtros de fecha del sistema.
+  // `desde`/`hasta` ausentes del todo son distintos de "" (el usuario vació
+  // el campo a propósito): solo el primer caso cae a hoy.
+  const desdeEfectivo = desde === undefined ? fechaHoyPeru() : desde;
+  const hastaEfectivo = hasta === undefined ? fechaHoyPeru() : hasta;
+  const fechaCosecha = rangoFechaCosecha(desdeEfectivo, hastaEfectivo);
 
   // Si viene de "Ir a Tarjas Industrial" desde el detalle de un ingreso, se busca
   // su número para el aviso de filtro activo (y por si el id ya no existe).
@@ -124,14 +131,7 @@ export default async function TarjasIndustrialPage({
           <Label htmlFor="variedad">Variedad</Label>
           <Input id="variedad" name="variedad" placeholder="Ej. ARANA" defaultValue={variedad ?? ""} className="w-[170px]" />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="desde">Desde (fecha de cosecha)</Label>
-          <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[170px]" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="hasta">Hasta (fecha de cosecha)</Label>
-          <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[170px]" />
-        </div>
+        <FiltroRangoFecha desde={desdeEfectivo} hasta={hastaEfectivo} label="Fecha de cosecha" />
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>
@@ -225,7 +225,7 @@ export default async function TarjasIndustrialPage({
             paginaActual={pagina}
             totalPaginas={totalPaginas}
             total={total}
-            searchParams={{ pallet, variedad, desde, hasta, ingresoFrutaId, ingresoIndustrialId }}
+            searchParams={{ pallet, variedad, desde: desdeEfectivo, hasta: hastaEfectivo, ingresoFrutaId, ingresoIndustrialId }}
           />
         </>
       )}

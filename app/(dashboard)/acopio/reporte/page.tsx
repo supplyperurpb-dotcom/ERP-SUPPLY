@@ -10,7 +10,7 @@ import { obtenerDatosReporteRecepcion, resolverFechaCosechaFiltro } from "@/lib/
 import { MODULOS_ACOPIO, VARIEDADES_COSECHA } from "@/lib/constants/modulos";
 import { ReporteAcopioView } from "./reporte-acopio-view";
 import { ReporteNavTabs } from "./reporte-nav-tabs";
-import { FiltroRangoFecha } from "./filtro-rango-fecha";
+import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 
 // Filtro "Tipo de operación" (pedido explícito): acota IngresoFrutaPallet
 // (Materia Prima) a Exportable o Descarte Campo — Industrial no tiene esta
@@ -224,7 +224,7 @@ export default async function ReporteAcopioPage({
             ))}
           </select>
         </div>
-        <FiltroRangoFecha desde={desdeEfectivo ?? ""} hasta={hastaEfectivo ?? ""} />
+        <FiltroRangoFecha desde={desdeEfectivo ?? ""} hasta={hastaEfectivo ?? ""} label="Fecha de cosecha" />
         <Button type="submit">
           <Search className="mr-2 h-4 w-4" />
           Aplicar filtros

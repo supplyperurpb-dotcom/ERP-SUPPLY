@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 import { ESTADO_ATENCION_LABEL, type EstadoAtencionLinea, type FiltrosTrazabilidad } from "@/lib/trazabilidad";
 
 // Filtro dinámico (pedido explícito): se arma la URL con los campos no
@@ -132,43 +133,27 @@ export function FiltrosTrazabilidadBar({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="grid gap-1.5">
-          <Label htmlFor="creacionDesde">Creación desde</Label>
-          <Input
-            id="creacionDesde"
-            type="date"
-            value={form.creacionDesde ?? ""}
-            onChange={(e) => actualizar("creacionDesde", e.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="creacionHasta">Creación hasta</Label>
-          <Input
-            id="creacionHasta"
-            type="date"
-            value={form.creacionHasta ?? ""}
-            onChange={(e) => actualizar("creacionHasta", e.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="aprobacionDesde">Aprobación desde</Label>
-          <Input
-            id="aprobacionDesde"
-            type="date"
-            value={form.aprobacionDesde ?? ""}
-            onChange={(e) => actualizar("aprobacionDesde", e.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="aprobacionHasta">Aprobación hasta</Label>
-          <Input
-            id="aprobacionHasta"
-            type="date"
-            value={form.aprobacionHasta ?? ""}
-            onChange={(e) => actualizar("aprobacionHasta", e.target.value)}
-          />
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FiltroRangoFecha
+          desde={form.creacionDesde ?? ""}
+          hasta={form.creacionHasta ?? ""}
+          label="Creación"
+          nombreDesde="creacionDesde"
+          nombreHasta="creacionHasta"
+          onChange={({ desde, hasta }) =>
+            setForm((actual) => ({ ...actual, creacionDesde: desde || undefined, creacionHasta: hasta || undefined }))
+          }
+        />
+        <FiltroRangoFecha
+          desde={form.aprobacionDesde ?? ""}
+          hasta={form.aprobacionHasta ?? ""}
+          label="Aprobación"
+          nombreDesde="aprobacionDesde"
+          nombreHasta="aprobacionHasta"
+          onChange={({ desde, hasta }) =>
+            setForm((actual) => ({ ...actual, aprobacionDesde: desde || undefined, aprobacionHasta: hasta || undefined }))
+          }
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 pt-1">

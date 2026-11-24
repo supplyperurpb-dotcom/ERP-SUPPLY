@@ -8,8 +8,9 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
+import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 import { prisma } from "@/lib/db/prisma";
-import { fechaLocalHoy, formatDate, formatKg, formatCantidad, rangoFechaIngreso } from "@/lib/utils";
+import { fechaHoyPeru, formatDate, formatKg, formatCantidad, rangoFechaIngreso } from "@/lib/utils";
 import type { EstadoDocumento, Prisma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -38,8 +39,8 @@ export default async function IngresosFrutaPage({
   // propósito) se muestra solo lo de hoy — pedido explícito. `desde`/`hasta`
   // ausentes del todo (primera visita) son distintos de "" (el usuario
   // vació el campo a propósito): solo el primer caso cae a hoy.
-  const desdeEfectivo = desde === undefined ? fechaLocalHoy() : desde;
-  const hastaEfectivo = hasta === undefined ? fechaLocalHoy() : hasta;
+  const desdeEfectivo = desde === undefined ? fechaHoyPeru() : desde;
+  const hastaEfectivo = hasta === undefined ? fechaHoyPeru() : hasta;
   const fechaIngreso = rangoFechaIngreso(desdeEfectivo, hastaEfectivo);
   const pagina = calcularPagina(paginaParam);
 
@@ -109,14 +110,7 @@ export default async function IngresosFrutaPage({
           <Label htmlFor="variedad">Variedad</Label>
           <Input id="variedad" name="variedad" placeholder="Ej. ARANA" defaultValue={variedad ?? ""} className="w-[150px]" />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="desde">Desde (fecha de ingreso)</Label>
-          <Input id="desde" name="desde" type="date" defaultValue={desdeEfectivo} className="w-[170px]" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="hasta">Hasta (fecha de ingreso)</Label>
-          <Input id="hasta" name="hasta" type="date" defaultValue={hastaEfectivo} className="w-[170px]" />
-        </div>
+        <FiltroRangoFecha desde={desdeEfectivo} hasta={hastaEfectivo} label="Fecha de ingreso" />
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>

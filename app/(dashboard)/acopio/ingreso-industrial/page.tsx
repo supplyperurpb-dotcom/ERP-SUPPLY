@@ -8,8 +8,9 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PaginationControls, REGISTROS_POR_PAGINA, calcularPagina } from "@/components/shared/pagination-controls";
+import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 import { prisma } from "@/lib/db/prisma";
-import { formatDate, formatKg, formatCantidad, rangoFechaIngreso } from "@/lib/utils";
+import { fechaHoyPeru, formatDate, formatKg, formatCantidad, rangoFechaIngreso } from "@/lib/utils";
 import type { EstadoDocumento, Prisma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -34,7 +35,13 @@ export default async function IngresoIndustrialPage({
   searchParams: Promise<{ desde?: string; hasta?: string; numero?: string; variedad?: string; pagina?: string }>;
 }) {
   const { desde, hasta, numero, variedad, pagina: paginaParam } = await searchParams;
-  const fechaIngreso = rangoFechaIngreso(desde, hasta);
+  // Por defecto (primera visita, sin tocar el filtro) se muestra solo lo de
+  // hoy — mismo criterio que Ingreso de Materia Prima. `desde`/`hasta`
+  // ausentes del todo son distintos de "" (el usuario vació el campo a
+  // propósito): solo el primer caso cae a hoy.
+  const desdeEfectivo = desde === undefined ? fechaHoyPeru() : desde;
+  const hastaEfectivo = hasta === undefined ? fechaHoyPeru() : hasta;
+  const fechaIngreso = rangoFechaIngreso(desdeEfectivo, hastaEfectivo);
   const pagina = calcularPagina(paginaParam);
 
   const where: Prisma.IngresoIndustrialWhereInput = {
@@ -83,14 +90,7 @@ export default async function IngresoIndustrialPage({
           <Label htmlFor="variedad">Variedad</Label>
           <Input id="variedad" name="variedad" placeholder="Ej. ARANA" defaultValue={variedad ?? ""} className="w-[150px]" />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="desde">Desde</Label>
-          <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[170px]" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="hasta">Hasta</Label>
-          <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[170px]" />
-        </div>
+        <FiltroRangoFecha desde={desdeEfectivo} hasta={hastaEfectivo} label="Fecha de ingreso" />
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>
@@ -159,7 +159,7 @@ export default async function IngresoIndustrialPage({
             paginaActual={pagina}
             totalPaginas={totalPaginas}
             total={total}
-            searchParams={{ desde, hasta, numero, variedad }}
+            searchParams={{ desde: desdeEfectivo, hasta: hastaEfectivo, numero, variedad }}
           />
         </>
       )}

@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 import { prisma } from "@/lib/db/prisma";
-import { fechaLocalHoy, formatDate, formatDateTime, formatMoneda, rangoFechaIngreso } from "@/lib/utils";
+import { fechaHoyPeru, formatDate, formatDateTime, formatMoneda, rangoFechaIngreso } from "@/lib/utils";
 import { AgregarServicioDialog, type OrdenServicioDisponible } from "./agregar-servicio-dialog";
 
 export default async function GestionServiciosPage({
@@ -23,8 +24,8 @@ export default async function GestionServiciosPage({
   // propósito, se ve todo el histórico. rangoFechaIngreso arma un rango de
   // día completo (00:00 a 23:59:59.999, hora Lima) — no es específico de
   // "ingreso", acá se reutiliza para "createdAt" (fecha en que se agregó).
-  const desdeEfectivo = desde === undefined ? fechaLocalHoy() : desde;
-  const hastaEfectivo = hasta === undefined ? fechaLocalHoy() : hasta;
+  const desdeEfectivo = desde === undefined ? fechaHoyPeru() : desde;
+  const hastaEfectivo = hasta === undefined ? fechaHoyPeru() : hasta;
   const rangoFecha = rangoFechaIngreso(desdeEfectivo, hastaEfectivo);
 
   const termino = busqueda?.trim();
@@ -80,14 +81,7 @@ export default async function GestionServiciosPage({
           <Label htmlFor="busqueda">Proveedor o N.º de orden</Label>
           <Input id="busqueda" name="busqueda" placeholder="Ej. Achirana o OS-FO-0001" defaultValue={busqueda ?? ""} />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="desde">Desde</Label>
-          <Input id="desde" name="desde" type="date" defaultValue={desdeEfectivo} className="w-[170px]" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="hasta">Hasta</Label>
-          <Input id="hasta" name="hasta" type="date" defaultValue={hastaEfectivo} className="w-[170px]" />
-        </div>
+        <FiltroRangoFecha desde={desdeEfectivo} hasta={hastaEfectivo} label="Fecha" />
         <Button type="submit" variant="secondary">
           Filtrar
         </Button>

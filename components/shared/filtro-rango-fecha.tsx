@@ -11,14 +11,36 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-// Pedido explícito: un solo calendario donde seleccionar primero el día
-// "desde" y después el día "hasta" arma el rango (react-day-picker
-// mode="range" ya hace exactamente eso) — reemplaza los 2 <input
-// type="date"> sueltos de antes. Los valores siguen viajando como
-// "desde"/"hasta" en inputs ocultos dentro del mismo <form> de filtros, así
-// que "Aplicar filtros" sigue siendo una navegación GET normal, sin cambiar
-// la arquitectura de la página.
-export function FiltroRangoFecha({ desde, hasta }: { desde: string; hasta: string }) {
+// Un solo calendario donde seleccionar primero el día "desde" y después el
+// "hasta" arma el rango (react-day-picker mode="range" ya hace exactamente
+// eso) — mismo formato en todos los filtros de fecha del sistema (pedido
+// explícito), reemplazando los 2 <input type="date"> sueltos de antes.
+//
+// Dos formas de usarlo:
+// - Dentro de un <form> GET normal (la mayoría de los filtros de este
+//   sistema): los valores viajan solos en los inputs ocultos "desde"/"hasta"
+//   (o los nombres que se pasen en nombreDesde/nombreHasta), sin necesidad
+//   de leer `onChange`.
+// - Filtros armados en el cliente (ej. que arman el query string ellos
+//   mismos con router.push en vez de un submit nativo): pasar `onChange`
+//   además, para enterarse del cambio al tiro.
+export function FiltroRangoFecha({
+  desde,
+  hasta,
+  label = "Fecha",
+  nombreDesde = "desde",
+  nombreHasta = "hasta",
+  onChange,
+  className,
+}: {
+  desde: string;
+  hasta: string;
+  label?: string;
+  nombreDesde?: string;
+  nombreHasta?: string;
+  onChange?: (valores: { desde: string; hasta: string }) => void;
+  className?: string;
+}) {
   const [range, setRange] = useState<DateRange | undefined>({
     from: desde ? parseISO(desde) : undefined,
     to: hasta ? parseISO(hasta) : undefined,
@@ -30,6 +52,11 @@ export function FiltroRangoFecha({ desde, hasta }: { desde: string; hasta: strin
     // Se cierra solo al completar el rango (from + to) — mientras solo hay
     // "from" se deja abierto para elegir el segundo día.
     if (nuevoRango?.from && nuevoRango?.to) setOpen(false);
+    if (onChange) {
+      const d = nuevoRango?.from ? format(nuevoRango.from, "yyyy-MM-dd") : "";
+      const h = nuevoRango?.to ? format(nuevoRango.to, "yyyy-MM-dd") : d;
+      onChange({ desde: d, hasta: h });
+    }
   }
 
   const valorDesde = range?.from ? format(range.from, "yyyy-MM-dd") : "";
@@ -42,10 +69,10 @@ export function FiltroRangoFecha({ desde, hasta }: { desde: string; hasta: strin
     : "Selecciona una fecha";
 
   return (
-    <div className="grid gap-1.5">
-      <Label>Fecha de cosecha</Label>
-      <input type="hidden" name="desde" value={valorDesde} />
-      <input type="hidden" name="hasta" value={valorHasta} />
+    <div className={cn("grid gap-1.5", className)}>
+      <Label>{label}</Label>
+      <input type="hidden" name={nombreDesde} value={valorDesde} />
+      <input type="hidden" name={nombreHasta} value={valorHasta} />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
