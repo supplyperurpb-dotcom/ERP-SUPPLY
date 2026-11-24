@@ -11,6 +11,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { formatDate, formatCantidad } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { PERMITIR_ATENDER_SOLICITUD_DESPACHO_EN_CONSUMO } from "@/lib/constants/almacenes";
 import { esAlmacen, esDeAreaAlmacen } from "@/lib/stock-almacen";
 import { eliminarSolicitudDespachoAction } from "@/lib/actions/solicitud-despacho-actions";
 import type { EstadoSolicitudDespacho } from "../solicitudes-despacho-table";
@@ -77,7 +78,7 @@ export default async function SolicitudDespachoDetallePage({ params }: { params:
                 Descargar PDF
               </a>
             </Button>
-            {puedeVerTodas && estado !== "ATENDIDA" && (
+            {PERMITIR_ATENDER_SOLICITUD_DESPACHO_EN_CONSUMO && puedeVerTodas && estado !== "ATENDIDA" && (
               <Button variant="outline" asChild>
                 <Link href={`/logistica/almacenes/consumos/nuevo?solicitudDespachoId=${solicitud.id}`}>Atender en Almacén</Link>
               </Button>

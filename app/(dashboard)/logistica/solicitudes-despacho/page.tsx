@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { formatDate } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { PERMITIR_ATENDER_SOLICITUD_DESPACHO_EN_CONSUMO } from "@/lib/constants/almacenes";
 import { esAlmacen, esDeAreaAlmacen } from "@/lib/stock-almacen";
 import { SolicitudesDespachoTable, type FilaSolicitudDespacho, type EstadoSolicitudDespacho } from "./solicitudes-despacho-table";
 
@@ -87,7 +88,7 @@ export default async function SolicitudesDespachoPage() {
           descripcion="Registra la primera con el botón de arriba."
         />
       ) : (
-        <SolicitudesDespachoTable filas={filas} puedeAtender={puedeVerTodas} />
+        <SolicitudesDespachoTable filas={filas} puedeAtender={puedeVerTodas && PERMITIR_ATENDER_SOLICITUD_DESPACHO_EN_CONSUMO} />
       )}
     </div>
   );

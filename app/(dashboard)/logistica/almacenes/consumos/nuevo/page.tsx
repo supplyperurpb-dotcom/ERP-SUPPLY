@@ -9,6 +9,7 @@ import {
 } from "@/lib/stock-almacen";
 import { siguienteNumero, nombreCompletoRetirador } from "@/lib/utils";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
+import { PERMITIR_ATENDER_SOLICITUD_DESPACHO_EN_CONSUMO } from "@/lib/constants/almacenes";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { ConsumoAlmacenForm } from "./consumo-almacen-form";
 
@@ -21,9 +22,15 @@ export default async function NuevoConsumoAlmacenPage({
   // Acepta el singular viejo (un solo link "Atender") y el plural nuevo
   // (checkboxes + "Atender Seleccionadas" en la bandeja) — ver
   // solicitudes-despacho-table.tsx.
-  const idsSolicitados = [
-    ...new Set([...(solicitudDespachoIds ? solicitudDespachoIds.split(",") : []), ...(solicitudDespachoId ? [solicitudDespachoId] : [])]),
-  ].filter(Boolean);
+  // Interruptor temporal (ver lib/constants/almacenes.ts): si está apagado,
+  // se ignora cualquier solicitudDespachoId/solicitudDespachoIds que venga
+  // en la URL — el consumo queda siempre en modo manual/directo, aunque
+  // alguien entre con el link viejo guardado o escriba la URL a mano.
+  const idsSolicitados = PERMITIR_ATENDER_SOLICITUD_DESPACHO_EN_CONSUMO
+    ? [
+        ...new Set([...(solicitudDespachoIds ? solicitudDespachoIds.split(",") : []), ...(solicitudDespachoId ? [solicitudDespachoId] : [])]),
+      ].filter(Boolean)
+    : [];
 
   const [almacenesActivos, retiradores, vehiculos, existentes] = await Promise.all([
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
