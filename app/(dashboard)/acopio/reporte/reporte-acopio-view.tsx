@@ -296,13 +296,21 @@ function IndicadoresGenerales({ materiaPrima, cantidadIngresos }: { materiaPrima
   );
 }
 
+// Padding/tamaño de letra responsive, reusado en todas las celdas de esta
+// tabla — compacto en celular (para que las 5 columnas entren sin scroll
+// horizontal, pedido explícito) y el tamaño normal de siempre desde `sm:`.
+const CELDA_RESUMEN = "whitespace-nowrap px-1.5 py-2 text-[11px] sm:px-4 sm:py-3 sm:text-sm";
+
 // Celda de 2 líneas (kg + % de ESA fila, no el % global) — mismo patrón en
 // la tabla y en la fila de total general.
 function CeldaKgPorcentaje({ kg, pct, color }: { kg: number; pct: number; color: string }) {
   return (
-    <TableCell numeric>
-      <div className="font-semibold">{formatNumero(kg)} kg</div>
-      <div className="text-xs font-medium" style={{ color }}>
+    <TableCell numeric className={CELDA_RESUMEN}>
+      <div className="font-semibold tabular-nums">
+        {formatNumero(kg)}
+        <span className="hidden sm:inline"> kg</span>
+      </div>
+      <div className="text-[9px] font-medium tabular-nums sm:text-xs" style={{ color }}>
         {formatPorcentaje(pct)}
       </div>
     </TableCell>
@@ -324,15 +332,23 @@ function ResumenVariedadModuloTabla({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="bg-muted/40">Módulo</TableHead>
-            <TableHead className="bg-muted/40">Variedad</TableHead>
-            <TableHead numeric className="bg-muted/40" style={{ color: COLOR_APROVECHABLE }}>
-              Aprov.
+            <TableHead className={cn("bg-muted/40", CELDA_RESUMEN)}>
+              <span className="sm:hidden">MÓD.</span>
+              <span className="hidden sm:inline">Módulo</span>
             </TableHead>
-            <TableHead numeric className="bg-muted/40" style={{ color: COLOR_NACIONAL }}>
-              Nacional
+            <TableHead className={cn("bg-muted/40", CELDA_RESUMEN)}>
+              <span className="sm:hidden">VAR.</span>
+              <span className="hidden sm:inline">Variedad</span>
             </TableHead>
-            <TableHead numeric className="bg-muted/40">
+            <TableHead numeric className={cn("bg-muted/40", CELDA_RESUMEN)} style={{ color: COLOR_APROVECHABLE }}>
+              <span className="sm:hidden">APROV.</span>
+              <span className="hidden sm:inline">Aprov.</span>
+            </TableHead>
+            <TableHead numeric className={cn("bg-muted/40", CELDA_RESUMEN)} style={{ color: COLOR_NACIONAL }}>
+              <span className="sm:hidden">NAC.</span>
+              <span className="hidden sm:inline">Nacional</span>
+            </TableHead>
+            <TableHead numeric className={cn("bg-muted/40", CELDA_RESUMEN)}>
               Total
             </TableHead>
           </TableRow>
@@ -340,12 +356,12 @@ function ResumenVariedadModuloTabla({
         <TableBody>
           {resumen.map((fila) => (
             <TableRow key={`${fila.modulo}__${fila.variedad}`}>
-              <TableCell>
-                <span className="inline-flex items-center rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+              <TableCell className={CELDA_RESUMEN}>
+                <span className="inline-flex items-center rounded-md bg-primary px-1 py-0.5 text-[10px] font-semibold text-primary-foreground sm:px-2 sm:text-xs">
                   {formatModuloCompacto(fila.modulo)}
                 </span>
               </TableCell>
-              <TableCell className="font-medium">{fila.variedad}</TableCell>
+              <TableCell className={cn(CELDA_RESUMEN, "font-medium")}>{fila.variedad}</TableCell>
               <CeldaKgPorcentaje
                 kg={fila.aprovechableKg}
                 pct={fila.total > 0 ? (fila.aprovechableKg / fila.total) * 100 : 0}
@@ -356,16 +372,23 @@ function ResumenVariedadModuloTabla({
                 pct={fila.total > 0 ? (fila.nacionalKg / fila.total) * 100 : 0}
                 color={COLOR_NACIONAL}
               />
-              <TableCell numeric className="font-semibold">
-                {formatNumero(fila.total)} kg
+              <TableCell numeric className={cn(CELDA_RESUMEN, "font-semibold")}>
+                {formatNumero(fila.total)}
+                <span className="hidden sm:inline"> kg</span>
               </TableCell>
             </TableRow>
           ))}
           <TableRow className="bg-emerald-50 font-semibold">
-            <TableCell colSpan={2}>TOTAL GENERAL</TableCell>
+            <TableCell colSpan={2} className={CELDA_RESUMEN}>
+              <span className="sm:hidden">TOTAL</span>
+              <span className="hidden sm:inline">TOTAL GENERAL</span>
+            </TableCell>
             <CeldaKgPorcentaje kg={materiaPrima.kgAprovechable} pct={materiaPrima.pctAprovechable} color={COLOR_APROVECHABLE} />
             <CeldaKgPorcentaje kg={materiaPrima.kgNacionalCampo} pct={materiaPrima.pctNacionalCampo} color={COLOR_NACIONAL} />
-            <TableCell numeric>{formatNumero(materiaPrima.kgRecepcionado)} kg</TableCell>
+            <TableCell numeric className={CELDA_RESUMEN}>
+              {formatNumero(materiaPrima.kgRecepcionado)}
+              <span className="hidden sm:inline"> kg</span>
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>
