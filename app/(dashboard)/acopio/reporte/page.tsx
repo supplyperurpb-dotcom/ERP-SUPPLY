@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { prisma } from "@/lib/db/prisma";
-import { cn, semanaISOConAnio } from "@/lib/utils";
+import { cn, fechaLocalHoy, semanaISOConAnio } from "@/lib/utils";
 import { obtenerDatosReporteRecepcion, resolverFechaCosechaFiltro } from "@/lib/acopio-reporte";
 import { MODULOS_ACOPIO, VARIEDADES_COSECHA } from "@/lib/constants/modulos";
 import { ReporteAcopioView } from "./reporte-acopio-view";
 import { ReporteNavTabs } from "./reporte-nav-tabs";
+import { FiltroRangoFecha } from "./filtro-rango-fecha";
 
 // Filtro "Tipo de operación" (pedido explícito): acota IngresoFrutaPallet
 // (Materia Prima) a Exportable o Descarte Campo — Industrial no tiene esta
@@ -47,7 +48,20 @@ export default async function ReporteAcopioPage({
     ? (variedadParam as string)
     : null;
 
-  const fechaCosecha = resolverFechaCosechaFiltro({ desde, hasta, semana: semanaParam, campania: campaniaParam });
+  // Pedido explícito: el filtro de fecha siempre arranca marcado en "hoy"
+  // cuando no hay ningún otro filtro de fecha aplicado (ni desde/hasta, ni
+  // semana, ni campaña) — no afecta si ya se eligió alguno de esos, ni si
+  // solo se aplicó tipo/módulo/variedad (esos no son de fecha).
+  const sinFiltroDeFecha = !desde && !hasta && !semanaParam && !campaniaParam;
+  const desdeEfectivo = desde ?? (sinFiltroDeFecha ? fechaLocalHoy() : undefined);
+  const hastaEfectivo = hasta ?? (sinFiltroDeFecha ? fechaLocalHoy() : undefined);
+
+  const fechaCosecha = resolverFechaCosechaFiltro({
+    desde: desdeEfectivo,
+    hasta: hastaEfectivo,
+    semana: semanaParam,
+    campania: campaniaParam,
+  });
   const campania = Number(campaniaParam);
 
   const [datosRecepcion, lineasIndustrial, fechasFruta, fechasIndustrial] = await Promise.all([
@@ -103,8 +117,8 @@ export default async function ReporteAcopioPage({
   // Query string de los filtros actuales, para que "Generar Tarja PDF" abra
   // el PDF con exactamente lo que se está viendo en pantalla.
   const paramsPdf = new URLSearchParams();
-  if (desde) paramsPdf.set("desde", desde);
-  if (hasta) paramsPdf.set("hasta", hasta);
+  if (desdeEfectivo) paramsPdf.set("desde", desdeEfectivo);
+  if (hastaEfectivo) paramsPdf.set("hasta", hastaEfectivo);
   if (semanaParam) paramsPdf.set("semana", semanaParam);
   if (tipoOperacion) paramsPdf.set("tipo", tipoOperacion);
   if (campaniaParam) paramsPdf.set("campania", campaniaParam);
@@ -209,14 +223,7 @@ export default async function ReporteAcopioPage({
             ))}
           </select>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="desde">Fecha de cosecha</Label>
-          <div className="flex items-center gap-2">
-            <Input id="desde" name="desde" type="date" defaultValue={desde ?? ""} className="w-[150px]" />
-            <span className="text-sm text-muted-foreground">a</span>
-            <Input id="hasta" name="hasta" type="date" defaultValue={hasta ?? ""} className="w-[150px]" />
-          </div>
-        </div>
+        <FiltroRangoFecha desde={desdeEfectivo ?? ""} hasta={hastaEfectivo ?? ""} />
         <Button type="submit">
           <Search className="mr-2 h-4 w-4" />
           Aplicar filtros
@@ -239,7 +246,7 @@ export default async function ReporteAcopioPage({
           generadoEn={generadoEn}
           semanaTexto={semanaSeleccionada ? `Semana ${semanaSeleccionada.semana}${mostrarAnio ? ` (${semanaSeleccionada.anio})` : ""}` : "Todas las semanas"}
           campaniaTexto={campaniaTexto}
-          rangoFechas={{ desde: desde ?? null, hasta: hasta ?? null }}
+          rangoFechas={{ desde: desdeEfectivo ?? null, hasta: hastaEfectivo ?? null }}
           cantidadIngresos={datosRecepcion.cantidadIngresos}
           pdfHref={pdfHref}
           materiaPrima={datosRecepcion}
