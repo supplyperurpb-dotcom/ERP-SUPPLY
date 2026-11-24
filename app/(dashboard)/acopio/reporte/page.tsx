@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { prisma } from "@/lib/db/prisma";
 import { cn, rangoFechaCosecha, rangoSemanaISO, semanaISOConAnio } from "@/lib/utils";
 import { ReporteAcopioView } from "./reporte-acopio-view";
+import { ReporteNavTabs } from "./reporte-nav-tabs";
 
 // Filtro "Tipo de operación" (pedido explícito): acota IngresoFrutaPallet
 // (Materia Prima) a Exportable o Descarte Campo — Industrial no tiene esta
@@ -163,6 +164,8 @@ export default async function ReporteAcopioPage({
       <Link href="/acopio" className="mb-3 inline-block text-sm text-muted-foreground hover:text-foreground print:hidden">
         ← Volver a Acopio
       </Link>
+
+      <ReporteNavTabs />
 
       <form className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4 print:hidden">
         <div className="grid gap-1.5">

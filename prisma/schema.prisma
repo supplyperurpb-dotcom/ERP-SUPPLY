@@ -2015,6 +2015,44 @@ model FacturacionExportacion {
 }
 
 // =========================================================================
+// PRESUPUESTO DE COSECHA (Reporte de Acopio — pestaña "General")
+// =========================================================================
+
+// Presupuesto semanal por variedad: "KG BUDGET" (presupuesto original) y
+// "KG OCT" (reproyección hecha en octubre) — se cargan/editan a mano en
+// /acopio/presupuesto (no hay fuente automática, viene de un Excel externo
+// de planeamiento). Lo "ya cosechado" NO se guarda acá: sale de
+// IngresoFrutaPallet/IngresoIndustrialPallet, igual que el resto del
+// Reporte de Acopio.
+model PresupuestoCosechaSemana {
+  id            String   @id @default(cuid())
+  anio          Int
+  semana        Int
+  variedad      String
+  kgBudget      Decimal  @default(0) @db.Decimal(12, 3)
+  kgOct         Decimal  @default(0) @db.Decimal(12, 3)
+  actualizadoEn DateTime @updatedAt
+
+  @@unique([anio, semana, variedad])
+  @@map("presupuesto_cosecha_semana")
+}
+
+// Hectáreas por variedad — también manual (no se deriva de nada existente).
+// El "Kg Proyectado" de la temporada NO se guarda: se calcula sumando, por
+// cada semana, lo ya cosechado si existe o si no el kgOct pendiente (ver
+// cálculo en app/(dashboard)/acopio/reporte/general/page.tsx).
+model PresupuestoCosechaVariedad {
+  id            String   @id @default(cuid())
+  anio          Int
+  variedad      String
+  hectareas     Decimal  @default(0) @db.Decimal(8, 2)
+  actualizadoEn DateTime @updatedAt
+
+  @@unique([anio, variedad])
+  @@map("presupuesto_cosecha_variedad")
+}
+
+// =========================================================================
 // AUDITORÍA
 // =========================================================================
 

@@ -20,6 +20,19 @@ export const VARIEDADES_POR_MODULO: Record<string, string[]> = {
   "MODULO 4": ["RAYMI", "CASCADE", "BREEZE"],
 };
 
+// Mismas 5 variedades de VARIEDADES_POR_MODULO, aplanadas sin duplicados y
+// en el orden en que el usuario las maneja en su Excel de presupuesto —
+// usado en /acopio/presupuesto y en Reporte de Acopio > General.
+export const VARIEDADES_COSECHA = ["ARANA", "RAYMI", "ROSITA", "BREEZE", "CASCADE"] as const;
+
+// Rango de semanas ISO de la campaña de cosecha (dato real del negocio, no
+// calculado): arranca en la semana 21 y termina en la 52. Usado tanto en
+// /acopio/presupuesto (qué semanas mostrar para cargar KG Budget/KG Oct)
+// como en Reporte de Acopio > General (sobre qué semanas sumar el Kg
+// Proyectado de cada variedad).
+export const SEMANA_MIN_COSECHA = 21;
+export const SEMANA_MAX_COSECHA = 52;
+
 // Turnos válidos por módulo + variedad (dado por el usuario como cuadro de
 // referencia real del fundo). No es un rango uniforme: cada combinación
 // módulo/variedad tiene su propia cantidad de turnos — por ejemplo MODULO 4
