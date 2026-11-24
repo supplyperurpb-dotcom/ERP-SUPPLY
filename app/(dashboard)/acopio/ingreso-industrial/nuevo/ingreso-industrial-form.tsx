@@ -121,7 +121,7 @@ export function IngresoIndustrialForm({
   // mismo en ambos casos, acá solo cambia cuál de los dos escribe el
   // usuario. El neto ingresado vive en un estado aparte (no es parte del
   // schema: no se guarda, solo sirve para derivar el bruto en vivo).
-  const [modoNeto, setModoNeto] = useState(false);
+  const [modoNeto, setModoNeto] = useState(true);
   const [netoPorLinea, setNetoPorLinea] = useState<Record<string, string>>({});
 
   const filasCalculadas = pallets.map((pallet) => {
