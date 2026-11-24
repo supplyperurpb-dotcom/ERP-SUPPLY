@@ -34,6 +34,7 @@ export async function GET(request: Request) {
   const anioCampania = Number(campania);
   const campaniaTexto = campania && Number.isFinite(anioCampania) ? String(anioCampania) : "Todas";
   const generadoEn = new Date().toLocaleString("es-PE", {
+    timeZone: "America/Lima",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

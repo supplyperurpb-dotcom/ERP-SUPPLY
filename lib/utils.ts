@@ -168,6 +168,22 @@ export function fechaLocalHoy(): string {
   return `${hoy.getFullYear()}-${mes}-${dia}`;
 }
 
+// "Hoy" calculado en la zona horaria de Perú (America/Lima, UTC-5 todo el
+// año), no en la del proceso — a diferencia de fechaLocalHoy (pensada para
+// usarse en el navegador, donde "local" ya es la hora de Perú), esta es
+// para Server Components/Server Actions: en Vercel el servidor corre en
+// UTC, así que `new Date()` ahí puede caer en el día siguiente varias
+// horas antes de que en Perú todavía sea "hoy" (ej. 00:30 UTC = 19:30 del
+// día anterior en Perú).
+export function fechaHoyPeru(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 // Día siguiente al de hoy, como valor "YYYY-MM-DD" (igual que
 // fechaLocalHoy), saltando domingo -> lunes. Se usa como fecha de entrega
 // por defecto al crear una Orden de Compra.

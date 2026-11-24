@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { prisma } from "@/lib/db/prisma";
-import { cn, fechaLocalHoy, semanaISOConAnio } from "@/lib/utils";
+import { cn, fechaHoyPeru, semanaISOConAnio } from "@/lib/utils";
 import { obtenerDatosReporteRecepcion, resolverFechaCosechaFiltro } from "@/lib/acopio-reporte";
 import { MODULOS_ACOPIO, VARIEDADES_COSECHA } from "@/lib/constants/modulos";
 import { ReporteAcopioView } from "./reporte-acopio-view";
@@ -53,8 +53,8 @@ export default async function ReporteAcopioPage({
   // semana, ni campaña) — no afecta si ya se eligió alguno de esos, ni si
   // solo se aplicó tipo/módulo/variedad (esos no son de fecha).
   const sinFiltroDeFecha = !desde && !hasta && !semanaParam && !campaniaParam;
-  const desdeEfectivo = desde ?? (sinFiltroDeFecha ? fechaLocalHoy() : undefined);
-  const hastaEfectivo = hasta ?? (sinFiltroDeFecha ? fechaLocalHoy() : undefined);
+  const desdeEfectivo = desde ?? (sinFiltroDeFecha ? fechaHoyPeru() : undefined);
+  const hastaEfectivo = hasta ?? (sinFiltroDeFecha ? fechaHoyPeru() : undefined);
 
   const fechaCosecha = resolverFechaCosechaFiltro({
     desde: desdeEfectivo,
@@ -126,6 +126,7 @@ export default async function ReporteAcopioPage({
   if (variedad) paramsPdf.set("variedad", variedad);
   const pdfHref = `/api/pdf/reporte-recepcion?${paramsPdf.toString()}`;
   const generadoEn = new Date().toLocaleString("es-PE", {
+    timeZone: "America/Lima",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
