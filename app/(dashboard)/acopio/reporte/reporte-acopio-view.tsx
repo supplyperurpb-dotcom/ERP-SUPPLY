@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Eye, FileText } from "lucide-react";
+import { Copy, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,8 +51,9 @@ export function ReporteAcopioView({
   materiaPrima: DatosReporteRecepcion;
   industrial: Industrial;
 }) {
+  const refMateriaPrima = useRef<HTMLDivElement>(null);
   const refIndustrial = useRef<HTMLDivElement>(null);
-  const [exportando, setExportando] = useState<"png" | "pdf" | null>(null);
+  const [exportando, setExportando] = useState<"png" | "pdf" | "copiar" | null>(null);
 
   const rangoTexto = rangoFechas.desde || rangoFechas.hasta ? `Cosecha ${rangoFechas.desde ?? "…"} – ${rangoFechas.hasta ?? "…"} · ` : "";
   const subtitulo = `${generadoEn} · ${rangoTexto}${campaniaTexto ? `${campaniaTexto} · ` : ""}${semanaTexto}`;
@@ -67,6 +68,34 @@ export function ReporteAcopioView({
   function abrirBlobEnNuevaPestana(url: string) {
     if (!window.open(url, "_blank")) {
       toast.error("El navegador bloqueó la vista. Permite ventanas emergentes para este sitio e inténtalo de nuevo.");
+    }
+  }
+
+  // Copia el recuadro como imagen directamente al portapapeles (pedido
+  // explícito: para pegarlo y enviarlo por WhatsApp sin pasar por
+  // descargar/adjuntar un archivo). El blob se pasa como Promise (no ya
+  // resuelto) a ClipboardItem: es el patrón que exige Safari para que la
+  // escritura al portapapeles siga contando como originada por el click
+  // aunque la imagen tarde en generarse de forma asíncrona.
+  async function copiarImagen(ref: React.RefObject<HTMLDivElement>) {
+    if (!ref.current) return;
+    if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+      toast.error("Tu navegador no permite copiar imágenes al portapapeles.");
+      return;
+    }
+    setExportando("copiar");
+    try {
+      const { toBlob } = await import("html-to-image");
+      const blobPromise = toBlob(ref.current, { pixelRatio: 2, backgroundColor: "#ffffff" }).then((blob) => {
+        if (!blob) throw new Error("No se pudo generar la imagen");
+        return blob;
+      });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+      toast.success("Imagen copiada — pégala en WhatsApp u otra app");
+    } catch {
+      toast.error("No se pudo copiar la imagen");
+    } finally {
+      setExportando(null);
     }
   }
 
@@ -130,7 +159,11 @@ export function ReporteAcopioView({
             simple a una URL real: no hace falta JS ni estado de carga, el
             visor de PDF del navegador ya trae sus propios botones de
             descargar/imprimir/compartir. */}
-        <div className="mb-3 flex justify-end print:hidden">
+        <div className="mb-3 flex justify-end gap-2 print:hidden">
+          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => copiarImagen(refMateriaPrima)}>
+            <Copy className="mr-2 h-4 w-4" />
+            {exportando === "copiar" ? "Copiando..." : "Copiar imagen"}
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <a href={pdfHref} target="_blank" rel="noopener noreferrer">
               <FileText className="mr-2 h-4 w-4" />
@@ -139,7 +172,7 @@ export function ReporteAcopioView({
           </Button>
         </div>
 
-        <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+        <div ref={refMateriaPrima} className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
           <Encabezado titulo="Reporte de Recepción" subtitulo={subtitulo} cantidadIngresos={cantidadIngresos} />
 
           <div className="my-5 border-t" />
@@ -156,6 +189,10 @@ export function ReporteAcopioView({
 
       <TabsContent value="industrial">
         <div className="mb-3 flex justify-end gap-2 print:hidden">
+          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => copiarImagen(refIndustrial)}>
+            <Copy className="mr-2 h-4 w-4" />
+            {exportando === "copiar" ? "Copiando..." : "Copiar imagen"}
+          </Button>
           <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => verPng(refIndustrial)}>
             <Eye className="mr-2 h-4 w-4" />
             {exportando === "png" ? "Abriendo..." : "Ver PNG"}
