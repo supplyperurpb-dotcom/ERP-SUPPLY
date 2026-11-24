@@ -299,7 +299,11 @@ function IndicadoresGenerales({ materiaPrima, cantidadIngresos }: { materiaPrima
 // Padding/tamaño de letra responsive, reusado en todas las celdas de esta
 // tabla — compacto en celular (para que las 5 columnas entren sin scroll
 // horizontal, pedido explícito) y el tamaño normal de siempre desde `sm:`.
-const CELDA_RESUMEN = "whitespace-nowrap px-1.5 py-2 text-[11px] sm:px-4 sm:py-3 sm:text-sm";
+// align-top (pedido explícito): el Total es una sola línea mientras que
+// Aprovechable/Nacional tienen 2 (kg + %) — con el align-middle de
+// TableCell por defecto, el Total quedaba centrado en el alto de la fila
+// en vez de a la misma altura que la línea de kg de las otras columnas.
+const CELDA_RESUMEN = "whitespace-nowrap px-1.5 py-2 text-[11px] align-top sm:px-4 sm:py-3 sm:text-sm";
 
 // Celda de 2 líneas (kg + % de ESA fila, no el % global) — mismo patrón en
 // la tabla y en la fila de total general.
