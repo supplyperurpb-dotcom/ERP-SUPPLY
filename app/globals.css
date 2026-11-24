@@ -104,3 +104,16 @@
 .recharts-bar-rectangle path {
   transition: fill-opacity 250ms ease;
 }
+
+/* Oculta visualmente la barra de scroll de un contenedor overflow-auto sin
+   quitarle la función (si el contenido de verdad no entra, se sigue
+   pudiendo desplazar con touch/trackpad) — pedido explícito: las tablas con
+   overflow-x-auto de los reportes no deben mostrar la barra ni en pantalla
+   ni en la imagen copiada/exportada. */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge viejo */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge nuevo */
+}

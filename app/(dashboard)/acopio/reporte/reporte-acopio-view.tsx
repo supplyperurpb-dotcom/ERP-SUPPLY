@@ -369,7 +369,7 @@ function ResumenVariedadModuloTabla({
     return <p className="text-sm text-muted-foreground">Sin datos en el filtro elegido.</p>;
   }
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="scrollbar-hide overflow-x-auto rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -442,7 +442,7 @@ function IndustrialTabla({ industrial }: { industrial: Industrial }) {
     return <p className="text-sm text-muted-foreground">Sin datos de Recepción Industrial en el filtro elegido.</p>;
   }
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="scrollbar-hide overflow-x-auto rounded-lg border">
       <Table>
         <TableHeader className="bg-muted/40">
           <TableRow>
