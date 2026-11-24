@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -113,6 +114,16 @@ export function IngresoIndustrialForm({
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "pallets" });
   const pallets = useWatch({ control: form.control, name: "pallets" }) ?? [];
 
+  // Pedido explícito: por defecto se ingresa el peso bruto y se calcula el
+  // neto (bruto - tara), igual que siempre. Con este check activado se
+  // invierte: se ingresa el peso neto y se calcula el bruto (neto + tara)
+  // — el campo que de verdad se guarda (pesoBrutoTotalKg) sigue siendo el
+  // mismo en ambos casos, acá solo cambia cuál de los dos escribe el
+  // usuario. El neto ingresado vive en un estado aparte (no es parte del
+  // schema: no se guarda, solo sirve para derivar el bruto en vivo).
+  const [modoNeto, setModoNeto] = useState(false);
+  const [netoPorLinea, setNetoPorLinea] = useState<Record<string, string>>({});
+
   const filasCalculadas = pallets.map((pallet) => {
     const taraUnitaria = taraPorTipo.get(pallet?.tipoBandejaId ?? "") ?? 0;
     const taraPallet = pallet?.tipoPalletId ? taraPorTipoPallet.get(pallet.tipoPalletId) ?? 0 : 0;
@@ -122,6 +133,24 @@ export function IngresoIndustrialForm({
     const pesoNeto = pesoBruto - pesoTara;
     return { pesoTara, pesoNeto };
   });
+
+  // En modo neto, el bruto (lo que realmente se guarda) se recalcula solo
+  // cada vez que cambia el neto ingresado o cualquier dato que afecte la
+  // tara (tipo de bandeja/pallet, cantidad) — así no queda desactualizado
+  // si el usuario cambia esos datos después de haber escrito el neto.
+  useEffect(() => {
+    if (!modoNeto) return;
+    fields.forEach((field, index) => {
+      const netoTexto = netoPorLinea[field.id];
+      if (netoTexto === undefined || netoTexto === "") return;
+      const neto = Number(netoTexto) || 0;
+      const brutoCalculado = neto + (filasCalculadas[index]?.pesoTara ?? 0);
+      if (Math.abs((Number(pallets[index]?.pesoBrutoTotalKg) || 0) - brutoCalculado) > 0.001) {
+        form.setValue(`pallets.${index}.pesoBrutoTotalKg`, brutoCalculado);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modoNeto, netoPorLinea, filasCalculadas]);
 
   const totales = filasCalculadas.reduce(
     (acc, fila, i) => ({
@@ -387,10 +416,16 @@ export function IngresoIndustrialForm({
               {CAPACIDAD_MAXIMA} bandejas por pallet).
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => append(LINEA_VACIA)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar línea
-          </Button>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox checked={modoNeto} onCheckedChange={(valor) => setModoNeto(valor === true)} />
+              Ingresar peso neto (calcula el bruto)
+            </label>
+            <Button type="button" variant="outline" size="sm" onClick={() => append(LINEA_VACIA)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar línea
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {fields.map((field, index) => {
@@ -413,6 +448,10 @@ export function IngresoIndustrialForm({
                           setPalletsNuevos((prev) => prev.filter((p) => p.tempId !== tempId));
                         }
                       }
+                      setNetoPorLinea((prev) => {
+                        const { [field.id]: _omitido, ...resto } = prev;
+                        return resto;
+                      });
                       remove(index);
                     }}
                   >
@@ -530,12 +569,21 @@ export function IngresoIndustrialForm({
                     )}
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Peso bruto (kg)</Label>
-                    <Controller
-                      control={form.control}
-                      name={`pallets.${index}.pesoBrutoTotalKg`}
-                      render={({ field }) => <NumberInput value={String(field.value ?? "")} onChange={field.onChange} />}
-                    />
+                    <Label className="text-xs">{modoNeto ? "Peso neto (kg)" : "Peso bruto (kg)"}</Label>
+                    {modoNeto ? (
+                      <NumberInput
+                        value={netoPorLinea[field.id] ?? ""}
+                        onChange={(valor) => setNetoPorLinea((prev) => ({ ...prev, [field.id]: valor }))}
+                      />
+                    ) : (
+                      <Controller
+                        control={form.control}
+                        name={`pallets.${index}.pesoBrutoTotalKg`}
+                        render={({ field: controllerField }) => (
+                          <NumberInput value={String(controllerField.value ?? "")} onChange={controllerField.onChange} />
+                        )}
+                      />
+                    )}
                     {form.formState.errors.pallets?.[index]?.pesoBrutoTotalKg && (
                       <p className="text-xs font-medium text-destructive">
                         {form.formState.errors.pallets[index]?.pesoBrutoTotalKg?.message}
@@ -546,9 +594,15 @@ export function IngresoIndustrialForm({
 
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   <span>Tara: {formatKg(filasCalculadas[index]?.pesoTara ?? 0)}</span>
-                  <span className="font-semibold text-primary">
-                    Peso neto: {formatKg(filasCalculadas[index]?.pesoNeto ?? 0)}
-                  </span>
+                  {modoNeto ? (
+                    <span className="font-semibold text-primary">
+                      Peso bruto: {formatKg(Number(pallets[index]?.pesoBrutoTotalKg) || 0)}
+                    </span>
+                  ) : (
+                    <span className="font-semibold text-primary">
+                      Peso neto: {formatKg(filasCalculadas[index]?.pesoNeto ?? 0)}
+                    </span>
+                  )}
                 </div>
 
                 <Separator className="my-3" />
