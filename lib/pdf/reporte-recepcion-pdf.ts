@@ -87,23 +87,55 @@ export async function generarReporteRecepcionPdf({
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO - MARGEN, y }, thickness: 0.5, color: GRIS });
   y -= 20;
 
-  page.drawText("Distribución de recepción", { x: MARGEN, y, size: 10, font: bold, color: NEGRO });
+  page.drawText("DISTRIBUCIÓN DE RECEPCIÓN", { x: MARGEN, y, size: 9, font: bold, color: GRIS });
   y -= 18;
-  page.drawText(`Aprovechable: ${kgAprovechable.toFixed(1)} kg  (${pctAprovechable.toFixed(1)}%)`, {
-    x: colIzqX,
-    y,
-    size: 10,
-    font: bold,
-    color: VERDE,
-  });
-  page.drawText(`Nacional: ${kgNacionalCampo.toFixed(1)} kg  (${pctNacionalCampo.toFixed(1)}%)`, {
-    x: colDerX,
-    y,
-    size: 10,
-    font: bold,
-    color: TURQUESA,
-  });
-  y -= 26;
+
+  // Barra proporcional Aprovechable/Nacional, igual que el dashboard: el
+  // ancho de cada tramo es su % real, con el % escrito en blanco adentro
+  // del tramo (si entra).
+  const anchoBarra = ANCHO - MARGEN * 2;
+  const altoBarra = 20;
+  const hayDatosDistribucion = kgRecepcionado > 0;
+  if (hayDatosDistribucion) {
+    const anchoAprov = (pctAprovechable / 100) * anchoBarra;
+    const anchoNacional = (pctNacionalCampo / 100) * anchoBarra;
+    if (anchoAprov > 0) {
+      page.drawRectangle({ x: MARGEN, y: y - altoBarra + 5, width: anchoAprov, height: altoBarra, color: VERDE });
+      if (pctAprovechable >= 12) {
+        const texto = `${pctAprovechable.toFixed(1)}%`;
+        const anchoTexto = bold.widthOfTextAtSize(texto, 9);
+        page.drawText(texto, { x: MARGEN + anchoAprov / 2 - anchoTexto / 2, y: y - altoBarra + 11, size: 9, font: bold, color: rgb(1, 1, 1) });
+      }
+    }
+    if (anchoNacional > 0) {
+      page.drawRectangle({ x: MARGEN + anchoAprov, y: y - altoBarra + 5, width: anchoNacional, height: altoBarra, color: TURQUESA });
+      if (pctNacionalCampo >= 12) {
+        const texto = `${pctNacionalCampo.toFixed(1)}%`;
+        const anchoTexto = bold.widthOfTextAtSize(texto, 9);
+        page.drawText(texto, {
+          x: MARGEN + anchoAprov + anchoNacional / 2 - anchoTexto / 2,
+          y: y - altoBarra + 11,
+          size: 9,
+          font: bold,
+          color: rgb(1, 1, 1),
+        });
+      }
+    }
+  } else {
+    page.drawRectangle({ x: MARGEN, y: y - altoBarra + 5, width: anchoBarra, height: altoBarra, color: GRIS_CLARO });
+  }
+  y -= altoBarra + 16;
+
+  // Leyenda: cuadrito de color + label + kg + % — mismo patrón del dashboard.
+  const cuadrito = (x: number, color = VERDE) => page.drawRectangle({ x, y: y - 7, width: 8, height: 8, color });
+  cuadrito(colIzqX, VERDE);
+  page.drawText("Aprovechable", { x: colIzqX + 12, y, size: 9, font: regular, color: GRIS });
+  cuadrito(colDerX, TURQUESA);
+  page.drawText("Nacional", { x: colDerX + 12, y, size: 9, font: regular, color: GRIS });
+  y -= 15;
+  page.drawText(`${kgAprovechable.toFixed(1)} kg  (${pctAprovechable.toFixed(1)}%)`, { x: colIzqX, y, size: 11, font: bold, color: VERDE });
+  page.drawText(`${kgNacionalCampo.toFixed(1)} kg  (${pctNacionalCampo.toFixed(1)}%)`, { x: colDerX, y, size: 11, font: bold, color: TURQUESA });
+  y -= 24;
 
   page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO - MARGEN, y }, thickness: 0.5, color: GRIS });
   y -= 20;
@@ -141,7 +173,12 @@ export async function generarReporteRecepcionPdf({
     filaCaberEn(28);
     const pctAprov = fila.total > 0 ? (fila.aprovechableKg / fila.total) * 100 : 0;
     const pctNacional = fila.total > 0 ? (fila.nacionalKg / fila.total) * 100 : 0;
-    page.drawText(fila.modulo, { x: colModuloX + 4, y, size: 9, font: regular, color: NEGRO });
+    // Badge de módulo (rectángulo azul marino + texto blanco), igual idea
+    // que el badge del dashboard — pdf-lib no tiene esquinas redondeadas,
+    // va recto.
+    const anchoBadge = bold.widthOfTextAtSize(fila.modulo, 8) + 10;
+    page.drawRectangle({ x: colModuloX + 2, y: y - 3, width: anchoBadge, height: 14, color: AZUL });
+    page.drawText(fila.modulo, { x: colModuloX + 7, y, size: 8, font: bold, color: rgb(1, 1, 1) });
     page.drawText(fila.variedad, { x: colVariedadX + 4, y, size: 9, font: regular, color: NEGRO });
     derecho(`${fila.aprovechableKg.toFixed(1)} kg`, 9, colAprovDerX, bold, y, NEGRO);
     derecho(`${fila.nacionalKg.toFixed(1)} kg`, 9, colNacionalDerX, bold, y, NEGRO);
@@ -153,7 +190,8 @@ export async function generarReporteRecepcionPdf({
   }
 
   filaCaberEn(28);
-  page.drawLine({ start: { x: MARGEN, y: y + 10 }, end: { x: ANCHO - MARGEN, y: y + 10 }, thickness: 0.5, color: GRIS });
+  const VERDE_CLARO = rgb(0.91, 0.96, 0.93); // mismo tono que bg-emerald-50 del dashboard
+  page.drawRectangle({ x: MARGEN, y: y - 16, width: ANCHO - MARGEN * 2, height: 30, color: VERDE_CLARO });
   page.drawText("TOTAL GENERAL", { x: colModuloX + 4, y, size: 9, font: bold, color: NEGRO });
   derecho(`${kgAprovechable.toFixed(1)} kg`, 9, colAprovDerX, bold, y, NEGRO);
   derecho(`${kgNacionalCampo.toFixed(1)} kg`, 9, colNacionalDerX, bold, y, NEGRO);
