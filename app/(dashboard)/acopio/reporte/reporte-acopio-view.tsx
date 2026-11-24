@@ -134,7 +134,7 @@ export function ReporteAcopioView({
           <Button variant="outline" size="sm" asChild>
             <a href={pdfHref} target="_blank" rel="noopener noreferrer">
               <FileText className="mr-2 h-4 w-4" />
-              Generar Tarja PDF
+              Generar Reporte
             </a>
           </Button>
         </div>
