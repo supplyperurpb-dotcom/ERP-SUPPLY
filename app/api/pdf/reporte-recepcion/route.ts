@@ -54,7 +54,6 @@ export async function GET(request: Request) {
     kgNacionalCampo: datos.kgNacionalCampo,
     pctNacionalCampo: datos.pctNacionalCampo,
     resumen: datos.resumen,
-    detalle: datos.detalle.map((d) => ({ hora: d.hora, placa: d.placa, modulo: d.modulo, variedad: d.variedad, kg: d.kg })),
   });
 
   return new NextResponse(new Uint8Array(bytes), {

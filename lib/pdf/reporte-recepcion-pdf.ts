@@ -14,7 +14,6 @@ const VERDE = rgb(0x39 / 255, 0x76 / 255, 0x53 / 255);
 const TURQUESA = rgb(0x0d / 255, 0x94 / 255, 0x88 / 255);
 
 export type FilaResumenPdf = { modulo: string; variedad: string; aprovechableKg: number; nacionalKg: number; total: number };
-export type FilaDetallePdf = { hora: string; placa: string; modulo: string; variedad: string; kg: number };
 
 export async function generarReporteRecepcionPdf({
   generadoEn,
@@ -29,7 +28,6 @@ export async function generarReporteRecepcionPdf({
   kgNacionalCampo,
   pctNacionalCampo,
   resumen,
-  detalle,
 }: {
   generadoEn: string;
   rangoFechasTexto: string;
@@ -43,7 +41,6 @@ export async function generarReporteRecepcionPdf({
   kgNacionalCampo: number;
   pctNacionalCampo: number;
   resumen: FilaResumenPdf[];
-  detalle: FilaDetallePdf[];
 }): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   let page = pdfDoc.addPage([ANCHO, ALTO]);
@@ -164,52 +161,6 @@ export async function generarReporteRecepcionPdf({
   y -= 12;
   derecho(`${pctAprovechable.toFixed(1)}%`, 7.5, colAprovDerX, regular, y, VERDE);
   derecho(`${pctNacionalCampo.toFixed(1)}%`, 7.5, colNacionalDerX, regular, y, TURQUESA);
-  y -= 28;
-
-  // --- Tabla "Detalle de vehículos".
-  const colHoraX = MARGEN;
-  const colPlacaX = MARGEN + 60;
-  const colModuloDetX = MARGEN + 150;
-  const colVariedadDetX = MARGEN + 230;
-  const colKgDerX = ANCHO - MARGEN;
-
-  function encabezadoDetalle() {
-    page.drawText("Detalle de vehículos", { x: MARGEN, y, size: 11, font: bold, color: NEGRO });
-    y -= 18;
-    page.drawRectangle({ x: MARGEN, y: y - 4, width: ANCHO - MARGEN * 2, height: 16, color: GRIS_CLARO });
-    page.drawText("Hora", { x: colHoraX + 4, y, size: 8, font: bold, color: NEGRO });
-    page.drawText("Placa", { x: colPlacaX + 4, y, size: 8, font: bold, color: NEGRO });
-    page.drawText("Módulo", { x: colModuloDetX + 4, y, size: 8, font: bold, color: NEGRO });
-    page.drawText("Variedad", { x: colVariedadDetX + 4, y, size: 8, font: bold, color: NEGRO });
-    derecho("Kg", 8, colKgDerX, bold, y, NEGRO);
-    y -= 18;
-  }
-
-  function filaDetalleCaberEn(alturaFila: number) {
-    if (y - alturaFila < MARGEN + 40) {
-      page = pdfDoc.addPage([ANCHO, ALTO]);
-      y = ALTO - 50;
-      encabezadoDetalle();
-    }
-  }
-
-  encabezadoDetalle();
-  let totalDetalleKg = 0;
-  for (const f of detalle) {
-    filaDetalleCaberEn(14);
-    totalDetalleKg += f.kg;
-    page.drawText(f.hora, { x: colHoraX + 4, y, size: 8.5, font: regular, color: NEGRO });
-    page.drawText(f.placa, { x: colPlacaX + 4, y, size: 8.5, font: regular, color: NEGRO });
-    page.drawText(f.modulo, { x: colModuloDetX + 4, y, size: 8.5, font: regular, color: NEGRO });
-    page.drawText(f.variedad, { x: colVariedadDetX + 4, y, size: 8.5, font: regular, color: NEGRO });
-    derecho(`${f.kg.toFixed(1)} kg`, 8.5, colKgDerX, regular, y, NEGRO);
-    y -= 14;
-  }
-
-  filaDetalleCaberEn(20);
-  page.drawLine({ start: { x: MARGEN, y: y + 10 }, end: { x: ANCHO - MARGEN, y: y + 10 }, thickness: 0.5, color: GRIS });
-  page.drawText("TOTAL", { x: colHoraX + 4, y, size: 9, font: bold, color: NEGRO });
-  derecho(`${totalDetalleKg.toFixed(1)} kg`, 9, colKgDerX, bold, y, NEGRO);
 
   const piePagina = `Generado el ${generadoEn}`;
   for (const pagina of pdfDoc.getPages() as PDFPage[]) {

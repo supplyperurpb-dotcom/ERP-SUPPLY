@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatModuloCompacto } from "@/lib/constants/modulos";
 import { cn } from "@/lib/utils";
-import type { FilaResumenRecepcion, FilaDetalleRecepcion, DatosReporteRecepcion } from "@/lib/acopio-reporte";
+import type { FilaResumenRecepcion, DatosReporteRecepcion } from "@/lib/acopio-reporte";
 
 // Verde = Aprovechable, turquesa = Nacional — pedido explícito del usuario
 // (texto + foto de referencia del dashboard "Reporte de Recepción"). Verde
@@ -151,11 +151,6 @@ export function ReporteAcopioView({
 
           <SeccionTitulo numero={2}>Resumen por módulo y variedad</SeccionTitulo>
           <ResumenVariedadModuloTabla resumen={materiaPrima.resumen} materiaPrima={materiaPrima} />
-
-          <div className="my-5 border-t" />
-
-          <SeccionTitulo numero={3}>Control de ingresos</SeccionTitulo>
-          <DetalleRecepcionTabla detalle={materiaPrima.detalle} />
         </div>
       </TabsContent>
 
@@ -371,54 +366,6 @@ function ResumenVariedadModuloTabla({
             <CeldaKgPorcentaje kg={materiaPrima.kgAprovechable} pct={materiaPrima.pctAprovechable} color={COLOR_APROVECHABLE} />
             <CeldaKgPorcentaje kg={materiaPrima.kgNacionalCampo} pct={materiaPrima.pctNacionalCampo} color={COLOR_NACIONAL} />
             <TableCell numeric>{formatNumero(materiaPrima.kgRecepcionado)} kg</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
-
-// Pedido explícito: Hora, Placa, Módulo, Variedad, Kg, en ese orden (Turno y
-// Jabas se conservan al final — dato real que ya se mostraba, no se quita
-// sin que lo pidan). Sección secundaria: header neutro, sin protagonismo
-// frente al resumen ejecutivo de arriba.
-function DetalleRecepcionTabla({ detalle }: { detalle: FilaDetalleRecepcion[] }) {
-  if (detalle.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sin datos en el filtro elegido.</p>;
-  }
-  const totalKg = detalle.reduce((acc, f) => acc + f.kg, 0);
-  const totalJabas = detalle.reduce((acc, f) => acc + f.jabas, 0);
-  return (
-    <div className="overflow-x-auto rounded-lg border">
-      <Table>
-        <TableHeader className="bg-muted/40">
-          <TableRow>
-            <TableHead>Hora</TableHead>
-            <TableHead>Placa</TableHead>
-            <TableHead>Módulo</TableHead>
-            <TableHead>Variedad</TableHead>
-            <TableHead numeric>Kg</TableHead>
-            <TableHead>Turno</TableHead>
-            <TableHead numeric>Jabas</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {detalle.map((f) => (
-            <TableRow key={f.id}>
-              <TableCell>{f.hora}</TableCell>
-              <TableCell className="font-mono font-medium">{f.placa}</TableCell>
-              <TableCell>{formatModuloCompacto(f.modulo)}</TableCell>
-              <TableCell>{f.variedad}</TableCell>
-              <TableCell numeric>{formatNumero(f.kg)}</TableCell>
-              <TableCell>{f.turno}</TableCell>
-              <TableCell numeric>{f.jabas.toLocaleString("es-PE")}</TableCell>
-            </TableRow>
-          ))}
-          <TableRow className="bg-muted/50 font-semibold">
-            <TableCell colSpan={4}>Total</TableCell>
-            <TableCell numeric>{formatNumero(totalKg)}</TableCell>
-            <TableCell />
-            <TableCell numeric>{totalJabas.toLocaleString("es-PE")}</TableCell>
           </TableRow>
         </TableBody>
       </Table>
