@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 // existentes) se hace aparte, en el server action, que sí tiene acceso a
 // la base de datos.
 
-const FILA_ENCABEZADOS = 3; // 1-indexado, igual criterio que los demás scripts de import de este proyecto
+const MAX_FILAS_BUSQUEDA_ENCABEZADO = 20; // cuántas filas iniciales se revisan buscando la fila de encabezados
 
 export type PalletImportado = {
   palletNumber: string;
@@ -117,11 +117,20 @@ export function parsearPackingListExcel(buffer: Buffer): ResultadoParsePL {
   const hoja = libro.Sheets[nombreHoja];
   // `range` como número no recorta de forma confiable en este archivo (se
   // probó contra el Excel real) — se lee la hoja completa con header:1 y se
-  // recorta a mano por índice, usando FILA_ENCABEZADOS (1-indexado, igual
-  // que se ve en Excel) para ubicar la fila de encabezados.
+  // recorta a mano por índice. La cantidad de filas de título/totales antes
+  // del encabezado VARÍA entre embarques (algunos traen el total de Cases y
+  // Net weight en una sola fila, otros en dos) — por eso la fila de
+  // encabezados se ubica buscando la que contiene "Ship Number", en vez de
+  // asumir una posición fija.
   const todasLasFilas: unknown[][] = XLSX.utils.sheet_to_json(hoja, { header: 1, blankrows: false, defval: null });
-  const filaTotalesExcel: unknown[] = todasLasFilas[1] ?? [];
-  const filas: unknown[][] = todasLasFilas.slice(FILA_ENCABEZADOS - 1);
+  const indiceEncabezados = todasLasFilas
+    .slice(0, MAX_FILAS_BUSQUEDA_ENCABEZADO)
+    .findIndex((fila) => fila.some((celda) => normalizarClave(celda) === "ship number"));
+  if (indiceEncabezados === -1) {
+    throw new Error(`No se encontró la fila de encabezados (columna "Ship Number") en la hoja ${nombreHoja}.`);
+  }
+  const filasAntesDeEncabezados = todasLasFilas.slice(0, indiceEncabezados);
+  const filas: unknown[][] = todasLasFilas.slice(indiceEncabezados);
   const encabezados = (filas[0] ?? []).map(normalizar);
 
   const col = {
@@ -169,13 +178,26 @@ export function parsearPackingListExcel(buffer: Buffer): ResultadoParsePL {
     return { nombreHoja, embarque: {} as EncabezadoEmbarqueImportado, pallets: [], errores, advertencias };
   }
 
-  // Fila de totales del propio Excel (la segunda fila de la hoja, antes de
-  // los encabezados) — se usa solo para el chequeo de cuadre, no es
-  // obligatoria.
-  const totalCasesExcel = col.cases !== -1 ? aNumero(filaTotalesExcel[col.cases]) : null;
-  const totalNetWeightExcel = col.pesoNetoKg !== -1 ? aNumero(filaTotalesExcel[col.pesoNetoKg]) : null;
+  // Totales del propio Excel (en las filas de título/totales antes del
+  // encabezado) — se usa solo para el chequeo de cuadre, no es obligatorio.
+  // Se busca por columna en vez de asumir una fila fija porque algunas
+  // plantillas reparten estos totales en más de una fila (ver comentario
+  // arriba sobre indiceEncabezados).
+  const buscarTotalColumna = (colIndice: number): number | null => {
+    if (colIndice === -1) return null;
+    for (const fila of filasAntesDeEncabezados) {
+      const valor = aNumero(fila[colIndice]);
+      if (valor !== null) return valor;
+    }
+    return null;
+  };
+  const totalCasesExcel = buscarTotalColumna(col.cases);
+  const totalNetWeightExcel = buscarTotalColumna(col.pesoNetoKg);
 
-  const filasDeDatos = filas.slice(1).filter((f) => aTexto(f[col.shipNumber]) !== null);
+  // Al final de la plantilla suelen quedar filas basura (restos de fórmulas
+  // que evalúan a 0 o "" en vez de vacío) — se exige también Pallet Number
+  // para contar como fila de datos real, no solo Ship Number.
+  const filasDeDatos = filas.slice(1).filter((f) => aTexto(f[col.shipNumber]) !== null && aTexto(f[col.palletNumber]) !== null);
   if (filasDeDatos.length === 0) {
     errores.push("El archivo no tiene filas de datos (ninguna fila tiene Ship Number).");
     return { nombreHoja, embarque: {} as EncabezadoEmbarqueImportado, pallets: [], errores, advertencias };
