@@ -1892,10 +1892,71 @@ model Embarque {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  cliente      Cliente?      @relation(fields: [clienteId], references: [id])
+  // --- Importado desde el Excel "Packing List (Reply)" del cliente (COMEX
+  // > Importar PL) — todo opcional, no afecta los Embarque creados por el
+  // flujo manual de antes. shipNumber es el número del cliente (ej.
+  // "DEPE026- 2201"), distinto de `numero` (correlativo interno nuestro).
+  shipNumber           String?   @unique
+  growerCode           Int?
+  grower               String?
+  consignee            String?
+  notify               String?
+  vessel               String? // "Vessel/Flight"
+  blSwb                String?
+  origenPuerto         String? // "Port of Loading" (destinoPuerto ya cubre "Port of Discharge")
+  tipoEmbarque         String? // "Type Shipment": SEA/AIR
+  fechaCarga           DateTime? // "Loading Date"
+  etd                  DateTime?
+  eta                  DateTime?
+  totalCasesExcel      Int? // totales que el propio Excel declara, para el chequeo de cuadre
+  totalNetWeightExcel  Decimal?  @db.Decimal(12, 3)
+  archivoOriginalUrl    String? // ruta en Supabase Storage
+  archivoOriginalNombre String?
+  archivoHash           String? @unique // SHA-256 del archivo subido, detecta re-subir el mismo
+  importadoPorId        String?
+  importadoEn            DateTime?
+
+  cliente      Cliente?         @relation(fields: [clienteId], references: [id])
   packingLists PackingList[]
+  pallets      EmbarquePallet[]
 
   @@map("embarques")
+}
+
+// Una línea (pallet) del Excel "Packing List (Reply)" importado — dato de
+// trazabilidad del cliente (SKU/variedad/LPN/código de trazabilidad), NO
+// el mismo concepto que PackingListItem (ligado a FormatoExportacion, usa
+// para el PDF de salida ya existente). Ver DECISIONES-TECNICAS.md / plan de
+// "Importar PL".
+model EmbarquePallet {
+  id                  String    @id @default(cuid())
+  embarqueId          String
+  palletNumber        String
+  itemFruitCode       Int?
+  descripcionSku      String?
+  variedad            String
+  label               String?
+  fruitType           String?
+  cases               Int
+  kgPorSku            Decimal?  @db.Decimal(10, 3)
+  pesoNetoKg          Decimal   @db.Decimal(10, 3)
+  thermographRecorder String?
+  thermographType     String?
+  tipoBolsaLiner      String?
+  atmosferaControlada String?
+  codeDemea           String?
+  trazabilityCodeDoc  String?
+  lpnDriscolls        String? // viene como número largo en el Excel; se guarda como texto (es un código, no una cantidad)
+  fechaCosecha        DateTime?
+  createdAt           DateTime  @default(now())
+
+  embarque Embarque @relation(fields: [embarqueId], references: [id], onDelete: Cascade)
+
+  @@index([palletNumber])
+  @@index([trazabilityCodeDoc])
+  @@index([lpnDriscolls])
+  @@index([variedad])
+  @@map("embarque_pallets")
 }
 
 model PackingList {
