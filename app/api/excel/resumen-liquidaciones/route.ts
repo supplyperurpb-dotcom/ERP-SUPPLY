@@ -24,7 +24,8 @@ export async function GET(request: Request) {
     "Cajas rechazadas (confirmadas)": number;
     "Terminal Market": number;
     "Non-Fresh": number;
-    Otros: number;
+    Donation: number;
+    "Sin clasificar": number;
     "% Rechazo": string;
   };
 
@@ -40,7 +41,8 @@ export async function GET(request: Request) {
     "Cajas rechazadas (confirmadas)": f.cajasRechazadasConfirmadas,
     "Terminal Market": f.cajasTerminalMarket,
     "Non-Fresh": f.cajasNonFresh,
-    Otros: f.cajasOtro,
+    Donation: f.cajasDonation,
+    "Sin clasificar": f.cajasSinClasificar,
     "% Rechazo": `${f.pctRechazo.toFixed(1)}%`,
   }));
 
@@ -57,7 +59,8 @@ export async function GET(request: Request) {
     { wch: 20 },
     { wch: 14 },
     { wch: 12 },
-    { wch: 10 },
+    { wch: 12 },
+    { wch: 12 },
     { wch: 10 },
   ];
 

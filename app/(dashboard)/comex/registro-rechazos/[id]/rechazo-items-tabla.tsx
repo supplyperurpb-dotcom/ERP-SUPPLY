@@ -12,8 +12,8 @@ import type { CategoriaRechazo, EstadoRechazoItem } from "@prisma/client";
 const CATEGORIA_LABEL: Record<CategoriaRechazo, string> = {
   TERMINAL_MARKET: "Terminal Market",
   NON_FRESH: "Non-Fresh",
-  OTRO: "Otro",
-  PENDIENTE_CLASIFICAR: "Pendiente de clasificar",
+  DONATION: "Donation",
+  PASS: "Pass (fruta buena)",
 };
 
 const ESTADO_LABEL: Record<EstadoRechazoItem, string> = {
@@ -34,8 +34,6 @@ type Item = {
   palletNumber: string | null;
   cajasOriginales: number | null;
   cajasRechazadas: number;
-  disposicionSugerida: string | null;
-  categoriaSugerida: CategoriaRechazo;
   categoriaFinal: CategoriaRechazo | null;
   estado: EstadoRechazoItem;
   alertaLpnNoEncontrado: boolean;
@@ -43,9 +41,8 @@ type Item = {
   alertaExcedeOriginales: boolean;
 };
 
-// Disposición sugerida (lo que dice el correo) vs. disposición final (lo
-// que se confirma después) son campos distintos a propósito (pedido
-// explícito) — acá se fija/cambia la final y el estado de cada línea.
+// Una sola disposición por línea (sin "sugerida" aparte, pedido
+// explícito) — acá se fija/cambia en cualquier momento, junto al estado.
 export function RechazoItemsTabla({ items }: { items: Item[] }) {
   const [filas, setFilas] = useState(items);
   const [, startTransition] = useTransition();
@@ -75,7 +72,6 @@ export function RechazoItemsTabla({ items }: { items: Item[] }) {
                 <TableHead>Item / SKU</TableHead>
                 <TableHead numeric>Cajas PL</TableHead>
                 <TableHead numeric>Cajas rechazadas</TableHead>
-                <TableHead>Disposición sugerida</TableHead>
                 <TableHead>Disposición final</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Alertas</TableHead>
@@ -92,7 +88,6 @@ export function RechazoItemsTabla({ items }: { items: Item[] }) {
                   </TableCell>
                   <TableCell numeric>{f.cajasOriginales ?? "—"}</TableCell>
                   <TableCell numeric>{f.cajasRechazadas}</TableCell>
-                  <TableCell>{CATEGORIA_LABEL[f.categoriaSugerida]}</TableCell>
                   <TableCell>
                     <Select
                       value={f.categoriaFinal ?? SIN_CATEGORIA_FINAL}

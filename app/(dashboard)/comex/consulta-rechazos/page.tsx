@@ -13,8 +13,8 @@ import type { CategoriaRechazo, EstadoRechazoItem, Prisma } from "@prisma/client
 const CATEGORIA_LABEL: Record<CategoriaRechazo, string> = {
   TERMINAL_MARKET: "Terminal Market",
   NON_FRESH: "Non-Fresh",
-  OTRO: "Otro",
-  PENDIENTE_CLASIFICAR: "Pendiente de clasificar",
+  DONATION: "Donation",
+  PASS: "Pass (fruta buena)",
 };
 
 const ESTADO_VARIANT: Record<EstadoRechazoItem, "success" | "destructive" | "secondary" | "warning"> = {

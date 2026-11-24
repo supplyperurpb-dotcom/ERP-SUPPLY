@@ -23,9 +23,11 @@ import type { CategoriaRechazo } from "@prisma/client";
 const CATEGORIA_LABEL: Record<CategoriaRechazo, string> = {
   TERMINAL_MARKET: "Terminal Market",
   NON_FRESH: "Non-Fresh",
-  OTRO: "Otro",
-  PENDIENTE_CLASIFICAR: "Pendiente de clasificar",
+  DONATION: "Donation",
+  PASS: "Pass (fruta buena)",
 };
+
+const SIN_DISPOSICION = "__sin_definir__";
 
 export function RegistroRechazoForm() {
   const router = useRouter();
@@ -220,7 +222,7 @@ export function RegistroRechazoForm() {
                       <TableHead>Pallet (PL)</TableHead>
                       <TableHead numeric>Cajas PL</TableHead>
                       <TableHead numeric>Cajas rechazadas</TableHead>
-                      <TableHead>Disposición sugerida</TableHead>
+                      <TableHead>Disposición final</TableHead>
                       <TableHead>Alertas</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -261,19 +263,15 @@ export function RegistroRechazoForm() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Input
-                            className="mb-1 w-[160px]"
-                            value={l.disposicionSugerida ?? ""}
-                            onChange={(e) => actualizarLinea(i, { disposicionSugerida: e.target.value || null })}
-                          />
                           <Select
-                            value={l.categoriaSugerida}
-                            onValueChange={(v) => actualizarLinea(i, { categoriaSugerida: v as CategoriaRechazo })}
+                            value={l.categoriaFinal ?? SIN_DISPOSICION}
+                            onValueChange={(v) => actualizarLinea(i, { categoriaFinal: v === SIN_DISPOSICION ? null : (v as CategoriaRechazo) })}
                           >
-                            <SelectTrigger className="w-[160px]">
+                            <SelectTrigger className="w-[170px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value={SIN_DISPOSICION}>Sin definir</SelectItem>
                               {Object.entries(CATEGORIA_LABEL).map(([valor, etiqueta]) => (
                                 <SelectItem key={valor} value={valor}>
                                   {etiqueta}

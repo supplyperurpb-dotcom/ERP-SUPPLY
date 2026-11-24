@@ -20,8 +20,7 @@ export type LineaRechazoAnalizada = {
   cajasRechazadas: number;
   itemCode: string | null;
   descripcionSku: string | null;
-  disposicionSugerida: string | null;
-  categoriaSugerida: CategoriaRechazo;
+  categoriaFinal: CategoriaRechazo | null;
   embarquePalletId: string | null;
   palletNumber: string | null;
   variedadPL: string | null;
@@ -61,7 +60,9 @@ async function cruzarConPackingList(items: LpnExtraido[]): Promise<{ lineas: Lin
       select: { id: true, palletNumber: true, variedad: true, cases: true, embarqueId: true },
     });
 
-    const categoriaSugerida = categoriaDesdeDisposicion(item.disposicionSugerida);
+    // Mejor intento a partir del texto del correo — queda como punto de
+    // partida de la ÚNICA disposición (categoriaFinal), editable a mano.
+    const categoriaFinal = categoriaDesdeDisposicion(item.disposicionTexto);
 
     if (filas.length === 0) {
       lineas.push({
@@ -71,8 +72,7 @@ async function cruzarConPackingList(items: LpnExtraido[]): Promise<{ lineas: Lin
         cajasRechazadas: item.cajasRechazadas,
         itemCode: item.itemCode,
         descripcionSku: item.descripcionSku,
-        disposicionSugerida: item.disposicionSugerida,
-        categoriaSugerida,
+        categoriaFinal,
         embarquePalletId: null,
         palletNumber: null,
         variedadPL: null,
@@ -97,8 +97,7 @@ async function cruzarConPackingList(items: LpnExtraido[]): Promise<{ lineas: Lin
       cajasRechazadas: item.cajasRechazadas,
       itemCode: item.itemCode,
       descripcionSku: item.descripcionSku,
-      disposicionSugerida: item.disposicionSugerida,
-      categoriaSugerida,
+      categoriaFinal,
       embarquePalletId: primera.id,
       palletNumber: primera.palletNumber,
       variedadPL: primera.variedad,
@@ -239,8 +238,7 @@ export async function confirmarRegistroRechazoAction(
             variedad: l.variedad,
             cajasOriginales: l.cajasOriginales,
             cajasRechazadas: l.cajasRechazadas,
-            disposicionSugerida: l.disposicionSugerida,
-            categoriaSugerida: l.categoriaSugerida,
+            categoriaFinal: l.categoriaFinal,
             alertaLpnNoEncontrado: l.alertaLpnNoEncontrado,
             alertaVariedadNoCoincide: l.alertaVariedadNoCoincide,
             alertaExcedeOriginales: l.alertaExcedeOriginales,
@@ -259,9 +257,8 @@ export async function confirmarRegistroRechazoAction(
   }
 }
 
-// Confirma o cambia la clasificación final / estado de una línea de
-// rechazo ya registrada (punto 5 del pedido: disposición sugerida ≠
-// disposición final, esta última se fija después, a propósito).
+// Confirma o cambia la (única) disposición final / estado de una línea de
+// rechazo ya registrada — se puede cambiar en cualquier momento.
 export async function actualizarLineaRechazoAction(
   id: string,
   datos: { categoriaFinal?: CategoriaRechazo | null; estado?: "PENDIENTE" | "CONFIRMADO" | "ANULADO" | "DISPUTADO"; motivoRechazo?: string }

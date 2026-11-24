@@ -1982,8 +1982,8 @@ enum EstadoRechazoItem {
 enum CategoriaRechazo {
   TERMINAL_MARKET
   NON_FRESH
-  OTRO
-  PENDIENTE_CLASIFICAR
+  DONATION
+  PASS // fruta buena (no es, en los hechos, un rechazo)
 }
 
 // Una captura de correo importada. embarqueId queda null si no se pudo
@@ -2029,9 +2029,7 @@ model RechazoItem {
   variedad                 String?
   cajasOriginales          Int?
   cajasRechazadas          Int
-  disposicionSugerida      String?
-  categoriaSugerida        CategoriaRechazo  @default(PENDIENTE_CLASIFICAR)
-  categoriaFinal           CategoriaRechazo?
+  categoriaFinal           CategoriaRechazo? // única disposición (pedido explícito: sin "sugerida" separada), editable en cualquier momento
   motivoRechazo            String?
   estado                   EstadoRechazoItem @default(PENDIENTE)
   alertaLpnNoEncontrado    Boolean           @default(false)

@@ -29,8 +29,6 @@ export default async function DetalleRechazoPage({ params }: { params: Promise<{
     palletNumber: it.embarquePallet?.palletNumber ?? null,
     cajasOriginales: it.cajasOriginales,
     cajasRechazadas: it.cajasRechazadas,
-    disposicionSugerida: it.disposicionSugerida,
-    categoriaSugerida: it.categoriaSugerida,
     categoriaFinal: it.categoriaFinal,
     estado: it.estado,
     alertaLpnNoEncontrado: it.alertaLpnNoEncontrado,

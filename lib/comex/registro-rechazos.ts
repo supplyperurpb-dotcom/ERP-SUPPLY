@@ -23,7 +23,11 @@ export type LpnExtraido = {
   cajasRechazadas: number;
   itemCode: string | null;
   descripcionSku: string | null;
-  disposicionSugerida: string | null;
+  // Texto de "Disposition Option" tal cual vino del correo — solo se usa
+  // para derivar el mejor intento de categoriaFinal (ver
+  // categoriaDesdeDisposicion); no se persiste aparte, ya queda el OCR
+  // completo en RechazoCorreo.textoExtraido para auditoría.
+  disposicionTexto: string | null;
 };
 
 export type ResultadoParseRechazo = {
@@ -125,7 +129,7 @@ export function parsearTextoRechazoEmail(textoOcr: string): ResultadoParseRechaz
       cajasRechazadas: Number(m[4]),
       itemCode: itemCercano?.codigo ?? null,
       descripcionSku: itemCercano?.descripcion ?? null,
-      disposicionSugerida: disposicionCercana?.texto ?? null,
+      disposicionTexto: disposicionCercana?.texto ?? null,
     });
   }
 
@@ -142,12 +146,18 @@ export function parsearTextoRechazoEmail(textoOcr: string): ResultadoParseRechaz
   return { shipNumber, asuntoCorreo, remitente, fechaCorreo, totalPalletsCorreo, totalCajasRechazadasCorreo, items, advertencias };
 }
 
-// "Terminal Market" -> TERMINAL_MARKET, "Non-Fresh"/"Non Fresh" -> NON_FRESH,
-// cualquier otra cosa con texto -> OTRO, sin texto -> PENDIENTE_CLASIFICAR.
-export function categoriaDesdeDisposicion(disposicion: string | null): "TERMINAL_MARKET" | "NON_FRESH" | "OTRO" | "PENDIENTE_CLASIFICAR" {
-  if (!disposicion) return "PENDIENTE_CLASIFICAR";
+// Disposiciones reales que trae el correo: "Terminal Market", "Non-Fresh" y
+// "Donation" para fruta rechazada, "Pass" para fruta buena. Es solo el
+// mejor intento a partir del texto del correo — queda como punto de
+// partida de la (única) disposición final, que se puede cambiar a mano en
+// cualquier momento; si no se reconoce ninguna, se deja sin definir (null)
+// en vez de inventar una categoría.
+export function categoriaDesdeDisposicion(disposicion: string | null): "TERMINAL_MARKET" | "NON_FRESH" | "DONATION" | "PASS" | null {
+  if (!disposicion) return null;
   const normalizado = disposicion.toLowerCase();
   if (normalizado.includes("terminal market")) return "TERMINAL_MARKET";
   if (normalizado.includes("non-fresh") || normalizado.includes("non fresh") || normalizado.includes("nonfresh")) return "NON_FRESH";
-  return "OTRO";
+  if (normalizado.includes("donation")) return "DONATION";
+  if (normalizado.includes("pass")) return "PASS";
+  return null;
 }

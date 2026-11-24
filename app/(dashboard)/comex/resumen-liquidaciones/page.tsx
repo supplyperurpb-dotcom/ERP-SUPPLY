@@ -27,9 +27,10 @@ export default async function ResumenLiquidacionesPage({
       rechazadas: acc.rechazadas + f.cajasRechazadasConfirmadas,
       terminalMarket: acc.terminalMarket + f.cajasTerminalMarket,
       nonFresh: acc.nonFresh + f.cajasNonFresh,
-      otro: acc.otro + f.cajasOtro,
+      donation: acc.donation + f.cajasDonation,
+      sinClasificar: acc.sinClasificar + f.cajasSinClasificar,
     }),
-    { despachadas: 0, buenas: 0, rechazadas: 0, terminalMarket: 0, nonFresh: 0, otro: 0 }
+    { despachadas: 0, buenas: 0, rechazadas: 0, terminalMarket: 0, nonFresh: 0, donation: 0, sinClasificar: 0 }
   );
   const pctRechazoTotal = totales.despachadas > 0 ? (totales.rechazadas / totales.despachadas) * 100 : 0;
 
@@ -81,7 +82,8 @@ export default async function ResumenLiquidacionesPage({
               <TableHead numeric>Rechazadas</TableHead>
               <TableHead numeric>Terminal Market</TableHead>
               <TableHead numeric>Non-Fresh</TableHead>
-              <TableHead numeric>Otros</TableHead>
+              <TableHead numeric>Donation</TableHead>
+              <TableHead numeric>Sin clasificar</TableHead>
               <TableHead numeric>% Rechazo</TableHead>
             </TableRow>
           </TableHeader>
@@ -99,7 +101,8 @@ export default async function ResumenLiquidacionesPage({
                 <TableCell numeric>{formatCantidad(f.cajasRechazadasConfirmadas)}</TableCell>
                 <TableCell numeric>{formatCantidad(f.cajasTerminalMarket)}</TableCell>
                 <TableCell numeric>{formatCantidad(f.cajasNonFresh)}</TableCell>
-                <TableCell numeric>{formatCantidad(f.cajasOtro)}</TableCell>
+                <TableCell numeric>{formatCantidad(f.cajasDonation)}</TableCell>
+                <TableCell numeric>{formatCantidad(f.cajasSinClasificar)}</TableCell>
                 <TableCell numeric>{f.pctRechazo.toFixed(1)}%</TableCell>
               </TableRow>
             ))}
@@ -110,7 +113,8 @@ export default async function ResumenLiquidacionesPage({
               <TableCell numeric>{formatCantidad(totales.rechazadas)}</TableCell>
               <TableCell numeric>{formatCantidad(totales.terminalMarket)}</TableCell>
               <TableCell numeric>{formatCantidad(totales.nonFresh)}</TableCell>
-              <TableCell numeric>{formatCantidad(totales.otro)}</TableCell>
+              <TableCell numeric>{formatCantidad(totales.donation)}</TableCell>
+              <TableCell numeric>{formatCantidad(totales.sinClasificar)}</TableCell>
               <TableCell numeric>{pctRechazoTotal.toFixed(1)}%</TableCell>
             </TableRow>
           </TableBody>
