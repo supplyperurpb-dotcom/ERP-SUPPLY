@@ -2,48 +2,21 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Eye, Leaf, Truck } from "lucide-react";
+import { Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { KPICard } from "@/components/ui/cards/kpi-card";
 import { formatModuloCompacto } from "@/lib/constants/modulos";
 import { cn } from "@/lib/utils";
+import type { FilaResumenRecepcion, FilaDetalleRecepcion, DatosReporteRecepcion } from "@/lib/acopio-reporte";
 
-// Mismos hex ya usados como paleta de tarjetas KPI en el dashboard de
-// Exportaciones (ver PALETA_FACTURADO/PALETA_LIQUIDADO en
-// comex/dashboard-exportaciones/colores.ts) — no son colores nuevos, es la
-// paleta azul/verde ya establecida para "indicador principal" / "indicador
-// positivo", reutilizada acá para que el acento combine con el resto de la app.
-const PALETA_TOTAL = { titulo: "#376F96" };
-const PALETA_APROVECHABLE = { titulo: "#397653" };
-
-type FilaResumen = { modulo: string; variedad: string; aprovechableKg: number; nacionalKg: number; total: number };
-
-type FilaDetalle = {
-  id: string;
-  placa: string;
-  hora: string;
-  variedad: string;
-  modulo: string;
-  turno: string;
-  kg: number;
-  jabas: number;
-};
-
-type MateriaPrima = {
-  kgAprovechable: number;
-  jabasAprovechable: number;
-  kgNacionalCampo: number;
-  jabasNacionalCampo: number;
-  kgRecepcionado: number;
-  jabasRecepcionado: number;
-  pctAprovechable: number;
-  pctNacionalCampo: number;
-  resumen: FilaResumen[];
-  detalle: FilaDetalle[];
-};
+// Verde = Aprovechable, turquesa = Nacional — pedido explícito del usuario
+// (texto + foto de referencia del dashboard "Reporte de Recepción"). Verde
+// ya estaba establecido en este mismo reporte; turquesa es el primer uso de
+// ese tono en el proyecto.
+const COLOR_APROVECHABLE = "#397653";
+const COLOR_NACIONAL = "#0D9488";
 
 type Industrial = {
   filas: { variedad: string; kg: number; jabas: number }[];
@@ -62,29 +35,32 @@ function formatPorcentaje(n: number) {
 export function ReporteAcopioView({
   generadoEn,
   semanaTexto,
+  campaniaTexto,
   rangoFechas,
   cantidadIngresos,
+  pdfHref,
   materiaPrima,
   industrial,
 }: {
   generadoEn: string;
   semanaTexto: string;
+  campaniaTexto: string | null;
   rangoFechas: { desde: string | null; hasta: string | null };
   cantidadIngresos: number;
-  materiaPrima: MateriaPrima;
+  pdfHref: string;
+  materiaPrima: DatosReporteRecepcion;
   industrial: Industrial;
 }) {
-  const refMateriaPrima = useRef<HTMLDivElement>(null);
   const refIndustrial = useRef<HTMLDivElement>(null);
   const [exportando, setExportando] = useState<"png" | "pdf" | null>(null);
 
   const rangoTexto = rangoFechas.desde || rangoFechas.hasta ? `Cosecha ${rangoFechas.desde ?? "…"} – ${rangoFechas.hasta ?? "…"} · ` : "";
-  const subtitulo = `${generadoEn} · ${rangoTexto}${semanaTexto}`;
+  const subtitulo = `${generadoEn} · ${rangoTexto}${campaniaTexto ? `${campaniaTexto} · ` : ""}${semanaTexto}`;
 
-  // Pedido explícito: los botones abren una VISTA (nueva pestaña), no
-  // fuerzan la descarga automática. Importante: NO se abre una pestaña en
-  // blanco primero para redirigirla después — los navegadores modernos
-  // (Chrome/Edge/Safari) bloquean en silencio esa navegación tardía de una
+  // Pedido explícito (pestaña Industrial, sin cambios): los botones abren
+  // una VISTA (nueva pestaña), no fuerzan la descarga automática. NO se abre
+  // una pestaña en blanco primero para redirigirla después — los
+  // navegadores modernos bloquean en silencio esa navegación tardía de una
   // pestaña ya abierta hacia una URL blob: (no tira error, queda en blanco
   // para siempre). Por eso `window.open` recibe directamente la URL ya
   // lista, en un solo paso.
@@ -149,50 +125,36 @@ export function ReporteAcopioView({
       </div>
 
       <TabsContent value="materia-prima">
-        <div className="mb-3 flex justify-end gap-2 print:hidden">
-          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => verPng(refMateriaPrima)}>
-            <Eye className="mr-2 h-4 w-4" />
-            {exportando === "png" ? "Abriendo..." : "Ver PNG"}
-          </Button>
-          <Button variant="outline" size="sm" disabled={exportando !== null} onClick={() => verPdf(refMateriaPrima)}>
-            <Eye className="mr-2 h-4 w-4" />
-            {exportando === "pdf" ? "Abriendo..." : "Ver PDF"}
+        {/* Tarja PDF real (pdf-lib, texto nativo) — reemplaza los antiguos
+            "Ver PNG"/"Ver PDF" (captura de pantalla) solo acá. Navegación
+            simple a una URL real: no hace falta JS ni estado de carga, el
+            visor de PDF del navegador ya trae sus propios botones de
+            descargar/imprimir/compartir. */}
+        <div className="mb-3 flex justify-end print:hidden">
+          <Button variant="outline" size="sm" asChild>
+            <a href={pdfHref} target="_blank" rel="noopener noreferrer">
+              <FileText className="mr-2 h-4 w-4" />
+              Generar Tarja PDF
+            </a>
           </Button>
         </div>
 
-        <div ref={refMateriaPrima} className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
           <Encabezado titulo="Reporte de Recepción" subtitulo={subtitulo} cantidadIngresos={cantidadIngresos} />
 
           <div className="my-5 border-t" />
 
           <SeccionTitulo numero={1}>Indicadores generales</SeccionTitulo>
-          {/* grid-cols-2 fijo (no grid-cols-1 en mobile): pedido explícito,
-              ambas tarjetas deben leerse al mismo tiempo en celular — ver
-              el padding/tipografía responsive de KPICard para que no se
-              corten a ese ancho. */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <KPICard
-              label="Total recibido"
-              value={`${formatNumero(materiaPrima.kgRecepcionado)} Kg`}
-              paleta={PALETA_TOTAL}
-              icon={Truck}
-            />
-            <KPICard
-              label="Aprovechable"
-              value={`${formatNumero(materiaPrima.kgAprovechable)} Kg (${formatPorcentaje(materiaPrima.pctAprovechable)})`}
-              paleta={PALETA_APROVECHABLE}
-              icon={Leaf}
-            />
-          </div>
+          <IndicadoresGenerales materiaPrima={materiaPrima} cantidadIngresos={cantidadIngresos} />
 
           <div className="my-5 border-t" />
 
-          <SeccionTitulo numero={2}>Resumen por variedad y módulo</SeccionTitulo>
+          <SeccionTitulo numero={2}>Resumen por módulo y variedad</SeccionTitulo>
           <ResumenVariedadModuloTabla resumen={materiaPrima.resumen} materiaPrima={materiaPrima} />
 
           <div className="my-5 border-t" />
 
-          <SeccionTitulo numero={3}>Detalle de recepción</SeccionTitulo>
+          <SeccionTitulo numero={3}>Control de ingresos</SeccionTitulo>
           <DetalleRecepcionTabla detalle={materiaPrima.detalle} />
         </div>
       </TabsContent>
@@ -280,11 +242,85 @@ function KpiBloque({
   );
 }
 
-// Headers con tinte (azul primario / verde) para distinguir de un vistazo
-// qué columna es Aprovechable y cuál es Nacional — mismos tokens que el resto
-// de la app: bg-primary (acento de marca) y bg-emerald-600 (ya usado como
-// color de "Aprovechable" en esta misma pantalla, ver PALETA_APROVECHABLE).
-function ResumenVariedadModuloTabla({ resumen, materiaPrima }: { resumen: FilaResumen[]; materiaPrima: MateriaPrima }) {
+// "TOTAL RECIBIDO" + barra proporcional (Aprovechable/Nacional) + desglose
+// en 2 columnas — reemplaza las 2 KPICard de antes. Pedido explícito, calca
+// la estructura de la foto de referencia del usuario, con los colores ya
+// establecidos del ERP (fondo claro, no el fondo oscuro de la foto).
+function IndicadoresGenerales({ materiaPrima, cantidadIngresos }: { materiaPrima: DatosReporteRecepcion; cantidadIngresos: number }) {
+  const { kgRecepcionado, kgAprovechable, kgNacionalCampo, pctAprovechable, pctNacionalCampo } = materiaPrima;
+  const hayDatos = kgRecepcionado > 0;
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total recibido</p>
+      <p className="text-3xl font-bold tabular-nums tracking-tight sm:text-4xl">{formatNumero(kgRecepcionado)} Kg</p>
+      <p className="text-sm text-muted-foreground">
+        {cantidadIngresos} ingreso{cantidadIngresos === 1 ? "" : "s"}
+      </p>
+
+      <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Distribución de recepción</p>
+      {hayDatos ? (
+        <div className="flex h-9 w-full overflow-hidden rounded-md text-sm font-semibold text-white">
+          {pctAprovechable > 0 && (
+            <div className="flex items-center justify-center" style={{ width: `${pctAprovechable}%`, backgroundColor: COLOR_APROVECHABLE }}>
+              {pctAprovechable >= 12 && formatPorcentaje(pctAprovechable)}
+            </div>
+          )}
+          {pctNacionalCampo > 0 && (
+            <div className="flex items-center justify-center" style={{ width: `${pctNacionalCampo}%`, backgroundColor: COLOR_NACIONAL }}>
+              {pctNacionalCampo >= 12 && formatPorcentaje(pctNacionalCampo)}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex h-9 w-full items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">Sin datos</div>
+      )}
+
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: COLOR_APROVECHABLE }} />
+            <span className="text-sm font-medium text-muted-foreground">Aprovechable</span>
+          </div>
+          <p className="mt-1 text-xl font-bold tabular-nums sm:text-2xl" style={{ color: COLOR_APROVECHABLE }}>
+            {formatNumero(kgAprovechable)} kg
+          </p>
+          <p className="text-sm text-muted-foreground">{formatPorcentaje(pctAprovechable)}</p>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: COLOR_NACIONAL }} />
+            <span className="text-sm font-medium text-muted-foreground">Nacional</span>
+          </div>
+          <p className="mt-1 text-xl font-bold tabular-nums sm:text-2xl" style={{ color: COLOR_NACIONAL }}>
+            {formatNumero(kgNacionalCampo)} kg
+          </p>
+          <p className="text-sm text-muted-foreground">{formatPorcentaje(pctNacionalCampo)}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Celda de 2 líneas (kg + % de ESA fila, no el % global) — mismo patrón en
+// la tabla y en la fila de total general.
+function CeldaKgPorcentaje({ kg, pct, color }: { kg: number; pct: number; color: string }) {
+  return (
+    <TableCell numeric>
+      <div className="font-semibold">{formatNumero(kg)} kg</div>
+      <div className="text-xs font-medium" style={{ color }}>
+        {formatPorcentaje(pct)}
+      </div>
+    </TableCell>
+  );
+}
+
+function ResumenVariedadModuloTabla({
+  resumen,
+  materiaPrima,
+}: {
+  resumen: FilaResumenRecepcion[];
+  materiaPrima: DatosReporteRecepcion;
+}) {
   if (resumen.length === 0) {
     return <p className="text-sm text-muted-foreground">Sin datos en el filtro elegido.</p>;
   }
@@ -293,42 +329,48 @@ function ResumenVariedadModuloTabla({ resumen, materiaPrima }: { resumen: FilaRe
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="bg-muted/40">Variedad</TableHead>
             <TableHead className="bg-muted/40">Módulo</TableHead>
-            <TableHead numeric className="bg-primary text-primary-foreground">
-              Aprovechable (Kg)
+            <TableHead className="bg-muted/40">Variedad</TableHead>
+            <TableHead numeric className="bg-muted/40" style={{ color: COLOR_APROVECHABLE }}>
+              Aprov.
             </TableHead>
-            <TableHead numeric className="bg-emerald-600 text-white">
-              Nacional (Kg)
+            <TableHead numeric className="bg-muted/40" style={{ color: COLOR_NACIONAL }}>
+              Nacional
             </TableHead>
-            <TableHead numeric className="bg-primary text-primary-foreground">
-              Total (Kg)
+            <TableHead numeric className="bg-muted/40">
+              Total
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {resumen.map((fila) => (
             <TableRow key={`${fila.modulo}__${fila.variedad}`}>
+              <TableCell>
+                <span className="inline-flex items-center rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                  {formatModuloCompacto(fila.modulo)}
+                </span>
+              </TableCell>
               <TableCell className="font-medium">{fila.variedad}</TableCell>
-              <TableCell>{formatModuloCompacto(fila.modulo)}</TableCell>
-              <TableCell numeric>{formatNumero(fila.aprovechableKg)}</TableCell>
-              <TableCell numeric>{formatNumero(fila.nacionalKg)}</TableCell>
+              <CeldaKgPorcentaje
+                kg={fila.aprovechableKg}
+                pct={fila.total > 0 ? (fila.aprovechableKg / fila.total) * 100 : 0}
+                color={COLOR_APROVECHABLE}
+              />
+              <CeldaKgPorcentaje
+                kg={fila.nacionalKg}
+                pct={fila.total > 0 ? (fila.nacionalKg / fila.total) * 100 : 0}
+                color={COLOR_NACIONAL}
+              />
               <TableCell numeric className="font-semibold">
-                {formatNumero(fila.total)}
+                {formatNumero(fila.total)} kg
               </TableCell>
             </TableRow>
           ))}
-          <TableRow className="bg-muted/50 font-semibold">
-            <TableCell colSpan={2}>TOTAL KG</TableCell>
-            <TableCell numeric>{formatNumero(materiaPrima.kgAprovechable)}</TableCell>
-            <TableCell numeric>{formatNumero(materiaPrima.kgNacionalCampo)}</TableCell>
-            <TableCell numeric>{formatNumero(materiaPrima.kgRecepcionado)}</TableCell>
-          </TableRow>
-          <TableRow className="bg-muted/30 font-semibold">
-            <TableCell colSpan={2}>PARTICIPACIÓN</TableCell>
-            <TableCell numeric>{formatPorcentaje(materiaPrima.pctAprovechable)}</TableCell>
-            <TableCell numeric>{formatPorcentaje(materiaPrima.pctNacionalCampo)}</TableCell>
-            <TableCell numeric>100.0%</TableCell>
+          <TableRow className="bg-emerald-50 font-semibold">
+            <TableCell colSpan={2}>TOTAL GENERAL</TableCell>
+            <CeldaKgPorcentaje kg={materiaPrima.kgAprovechable} pct={materiaPrima.pctAprovechable} color={COLOR_APROVECHABLE} />
+            <CeldaKgPorcentaje kg={materiaPrima.kgNacionalCampo} pct={materiaPrima.pctNacionalCampo} color={COLOR_NACIONAL} />
+            <TableCell numeric>{formatNumero(materiaPrima.kgRecepcionado)} kg</TableCell>
           </TableRow>
         </TableBody>
       </Table>
@@ -336,7 +378,11 @@ function ResumenVariedadModuloTabla({ resumen, materiaPrima }: { resumen: FilaRe
   );
 }
 
-function DetalleRecepcionTabla({ detalle }: { detalle: FilaDetalle[] }) {
+// Pedido explícito: Hora, Placa, Módulo, Variedad, Kg, en ese orden (Turno y
+// Jabas se conservan al final — dato real que ya se mostraba, no se quita
+// sin que lo pidan). Sección secundaria: header neutro, sin protagonismo
+// frente al resumen ejecutivo de arriba.
+function DetalleRecepcionTabla({ detalle }: { detalle: FilaDetalleRecepcion[] }) {
   if (detalle.length === 0) {
     return <p className="text-sm text-muted-foreground">Sin datos en el filtro elegido.</p>;
   }
@@ -345,36 +391,33 @@ function DetalleRecepcionTabla({ detalle }: { detalle: FilaDetalle[] }) {
   return (
     <div className="overflow-x-auto rounded-lg border">
       <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="bg-primary text-primary-foreground">Placa</TableHead>
-            <TableHead className="bg-primary text-primary-foreground">Hora</TableHead>
-            <TableHead className="bg-primary text-primary-foreground">Variedad</TableHead>
-            <TableHead className="bg-primary text-primary-foreground">Módulo</TableHead>
-            <TableHead className="bg-primary text-primary-foreground">Turno</TableHead>
-            <TableHead numeric className="bg-primary text-primary-foreground">
-              Kg
-            </TableHead>
-            <TableHead numeric className="bg-primary text-primary-foreground">
-              Jabas
-            </TableHead>
+        <TableHeader className="bg-muted/40">
+          <TableRow>
+            <TableHead>Hora</TableHead>
+            <TableHead>Placa</TableHead>
+            <TableHead>Módulo</TableHead>
+            <TableHead>Variedad</TableHead>
+            <TableHead numeric>Kg</TableHead>
+            <TableHead>Turno</TableHead>
+            <TableHead numeric>Jabas</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {detalle.map((f) => (
             <TableRow key={f.id}>
-              <TableCell className="font-mono font-medium">{f.placa}</TableCell>
               <TableCell>{f.hora}</TableCell>
-              <TableCell>{f.variedad}</TableCell>
+              <TableCell className="font-mono font-medium">{f.placa}</TableCell>
               <TableCell>{formatModuloCompacto(f.modulo)}</TableCell>
-              <TableCell>{f.turno}</TableCell>
+              <TableCell>{f.variedad}</TableCell>
               <TableCell numeric>{formatNumero(f.kg)}</TableCell>
+              <TableCell>{f.turno}</TableCell>
               <TableCell numeric>{f.jabas.toLocaleString("es-PE")}</TableCell>
             </TableRow>
           ))}
           <TableRow className="bg-muted/50 font-semibold">
-            <TableCell colSpan={5}>Total</TableCell>
+            <TableCell colSpan={4}>Total</TableCell>
             <TableCell numeric>{formatNumero(totalKg)}</TableCell>
+            <TableCell />
             <TableCell numeric>{totalJabas.toLocaleString("es-PE")}</TableCell>
           </TableRow>
         </TableBody>
