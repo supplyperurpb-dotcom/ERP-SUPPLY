@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Boxes,
+  CalendarDays,
   ClipboardList,
   FileSpreadsheet,
   FileText,
@@ -54,6 +55,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
       { titulo: "Inicio", href: "/logistica", icono: LayoutGrid },
       { titulo: "Solicitudes de pedido", href: "/logistica/solicitudes-pedido", icono: ClipboardList },
       { titulo: "Órdenes de compra", href: "/logistica/ordenes-compra", icono: ShoppingCart },
+      { titulo: "Programa de Entregas", href: "/logistica/programa-entregas", icono: CalendarDays },
       { titulo: "Gestión de Servicios", href: "/logistica/gestion-servicios", icono: Wrench },
       { titulo: "Proveedores", href: "/logistica/proveedores", icono: Users },
       { titulo: "Creación de Materiales", href: "/logistica/sku", icono: Package },

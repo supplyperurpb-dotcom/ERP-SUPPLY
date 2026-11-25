@@ -632,6 +632,37 @@ enum EstadoFirma {
   RECHAZADO
 }
 
+// Programa de Entregas (pedido explícito, 2026-11-25): antes de guardar
+// una OC/OS como borrador, cada línea se distribuye en una o más entregas
+// con cantidad y fecha tentativa propias — ver programa-entregas-step.tsx
+// y crearOrdenCompraAction/crearOrdenCompraDirectaAction. Solo pasa a
+// ANULADA en cascada cuando su OC se anula (ver anularOrdenCompraAction);
+// nunca se borra, para conservar la trazabilidad. El valor económico de
+// cada entrega NUNCA se guarda acá (quedaría desactualizado si cambia el
+// precio de la línea) — se calcula siempre on-the-fly como
+// cantidad * ordenCompraItem.precioUnitario (ver lib/programa-entregas.ts).
+enum EstadoEntregaProgramada {
+  PROGRAMADA
+  ANULADA
+}
+
+model OrdenCompraEntrega {
+  id                String                  @id @default(cuid())
+  ordenCompraItemId String
+  cantidad          Decimal                 @db.Decimal(12, 3)
+  fechaTentativa    DateTime
+  estado            EstadoEntregaProgramada @default(PROGRAMADA)
+  creadoPorId       String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  ordenCompraItem OrdenCompraItem @relation(fields: [ordenCompraItemId], references: [id], onDelete: Cascade)
+
+  @@index([fechaTentativa])
+  @@index([ordenCompraItemId])
+  @@map("orden_compra_entregas")
+}
+
 // Una OC/OS por encima de cierto monto (o con algún ítem de RRHH) necesita
 // la firma de uno o más roles especiales antes de quedar aprobada del
 // todo — ver rolesFirmaRequeridos en lib/compras.ts. Cada fila es la firma
@@ -908,6 +939,7 @@ model OrdenCompraItem {
   sku                 Sku                  @relation(fields: [skuId], references: [id])
   ingresosAlmacenItem IngresoAlmacenItem[]
   itemsRegistroAvance ItemRegistroAvance[]
+  entregas            OrdenCompraEntrega[]
 
   @@map("orden_compra_items")
 }

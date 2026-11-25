@@ -28,6 +28,7 @@ import {
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraAction, subirArchivoSustentoOrdenAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
+import { ProgramaEntregasStep, type FilaEntregaProgramada, type ItemParaPrograma } from "../programa-entregas-step";
 
 type FilaSeleccion = {
   cantidad: string;
@@ -107,6 +108,11 @@ export function OrdenCompraForm({
   const [sustentoNombre, setSustentoNombre] = useState("");
   const [subiendoSustento, setSubiendoSustento] = useState(false);
   const inputSustentoRef = useRef<HTMLInputElement>(null);
+  // Paso "Programa de Entregas" (pedido explícito, 2026-11-25): la orden
+  // recién se guarda al confirmar "Guardar como borrador" en ese paso, no
+  // al terminar de llenar los datos de arriba.
+  const [paso, setPaso] = useState<"datos" | "programa">("datos");
+  const [entregasPorItem, setEntregasPorItem] = useState<Record<string, FilaEntregaProgramada[]>>({});
 
   async function handleArchivoSustento(archivo: File | undefined) {
     if (!archivo) return;
@@ -231,7 +237,7 @@ export function OrdenCompraForm({
     return true;
   });
 
-  async function handleSubmit() {
+  function irAPrograma() {
     if (!proveedorId) {
       toast.error("Selecciona un proveedor");
       return;
@@ -276,7 +282,22 @@ export function OrdenCompraForm({
         return;
       }
     }
+    setPaso("programa");
+  }
 
+  const itemsParaPrograma = useMemo<ItemParaPrograma[]>(
+    () =>
+      itemsEnOrden.map((item) => ({
+        key: item.id,
+        codigo: item.codigo,
+        descripcion: item.descripcion,
+        unidadMedida: item.unidadMedida,
+        cantidad: Number(filas[item.id]?.cantidad) || 0,
+      })),
+    [itemsEnOrden, filas]
+  );
+
+  async function handleAgendarPrograma() {
     setEnviando(true);
     try {
       const resultado = await crearOrdenCompraAction({
@@ -301,6 +322,12 @@ export function OrdenCompraForm({
             centroCosto: fila.centroCosto,
             campo: fila.campo || undefined,
             descripcion: fila.descripcion,
+            entregas: (entregasPorItem[item.id] ?? [])
+              .filter((e) => Number(e.cantidad) > 0 && e.fechaTentativa)
+              .map((e) => ({
+                cantidad: Number(e.cantidad),
+                fechaTentativa: new Date(e.fechaTentativa) as unknown as Date,
+              })),
           };
         }),
         archivo: sustentoPath,
@@ -328,6 +355,8 @@ export function OrdenCompraForm({
 
   return (
     <div className="space-y-6">
+      {paso === "datos" && (
+      <>
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos de la orden</CardTitle>
@@ -592,10 +621,23 @@ export function OrdenCompraForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="button" disabled={enviando} onClick={handleSubmit}>
-          {enviando ? "Guardando..." : `Registrar ${nombreDocumento.toLowerCase()}`}
+        <Button type="button" onClick={irAPrograma}>
+          Siguiente
         </Button>
       </div>
+      </>
+      )}
+
+      {paso === "programa" && (
+        <ProgramaEntregasStep
+          items={itemsParaPrograma}
+          entregasPorItem={entregasPorItem}
+          onChange={(key, entregas) => setEntregasPorItem((prev) => ({ ...prev, [key]: entregas }))}
+          onAnterior={() => setPaso("datos")}
+          onConfirmar={handleAgendarPrograma}
+          enviando={enviando}
+        />
+      )}
 
       <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
         <DialogContent className="max-w-4xl">

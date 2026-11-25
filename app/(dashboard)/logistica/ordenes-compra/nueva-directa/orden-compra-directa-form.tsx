@@ -26,6 +26,7 @@ import {
 } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { crearOrdenCompraDirectaAction, subirArchivoSustentoOrdenAction } from "@/lib/actions/orden-compra-actions";
+import { ProgramaEntregasStep, type FilaEntregaProgramada, type ItemParaPrograma } from "../programa-entregas-step";
 
 type SkuOpcion = SkuOpcionCombobox & { categoria: string };
 
@@ -96,6 +97,8 @@ export function OrdenCompraDirectaForm({
   const [sustentoNombre, setSustentoNombre] = useState("");
   const [subiendoSustento, setSubiendoSustento] = useState(false);
   const inputSustentoRef = useRef<HTMLInputElement>(null);
+  const [paso, setPaso] = useState<"datos" | "programa">("datos");
+  const [entregasPorItem, setEntregasPorItem] = useState<Record<string, FilaEntregaProgramada[]>>({});
 
   async function handleArchivoSustento(archivo: File | undefined) {
     if (!archivo) return;
@@ -139,7 +142,7 @@ export function OrdenCompraDirectaForm({
   const igvRedondeado = Math.round(igv * 100) / 100;
   const total = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
-  async function handleSubmit() {
+  function irAPrograma() {
     if (!proveedorId) {
       toast.error("Selecciona un proveedor");
       return;
@@ -182,7 +185,18 @@ export function OrdenCompraDirectaForm({
         return;
       }
     }
+    setPaso("programa");
+  }
 
+  const itemsParaPrograma: ItemParaPrograma[] = filas.map((f, index) => ({
+    key: String(index),
+    codigo: f.codigo,
+    descripcion: f.descripcionSku,
+    unidadMedida: f.unidadMedida,
+    cantidad: Number(f.cantidad) || 0,
+  }));
+
+  async function handleAgendarPrograma() {
     setEnviando(true);
     try {
       const resultado = await crearOrdenCompraDirectaAction({
@@ -197,7 +211,7 @@ export function OrdenCompraDirectaForm({
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
         observaciones: comentario,
         moneda,
-        items: filas.map((f) => ({
+        items: filas.map((f, index) => ({
           skuId: f.skuId,
           cantidad: Number(f.cantidad),
           precioUnitario: Number(f.precioUnitario),
@@ -205,6 +219,12 @@ export function OrdenCompraDirectaForm({
           centroCosto: f.centroCosto,
           campo: f.campo || undefined,
           descripcion: f.descripcion,
+          entregas: (entregasPorItem[String(index)] ?? [])
+            .filter((e) => Number(e.cantidad) > 0 && e.fechaTentativa)
+            .map((e) => ({
+              cantidad: Number(e.cantidad),
+              fechaTentativa: new Date(e.fechaTentativa) as unknown as Date,
+            })),
         })),
         archivo: sustentoPath,
         nombreArchivo: sustentoNombre,
@@ -231,6 +251,8 @@ export function OrdenCompraDirectaForm({
 
   return (
     <div className="space-y-6">
+      {paso === "datos" && (
+      <>
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos de la orden — {numerosTentativos[categoria]}</CardTitle>
@@ -520,10 +542,23 @@ export function OrdenCompraDirectaForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="button" disabled={enviando} onClick={handleSubmit}>
-          {enviando ? "Guardando..." : `Registrar ${nombreDocumento.toLowerCase()}`}
+        <Button type="button" onClick={irAPrograma}>
+          Siguiente
         </Button>
       </div>
+      </>
+      )}
+
+      {paso === "programa" && (
+        <ProgramaEntregasStep
+          items={itemsParaPrograma}
+          entregasPorItem={entregasPorItem}
+          onChange={(key, entregas) => setEntregasPorItem((prev) => ({ ...prev, [key]: entregas }))}
+          onAnterior={() => setPaso("datos")}
+          onConfirmar={handleAgendarPrograma}
+          enviando={enviando}
+        />
+      )}
     </div>
   );
 }

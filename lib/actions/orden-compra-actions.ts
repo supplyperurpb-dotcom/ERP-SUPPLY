@@ -173,7 +173,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        await tx.ordenCompraItem.create({
+        const itemCreado = await tx.ordenCompraItem.create({
           data: {
             ordenCompraId: orden.id,
             solicitudPedidoItemId: item.solicitudPedidoItemId,
@@ -187,6 +187,19 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
             descripcion: item.descripcion || null,
           },
         });
+        // Programa de Entregas (pedido explícito, 2026-11-25): se guarda
+        // junto con la línea, en la misma transacción — si algo falla acá,
+        // no se guarda ni la OC ni el programa.
+        if (item.entregas.length > 0) {
+          await tx.ordenCompraEntrega.createMany({
+            data: item.entregas.map((e) => ({
+              ordenCompraItemId: itemCreado.id,
+              cantidad: e.cantidad,
+              fechaTentativa: e.fechaTentativa,
+              creadoPorId: usuario?.id,
+            })),
+          });
+        }
       }
 
       // Las firmas requeridas (ver rolesFirmaRequeridos) ya no se crean
@@ -198,6 +211,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
 
     revalidatePath("/logistica/ordenes-compra");
     revalidatePath("/logistica/solicitudes-pedido");
+    revalidatePath("/logistica/programa-entregas");
     return { id: nuevaOrden.id };
   } catch (e) {
     console.error("Error inesperado en crearOrdenCompraAction:", e);
@@ -280,7 +294,7 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        await tx.ordenCompraItem.create({
+        const itemCreado = await tx.ordenCompraItem.create({
           data: {
             ordenCompraId: orden.id,
             skuId: item.skuId,
@@ -293,6 +307,17 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
             descripcion: item.descripcion || null,
           },
         });
+        // Programa de Entregas: ver mismo comentario en crearOrdenCompraAction.
+        if (item.entregas.length > 0) {
+          await tx.ordenCompraEntrega.createMany({
+            data: item.entregas.map((e) => ({
+              ordenCompraItemId: itemCreado.id,
+              cantidad: e.cantidad,
+              fechaTentativa: e.fechaTentativa,
+              creadoPorId: usuario?.id,
+            })),
+          });
+        }
       }
 
       // Igual que en crearOrdenCompraAction: las firmas nacen recién al
@@ -301,6 +326,7 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
     });
 
     revalidatePath("/logistica/ordenes-compra");
+    revalidatePath("/logistica/programa-entregas");
     return { id: nuevaOrden.id };
   } catch (e) {
     console.error("Error inesperado en crearOrdenCompraDirectaAction:", e);
@@ -533,7 +559,10 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
     const usuario = await getUsuarioActual();
     if (!usuario) return { error: "Debes iniciar sesión para editar una orden." };
 
-    const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { items: true } });
+    const orden = await prisma.ordenCompra.findUnique({
+      where: { id },
+      include: { items: { include: { entregas: true } } },
+    });
     if (!orden) return { error: "La orden ya no existe." };
     if (!puedeEditarOrden(usuario, orden)) {
       return { error: "No tienes permiso para editar esta orden." };
@@ -555,6 +584,25 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
     const idsEnviados = new Set(itemsExistentes.map((i) => i.id!));
     if (idsEnviados.size !== idsExistentes.size || [...idsEnviados].some((itemId) => !idsExistentes.has(itemId))) {
       return { error: "Los ítems de la orden cambiaron desde que abriste esta página. Actualízala e intenta de nuevo." };
+    }
+
+    // Programa de Entregas (pedido explícito, 2026-11-25): no se puede
+    // reducir la cantidad de una línea por debajo de lo que ya tiene
+    // programado (en PROGRAMADA) en Programa de Entregas — ver
+    // programa-entregas-step.tsx. El programa en sí no se edita acá (no
+    // se pidió un reprogramador al editar, solo esta consistencia).
+    const ordenItemPorId = new Map(orden.items.map((i) => [i.id, i]));
+    for (const item of itemsExistentes) {
+      const original = ordenItemPorId.get(item.id!);
+      if (!original) continue;
+      const programado = original.entregas
+        .filter((e) => e.estado === "PROGRAMADA")
+        .reduce((acc, e) => acc + Number(e.cantidad), 0);
+      if (programado > item.cantidad) {
+        return {
+          error: `No puedes dejar una línea en ${item.cantidad}: ya tiene ${programado} programado en Programa de Entregas. Reduce primero su programa de entregas.`,
+        };
+      }
     }
 
     // Si dos líneas nuevas repiten el mismo ítem de solicitud, se valida la suma.
@@ -690,19 +738,28 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
       return { error: "Esta orden ya no está activa." };
     }
 
-    await prisma.ordenCompra.update({
-      where: { id },
-      data: {
-        estado: "ANULADO",
-        aprobadoPorId: usuario.id,
-        fechaAprobacion: new Date(),
-        comentarioRechazo: comentario || null,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.ordenCompra.update({
+        where: { id },
+        data: {
+          estado: "ANULADO",
+          aprobadoPorId: usuario.id,
+          fechaAprobacion: new Date(),
+          comentarioRechazo: comentario || null,
+        },
+      });
+      // Programa de Entregas (pedido explícito, 2026-11-25): se conserva
+      // la trazabilidad, nunca se borra — solo pasa a ANULADA.
+      await tx.ordenCompraEntrega.updateMany({
+        where: { ordenCompraItem: { ordenCompraId: id } },
+        data: { estado: "ANULADA" },
+      });
     });
 
     revalidatePath("/logistica/ordenes-compra");
     revalidatePath(`/logistica/ordenes-compra/${id}`);
     revalidatePath("/logistica/solicitudes-pedido");
+    revalidatePath("/logistica/programa-entregas");
     return undefined;
   } catch (e) {
     console.error("Error inesperado en anularOrdenCompraAction:", e);

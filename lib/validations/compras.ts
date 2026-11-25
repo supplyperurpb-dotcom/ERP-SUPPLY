@@ -92,6 +92,36 @@ export const solicitudPedidoSchema = z
 export type SolicitudPedidoInput = z.infer<typeof solicitudPedidoSchema>;
 export type { AreaSolpedCodigo };
 
+// Programa de Entregas (pedido explícito, 2026-11-25): una línea de la OC
+// se puede distribuir en una o más entregas con cantidad y fecha
+// tentativa propias — ver programa-entregas-step.tsx. Se permite dejar un
+// ítem sin programar del todo o parcialmente (no es obligatorio agotar la
+// cantidad), por eso el array puede llegar vacío.
+const entregaProgramadaSchema = z.object({
+  cantidad: z.coerce.number().positive("La cantidad programada debe ser mayor a 0"),
+  fechaTentativa: z.coerce.date({ required_error: "Selecciona la fecha tentativa de la entrega" }),
+});
+
+// Revalida, del lado del servidor, que ninguna línea tenga más programado
+// de lo que permite su propia cantidad (el cliente ya lo bloquea antes de
+// dejar avanzar a "Agendar Programa", esto es la defensa en profundidad).
+function validarEntregasNoSuperanCantidad<T extends { cantidad: number; entregas: { cantidad: number }[] }>(
+  items: T[],
+  ctx: z.RefinementCtx,
+  path: "items" = "items"
+) {
+  items.forEach((item, i) => {
+    const programado = item.entregas.reduce((acc, e) => acc + e.cantidad, 0);
+    if (programado > item.cantidad) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Lo programado (${programado}) no puede superar la cantidad de la línea (${item.cantidad}).`,
+        path: [path, i, "entregas"],
+      });
+    }
+  });
+}
+
 const itemOrdenCompraSchema = z.object({
   solicitudPedidoItemId: z.string().min(1, "Falta el origen de esta línea"),
   skuId: z.string().min(1),
@@ -103,6 +133,7 @@ const itemOrdenCompraSchema = z.object({
   // Solo para categoría Servicio (OS): detalle y alcance del servicio,
   // precargado de la solicitud y editable aquí.
   descripcion: z.string().max(500).optional().or(z.literal("")),
+  entregas: z.array(entregaProgramadaSchema).default([]),
 });
 
 export const ordenCompraSchema = z
@@ -141,6 +172,7 @@ export const ordenCompraSchema = z
         path: ["vigenteHasta"],
       });
     }
+    validarEntregasNoSuperanCantidad(data.items, ctx);
   });
 
 export type OrdenCompraInput = z.infer<typeof ordenCompraSchema>;
@@ -204,6 +236,7 @@ const itemOrdenCompraDirectaSchema = z.object({
   centroCosto: z.string().min(1, "Selecciona el centro de costo"),
   campo: z.string().optional().or(z.literal("")),
   descripcion: z.string().max(500).optional().or(z.literal("")),
+  entregas: z.array(entregaProgramadaSchema).default([]),
 });
 
 export const ordenCompraDirectaSchema = z
@@ -235,6 +268,7 @@ export const ordenCompraDirectaSchema = z
         path: ["vigenteHasta"],
       });
     }
+    validarEntregasNoSuperanCantidad(data.items, ctx);
     if (data.categoria !== "SERVICIO") return;
     data.items.forEach((item, i) => {
       if (!item.descripcion?.trim()) {
