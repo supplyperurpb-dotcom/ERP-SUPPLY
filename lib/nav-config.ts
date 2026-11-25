@@ -99,6 +99,7 @@ export const NAV_GRUPOS: NavGrupo[] = [
     items: [
       { titulo: "Inicio", href: "/comex", icono: LayoutGrid },
       { titulo: "Dashboard Exportaciones", href: "/comex/dashboard-exportaciones", icono: BarChart3 },
+      { titulo: "Dashboard Exportaciones - Prueba", href: "/comex/dashboard-exportaciones-prueba", icono: BarChart3 },
       { titulo: "Packing list", href: "/comex/packing-list", icono: FileSpreadsheet },
       { titulo: "Importar PL", href: "/comex/importar-pl", icono: Upload },
       { titulo: "Importar Facturación", href: "/comex/importar-facturacion-historica", icono: FileUp },
