@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { AnularOrdenBoton } from "./aprobar-rechazar-botones";
+import { firmarOrdenesCompraMasivoAction } from "@/lib/actions/orden-compra-actions";
 import type { EstadoDocumento } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -38,10 +43,16 @@ export type FilaOrdenCompra = {
   igv: string;
   montoTotal: string;
   puedeAnular: boolean;
+  /** Tiene un rol de aprobación especial propio pendiente en esta orden. */
+  puedeFirmar: boolean;
 };
 
 export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
   const [busqueda, setBusqueda] = useState("");
+  const [seleccionadas, setSeleccionadas] = useState<string[]>([]);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const confirmar = useConfirm();
 
   const filasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
@@ -51,16 +62,53 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
     );
   }, [filas, busqueda]);
 
+  const filasFirmables = useMemo(() => filasFiltradas.filter((f) => f.puedeFirmar), [filasFiltradas]);
+  const haySeleccionables = filasFirmables.length > 0;
+  const seleccionadasEnVista = seleccionadas.filter((id) => filasFirmables.some((f) => f.id === id));
+  const todasSeleccionadas = haySeleccionables && seleccionadasEnVista.length === filasFirmables.length;
+
+  function alternarFila(id: string, marcado: boolean) {
+    setSeleccionadas((prev) => (marcado ? [...new Set([...prev, id])] : prev.filter((x) => x !== id)));
+  }
+
+  function alternarTodas(marcado: boolean) {
+    setSeleccionadas((prev) => {
+      const idsVista = filasFirmables.map((f) => f.id);
+      if (marcado) return [...new Set([...prev, ...idsVista])];
+      return prev.filter((id) => !idsVista.includes(id));
+    });
+  }
+
+  async function handleAprobarSeleccionadas() {
+    const numeros = filas.filter((f) => seleccionadasEnVista.includes(f.id)).map((f) => f.numero);
+    if (!(await confirmar(`¿Aprobar ${numeros.length} orden(es)? ${numeros.join(", ")}`))) return;
+    startTransition(async () => {
+      const resultado = await firmarOrdenesCompraMasivoAction(seleccionadasEnVista);
+      if (resultado.aprobadas > 0) toast.success(`${resultado.aprobadas} orden(es) aprobada(s)`);
+      for (const error of resultado.errores) toast.error(error);
+      setSeleccionadas([]);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-3">
-      <div className="relative max-w-sm">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por número de OC/OS o proveedor..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="pl-8"
-        />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="relative max-w-sm flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por número de OC/OS o proveedor..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        {seleccionadasEnVista.length > 0 && (
+          <Button disabled={pending} onClick={handleAprobarSeleccionadas}>
+            <Check className="mr-2 h-4 w-4" />
+            Aprobar seleccionadas ({seleccionadasEnVista.length})
+          </Button>
+        )}
       </div>
 
       {filasFiltradas.length === 0 ? (
@@ -80,6 +128,15 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
               <TableHead className="text-right">IGV</TableHead>
               <TableHead className="text-right">Monto total</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
+              {haySeleccionables && (
+                <TableHead className="text-center">
+                  <Checkbox
+                    checked={todasSeleccionadas}
+                    onCheckedChange={(marcado) => alternarTodas(!!marcado)}
+                    aria-label="Seleccionar todas las aprobables"
+                  />
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -105,6 +162,17 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
                     </Button>
                   </div>
                 </TableCell>
+                {haySeleccionables && (
+                  <TableCell className="text-center">
+                    {f.puedeFirmar && (
+                      <Checkbox
+                        checked={seleccionadas.includes(f.id)}
+                        onCheckedChange={(marcado) => alternarFila(f.id, !!marcado)}
+                        aria-label={`Seleccionar ${f.numero} para aprobar`}
+                      />
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

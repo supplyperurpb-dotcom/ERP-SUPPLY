@@ -772,3 +772,25 @@ export async function reabrirPosicionOrdenCompraItemAction(itemId: string): Prom
     return { error: e instanceof Error ? e.message : "Error inesperado al reabrir la posición." };
   }
 }
+
+// Aprueba varias OC/OS de un solo clic (pedido explícito, 2026-11-25: las
+// casillas a la derecha del listado, solo para quien tenga un rol de
+// aprobación pendiente en esas órdenes). Reusa firmarOrdenCompraAction
+// orden por orden, para que cada una pase por sus mismas validaciones
+// (rol propio pendiente, todas-las-firmas-aprobadas, etc.) en vez de
+// duplicar esa lógica.
+export async function firmarOrdenesCompraMasivoAction(
+  ids: string[]
+): Promise<{ aprobadas: number; errores: string[] }> {
+  const errores: string[] = [];
+  let aprobadas = 0;
+  for (const id of ids) {
+    const resultado = await firmarOrdenCompraAction(id, "APROBADO");
+    if (resultado?.error) {
+      errores.push(resultado.error);
+    } else {
+      aprobadas++;
+    }
+  }
+  return { aprobadas, errores };
+}

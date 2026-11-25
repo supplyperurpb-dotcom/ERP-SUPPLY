@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { esComprador } from "@/lib/compras";
+import { esComprador, obtenerAprobadoresEspeciales } from "@/lib/compras";
 import { OrdenesCompraTable, type FilaOrdenCompra } from "./ordenes-compra-table";
 import { NuevaOrdenDialog } from "./nueva-orden-dialog";
 import type { AreaEmpresa } from "@prisma/client";
@@ -36,7 +36,7 @@ export default async function OrdenesCompraPage() {
         esCompradorUsuario ? {} : { NOT: { estado: "BORRADOR", firmas: { none: {} } } },
       ],
     },
-    include: { proveedor: true },
+    include: { proveedor: true, firmas: true },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
@@ -45,8 +45,20 @@ export default async function OrdenesCompraPage() {
   // estado de la orden.
   const puedeAnularGlobal = usuario?.roles.includes("ANULADOR") ?? false;
 
+  // Casillas de aprobación masiva (pedido explícito, 2026-11-25: para el
+  // usuario del Gerente de Supply Chain, u otro aprobador especial, no solo
+  // ADMIN) — mismo criterio que el botón "Aprobar" del detalle
+  // (firmaPropiaId en [id]/page.tsx), pero sin el respaldo de ADMIN: acá es
+  // solo para quien tiene su propio rol de aprobación pendiente.
+  const aprobadoresEspeciales = await obtenerAprobadoresEspeciales();
+  const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
+
   const filas: FilaOrdenCompra[] = ordenes.map((orden) => {
     const puedeAnular = puedeAnularGlobal && orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
+    const firmaPendientePropia =
+      usuario && (orden.estado === "BORRADOR" || orden.estado === "PENDIENTE")
+        ? orden.firmas.find((f) => f.estado === "PENDIENTE" && aprobadorPorRolEspecial.get(f.rol) === usuario.id)
+        : undefined;
     return {
       id: orden.id,
       numero: orden.numero,
@@ -59,6 +71,7 @@ export default async function OrdenesCompraPage() {
       igv: formatMoneda(orden.igv.toString(), orden.moneda),
       montoTotal: formatMoneda(orden.montoTotal.toString(), orden.moneda),
       puedeAnular,
+      puedeFirmar: !!firmaPendientePropia,
     };
   });
 
