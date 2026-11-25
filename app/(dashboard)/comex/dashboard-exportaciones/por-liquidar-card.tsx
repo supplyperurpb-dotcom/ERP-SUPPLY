@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoneda, formatCantidad } from "@/lib/utils";
 import { PALETA_PENDIENTE } from "./colores";
@@ -23,17 +24,18 @@ export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
           </p>
         </div>
         {datos.porMercado.length > 0 && (
-          <div className="space-y-1.5 border-t pt-2">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-3 gap-y-1 border-t pt-2 text-sm">
             {datos.porMercado.map((m) => (
-              <div key={m.mercado} className="flex items-baseline gap-2 text-sm">
+              <Fragment key={m.mercado}>
                 <span className="font-medium" style={{ color: PALETA_PENDIENTE.titulo }}>
-                  {m.mercado}:
+                  {m.mercado}
                 </span>
-                <span className="tabular-nums text-muted-foreground">
-                  {formatCantidad(Math.floor(m.kg / 1000))} TN – {formatMoneda(m.valor, "USD")}
-                  {m.puCif !== null && ` (PU CIF ${formatMoneda(m.puCif, "USD")})`}
+                <span className="text-right tabular-nums text-muted-foreground">{formatCantidad(Math.trunc(m.kg / 1000))} TN</span>
+                <span className="text-right tabular-nums text-muted-foreground">{formatMoneda(m.valor, "USD")}</span>
+                <span className="text-right tabular-nums text-muted-foreground">
+                  {m.puCif !== null ? `PU CIF ${formatMoneda(m.puCif, "USD")}` : "—"}
                 </span>
-              </div>
+              </Fragment>
             ))}
           </div>
         )}
