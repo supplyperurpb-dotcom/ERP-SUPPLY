@@ -132,27 +132,27 @@ enum OrigenPalletIndustrial {
 // =========================================================================
 
 model Usuario {
-  id             String       @id @default(cuid())
-  supabaseAuthId String       @unique
-  nombres        String
-  apellidos      String
-  email          String       @unique
-  telefono       String?
+  id                  String       @id @default(cuid())
+  supabaseAuthId      String       @unique
+  nombres             String
+  apellidos           String
+  email               String       @unique
+  telefono            String?
   // DNI — identificador de login (ver loginAction en auth-actions.ts: si
   // lo que se escribe en el campo de inicio de sesión no tiene "@", se
   // busca acá). Nulo en cuentas creadas antes de este campo, hasta que un
   // admin se lo asigne — mientras tanto esa cuenta sigue entrando con su
   // correo (ver mismo loginAction).
-  dni            String?      @unique
+  dni                 String?      @unique
   // Cargo/puesto (p. ej. "Gerente de Producción"), mostrado junto al
   // nombre en el PDF de Solped/OC/OS cuando este usuario aprueba una.
-  cargo          String?
+  cargo               String?
   // Gerencia a la que pertenece (Producción, Supply Chain, etc.). Nulo =
   // sin restricción de área (p. ej. un ADMIN, o el usuario creado
   // manualmente antes de que existiera este campo). Se usa para que las
   // listas de Solicitudes de pedido y Órdenes de compra/servicio solo
   // muestren los documentos de su propia área, sea o no aprobador.
-  area           AreaEmpresa?
+  area                AreaEmpresa?
   // Área puntual (nivel 2) dentro de esa Gerencia — mismo organigrama que
   // SolicitudPedido.areaDetalle (ver AREAS_SOLPED en
   // lib/constants/compras.ts), p. ej. "Almacén" dentro de Supply Chain.
@@ -160,8 +160,8 @@ model Usuario {
   // campo. Hoy solo se usa para distinguir quién pertenece al área
   // Almacén (atiende Solicitudes de Despacho — ver esAlmacen en
   // lib/stock-almacen.ts), pero no es exclusivo de eso.
-  areaDetalle    String?
-  activo         Boolean      @default(true)
+  areaDetalle         String?
+  activo              Boolean      @default(true)
   // true = debe elegir una contraseña nueva antes de poder usar el resto
   // de la app (ver app/(dashboard)/layout.tsx y /cambiar-password) — se
   // pone en true al crear la cuenta y cada vez que un admin le resetea la
@@ -169,9 +169,9 @@ model Usuario {
   // /cambiar-password. Las cuentas que ya existían antes de este campo
   // quedan en false por la propia migración (no se les fuerza el cambio
   // retroactivamente).
-  debeCambiarPassword Boolean @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  debeCambiarPassword Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   asignacionesRol AsignacionRol[]
   logsAuditoria   LogAuditoria[]
@@ -290,7 +290,7 @@ model Proveedor {
 
   ordenesCompra       OrdenCompra[]
   lineasIngresoFruta  IngresoFrutaPallet[]
-  ingresosIndustrial         IngresoIndustrial[]
+  ingresosIndustrial  IngresoIndustrial[]
   ingresosAlmacen     IngresoAlmacen[]
   devolucionesAlmacen DevolucionAlmacen[]
   conductores         Conductor[]
@@ -456,20 +456,20 @@ model ListaValor {
 // al crearlo/editarlo (ver RetiradorAlmacenPermitido). Nunca se borra un
 // registro ya usado: se desactiva (activo=false), igual que ListaValor.
 model RetiradorAutorizado {
-  id              String       @id @default(cuid())
+  id              String      @id @default(cuid())
   nombres         String
   apellidoPaterno String
   apellidoMaterno String?
-  dni             String       @unique
+  dni             String      @unique
   // Gerencia (ver GERENCIAS_SOLPED en lib/constants/compras.ts).
   area            AreaEmpresa
   // Área puntual (nivel 2) dentro de esa Gerencia — mismo organigrama que
   // Usuario.areaDetalle (ver AREAS_SOLPED en lib/constants/compras.ts).
   // Nulo solo en retiradores creados antes de este campo.
   areaDetalle     String?
-  activo          Boolean      @default(true)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  activo          Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   almacenesPermitidos RetiradorAlmacenPermitido[]
 
@@ -659,10 +659,10 @@ model OrdenCompraFirma {
 // agregada, esa orden ya no vuelve a salir en el selector (ver
 // ordenesServicioDisponiblesParaGestion en lib/compras.ts).
 model ServicioGestionado {
-  id            String   @id @default(cuid())
-  ordenCompraId String   @unique
+  id            String    @id @default(cuid())
+  ordenCompraId String    @unique
   creadoPorId   String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
   // Pedido explícito: la OS se cierra sola solo cuando el saldo de TODAS
   // sus líneas llega a cero contando únicamente avances ya APROBADOS (no
   // alcanza con que la cantidad esté registrada si todavía está PENDIENTE
@@ -848,7 +848,7 @@ model OrdenCompra {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  proveedor          Proveedor          @relation(fields: [proveedorId], references: [id])
+  proveedor          Proveedor           @relation(fields: [proveedorId], references: [id])
   items              OrdenCompraItem[]
   firmas             OrdenCompraFirma[]
   ingresosAlmacen    IngresoAlmacen[]
@@ -897,9 +897,9 @@ model OrdenCompraItem {
   cerradoPorId          String?
   fechaCierre           DateTime?
 
-  ordenCompra            OrdenCompra             @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
-  solicitudPedidoItem    SolicitudPedidoItem?    @relation(fields: [solicitudPedidoItemId], references: [id])
-  sku                    Sku                     @relation(fields: [skuId], references: [id])
+  ordenCompra         OrdenCompra          @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  solicitudPedidoItem SolicitudPedidoItem? @relation(fields: [solicitudPedidoItemId], references: [id])
+  sku                 Sku                  @relation(fields: [skuId], references: [id])
   ingresosAlmacenItem IngresoAlmacenItem[]
   itemsRegistroAvance ItemRegistroAvance[]
 
@@ -1395,7 +1395,7 @@ model TipoBandeja {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  pallets   IngresoFrutaPallet[]
+  pallets          IngresoFrutaPallet[]
   lineasIndustrial IngresoIndustrialPallet[]
 
   @@map("tipos_bandeja")
@@ -1409,7 +1409,7 @@ model TipoPallet {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  pallets   IngresoFrutaPallet[]
+  pallets          IngresoFrutaPallet[]
   lineasIndustrial IngresoIndustrialPallet[]
 
   @@map("tipos_pallet")
@@ -1470,41 +1470,41 @@ model Pallet {
 // camión trae bandejas para más de un pallet, se registra una línea por
 // cada destino.
 model IngresoFrutaPallet {
-  id               String   @id @default(cuid())
-  ingresoFrutaId   String
-  numeroPallet     Int // correlativo de la línea dentro de este ingreso (no es el número del Pallet físico)
+  id                 String   @id @default(cuid())
+  ingresoFrutaId     String
+  numeroPallet       Int // correlativo de la línea dentro de este ingreso (no es el número del Pallet físico)
   // Fundo de origen de ESTA línea — vive acá y no en IngresoFruta porque un
   // mismo camión puede traer fruta de dos fundos distintos en el mismo
   // ingreso (una línea por fundo).
-  proveedorId      String
+  proveedorId        String
   // Exactamente uno de los dos está presente, según tipoProducto: las líneas
   // "Exportable" arman un Pallet normal; las líneas "Descarte Campo" arman
   // un PalletIndustrial (mismo pool físico que usa Ingreso Industrial Planta) para que su tarja
   // salga en Tarjas Industrial en vez de en Tarjas. Ver PalletIndustrial.origen.
-  palletId         String?
-  palletIndustrialId      String?
-  modulo           String // bloque/sector del fundo de origen de esta línea
-  turno            String // sub-división del módulo (no es turno de trabajo)
-  variedad         String
-  formato          String // presentación/línea de proceso, ej. "Sweetest Batch"
-  tipoProducto     String // ej. "Exportable" | "Descarte Campo"
-  tipoPalletId     String? // opcional: catálogo de tipo de parihuela, no se usa en el cálculo de neto
-  tipoBandejaId    String
-  cantidadBandejas Int
-  pesoBrutoTotalKg Decimal  @db.Decimal(10, 3)
-  pesoTaraTotalKg  Decimal  @db.Decimal(10, 3)
-  pesoNetoKg       Decimal  @db.Decimal(10, 3)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  palletId           String?
+  palletIndustrialId String?
+  modulo             String // bloque/sector del fundo de origen de esta línea
+  turno              String // sub-división del módulo (no es turno de trabajo)
+  variedad           String
+  formato            String // presentación/línea de proceso, ej. "Sweetest Batch"
+  tipoProducto       String // ej. "Exportable" | "Descarte Campo"
+  tipoPalletId       String? // opcional: catálogo de tipo de parihuela, no se usa en el cálculo de neto
+  tipoBandejaId      String
+  cantidadBandejas   Int
+  pesoBrutoTotalKg   Decimal  @db.Decimal(10, 3)
+  pesoTaraTotalKg    Decimal  @db.Decimal(10, 3)
+  pesoNetoKg         Decimal  @db.Decimal(10, 3)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  ingresoFruta IngresoFruta              @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
-  proveedor    Proveedor                 @relation(fields: [proveedorId], references: [id])
-  pallet       Pallet?                   @relation(fields: [palletId], references: [id])
-  palletIndustrial    PalletIndustrial?                @relation(fields: [palletIndustrialId], references: [id])
-  tipoPallet   TipoPallet?               @relation(fields: [tipoPalletId], references: [id])
-  tipoBandeja  TipoBandeja               @relation(fields: [tipoBandejaId], references: [id])
-  bandejas     IngresoFrutaBandejaPeso[]
-  guiaDetalles GuiaRemisionDetalle[]
+  ingresoFruta     IngresoFruta              @relation(fields: [ingresoFrutaId], references: [id], onDelete: Cascade)
+  proveedor        Proveedor                 @relation(fields: [proveedorId], references: [id])
+  pallet           Pallet?                   @relation(fields: [palletId], references: [id])
+  palletIndustrial PalletIndustrial?         @relation(fields: [palletIndustrialId], references: [id])
+  tipoPallet       TipoPallet?               @relation(fields: [tipoPalletId], references: [id])
+  tipoBandeja      TipoBandeja               @relation(fields: [tipoBandejaId], references: [id])
+  bandejas         IngresoFrutaBandejaPeso[]
+  guiaDetalles     GuiaRemisionDetalle[]
 
   @@unique([ingresoFrutaId, numeroPallet])
   @@map("ingreso_fruta_pallets")
@@ -1596,15 +1596,15 @@ enum TipoCamion {
 // Industrial) — Despacho usa este catálogo en vez de aquel. Nunca se borra un
 // registro ya usado: se desactiva (activo=false).
 model Camion {
-  id             String                          @id @default(cuid())
-  placa          String                          @unique
-  tipo           TipoCamion
+  id            String                          @id @default(cuid())
+  placa         String                          @unique
+  tipo          TipoCamion
   // Si es de la empresa o de un tercero (mismo enum que ya usa
   // VehiculoTransporte.tipo y Conductor.tipo) — campo agregado 2026-11-14.
-  tipoPropiedad  TipoPropiedadVehiculoTransporte @default(TERCERO)
-  activo         Boolean                         @default(true)
-  createdAt      DateTime                        @default(now())
-  updatedAt      DateTime                        @updatedAt
+  tipoPropiedad TipoPropiedadVehiculoTransporte @default(TERCERO)
+  activo        Boolean                         @default(true)
+  createdAt     DateTime                        @default(now())
+  updatedAt     DateTime                        @updatedAt
 
   @@map("camiones")
 }
@@ -1687,54 +1687,54 @@ model GuiaRemisionDetalle {
 // para no mezclar sus números ni sus listados con los de fruta.
 
 model IngresoIndustrial {
-  id              String          @id @default(cuid())
-  numero          String          @unique // ej. INDUSTRIAL-0001
+  id                  String          @id @default(cuid())
+  numero              String          @unique // ej. INDUSTRIAL-0001
   // Campo "Fundo" eliminado del flujo (descarte de planta no tiene un
   // fundo de origen que elegir) — queda opcional en vez de borrarse, para
   // no perder el dato en los ingresos ya registrados antes de este cambio.
-  proveedorId     String?
+  proveedorId         String?
   // Ya no vive acá: cada línea tiene su propia fecha de cosecha (ver
   // IngresoIndustrialPallet.fechaCosecha), porque un mismo camión puede traer
   // descarte de variedades cosechadas en fechas distintas.
-  fechaIngreso    DateTime        @default(now())
-  horaIngreso     String?
-  placaTransporte String?
-  conductor       String?
-  observaciones   String?
+  fechaIngreso        DateTime        @default(now())
+  horaIngreso         String?
+  placaTransporte     String?
+  conductor           String?
+  observaciones       String?
   // Guía de remisión física del transportista (obligatoria, ver
   // ingresoIndustrialSchema) — mismo criterio que IngresoAlmacen.guiaRemisionArchivo:
   // guiaRemisionArchivo es la ruta (no URL pública) dentro del bucket
   // privado de Supabase Storage (ver lib/storage.ts), descargada vía
   // GET /api/ingreso-industrial/[id]/guia.
-  numeroGuiaRemision   String?
-  guiaRemisionArchivo  String?
-  estado          EstadoDocumento @default(BORRADOR)
-  creadoPorId     String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  numeroGuiaRemision  String?
+  guiaRemisionArchivo String?
+  estado              EstadoDocumento @default(BORRADOR)
+  creadoPorId         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
-  proveedor Proveedor?         @relation(fields: [proveedorId], references: [id])
+  proveedor Proveedor?                @relation(fields: [proveedorId], references: [id])
   pallets   IngresoIndustrialPallet[]
 
   @@map("ingresos_industrial")
 }
 
 model PalletIndustrial {
-  id               String          @id @default(cuid())
-  numero           String          @unique // ej. PINDUSTRIAL-0001
+  id               String                 @id @default(cuid())
+  numero           String                 @unique // ej. PINDUSTRIAL-0001
   // De qué lado vino el descarte que arma este pallet: nunca se mezclan (un
   // pallet es 100% Descarte Campo -líneas de Ingreso de Materia Prima- o
   // 100% Descarte Planta -líneas de Ingreso INDUSTRIAL-), aunque ambos orígenes
   // comparten la misma numeración y aparecen juntos en Tarjas Industrial.
   origen           OrigenPalletIndustrial
-  cantidadBandejas Int             @default(0)
-  pesoBrutoTotalKg Decimal         @default(0) @db.Decimal(10, 3)
-  pesoTaraTotalKg  Decimal         @default(0) @db.Decimal(10, 3)
-  pesoNetoKg       Decimal         @default(0) @db.Decimal(10, 3)
-  estado           EstadoPallet    @default(ABIERTO)
+  cantidadBandejas Int                    @default(0)
+  pesoBrutoTotalKg Decimal                @default(0) @db.Decimal(10, 3)
+  pesoTaraTotalKg  Decimal                @default(0) @db.Decimal(10, 3)
+  pesoNetoKg       Decimal                @default(0) @db.Decimal(10, 3)
+  estado           EstadoPallet           @default(ABIERTO)
   creadoPorId      String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   lineas      IngresoIndustrialPallet[]
   lineasFruta IngresoFrutaPallet[]
@@ -1747,31 +1747,31 @@ model PalletIndustrial {
 // IngresoFrutaPallet); tipoProducto queda fijo en "Descarte Planta" desde el
 // server action, no es elegible en el formulario.
 model IngresoIndustrialPallet {
-  id               String   @id @default(cuid())
-  ingresoIndustrialId     String
-  numeroPallet     Int // correlativo de la línea dentro de este ingreso
-  palletId         String
-  variedad         String
+  id                  String   @id @default(cuid())
+  ingresoIndustrialId String
+  numeroPallet        Int // correlativo de la línea dentro de este ingreso
+  palletId            String
+  variedad            String
   // Un camión puede traer descarte de variedades cosechadas en fechas
   // distintas, así que cada línea tiene su propia fecha de cosecha (ya
   // no es un solo valor por ingreso, ver IngresoIndustrial). Se valida contra
   // Ingreso de Materia Prima (ver validarVariedadesContraMateriaPrima en
   // lib/actions/ingreso-industrial-actions.ts).
-  fechaCosecha     DateTime
-  tipoProducto     String // fijo: "Descarte Planta"
-  tipoPalletId     String?
-  tipoBandejaId    String
-  cantidadBandejas Int
-  pesoBrutoTotalKg Decimal  @db.Decimal(10, 3)
-  pesoTaraTotalKg  Decimal  @db.Decimal(10, 3)
-  pesoNetoKg       Decimal  @db.Decimal(10, 3)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  fechaCosecha        DateTime
+  tipoProducto        String // fijo: "Descarte Planta"
+  tipoPalletId        String?
+  tipoBandejaId       String
+  cantidadBandejas    Int
+  pesoBrutoTotalKg    Decimal  @db.Decimal(10, 3)
+  pesoTaraTotalKg     Decimal  @db.Decimal(10, 3)
+  pesoNetoKg          Decimal  @db.Decimal(10, 3)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  ingresoIndustrial  IngresoIndustrial  @relation(fields: [ingresoIndustrialId], references: [id], onDelete: Cascade)
-  pallet      PalletIndustrial   @relation(fields: [palletId], references: [id])
-  tipoPallet  TipoPallet? @relation(fields: [tipoPalletId], references: [id])
-  tipoBandeja TipoBandeja @relation(fields: [tipoBandejaId], references: [id])
+  ingresoIndustrial IngresoIndustrial @relation(fields: [ingresoIndustrialId], references: [id], onDelete: Cascade)
+  pallet            PalletIndustrial  @relation(fields: [palletId], references: [id])
+  tipoPallet        TipoPallet?       @relation(fields: [tipoPalletId], references: [id])
+  tipoBandeja       TipoBandeja       @relation(fields: [tipoBandejaId], references: [id])
 
   @@unique([ingresoIndustrialId, numeroPallet])
   @@map("ingreso_industrial_pallets")
@@ -1896,30 +1896,32 @@ model Embarque {
   // > Importar PL) — todo opcional, no afecta los Embarque creados por el
   // flujo manual de antes. shipNumber es el número del cliente (ej.
   // "DEPE026- 2201"), distinto de `numero` (correlativo interno nuestro).
-  shipNumber           String?   @unique
-  growerCode           Int?
-  grower               String?
-  consignee            String?
-  notify               String?
-  vessel               String? // "Vessel/Flight"
-  blSwb                String?
-  origenPuerto         String? // "Port of Loading" (destinoPuerto ya cubre "Port of Discharge")
-  tipoEmbarque         String? // "Type Shipment": SEA/AIR
-  fechaCarga           DateTime? // "Loading Date"
-  etd                  DateTime?
-  eta                  DateTime?
-  totalCasesExcel      Int? // totales que el propio Excel declara, para el chequeo de cuadre
-  totalNetWeightExcel  Decimal?  @db.Decimal(12, 3)
+  shipNumber            String?   @unique
+  growerCode            Int?
+  grower                String?
+  consignee             String?
+  notify                String?
+  vessel                String? // "Vessel/Flight"
+  blSwb                 String?
+  origenPuerto          String? // "Port of Loading" (destinoPuerto ya cubre "Port of Discharge")
+  tipoEmbarque          String? // "Type Shipment": SEA/AIR
+  fechaCarga            DateTime? // "Loading Date"
+  etd                   DateTime?
+  eta                   DateTime?
+  totalCasesExcel       Int? // totales que el propio Excel declara, para el chequeo de cuadre
+  totalNetWeightExcel   Decimal?  @db.Decimal(12, 3)
   archivoOriginalUrl    String? // ruta en Supabase Storage
   archivoOriginalNombre String?
-  archivoHash           String? @unique // SHA-256 del archivo subido, detecta re-subir el mismo
+  archivoHash           String?   @unique // SHA-256 del archivo subido, detecta re-subir el mismo
   importadoPorId        String?
-  importadoEn            DateTime?
+  importadoEn           DateTime?
 
-  cliente        Cliente?         @relation(fields: [clienteId], references: [id])
-  packingLists   PackingList[]
-  pallets        EmbarquePallet[]
-  rechazoCorreos RechazoCorreo[]
+  cliente              Cliente?            @relation(fields: [clienteId], references: [id])
+  packingLists         PackingList[]
+  pallets              EmbarquePallet[]
+  rechazoCorreos       RechazoCorreo[]
+  facturacionHistorica HistoricalBilling[]
+  preciosRegistrados   PriceRecord[]
 
   @@map("embarques")
 }
@@ -1994,20 +1996,20 @@ model RechazoCorreo {
   id                         String              @id @default(cuid())
   embarqueId                 String?
   poNumber                   String?
-  asuntoCorreo                String?
+  asuntoCorreo               String?
   remitente                  String?
-  fechaCorreo                 DateTime?
-  archivoOriginalUrl          String // imagen del correo en Supabase Storage
-  archivoOriginalNombre       String
-  archivoHash                 String              @unique // detecta el mismo correo re-subido
-  textoExtraido                String              @db.Text // texto OCR crudo, para auditoría/depuración
-  totalPalletsCorreo           Int?
-  totalCajasRechazadasCorreo   Int?
-  estado                      EstadoRechazoCorreo @default(PENDIENTE)
-  creadoPorId                  String?
-  createdAt                    DateTime            @default(now())
+  fechaCorreo                DateTime?
+  archivoOriginalUrl         String // imagen del correo en Supabase Storage
+  archivoOriginalNombre      String
+  archivoHash                String              @unique // detecta el mismo correo re-subido
+  textoExtraido              String              @db.Text // texto OCR crudo, para auditoría/depuración
+  totalPalletsCorreo         Int?
+  totalCajasRechazadasCorreo Int?
+  estado                     EstadoRechazoCorreo @default(PENDIENTE)
+  creadoPorId                String?
+  createdAt                  DateTime            @default(now())
 
-  embarque Embarque?    @relation(fields: [embarqueId], references: [id])
+  embarque Embarque?     @relation(fields: [embarqueId], references: [id])
   items    RechazoItem[]
 
   @@map("rechazo_correos")
@@ -2159,6 +2161,153 @@ model FacturacionExportacion {
   @@index([po])
   @@index([statusEmbarque])
   @@map("facturacion_exportacion")
+}
+
+// =========================================================================
+// BASE DE DATOS CENTRALIZADA DE EXPORTACIONES (COMEX) — migración histórica
+// de Facturación con las 130 columnas originales + Gestión de Precios. No
+// reemplaza ni modifica facturacion_exportacion/el dashboard original (ver
+// plan "COMEX: Base de datos centralizada de Exportaciones").
+// =========================================================================
+
+enum TipoImportacionComex {
+  FACTURACION_HISTORICA
+}
+
+enum EstadoImportacionComex {
+  COMPLETADO
+  ERROR
+}
+
+// Control de "ya se migró" (no se vuelve a importar el mismo archivo sin
+// una acción explícita) + auditoría de cada corrida — nunca se borra.
+model ImportHistory {
+  id             String                 @id @default(cuid())
+  tipo           TipoImportacionComex
+  archivoNombre  String
+  archivoUrl     String? // respaldo del archivo original en Supabase Storage
+  archivoHash    String                 @unique // detecta re-subir el mismo archivo
+  registros      Int
+  estado         EstadoImportacionComex
+  errores        String[]
+  ejecutadoPorId String?
+  createdAt      DateTime               @default(now())
+
+  registrosHistoricos HistoricalBilling[]
+
+  @@map("import_history")
+}
+
+// Un registro histórico de la hoja "Facturación" del Excel de exportación.
+// Preserva las 130 columnas originales en datosOriginales (header -> valor,
+// tal cual, errores de fórmula incluidos como texto, nunca como 0) +
+// camposConError para saber cuáles de esas columnas traían #DIV/0!/#VALUE!
+// en esta fila. Además guarda un subconjunto TIPADO con los mismos
+// campos/tipos que FacturacionExportacion (dashboard actual) para poder
+// reusar lib/facturacion-exportacion.ts sin reescribirlo en el nuevo
+// Dashboard Exportaciones - Prueba / Conciliación.
+model HistoricalBilling {
+  id              String @id @default(cuid())
+  sourceFile      String
+  sourceRowNumber Int // fila real del Excel (ej. 7..435)
+  importHistoryId String
+
+  dispatchDate         DateTime
+  dispWeek             Int
+  customer             String
+  market               String
+  originPort           String
+  destinationCountry   String
+  format               String
+  po                   String
+  transportMode        String
+  weekEta              Int?
+  weekAta              Int?
+  statusEmbarque       String
+  settlementStatus     String
+  variety              String
+  type                 String
+  label                String
+  destino              String?
+  totalFob             Decimal  @db.Decimal(14, 2)
+  invoicedAmount       Decimal  @db.Decimal(14, 2)
+  cifLiquidatedTariffs Decimal  @db.Decimal(14, 2)
+  netWeight            Decimal  @db.Decimal(14, 3)
+  netKilosLiquidated   Decimal  @db.Decimal(14, 3)
+
+  datosOriginales Json
+  camposConError  String[]
+
+  // Enlace opcional a un Embarque ya importado por Importar PL — por PO
+  // normalizado (mismo criterio que normalizarShipNumber de Registro de
+  // Rechazos), null si no hay match confiable (se puede vincular a mano).
+  embarqueId           String?
+  embarqueVinculadoPor String? // "AUTOMATICO" | "MANUAL"
+  createdAt            DateTime @default(now())
+
+  importHistory ImportHistory @relation(fields: [importHistoryId], references: [id])
+  embarque      Embarque?     @relation(fields: [embarqueId], references: [id])
+
+  @@index([po])
+  @@index([dispatchDate])
+  @@index([sourceFile, sourceRowNumber])
+  @@map("historical_billing")
+}
+
+enum UnidadPrecio {
+  USD_KG
+  USD_CAJA
+}
+
+enum TipoPrecio {
+  FOB
+  FREIGHT
+  INTERNATIONAL_INSURANCE
+  CIF
+}
+
+// Gestión de Precios — precios ingresados a mano desde la aplicación,
+// separados de lo histórico importado. Permite más de un precio por
+// PO/producto (nunca se asume que un mismo producto tiene siempre el
+// mismo precio).
+model PriceRecord {
+  id             String       @id @default(cuid())
+  po             String?
+  embarqueId     String?
+  productoSku    String?
+  variedad       String?
+  precioUnitario Decimal      @db.Decimal(14, 4)
+  moneda         String       @default("USD")
+  unidad         UnidadPrecio
+  incoterm       String?
+  tipoPrecio     TipoPrecio
+  vigenteDesde   DateTime?
+  vigenteHasta   DateTime?
+  creadoPorId    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  embarque  Embarque?      @relation(fields: [embarqueId], references: [id])
+  historial PriceHistory[]
+
+  @@index([po])
+  @@index([embarqueId])
+  @@map("price_records")
+}
+
+// Historial de cambios de PriceRecord — nunca se sobrescribe un precio
+// anterior sin dejar su registro.
+model PriceHistory {
+  id              String   @id @default(cuid())
+  priceRecordId   String
+  precioAnterior  Decimal  @db.Decimal(14, 4)
+  precioNuevo     Decimal  @db.Decimal(14, 4)
+  modificadoPorId String?
+  createdAt       DateTime @default(now())
+
+  priceRecord PriceRecord @relation(fields: [priceRecordId], references: [id], onDelete: Cascade)
+
+  @@map("price_history")
 }
 
 // =========================================================================

@@ -2,18 +2,31 @@ import { createSupabaseAdminClient } from "@/lib/auth/supabase-admin";
 
 const BUCKET = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "documentos";
 
+// Supabase Storage rechaza ("Invalid key") rutas con tildes/ñ u otros
+// caracteres fuera de un set seguro — varios llamadores de subirArchivo
+// construyen la ruta a partir de archivo.name (nombre real que sube el
+// usuario, con acentos/espacios), así que se sanitiza acá una sola vez
+// para todos, en vez de en cada callsite. Los "/" del path no se tocan.
+function sanitizarRuta(ruta: string): string {
+  return ruta
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9/._-]/g, "_");
+}
+
 // Sube un archivo al bucket privado de Storage. SOLO debe llamarse desde
 // Server Actions o Route Handlers (usa la service role key, ver
 // lib/auth/supabase-admin.ts). Devuelve la ruta dentro del bucket (no una
 // URL pública: el bucket no es público, ver obtenerUrlFirmadaArchivo).
 export async function subirArchivo(ruta: string, archivo: File): Promise<string> {
+  const rutaSegura = sanitizarRuta(ruta);
   const supabase = createSupabaseAdminClient();
-  const { error } = await supabase.storage.from(BUCKET).upload(ruta, archivo, {
+  const { error } = await supabase.storage.from(BUCKET).upload(rutaSegura, archivo, {
     contentType: archivo.type || "application/octet-stream",
     upsert: true,
   });
   if (error) throw new Error(`No se pudo subir el archivo: ${error.message}`);
-  return ruta;
+  return rutaSegura;
 }
 
 // URL firmada de corta duración para descargar/ver un archivo privado. Se
