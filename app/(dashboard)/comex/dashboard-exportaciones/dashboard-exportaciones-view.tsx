@@ -19,6 +19,8 @@ import {
   calcularResumenPorEstado,
   calcularPorLiquidar,
   calcularImpactoLiquidacion,
+  aplicarProyeccionCierre,
+  calcularCierreProyectado,
   type FilaFacturacion,
   type FiltrosFacturacion,
 } from "@/lib/facturacion-exportacion";
@@ -67,7 +69,12 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
     [filasFiltradas]
   );
   const embarquesCombinadoPorSemana = useMemo(() => calcularEmbarquesCombinadoPorSemana(filasFiltradas), [filasFiltradas]);
-  const kgPorSemanaTipo = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
+  const kgPorSemanaTipoBase = useMemo(() => calcularKgPorSemanaYCampo(filasFiltradas, "type"), [filasFiltradas]);
+  const kgPorSemanaTipo = useMemo(
+    () => ({ ...kgPorSemanaTipoBase, puntos: aplicarProyeccionCierre(kgPorSemanaTipoBase.puntos, kgPorSemanaTipoBase.series) }),
+    [kgPorSemanaTipoBase]
+  );
+  const cierreProyectado = useMemo(() => calcularCierreProyectado(kgPorSemanaTipo.puntos), [kgPorSemanaTipo]);
 
   // Resumen rápido de contenedores (arribados vs. en agua).
   const resumenEstado = useMemo(() => calcularResumenPorEstado(filasFiltradas), [filasFiltradas]);
@@ -135,9 +142,20 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
 
       <StackedBarChart
         titulo="Kg por semana de despacho según tipo de producto"
+        descripcion="Semanas 48 a 52: proyección de cierre (barras más claras) hasta que haya despacho real."
         puntos={kgPorSemanaTipo.puntos}
         series={kgPorSemanaTipo.series}
         bordeSuperiorPx={8}
+        actions={
+          cierreProyectado && (
+            <p className="text-sm text-muted-foreground">
+              Cierre proyectado:{" "}
+              <span className="font-medium text-foreground">Premium {cierreProyectado.premiumPct.toFixed(1)}%</span>
+              {" · "}
+              <span className="font-medium text-foreground">Convencional {cierreProyectado.convencionalPct.toFixed(1)}%</span>
+            </p>
+          )
+        }
       />
 
       <VariedadTipoChart titulo="Kg exportados por variedad, según tipo" datos={exportacionesPorVariedadYTipo} />

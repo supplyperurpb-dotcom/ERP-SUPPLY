@@ -510,6 +510,52 @@ export function calcularKgPorSemanaYCampo(
   return { puntos, series };
 }
 
+// Proyección de cierre de campaña (pedido explícito, 2026-11-25): mientras
+// no haya despacho real para estas semanas, se usa el estimado semanal de
+// Premium (PL) / Convencional (YL) que maneja el equipo comercial, en Kg.
+// Actualizar este mapa a mano cuando cambie el estimado; apenas el Excel
+// traiga despacho real de una de estas semanas, aplicarProyeccionCierre deja
+// de proyectarla (la fila real manda, nunca se mezcla con la proyección).
+const PROYECCION_CIERRE_SEMANAL: { semana: number; PREMIUM: number; CONVENCIONAL: number }[] = [
+  { semana: 48, PREMIUM: 14355, CONVENCIONAL: 20388 },
+  { semana: 49, PREMIUM: 13926, CONVENCIONAL: 20352 },
+  { semana: 50, PREMIUM: 13446, CONVENCIONAL: 21776 },
+  { semana: 51, PREMIUM: 13220, CONVENCIONAL: 22940 },
+  { semana: 52, PREMIUM: 9850, CONVENCIONAL: 32646 },
+];
+
+// Agrega al resultado de calcularKgPorSemanaYCampo(filas, "type") las
+// semanas de PROYECCION_CIERRE_SEMANAL que todavía no tengan una fila real
+// en `puntos`. Cada punto proyectado queda marcado con `proyectado: 1` para
+// que el gráfico lo pinte más claro (ver StackedBarChart).
+export function aplicarProyeccionCierre(puntos: PuntoApilado[], series: string[]): PuntoApilado[] {
+  const semanasReales = new Set(puntos.map((p) => Number(p.categoria)));
+  const proyectados = PROYECCION_CIERRE_SEMANAL.filter((p) => !semanasReales.has(p.semana)).map((p) => {
+    const punto: PuntoApilado = { categoria: String(p.semana), proyectado: 1 };
+    for (const s of series) punto[s] = s === "PREMIUM" ? p.PREMIUM : s === "CONVENCIONAL" ? p.CONVENCIONAL : 0;
+    return punto;
+  });
+  return [...puntos, ...proyectados].sort((a, b) => Number(a.categoria) - Number(b.categoria));
+}
+
+export type CierreProyectado = { premiumPct: number; convencionalPct: number };
+
+// % acumulado de Premium/Convencional con el que cerraría la campaña, sumando
+// semanas reales + proyectadas — se calcula sobre el mismo arreglo que ya
+// pinta el gráfico, para que el número de arriba siempre cuadre con las
+// barras.
+export function calcularCierreProyectado(puntos: PuntoApilado[]): CierreProyectado | null {
+  let premium = 0;
+  let convencional = 0;
+  for (const p of puntos) {
+    premium += Number(p.PREMIUM ?? 0);
+    convencional += Number(p.CONVENCIONAL ?? 0);
+  }
+  const total = premium + convencional;
+  if (total === 0) return null;
+  return { premiumPct: (premium / total) * 100, convencionalPct: (convencional / total) * 100 };
+}
+
 export type PorLiquidarMercado = { mercado: string; kg: number; valor: number; puCif: number | null };
 export type PorLiquidarResumen = { kg: number; valor: number; puCif: number | null; porMercado: PorLiquidarMercado[] };
 

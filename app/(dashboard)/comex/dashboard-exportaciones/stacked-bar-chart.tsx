@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { SectionCard } from "@/components/ui/cards/section-card";
@@ -22,11 +23,14 @@ function formaSuperiorSegunTope(series: string[], dataKeyActual: string, radioPx
     if (width <= 0 || height <= 0) return <g />;
     const serieTope = [...series].reverse().find((s) => Number(payload?.[s] ?? 0) > 0);
     const r = serieTope === dataKeyActual ? Math.max(0, Math.min(radioPx, width / 2, height)) : 0;
+    // Semanas proyectadas (sin despacho real todavía) se pintan más claras,
+    // para no confundirlas con las barras reales.
+    const opacidad = Number(payload?.proyectado ?? 0) === 1 ? Math.min(fillOpacity, 0.45) : fillOpacity;
     if (r <= 0) {
-      return <rect x={x} y={y} width={width} height={height} fill={fill} fillOpacity={fillOpacity} />;
+      return <rect x={x} y={y} width={width} height={height} fill={fill} fillOpacity={opacidad} />;
     }
     const d = `M${x},${y + r} A${r},${r} 0 0 1 ${x + r},${y} L${x + width - r},${y} A${r},${r} 0 0 1 ${x + width},${y + r} L${x + width},${y + height} L${x},${y + height} Z`;
-    return <path d={d} fill={fill} fillOpacity={fillOpacity} />;
+    return <path d={d} fill={fill} fillOpacity={opacidad} />;
   }
   return FormaSuperior;
 }
@@ -60,10 +64,14 @@ function ContenidoTooltip({
   // Valorizado facturado total de la categoría (semana), si el punto lo
   // trae — solo calcularEmbarquesCombinadoPorSemana lo incluye hoy.
   const valorFacturado = typeof fila?.invoicedAmount === "number" ? fila.invoicedAmount : null;
+  const esProyectado = Number(fila?.proyectado ?? 0) === 1;
 
   return (
     <div className="rounded-md border bg-popover p-2 text-sm text-popover-foreground shadow-md">
-      <p className="mb-1 font-medium">{formatearCategoria ? formatearCategoria(String(label)) : label}</p>
+      <p className="mb-1 font-medium">
+        {formatearCategoria ? formatearCategoria(String(label)) : label}
+        {esProyectado && <span className="ml-1 font-normal text-muted-foreground">(proyectado)</span>}
+      </p>
       {entradas.map((p) => {
         const valor = Number(p.value);
         const pctTexto = ocultarPorcentaje || total === 0 ? "" : ` (${((valor / total) * 100).toFixed(1)}%)`;
@@ -99,6 +107,7 @@ export function StackedBarChart({
   ocultarPorcentaje = false,
   formatearCategoria,
   bordeSuperiorPx,
+  actions,
 }: {
   titulo: string;
   descripcion?: string;
@@ -118,12 +127,14 @@ export function StackedBarChart({
    * gráfico queda con esquinas rectas en todos sus segmentos.
    */
   bordeSuperiorPx?: number;
+  /** Contenido libre arriba a la derecha del título (ej. un % de cierre proyectado). */
+  actions?: ReactNode;
 }) {
   const fmt = formatearValor ?? ((v: number) => formatCantidad(v));
   const mostrarSerie = etiquetaSerie ?? ((s: string) => s);
 
   return (
-    <SectionCard title={titulo} description={descripcion}>
+    <SectionCard title={titulo} description={descripcion} actions={actions}>
       {puntos.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Sin datos para este filtro.</p>
       ) : (
