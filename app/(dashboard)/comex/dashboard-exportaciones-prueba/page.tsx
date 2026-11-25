@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
+import { aFilaFacturacion, SELECT_SUBCONJUNTO_TIPADO } from "@/lib/comex/mapeo-facturacion";
 import { DashboardExportacionesView } from "../dashboard-exportaciones/dashboard-exportaciones-view";
 
 // Réplica funcional del Dashboard Exportaciones original (mismo diseño,
@@ -11,30 +12,7 @@ import { DashboardExportacionesView } from "../dashboard-exportaciones/dashboard
 // dashboard original NO se modifica.
 export default async function DashboardExportacionesPruebaPage() {
   const filas = await prisma.historicalBilling.findMany({
-    select: {
-      dispatchDate: true,
-      dispWeek: true,
-      customer: true,
-      market: true,
-      originPort: true,
-      destinationCountry: true,
-      format: true,
-      po: true,
-      transportMode: true,
-      weekEta: true,
-      weekAta: true,
-      statusEmbarque: true,
-      settlementStatus: true,
-      variety: true,
-      type: true,
-      label: true,
-      destino: true,
-      totalFob: true,
-      invoicedAmount: true,
-      cifLiquidatedTariffs: true,
-      netWeight: true,
-      netKilosLiquidated: true,
-    },
+    select: SELECT_SUBCONJUNTO_TIPADO,
     orderBy: { dispatchDate: "asc" },
   });
 
@@ -44,32 +22,7 @@ export default async function DashboardExportacionesPruebaPage() {
         titulo="Resumen de Exportaciones (Prueba)"
         descripcion="Misma información y cálculos del Dashboard Exportaciones original, pero leyendo desde la migración histórica en Supabase (HistoricalBilling) en vez del Excel sincronizado a mano."
       />
-      <DashboardExportacionesView
-        filas={filas.map((f) => ({
-          dispatchDate: f.dispatchDate,
-          dispWeek: f.dispWeek,
-          customer: f.customer,
-          market: f.market,
-          originPort: f.originPort,
-          destinationCountry: f.destinationCountry,
-          format: f.format,
-          po: f.po,
-          transportMode: f.transportMode,
-          weekEta: f.weekEta,
-          weekAta: f.weekAta,
-          statusEmbarque: f.statusEmbarque,
-          settlementStatus: f.settlementStatus,
-          variety: f.variety,
-          type: f.type,
-          label: f.label,
-          destino: f.destino,
-          totalFob: Number(f.totalFob),
-          invoicedAmount: Number(f.invoicedAmount),
-          cifLiquidatedTariffs: Number(f.cifLiquidatedTariffs),
-          netWeight: Number(f.netWeight),
-          netKilosLiquidated: Number(f.netKilosLiquidated),
-        }))}
-      />
+      <DashboardExportacionesView filas={filas.map(aFilaFacturacion)} />
     </div>
   );
 }
