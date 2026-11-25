@@ -18,40 +18,12 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, LayoutList } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn, formatCantidad, formatDate, formatMoneda } from "@/lib/utils";
 import type { FilaProgramaEntregas } from "@/lib/programa-entregas";
-import type { EstadoDocumento, EstadoEntregaProgramada } from "@prisma/client";
-
-const ESTADO_OC_LABEL: Record<EstadoDocumento, string> = {
-  BORRADOR: "Borrador",
-  PENDIENTE: "Pendiente VB",
-  APROBADO: "Aprobada",
-  RECHAZADO: "Rechazada",
-  ANULADO: "Anulada",
-};
-
-const ESTADO_OC_VARIANT: Record<EstadoDocumento, "success" | "destructive" | "secondary"> = {
-  BORRADOR: "secondary",
-  PENDIENTE: "secondary",
-  APROBADO: "success",
-  RECHAZADO: "destructive",
-  ANULADO: "destructive",
-};
-
-const ESTADO_ENTREGA_LABEL: Record<EstadoEntregaProgramada, string> = {
-  PROGRAMADA: "Programada",
-  ANULADA: "Anulada",
-};
-
-const ESTADO_ENTREGA_VARIANT: Record<EstadoEntregaProgramada, "success" | "destructive"> = {
-  PROGRAMADA: "success",
-  ANULADA: "destructive",
-};
 
 function diaKey(fecha: Date): string {
   return format(fecha, "yyyy-MM-dd");
@@ -73,12 +45,6 @@ function filaCols(f: FilaProgramaEntregas, mostrarFecha: boolean) {
       <TableCell className="text-right">{formatCantidad(f.cantidad)}</TableCell>
       <TableCell className="text-right">{formatMoneda(f.precioUnitario, f.moneda)}</TableCell>
       <TableCell className="text-right font-medium">{formatMoneda(f.valor, f.moneda)}</TableCell>
-      <TableCell>
-        <Badge variant={ESTADO_OC_VARIANT[f.estadoOC]}>{ESTADO_OC_LABEL[f.estadoOC]}</Badge>
-      </TableCell>
-      <TableCell>
-        <Badge variant={ESTADO_ENTREGA_VARIANT[f.estadoEntrega]}>{ESTADO_ENTREGA_LABEL[f.estadoEntrega]}</Badge>
-      </TableCell>
     </TableRow>
   );
 }
@@ -98,8 +64,6 @@ function TablaEntregas({ filas, mostrarFecha = true }: { filas: FilaProgramaEntr
             <TableHead className="text-right">Cantidad</TableHead>
             <TableHead className="text-right">Precio unitario</TableHead>
             <TableHead className="text-right">Valor</TableHead>
-            <TableHead>Estado OC</TableHead>
-            <TableHead>Estado programa</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>{filas.map((f) => filaCols(f, mostrarFecha))}</TableBody>

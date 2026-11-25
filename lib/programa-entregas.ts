@@ -1,14 +1,11 @@
 import { prisma } from "@/lib/db/prisma";
-import type { EstadoDocumento, EstadoEntregaProgramada, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 export type FiltrosProgramaEntregas = {
   desde?: string;
   hasta?: string;
-  producto?: string;
-  proveedor?: string;
-  numeroOC?: string;
-  estadoOC?: EstadoDocumento;
-  estadoEntrega?: EstadoEntregaProgramada;
+  /** Busca por código/descripción de producto, proveedor o N.º de OC/OS, todo en un solo campo. */
+  busqueda?: string;
 };
 
 export type FilaProgramaEntregas = {
@@ -25,40 +22,35 @@ export type FilaProgramaEntregas = {
   moneda: string;
   /** cantidad * precioUnitario — nunca se guarda, siempre se calcula (ver OrdenCompraEntrega en prisma/schema.prisma). */
   valor: number;
-  estadoOC: EstadoDocumento;
-  estadoEntrega: EstadoEntregaProgramada;
 };
 
 // Una sola consulta que arma el listado del submódulo "Programa de
 // Entregas" (tabla, tarjetas de resumen y calendario, todos a partir del
 // mismo arreglo ya filtrado — nunca una segunda query, para que nunca se
-// desalineen entre sí). Mismo patrón de filtros por URL que
-// app/(dashboard)/comex/consulta-rechazos/page.tsx.
+// desalineen entre sí). Pedido explícito, 2026-11-25: acá solo entran
+// entregas de órdenes APROBADAS (aprobadas y liberadas totalmente) — ni
+// borrador, ni pendientes, ni rechazadas/anuladas, así que no hace falta
+// ningún filtro de estado.
 export async function obtenerEntregasProgramadas(filtros: FiltrosProgramaEntregas): Promise<FilaProgramaEntregas[]> {
+  const busqueda = filtros.busqueda?.trim();
+
   const where: Prisma.OrdenCompraEntregaWhereInput = {
     AND: [
+      { ordenCompraItem: { ordenCompra: { estado: "APROBADO" } } },
       filtros.desde ? { fechaTentativa: { gte: new Date(filtros.desde) } } : {},
       filtros.hasta ? { fechaTentativa: { lte: new Date(filtros.hasta) } } : {},
-      filtros.estadoEntrega ? { estado: filtros.estadoEntrega } : {},
-      filtros.producto
+      busqueda
         ? {
             ordenCompraItem: {
-              sku: {
-                OR: [
-                  { codigo: { contains: filtros.producto, mode: "insensitive" } },
-                  { descripcion: { contains: filtros.producto, mode: "insensitive" } },
-                ],
-              },
+              OR: [
+                { sku: { codigo: { contains: busqueda, mode: "insensitive" } } },
+                { sku: { descripcion: { contains: busqueda, mode: "insensitive" } } },
+                { ordenCompra: { proveedor: { razonSocial: { contains: busqueda, mode: "insensitive" } } } },
+                { ordenCompra: { numero: { contains: busqueda, mode: "insensitive" } } },
+              ],
             },
           }
         : {},
-      filtros.proveedor
-        ? { ordenCompraItem: { ordenCompra: { proveedor: { razonSocial: { contains: filtros.proveedor, mode: "insensitive" } } } } }
-        : {},
-      filtros.numeroOC
-        ? { ordenCompraItem: { ordenCompra: { numero: { contains: filtros.numeroOC, mode: "insensitive" } } } }
-        : {},
-      filtros.estadoOC ? { ordenCompraItem: { ordenCompra: { estado: filtros.estadoOC } } } : {},
     ],
   };
 
@@ -91,8 +83,6 @@ export async function obtenerEntregasProgramadas(filtros: FiltrosProgramaEntrega
       precioUnitario,
       moneda: orden.moneda,
       valor: Math.round(cantidad * precioUnitario * 100) / 100,
-      estadoOC: orden.estado,
-      estadoEntrega: entrega.estado,
     };
   });
 }

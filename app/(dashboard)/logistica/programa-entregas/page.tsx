@@ -5,51 +5,25 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 import { KPICard } from "@/components/ui/cards/kpi-card";
 import { formatMoneda } from "@/lib/utils";
 import { obtenerEntregasProgramadas } from "@/lib/programa-entregas";
 import { ProgramaEntregasView } from "./programa-entregas-view";
-import type { EstadoDocumento, EstadoEntregaProgramada } from "@prisma/client";
-
-const ESTADOS_OC: { valor: EstadoDocumento; nombre: string }[] = [
-  { valor: "BORRADOR", nombre: "Borrador" },
-  { valor: "PENDIENTE", nombre: "Pendiente VB" },
-  { valor: "APROBADO", nombre: "Aprobada" },
-  { valor: "RECHAZADO", nombre: "Rechazada" },
-  { valor: "ANULADO", nombre: "Anulada" },
-];
-
-const ESTADOS_ENTREGA: { valor: EstadoEntregaProgramada; nombre: string }[] = [
-  { valor: "PROGRAMADA", nombre: "Programada" },
-  { valor: "ANULADA", nombre: "Anulada" },
-];
 
 type SearchParams = {
   desde?: string;
   hasta?: string;
-  producto?: string;
-  proveedor?: string;
-  numeroOC?: string;
-  estadoOC?: string;
-  estadoEntrega?: string;
+  busqueda?: string;
 };
 
 export default async function ProgramaEntregasPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const estadoOC = sp.estadoOC && sp.estadoOC !== "__todos__" ? (sp.estadoOC as EstadoDocumento) : undefined;
-  const estadoEntrega =
-    sp.estadoEntrega && sp.estadoEntrega !== "__todos__" ? (sp.estadoEntrega as EstadoEntregaProgramada) : undefined;
 
   const filas = await obtenerEntregasProgramadas({
     desde: sp.desde || undefined,
     hasta: sp.hasta || undefined,
-    producto: sp.producto || undefined,
-    proveedor: sp.proveedor || undefined,
-    numeroOC: sp.numeroOC || undefined,
-    estadoOC,
-    estadoEntrega,
+    busqueda: sp.busqueda || undefined,
   });
 
   // Tarjetas de resumen: siempre a partir del MISMO arreglo ya filtrado
@@ -64,64 +38,28 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
     valorPorMoneda.set(f.moneda, (valorPorMoneda.get(f.moneda) ?? 0) + f.valor);
     const fechaIso = f.fechaTentativa.toISOString().slice(0, 10);
     if (fechaIso === hoyIso) entregasHoy++;
-    // "Pendiente" = programada y con fecha tentativa todavía no vencida.
-    if (f.estadoEntrega === "PROGRAMADA" && fechaIso >= hoyIso) entregasPendientes++;
+    if (fechaIso >= hoyIso) entregasPendientes++;
   }
 
-  const hayFiltros = !!(sp.desde || sp.hasta || sp.producto || sp.proveedor || sp.numeroOC || estadoOC || estadoEntrega);
+  const hayFiltros = !!(sp.desde || sp.hasta || sp.busqueda);
 
   return (
     <div className="space-y-6">
       <PageHeader
         titulo="Programa de Entregas"
-        descripcion="Todas las entregas programadas de todas las OC/OS, con su valorización — sin tener que entrar orden por orden."
+        descripcion="Entregas programadas de las OC/OS ya aprobadas y liberadas totalmente, con su valorización — sin tener que entrar orden por orden."
       />
 
       <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
         <FiltroRangoFecha desde={sp.desde ?? ""} hasta={sp.hasta ?? ""} label="Fecha tentativa" />
-        <div className="grid gap-1.5">
-          <Label htmlFor="producto">Producto</Label>
-          <Input id="producto" name="producto" placeholder="Código o descripción" defaultValue={sp.producto ?? ""} className="w-48" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="proveedor">Proveedor</Label>
-          <Input id="proveedor" name="proveedor" placeholder="Razón social" defaultValue={sp.proveedor ?? ""} className="w-48" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="numeroOC">N.º de OC/OS</Label>
-          <Input id="numeroOC" name="numeroOC" placeholder="OC-FO-..." defaultValue={sp.numeroOC ?? ""} className="w-40" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Estado OC/OS</Label>
-          <Select name="estadoOC" defaultValue={sp.estadoOC ?? "__todos__"}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__todos__">Todos</SelectItem>
-              {ESTADOS_OC.map((e) => (
-                <SelectItem key={e.valor} value={e.valor}>
-                  {e.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Estado programa</Label>
-          <Select name="estadoEntrega" defaultValue={sp.estadoEntrega ?? "__todos__"}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__todos__">Todos</SelectItem>
-              {ESTADOS_ENTREGA.map((e) => (
-                <SelectItem key={e.valor} value={e.valor}>
-                  {e.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid min-w-[280px] flex-1 gap-1.5">
+          <Label htmlFor="busqueda">Código, producto, proveedor o N.º de OC/OS</Label>
+          <Input
+            id="busqueda"
+            name="busqueda"
+            placeholder="Ej. NIXPRO, CROPS PROTECTION, OC-FO-000000001..."
+            defaultValue={sp.busqueda ?? ""}
+          />
         </div>
         <Button type="submit" variant="secondary">
           <Search className="mr-2 h-4 w-4" />
@@ -151,7 +89,7 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
           descripcion={
             hayFiltros
               ? "Prueba con otros filtros."
-              : "Se registran automáticamente al generar una OC/OS, en el paso Programa de Entregas."
+              : "Aparecen acá en cuanto una OC/OS con programa de entregas quede aprobada y liberada totalmente."
           }
         />
       ) : (
