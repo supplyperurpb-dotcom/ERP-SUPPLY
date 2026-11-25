@@ -141,8 +141,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
       </div>
 
       <StackedBarChart
-        titulo="Kg por semana de despacho según tipo de producto"
-        descripcion="Semanas 48 a 52: proyección de cierre (barras más claras) hasta que haya despacho real."
+        titulo="Kg por Semana Según Etiqueta"
         puntos={kgPorSemanaTipo.puntos}
         series={kgPorSemanaTipo.series}
         bordeSuperiorPx={8}
