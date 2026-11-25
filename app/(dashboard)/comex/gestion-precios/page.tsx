@@ -11,6 +11,7 @@ import { formatCantidad } from "@/lib/utils";
 import { normalizarShipNumber } from "@/lib/comex/registro-rechazos";
 import { NuevoPrecioForm } from "./nuevo-precio-form";
 import { PrecioRow } from "./precio-row";
+import { VincularEmbarqueForm } from "./vincular-embarque-form";
 
 export default async function GestionPreciosPage({
   searchParams,
@@ -20,31 +21,47 @@ export default async function GestionPreciosPage({
   const { po } = await searchParams;
   const termino = po?.trim();
 
-  let lineasBilling: { variety: string; format: string; label: string; netWeight: unknown }[] = [];
+  let lineasBilling: { variety: string; format: string; label: string; netWeight: unknown; embarqueId: string | null; embarqueVinculadoPor: string | null }[] = [];
   let lineasPallets: { variedad: string; descripcionSku: string | null; cases: number; pesoNetoKg: unknown }[] = [];
   let embarqueId: string | null = null;
+  let embarqueVinculadoPor: string | null = null;
+  let embarqueVinculado: { id: string; numero: string; shipNumber: string | null } | null = null;
   let precios: Awaited<ReturnType<typeof buscarPrecios>> = [];
 
   if (termino) {
     lineasBilling = await prisma.historicalBilling.findMany({
       where: { po: termino },
-      select: { variety: true, format: true, label: true, netWeight: true },
+      select: { variety: true, format: true, label: true, netWeight: true, embarqueId: true, embarqueVinculadoPor: true },
     });
 
-    const embarquesConShip = await prisma.embarque.findMany({
-      where: { shipNumber: { not: null } },
-      select: { id: true, shipNumber: true, numero: true },
-    });
-    const normalizado = normalizarShipNumber(termino);
-    const embarque = embarquesConShip.find(
-      (e) => (e.shipNumber && normalizarShipNumber(e.shipNumber) === normalizado) || normalizarShipNumber(e.numero) === normalizado
-    );
-    if (embarque) {
-      embarqueId = embarque.id;
+    // Se respeta el enlace YA GUARDADO en HistoricalBilling (automático en
+    // la migración, o manual — ver vincularEmbarqueFacturacionAction) en
+    // vez de volver a adivinarlo por Ship Number en cada visita. Solo si
+    // ninguna línea de Facturación tiene enlace se intenta un match en
+    // vivo (ej. un PO que todavía no está en Facturación pero sí como
+    // embarque importado por Importar PL).
+    const embarqueIdGuardado = lineasBilling.find((l) => l.embarqueId)?.embarqueId ?? null;
+    if (embarqueIdGuardado) {
+      embarqueId = embarqueIdGuardado;
+      embarqueVinculadoPor = lineasBilling.find((l) => l.embarqueId)?.embarqueVinculadoPor ?? null;
+    } else if (lineasBilling.length === 0) {
+      const embarquesConShip = await prisma.embarque.findMany({
+        where: { shipNumber: { not: null } },
+        select: { id: true, shipNumber: true, numero: true },
+      });
+      const normalizado = normalizarShipNumber(termino);
+      const embarque = embarquesConShip.find(
+        (e) => (e.shipNumber && normalizarShipNumber(e.shipNumber) === normalizado) || normalizarShipNumber(e.numero) === normalizado
+      );
+      embarqueId = embarque?.id ?? null;
+    }
+
+    if (embarqueId) {
       lineasPallets = await prisma.embarquePallet.findMany({
-        where: { embarqueId: embarque.id },
+        where: { embarqueId },
         select: { variedad: true, descripcionSku: true, cases: true, pesoNetoKg: true },
       });
+      embarqueVinculado = await prisma.embarque.findUnique({ where: { id: embarqueId }, select: { id: true, numero: true, shipNumber: true } });
     }
 
     precios = await buscarPrecios(termino, embarqueId);
@@ -84,6 +101,14 @@ export default async function GestionPreciosPage({
         />
       ) : (
         <div className="space-y-6">
+          {lineasBilling.length > 0 && (
+            <VincularEmbarqueForm
+              po={termino}
+              embarqueVinculado={embarqueVinculado}
+              embarqueVinculadoPor={embarqueVinculadoPor as "AUTOMATICO" | "MANUAL" | null}
+            />
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Productos y cantidades — {termino}</CardTitle>
