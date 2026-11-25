@@ -30,7 +30,7 @@ export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
                   {m.mercado}:
                 </span>
                 <span className="tabular-nums text-muted-foreground">
-                  {formatCantidad(m.kg)} Kg – {formatMoneda(m.valor, "USD")}
+                  {formatCantidad(Math.floor(m.kg / 1000))} TN – {formatMoneda(m.valor, "USD")}
                   {m.puCif !== null && ` (PU CIF ${formatMoneda(m.puCif, "USD")})`}
                 </span>
               </div>
