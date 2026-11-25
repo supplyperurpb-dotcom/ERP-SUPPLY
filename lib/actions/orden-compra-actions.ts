@@ -505,21 +505,23 @@ export async function anularFirmaOrdenCompraAction(
 }
 
 // Puede editar: quien la creó, o un Comprador/ADMIN (mismo criterio que
-// al crear, porque gestionan órdenes de cualquier área). Solo en BORRADOR
-// -- ver anularFirmaOrdenCompraAction para cómo se vuelve a ese estado
-// una vez que ya se firmó.
+// al crear, porque gestionan órdenes de cualquier área). Pedido explícito
+// (2026-11-25): editable en cualquier estado que no sea APROBADO/
+// RECHAZADO/ANULADO — incluso ya enviada a aprobación (PENDIENTE), no
+// solo en BORRADOR.
 function puedeEditarOrden(usuario: { id: string; roles: RolNombre[] }, orden: { creadoPorId: string | null }) {
   return esComprador(usuario) || orden.creadoPorId === usuario.id;
 }
 
 // Edita los datos generales y las líneas YA EXISTENTES de una orden en
-// BORRADOR (no se agregan ni quitan líneas acá — para eso se anula y se
-// genera una nueva desde la Solped). En BORRADOR nunca debería quedar
-// ninguna firma (nacen recién con enviarAprobacionOrdenCompraAction), pero
-// por si acaso se limpian acá sin volver a crearlas — el monto editado
-// puede cambiar de tramo de aprobación (ver rolesFirmaRequeridos), así que
-// quien edite tiene que volver a enviarla a aprobación a propósito, nunca
-// de forma automática al guardar.
+// BORRADOR o PENDIENTE (no se agregan ni quitan líneas acá — para eso se
+// anula y se genera una nueva desde la Solped). Si la orden ya tenía
+// firmas (estaba PENDIENTE), se borran y la orden vuelve a BORRADOR —
+// mismo criterio que anularFirmaOrdenCompraAction cuando se deshace la
+// última firma aprobada — porque el monto editado puede cambiar de tramo
+// de aprobación (ver rolesFirmaRequeridos), así que quien edite tiene que
+// volver a enviarla a aprobación a propósito, nunca de forma automática
+// al guardar.
 export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompraInput): Promise<OrdenCompraActionState> {
   const parsed = editarOrdenCompraSchema.safeParse(data);
   if (!parsed.success) {
@@ -536,8 +538,8 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
     if (!puedeEditarOrden(usuario, orden)) {
       return { error: "No tienes permiso para editar esta orden." };
     }
-    if (orden.estado !== "BORRADOR") {
-      return { error: "Solo se puede editar una orden en estado Borrador." };
+    if (orden.estado !== "BORRADOR" && orden.estado !== "PENDIENTE") {
+      return { error: "Esta orden ya no se puede editar (está aprobada, rechazada o anulada)." };
     }
 
     const proveedor = await prisma.proveedor.findUnique({ where: { id: proveedorId } });
@@ -614,6 +616,12 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
           subtotal,
           igv: igvRedondeado,
           montoTotal,
+          // Si venía PENDIENTE (con firmas, borradas abajo), vuelve a
+          // BORRADOR — nunca debe quedar PENDIENTE sin ninguna firma.
+          estado: "BORRADOR",
+          aprobadoPorId: null,
+          fechaAprobacion: null,
+          comentarioRechazo: null,
         },
       });
 

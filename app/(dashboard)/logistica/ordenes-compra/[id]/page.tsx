@@ -100,14 +100,21 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   const usuarioFirmantePorId = new Map(usuariosFirmantes.map((u) => [u.id, u]));
 
   // Editar: quien la creó, o Comprador/ADMIN (mismo criterio que al
-  // crear) — y solo si está en BORRADOR (nadie la firmó aún, o todos
-  // anularon su firma — ver AnularFirmaBoton más abajo).
-  const puedeEditar = !!usuario && orden.estado === "BORRADOR" && (esComprador(usuario) || orden.creadoPorId === usuario.id);
+  // crear) — en cualquier estado que no sea APROBADO/RECHAZADO/ANULADO
+  // (pedido explícito, 2026-11-25): incluso ya enviada a aprobación
+  // (PENDIENTE), no solo en BORRADOR — editarOrdenCompraAction borra sus
+  // firmas y la devuelve a BORRADOR, para que se vuelva a enviar a
+  // propósito.
+  const puedeEditar =
+    !!usuario &&
+    (orden.estado === "BORRADOR" || orden.estado === "PENDIENTE") &&
+    (esComprador(usuario) || orden.creadoPorId === usuario.id);
 
   // "Enviar a Aprobación": mismo criterio que editar, pero solo si todavía
   // no se envió — una orden que volvió a BORRADOR por deshacerse una firma
-  // ya tiene sus firmas (ver enviarAprobacionOrdenCompraAction) y no pasa
-  // por acá, sigue el flujo normal de firmas.
+  // (o por haberse editado) ya tiene sus firmas (ver
+  // enviarAprobacionOrdenCompraAction) y no pasa por acá, sigue el flujo
+  // normal de firmas.
   const puedeEnviarAprobacion = puedeEditar && orden.firmas.length === 0;
 
   // Cerrar/reabrir una posición: exclusivo de Compradores/ADMIN, a

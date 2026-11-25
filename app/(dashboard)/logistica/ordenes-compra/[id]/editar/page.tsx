@@ -19,9 +19,13 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
 
   const usuario = await getUsuarioActual();
   // Mismo criterio que editarOrdenCompraAction: quien la creó, o
-  // Comprador/ADMIN — y solo si está en BORRADOR (ver AnularFirmaBoton en
-  // el detalle para cómo se vuelve a ese estado una vez firmada).
-  const puedeEditar = !!usuario && orden.estado === "BORRADOR" && (esComprador(usuario) || orden.creadoPorId === usuario.id);
+  // Comprador/ADMIN — en cualquier estado que no sea APROBADO/RECHAZADO/
+  // ANULADO (pedido explícito, 2026-11-25): incluso ya enviada a
+  // aprobación (PENDIENTE), no solo en BORRADOR.
+  const puedeEditar =
+    !!usuario &&
+    (orden.estado === "BORRADOR" || orden.estado === "PENDIENTE") &&
+    (esComprador(usuario) || orden.creadoPorId === usuario.id);
   if (!puedeEditar) notFound();
 
   const categoria = orden.categoria as CategoriaCompraCodigo;
@@ -43,7 +47,7 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
     <div>
       <PageHeader
         titulo={`Editar ${NOMBRE_ORDEN[categoria].toLowerCase()} — ${orden.numero}`}
-        descripcion="Solo se puede editar mientras esté en estado Borrador (antes de que alguien la firme). Se pueden agregar productos nuevos, pero no quitar los ya existentes."
+        descripcion="Se puede editar mientras no esté aprobada, rechazada o anulada. Si ya estaba enviada a aprobación, al guardar vuelve a Borrador y hay que volver a enviarla. Se pueden agregar productos nuevos, pero no quitar los ya existentes."
       />
       <OrdenCompraEditarForm
         ordenId={orden.id}
