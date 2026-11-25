@@ -80,7 +80,7 @@ export function DashboardExportacionesView({ filas }: { filas: FilaFacturacion[]
     <div className="space-y-6">
       <FiltrosBar filtros={filtros} opciones={opciones} onChange={setFiltros} onLimpiar={() => setFiltros({})} />
 
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1.15fr_1.15fr_1fr_1fr]">
         <KpiCards kpis={kpis} />
         <div className="lg:col-span-2">
           <PorLiquidarCard datos={porLiquidar} />
