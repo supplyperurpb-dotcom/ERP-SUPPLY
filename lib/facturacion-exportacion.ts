@@ -517,11 +517,11 @@ export function calcularKgPorSemanaYCampo(
 // traiga despacho real de una de estas semanas, aplicarProyeccionCierre deja
 // de proyectarla (la fila real manda, nunca se mezcla con la proyección).
 const PROYECCION_CIERRE_SEMANAL: { semana: number; PREMIUM: number; CONVENCIONAL: number }[] = [
-  { semana: 48, PREMIUM: 14355, CONVENCIONAL: 20388 },
-  { semana: 49, PREMIUM: 13926, CONVENCIONAL: 20352 },
-  { semana: 50, PREMIUM: 13446, CONVENCIONAL: 21776 },
-  { semana: 51, PREMIUM: 13220, CONVENCIONAL: 22940 },
-  { semana: 52, PREMIUM: 9850, CONVENCIONAL: 32646 },
+  { semana: 48, PREMIUM: 10422.73, CONVENCIONAL: 24319.71 },
+  { semana: 49, PREMIUM: 10283.33, CONVENCIONAL: 23994.44 },
+  { semana: 50, PREMIUM: 10566.59, CONVENCIONAL: 24655.37 },
+  { semana: 51, PREMIUM: 10847.92, CONVENCIONAL: 25311.81 },
+  { semana: 52, PREMIUM: 12748.59, CONVENCIONAL: 29746.72 },
 ];
 
 // Agrega al resultado de calcularKgPorSemanaYCampo(filas, "type") las
