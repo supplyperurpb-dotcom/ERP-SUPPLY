@@ -19,6 +19,7 @@ export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
           <p className="text-2xl font-semibold tabular-nums">{formatCantidad(datos.kg)} Kg</p>
           <p className="text-base font-medium tabular-nums" style={{ color: PALETA_PENDIENTE.titulo }}>
             – {formatMoneda(datos.valor, "USD")}
+            {datos.puCif !== null && <span className="ml-2 text-sm text-muted-foreground">(PU CIF {formatMoneda(datos.puCif, "USD")})</span>}
           </p>
         </div>
         {datos.porMercado.length > 0 && (
@@ -30,6 +31,7 @@ export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
                 </span>
                 <span className="tabular-nums text-muted-foreground">
                   {formatCantidad(m.kg)} Kg – {formatMoneda(m.valor, "USD")}
+                  {m.puCif !== null && ` (PU CIF ${formatMoneda(m.puCif, "USD")})`}
                 </span>
               </div>
             ))}
