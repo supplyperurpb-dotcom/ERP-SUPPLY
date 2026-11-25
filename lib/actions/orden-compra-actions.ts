@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import type { RolNombre } from "@/lib/auth/constants";
 import { siguienteNumero } from "@/lib/utils";
+import { subirArchivo } from "@/lib/storage";
 import { IGV_TASA, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import {
   cantidadPendiente,
@@ -25,6 +26,47 @@ import {
 
 export type OrdenCompraActionState = { error?: string; id?: string } | undefined;
 
+// Tipos permitidos para el sustento adjunto al generar la orden (pedido
+// explícito, 2026-11-25): PDF, Word, Excel o una imagen — nunca un
+// ejecutable u otro formato arbitrario.
+const TIPOS_SUSTENTO_PERMITIDOS = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
+// Sube el sustento ANTES de crear la orden (el formulario arma el payload
+// a mano, no FormData — ver orden-compra-form.tsx/orden-compra-directa-
+// form.tsx): devuelve la ruta en el bucket privado para que el submit
+// final la incluya como archivo/nombreArchivo en crearOrdenCompra(Directa)Action.
+export async function subirArchivoSustentoOrdenAction(
+  formData: FormData
+): Promise<{ path?: string; nombreArchivo?: string; error?: string }> {
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Selecciona un archivo." };
+  if (!TIPOS_SUSTENTO_PERMITIDOS.includes(archivo.type)) {
+    return { error: "Formato no permitido. Sube un PDF, Word, Excel o una imagen." };
+  }
+  if (archivo.size > 15 * 1024 * 1024) return { error: "El archivo no puede superar 15 MB." };
+
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const extension = archivo.name.includes(".") ? archivo.name.split(".").pop() : "bin";
+  const ruta = `ordenes-compra/sustentos/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+  try {
+    const path = await subirArchivo(ruta, archivo);
+    return { path, nombreArchivo: archivo.name };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo subir el archivo." };
+  }
+}
+
 export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<OrdenCompraActionState> {
   const parsed = ordenCompraSchema.safeParse(data);
   if (!parsed.success) {
@@ -42,6 +84,8 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
     observaciones,
     moneda,
     items,
+    archivo,
+    nombreArchivo,
   } = parsed.data;
 
   const usuario = await getUsuarioActual();
@@ -122,6 +166,8 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
           igv: igvRedondeado,
           montoTotal,
           creadoPorId: usuario?.id,
+          archivo,
+          nombreArchivo,
         },
       });
 
@@ -182,6 +228,8 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
     observaciones,
     moneda,
     items,
+    archivo,
+    nombreArchivo,
   } = parsed.data;
 
   const usuario = await getUsuarioActual();
@@ -225,6 +273,8 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
           igv: igvRedondeado,
           montoTotal,
           creadoPorId: usuario?.id,
+          archivo,
+          nombreArchivo,
         },
       });
 

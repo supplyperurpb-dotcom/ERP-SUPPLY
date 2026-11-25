@@ -845,6 +845,12 @@ model OrdenCompra {
   aprobadoPorId     String?
   fechaAprobacion   DateTime?
   comentarioRechazo String?
+  // Sustento adjunto al generar la orden (pedido explícito, 2026-11-25):
+  // obligatorio para toda OC/OS nueva, un solo archivo (PDF/Word/Excel/
+  // imagen) en el bucket privado — ver lib/storage.ts. Nullable solo para
+  // no romper las órdenes creadas antes de este campo.
+  archivo           String?
+  nombreArchivo     String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 

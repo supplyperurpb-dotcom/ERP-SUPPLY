@@ -298,6 +298,19 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
               <p className="font-medium">{orden.observaciones}</p>
             </div>
           )}
+          {orden.archivo && (
+            <div>
+              <p className="text-muted-foreground">Sustento</p>
+              <a
+                href={`/api/logistica/ordenes-compra/${orden.id}/sustento`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium underline underline-offset-2"
+              >
+                {orden.nombreArchivo ?? "Ver archivo"}
+              </a>
+            </div>
+          )}
           {aprobador && orden.fechaAprobacion && (
             <div>
               <p className="text-muted-foreground">

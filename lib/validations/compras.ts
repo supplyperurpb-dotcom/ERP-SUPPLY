@@ -126,6 +126,12 @@ export const ordenCompraSchema = z
     observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),
     items: z.array(itemOrdenCompraSchema).min(1, "Selecciona al menos un ítem pendiente"),
+    // Sustento obligatorio (pedido explícito, 2026-11-25): ruta ya subida
+    // al bucket privado (ver subirArchivoOrdenCompraAction), nunca el File
+    // en sí — el upload va antes, por separado, igual que en Sustentos de
+    // Registro de Avance.
+    archivo: z.string().min(1, "Debes adjuntar el sustento de la orden"),
+    nombreArchivo: z.string().min(1),
   })
   .superRefine((data, ctx) => {
     if (data.tipoOrden === "ABIERTA" && !data.vigenteHasta) {
@@ -216,6 +222,10 @@ export const ordenCompraDirectaSchema = z
     observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),
     items: z.array(itemOrdenCompraDirectaSchema).min(1, "Agrega al menos un producto"),
+    // Sustento obligatorio (pedido explícito, 2026-11-25): ver mismo
+    // comentario en ordenCompraSchema.
+    archivo: z.string().min(1, "Debes adjuntar el sustento de la orden"),
+    nombreArchivo: z.string().min(1),
   })
   .superRefine((data, ctx) => {
     if (data.tipoOrden === "ABIERTA" && !data.vigenteHasta) {

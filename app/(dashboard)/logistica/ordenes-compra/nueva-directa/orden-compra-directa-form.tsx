@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
@@ -25,7 +25,7 @@ import {
   type TipoOrdenCodigo,
 } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
-import { crearOrdenCompraDirectaAction } from "@/lib/actions/orden-compra-actions";
+import { crearOrdenCompraDirectaAction, subirArchivoSustentoOrdenAction } from "@/lib/actions/orden-compra-actions";
 
 type SkuOpcion = SkuOpcionCombobox & { categoria: string };
 
@@ -92,6 +92,31 @@ export function OrdenCompraDirectaForm({
   const [enviando, setEnviando] = useState(false);
   const centroCostoInicial = centrosCosto[0] ?? "";
   const [filas, setFilas] = useState<FilaItem[]>([filaVacia(centroCostoInicial)]);
+  const [sustentoPath, setSustentoPath] = useState("");
+  const [sustentoNombre, setSustentoNombre] = useState("");
+  const [subiendoSustento, setSubiendoSustento] = useState(false);
+  const inputSustentoRef = useRef<HTMLInputElement>(null);
+
+  async function handleArchivoSustento(archivo: File | undefined) {
+    if (!archivo) return;
+    setSustentoPath("");
+    setSustentoNombre("");
+    setSubiendoSustento(true);
+    try {
+      const formData = new FormData();
+      formData.set("archivo", archivo);
+      const resultado = await subirArchivoSustentoOrdenAction(formData);
+      if (resultado.error || !resultado.path || !resultado.nombreArchivo) {
+        toast.error(resultado.error ?? "No se pudo subir el archivo");
+        if (inputSustentoRef.current) inputSustentoRef.current.value = "";
+        return;
+      }
+      setSustentoPath(resultado.path);
+      setSustentoNombre(resultado.nombreArchivo);
+    } finally {
+      setSubiendoSustento(false);
+    }
+  }
 
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const skusDeCategoria = skus.filter((s) => (categoria === "SERVICIO" ? s.categoria === "Servicios" : s.categoria !== "Servicios"));
@@ -135,6 +160,14 @@ export function OrdenCompraDirectaForm({
       toast.error("Selecciona el plazo de vigencia de la orden abierta");
       return;
     }
+    if (subiendoSustento) {
+      toast.error("Espera a que termine de subir el sustento");
+      return;
+    }
+    if (!sustentoPath) {
+      toast.error("Debes adjuntar el sustento de la orden");
+      return;
+    }
     for (const f of filas) {
       if (!f.skuId) {
         toast.error("Selecciona un producto en cada línea");
@@ -173,6 +206,8 @@ export function OrdenCompraDirectaForm({
           campo: f.campo || undefined,
           descripcion: f.descripcion,
         })),
+        archivo: sustentoPath,
+        nombreArchivo: sustentoNombre,
       });
       if (resultado?.error) {
         toast.error(resultado.error);
@@ -313,6 +348,24 @@ export function OrdenCompraDirectaForm({
               value={comentario}
               onChange={(e) => setComentario(e.target.value)}
             />
+          </div>
+          <div className="space-y-2 sm:col-span-3">
+            <Label htmlFor="sustento">Sustento (obligatorio)</Label>
+            <Input
+              id="sustento"
+              ref={inputSustentoRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+              disabled={subiendoSustento}
+              onChange={(e) => handleArchivoSustento(e.target.files?.[0])}
+            />
+            <p className="text-xs text-muted-foreground">
+              {subiendoSustento
+                ? "Subiendo..."
+                : sustentoNombre
+                  ? `Adjunto: ${sustentoNombre}`
+                  : "PDF, Word, Excel o una imagen, hasta 15 MB."}
+            </p>
           </div>
         </CardContent>
       </Card>
