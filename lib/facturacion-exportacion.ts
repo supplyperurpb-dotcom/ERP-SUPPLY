@@ -517,14 +517,23 @@ export type PorLiquidarResumen = { kg: number; valor: number; puCif: number | nu
 // netWeight - netKilosLiquidated (de las filas LIQUIDADO), total y por
 // mercado — las liquidaciones llegan de a pocos, por eso kg liquidado
 // nunca debería superar kg facturado. El valor de ese kg pendiente se
-// obtiene valorizándolo al PU CIF FACTURADO (invoicedAmount/netWeight)
-// de ese mismo mercado (o general, para el total) — NUNCA comparando
-// contra "CIF Liquidated (Tariffs)": esa columna resultó ser un valor de
-// tarifa/aduana, no equivalente al Invoiced Amount ni siquiera cuando un
-// embarque está 100% liquidado en kg (confirmado con datos reales del
-// mercado DOC: 22 líneas, todas LIQUIDADO con kg pendiente 0, y aun así
-// Invoiced Amount siempre bastante mayor que CIF Liquidated Tariffs —
-// comparar esas dos columnas directamente no mide dinero pendiente).
+// obtiene valorizándolo al PU CIF FACTURADO (invoicedAmount/netWeight) de
+// ESE MISMO mercado — NUNCA comparando contra "CIF Liquidated (Tariffs)":
+// esa columna resultó ser un valor de tarifa/aduana, no equivalente al
+// Invoiced Amount ni siquiera cuando un embarque está 100% liquidado en
+// kg (confirmado con datos reales del mercado DOC: 22 líneas, todas
+// LIQUIDADO con kg pendiente 0, y aun así Invoiced Amount siempre bastante
+// mayor que CIF Liquidated Tariffs — comparar esas dos columnas
+// directamente no mide dinero pendiente).
+//
+// El "general" (puCif/valor sin desglosar) es la suma ponderada de los
+// mercados que SÍ aparecen abajo (nunca el PU CIF facturado de TODO el
+// histórico): si se usara el PU CIF de todo el portafolio, mercados ya
+// liquidados al 100% en kg (sin nada pendiente) igual pesarían en el
+// denominador y el "general" terminaría pareciéndose al mercado más
+// grande del histórico completo en vez de reflejar lo que realmente
+// está pendiente — detectado porque DEMEA (más barato) apenas movía el
+// general pese a ser ~2% del kg pendiente.
 export function calcularPorLiquidar(filas: FilaFacturacion[]): PorLiquidarResumen {
   let kg = 0;
   const kgPorMercado = new Map<string, number>();
@@ -535,8 +544,6 @@ export function calcularPorLiquidar(filas: FilaFacturacion[]): PorLiquidarResume
   }
 
   const facturadoPorMercado = new Map(agruparPorDimension(filas, "market").map((d) => [d.etiqueta, d]));
-  const kpisGenerales = calcularKpis(filas);
-  const puCifFacturadoGeneral = kpisGenerales.netWeight > 0 ? kpisGenerales.invoicedAmount / kpisGenerales.netWeight : null;
 
   const lista = [...kgPorMercado.entries()]
     .map(([mercado, kgPendiente]) => {
@@ -547,12 +554,8 @@ export function calcularPorLiquidar(filas: FilaFacturacion[]): PorLiquidarResume
     .filter((m) => Math.abs(m.kg) > 0.01)
     .sort((a, b) => b.kg - a.kg);
 
-  return {
-    kg,
-    valor: puCifFacturadoGeneral !== null ? kg * puCifFacturadoGeneral : 0,
-    puCif: puCifFacturadoGeneral,
-    porMercado: lista,
-  };
+  const valor = lista.reduce((acc, m) => acc + m.valor, 0);
+  return { kg, valor, puCif: kg > 0 ? valor / kg : null, porMercado: lista };
 }
 
 export type FilaVariedadMercadoSerie = {
