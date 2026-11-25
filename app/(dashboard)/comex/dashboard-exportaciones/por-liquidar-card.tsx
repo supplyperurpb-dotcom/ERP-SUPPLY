@@ -11,7 +11,7 @@ import type { PorLiquidarResumen } from "@/lib/facturacion-exportacion";
 // las 2 tarjetas apiladas de al lado (Kg Liquidados + $/Kg CIF Liquidado).
 export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
   return (
-    <Card className="flex h-full flex-col border-l-4" style={{ borderLeftColor: PALETA_PENDIENTE.titulo }}>
+    <Card className="flex h-full flex-col border-l-4 lg:max-w-[85%]" style={{ borderLeftColor: PALETA_PENDIENTE.titulo }}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">Kg Facturados por Liquidar</CardTitle>
       </CardHeader>
@@ -30,7 +30,7 @@ export function PorLiquidarCard({ datos }: { datos: PorLiquidarResumen }) {
                 <span className="font-medium" style={{ color: PALETA_PENDIENTE.titulo }}>
                   {m.mercado}
                 </span>
-                <span className="text-right tabular-nums text-muted-foreground">{formatCantidad(Math.trunc(m.kg / 1000))} TN</span>
+                <span className="text-right tabular-nums text-muted-foreground">{formatCantidad(m.kg)} Kg</span>
                 <span className="text-right tabular-nums text-muted-foreground">{formatMoneda(m.valor, "USD")}</span>
                 <span className="text-right tabular-nums text-muted-foreground">
                   {m.puCif !== null ? `PU CIF ${formatMoneda(m.puCif, "USD")}` : "—"}
