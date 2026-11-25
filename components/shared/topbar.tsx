@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, LogOut, Menu, PanelLeftOpen } from "lucide-react";
+import { Home, LogOut, Menu, PanelLeftOpen, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,6 +79,13 @@ export function Topbar({
                 <span className="text-xs font-normal text-muted-foreground">{usuario.email}</span>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/perfil" className="flex cursor-pointer items-center gap-2">
+                <User className="h-4 w-4" />
+                Perfil
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <form action={logoutAction}>
               <button type="submit" className="w-full">

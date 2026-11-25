@@ -31,6 +31,10 @@ export type UsuarioActual = {
   // true = debe pasar por /cambiar-password antes de usar el resto de la
   // app (ver app/(dashboard)/layout.tsx).
   debeCambiarPassword: boolean;
+  // Política de reemplazo de aprobadores especiales (ver
+  // resolverAprobadorEfectivo en lib/compras.ts) — lo activa/desactiva el
+  // propio usuario desde /perfil.
+  enVacaciones: boolean;
 };
 
 // cache() evita duplicar la consulta a Supabase/Prisma cuando varios
@@ -64,5 +68,6 @@ export const getUsuarioActual = cache(async (): Promise<UsuarioActual | null> =>
     accesoHrefs: usuario.accesoItems.length > 0 ? usuario.accesoItems.map((a) => a.href) : null,
     dni: usuario.dni,
     debeCambiarPassword: usuario.debeCambiarPassword,
+    enVacaciones: usuario.enVacaciones,
   };
 });

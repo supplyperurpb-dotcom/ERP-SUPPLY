@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { formatDate, formatMoneda } from "@/lib/utils";
 import { CATEGORIAS_COMPRA } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { esComprador, obtenerAprobadoresEspeciales } from "@/lib/compras";
+import { esComprador, obtenerAprobadoresEspeciales, resolverAprobadorEfectivo } from "@/lib/compras";
 import { OrdenesCompraTable, type FilaOrdenCompra } from "./ordenes-compra-table";
 import { NuevaOrdenDialog } from "./nueva-orden-dialog";
 import type { AreaEmpresa } from "@prisma/client";
@@ -51,13 +51,14 @@ export default async function OrdenesCompraPage() {
   // (firmaPropiaId en [id]/page.tsx), pero sin el respaldo de ADMIN: acá es
   // solo para quien tiene su propio rol de aprobación pendiente.
   const aprobadoresEspeciales = await obtenerAprobadoresEspeciales();
-  const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
 
   const filas: FilaOrdenCompra[] = ordenes.map((orden) => {
     const puedeAnular = puedeAnularGlobal && orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
     const firmaPendientePropia =
       usuario && (orden.estado === "BORRADOR" || orden.estado === "PENDIENTE")
-        ? orden.firmas.find((f) => f.estado === "PENDIENTE" && aprobadorPorRolEspecial.get(f.rol) === usuario.id)
+        ? orden.firmas.find(
+            (f) => f.estado === "PENDIENTE" && resolverAprobadorEfectivo(f.rol, aprobadoresEspeciales)?.usuarioId === usuario.id
+          )
         : undefined;
     return {
       id: orden.id,

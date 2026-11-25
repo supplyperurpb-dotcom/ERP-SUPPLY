@@ -228,6 +228,7 @@ export type AprobadorEspecialInfo = {
   usuarioId: string;
   nombre: string;
   email: string;
+  enVacaciones: boolean;
 };
 
 // Mapa rol especial -> usuario que lo ocupa (ver AprobadorEspecial).
@@ -247,9 +248,44 @@ export async function obtenerAprobadoresEspeciales(db: Db = prisma): Promise<Apr
         usuarioId: usuario.id,
         nombre: `${usuario.nombres} ${usuario.apellidos}`,
         email: usuario.email,
+        enVacaciones: usuario.enVacaciones,
       };
     })
     .filter((a): a is AprobadorEspecialInfo => a !== null);
+}
+
+// Cadena de reemplazo por vacaciones (pedido explícito, 2026-11-25): si el
+// titular de un rol está de vacaciones, el siguiente de esta lista pasa a
+// firmar/liberar en su lugar — Gerente General es el techo, sin reemplazo
+// propio. Gerente de RRHH queda fuera (no se pidió reemplazo para ese rol).
+const CADENA_REEMPLAZO_APROBACION: RolAprobadorEspecialCodigo[] = [
+  "GERENTE_SUPPLY",
+  "DISTRICT_CONTROLLER",
+  "GERENTE_GENERAL",
+];
+
+// Quién debe resolver, HOY, la firma de un rol especial puntual — el
+// propio titular, o quien lo reemplaza según CADENA_REEMPLAZO_APROBACION
+// si está de vacaciones (y también su reemplazo, en cascada, hasta
+// Gerente General). Reemplaza el viejo `aprobadorPorRol.get(f.rol)` en
+// todos los puntos que deciden "¿puede este usuario firmar este rol?"
+// (ver firmarOrdenCompraAction, el detalle y el listado de OC, y las
+// notificaciones).
+export function resolverAprobadorEfectivo(
+  rol: RolAprobadorEspecialCodigo,
+  aprobadores: AprobadorEspecialInfo[]
+): AprobadorEspecialInfo | undefined {
+  const porRol = new Map(aprobadores.map((a) => [a.rol, a]));
+  const idx = CADENA_REEMPLAZO_APROBACION.indexOf(rol);
+  if (idx === -1) return porRol.get(rol);
+
+  for (let i = idx; i < CADENA_REEMPLAZO_APROBACION.length; i++) {
+    const candidato = porRol.get(CADENA_REEMPLAZO_APROBACION[i]);
+    if (candidato && !candidato.enVacaciones) return candidato;
+  }
+  // Todos los de la cadena (desde `rol` hacia arriba) están de vacaciones,
+  // o sin asignar: se queda en el techo (Gerente General), sin más reemplazo.
+  return porRol.get(CADENA_REEMPLAZO_APROBACION[CADENA_REEMPLAZO_APROBACION.length - 1]) ?? porRol.get(rol);
 }
 
 // Convierte un monto a su equivalente en USD solo para ubicar en qué tramo

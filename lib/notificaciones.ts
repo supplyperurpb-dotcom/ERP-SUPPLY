@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { NOMBRE_ORDEN } from "@/lib/constants/compras";
-import { obtenerAprobadoresEspeciales } from "@/lib/compras";
+import { obtenerAprobadoresEspeciales, resolverAprobadorEfectivo } from "@/lib/compras";
 import type { UsuarioActual } from "@/lib/auth/session";
 
 export type NotificacionPendiente = {
@@ -37,10 +37,8 @@ export async function obtenerNotificacionesPendientes(usuario: UsuarioActual): P
     }),
   ]);
 
-  const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
-
   const notificacionesFirmas: NotificacionPendiente[] = firmasPendientes
-    .filter((firma) => aprobadorPorRolEspecial.get(firma.rol) === usuario.id || esAdmin)
+    .filter((firma) => resolverAprobadorEfectivo(firma.rol, aprobadoresEspeciales)?.usuarioId === usuario.id || esAdmin)
     .map((firma) => ({
       id: `firma-${firma.id}`,
       titulo: `${NOMBRE_ORDEN[firma.ordenCompra.categoria]} ${firma.ordenCompra.numero} pendiente de aprobar`,

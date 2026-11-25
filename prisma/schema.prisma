@@ -170,6 +170,12 @@ model Usuario {
   // quedan en false por la propia migración (no se les fuerza el cambio
   // retroactivamente).
   debeCambiarPassword Boolean      @default(true)
+  // Política de reemplazo de aprobadores especiales (pedido explícito,
+  // 2026-11-25): mientras está en true, resolverAprobadorEfectivo (ver
+  // lib/compras.ts) pasa su rol al siguiente de la cadena GERENTE_SUPPLY ->
+  // DISTRICT_CONTROLLER -> GERENTE_GENERAL. Lo activa/desactiva el propio
+  // usuario desde /perfil (ver alternarVacacionesAction).
+  enVacaciones        Boolean      @default(false)
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 

@@ -13,6 +13,7 @@ import {
   esComprador,
   montoEnUsd,
   obtenerAprobadoresEspeciales,
+  resolverAprobadorEfectivo,
   rolesFirmaRequeridos,
 } from "@/lib/compras";
 import {
@@ -411,8 +412,9 @@ export async function firmarOrdenCompraAction(
     }
 
     const aprobadoresEspeciales = await obtenerAprobadoresEspeciales();
-    const aprobadorPorRol = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
-    const firmaDelUsuario = firmasPendientes.find((f) => aprobadorPorRol.get(f.rol) === usuario.id);
+    const firmaDelUsuario = firmasPendientes.find(
+      (f) => resolverAprobadorEfectivo(f.rol, aprobadoresEspeciales)?.usuarioId === usuario.id
+    );
     const firmaAUsar = firmaDelUsuario ?? (usuario.roles.includes("ADMIN") ? firmasPendientes[0] : undefined);
 
     if (!firmaAUsar) {

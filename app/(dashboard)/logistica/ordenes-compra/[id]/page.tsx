@@ -27,7 +27,7 @@ import {
   type CategoriaCompraCodigo,
 } from "@/lib/constants/compras";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { esComprador, obtenerAprobadoresEspeciales } from "@/lib/compras";
+import { esComprador, obtenerAprobadoresEspeciales, resolverAprobadorEfectivo } from "@/lib/compras";
 import type { EstadoDocumento, EstadoFirma } from "@prisma/client";
 
 const ESTADO_LABEL: Record<EstadoDocumento, string> = {
@@ -96,7 +96,6 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
     idsFirmantes.length > 0 ? prisma.usuario.findMany({ where: { id: { in: idsFirmantes } } }) : Promise.resolve([]),
   ]);
   const esAdmin = usuario?.roles.includes("ADMIN") ?? false;
-  const aprobadorPorRolEspecial = new Map(aprobadoresEspeciales.map((a) => [a.rol, a.usuarioId]));
   const usuarioFirmantePorId = new Map(usuariosFirmantes.map((u) => [u.id, u]));
 
   // Editar: quien la creó, o Comprador/ADMIN (mismo criterio que al
@@ -132,7 +131,9 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   // propio rol especial si está pendiente, o — si es ADMIN y no tiene un
   // rol propio pendiente — la primera pendiente, como respaldo.
   const firmasPendientes = orden.firmas.filter((f) => f.estado === "PENDIENTE");
-  const firmaPropiaId = usuario ? firmasPendientes.find((f) => aprobadorPorRolEspecial.get(f.rol) === usuario.id)?.id : undefined;
+  const firmaPropiaId = usuario
+    ? firmasPendientes.find((f) => resolverAprobadorEfectivo(f.rol, aprobadoresEspeciales)?.usuarioId === usuario.id)?.id
+    : undefined;
   // BORRADOR también cuenta: firmarOrdenCompraAction ya permite firmar ahí
   // (es justo la primera firma la que saca a la orden de BORRADOR), así que
   // el botón tiene que poder aparecer antes de que exista ninguna firma.
