@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CalendarDays, DollarSign, Package, Search } from "lucide-react";
+import { CalendarClock, CalendarDays, Package, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -34,12 +34,21 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
   const productosDistintos = new Set(filas.map((f) => f.codigo)).size;
   let valorTotalUsd = 0;
   let entregasHoy = 0;
+  let valorHoyUsd = 0;
   let entregasPendientes = 0;
+  let valorPendientesUsd = 0;
   for (const f of filas) {
-    valorTotalUsd += convertirAUsd(f.valor, f.moneda as MonedaCodigo);
+    const valorUsd = convertirAUsd(f.valor, f.moneda as MonedaCodigo);
+    valorTotalUsd += valorUsd;
     const fechaIso = f.fechaTentativa.toISOString().slice(0, 10);
-    if (fechaIso === hoyIso) entregasHoy++;
-    if (fechaIso >= hoyIso) entregasPendientes++;
+    if (fechaIso === hoyIso) {
+      entregasHoy++;
+      valorHoyUsd += valorUsd;
+    }
+    if (fechaIso >= hoyIso) {
+      entregasPendientes++;
+      valorPendientesUsd += valorUsd;
+    }
   }
 
   const hayFiltros = !!(sp.desde || sp.hasta || sp.busqueda);
@@ -58,7 +67,7 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
           <Input
             id="busqueda"
             name="busqueda"
-            placeholder="Ej. NIXPRO, CROPS PROTECTION, OC-FO-000000001..."
+            placeholder="Ej. NIXPRO, CROPS PROTECTION, OC-000004660..."
             defaultValue={sp.busqueda ?? ""}
           />
         </div>
@@ -73,12 +82,25 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
         )}
       </form>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <KPICard label="Entregas" value={String(filas.length)} icon={CalendarDays} />
-        <KPICard label="Productos" value={String(productosDistintos)} icon={Package} />
-        <KPICard label="Valor de entrega" value={formatMoneda(valorTotalUsd, "USD")} icon={DollarSign} />
-        <KPICard label="Entregas para hoy" value={String(entregasHoy)} icon={CalendarClock} />
-        <KPICard label="Entregas pendientes" value={String(entregasPendientes)} icon={CalendarClock} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KPICard
+          label="Productos"
+          value={String(productosDistintos)}
+          secondaryLine={`${filas.length} entrega${filas.length === 1 ? "" : "s"} · ${formatMoneda(valorTotalUsd, "USD")}`}
+          icon={Package}
+        />
+        <KPICard
+          label="Entregas para Hoy"
+          value={String(entregasHoy)}
+          secondaryLine={formatMoneda(valorHoyUsd, "USD")}
+          icon={CalendarClock}
+        />
+        <KPICard
+          label="Entregas Pendientes"
+          value={String(entregasPendientes)}
+          secondaryLine={formatMoneda(valorPendientesUsd, "USD")}
+          icon={CalendarClock}
+        />
       </div>
 
       {filas.length === 0 ? (
