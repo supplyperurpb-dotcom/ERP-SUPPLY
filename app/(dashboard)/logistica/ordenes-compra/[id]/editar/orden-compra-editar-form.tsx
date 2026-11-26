@@ -20,11 +20,13 @@ import { CONDICIONES_PAGO, IGV_TASA, LUGARES_ENTREGA, NOMBRE_ORDEN, NOMBRE_SOLIC
 import { MONEDAS } from "@/lib/constants/moneda";
 import { editarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
+import { ProgramaEntregasStep, type FilaEntregaProgramada, type ItemParaPrograma } from "../../programa-entregas-step";
 
 type ItemEditable = {
   id: string;
   codigo: string;
   descripcion: string;
+  unidadMedida: string;
   centroCosto: string;
   campo: string | null;
 };
@@ -84,6 +86,7 @@ export function OrdenCompraEditarForm({
   campos,
   solicitudesPendientes,
   valoresIniciales,
+  entregasIniciales,
 }: {
   ordenId: string;
   categoria: CategoriaCompraCodigo;
@@ -94,6 +97,8 @@ export function OrdenCompraEditarForm({
   centrosCosto: string[];
   campos: string[];
   solicitudesPendientes: SolicitudConPendientes[];
+  /** Programa de entregas ya guardado de cada línea existente (clave = item.id). */
+  entregasIniciales: Record<string, FilaEntregaProgramada[]>;
   valoresIniciales: {
     proveedorId: string;
     fecha: string;
@@ -122,6 +127,10 @@ export function OrdenCompraEditarForm({
   const [filas, setFilas] = useState<Record<string, FilaEditable>>(valoresIniciales.filas);
   const [nuevasFilas, setNuevasFilas] = useState<FilaNueva[]>([]);
   const centroCostoInicial = centrosCosto[0] ?? "";
+  // Paso "Ver plan de entrega" (pedido explícito, 2026-11-25): los cambios
+  // recién se guardan ahí, igual que al crear la orden.
+  const [paso, setPaso] = useState<"datos" | "programa">("datos");
+  const [entregasPorItem, setEntregasPorItem] = useState<Record<string, FilaEntregaProgramada[]>>(entregasIniciales);
 
   // Solo para orden "Directa": catálogo de SKU según la categoría, igual
   // que al crearla.
@@ -196,7 +205,7 @@ export function OrdenCompraEditarForm({
   const igvRedondeado = Math.round(igv * 100) / 100;
   const total = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
-  async function handleSubmit() {
+  function irAPrograma() {
     if (!proveedorId) {
       toast.error("Selecciona un proveedor");
       return;
@@ -238,7 +247,27 @@ export function OrdenCompraEditarForm({
         return;
       }
     }
+    setPaso("programa");
+  }
 
+  const itemsParaPrograma: ItemParaPrograma[] = [
+    ...items.map((item) => ({
+      key: item.id,
+      codigo: item.codigo,
+      descripcion: item.descripcion,
+      unidadMedida: item.unidadMedida,
+      cantidad: Number(filas[item.id]?.cantidad) || 0,
+    })),
+    ...nuevasFilas.map((f) => ({
+      key: f.tempId,
+      codigo: f.codigo,
+      descripcion: f.descripcion,
+      unidadMedida: "",
+      cantidad: Number(f.cantidad) || 0,
+    })),
+  ];
+
+  async function handleGuardarCambios() {
     setEnviando(true);
     try {
       const resultado = await editarOrdenCompraAction(ordenId, {
@@ -259,6 +288,12 @@ export function OrdenCompraEditarForm({
               precioUnitario: Number(fila.precioUnitario),
               gravado: fila.gravado,
               descripcion: fila.descripcion,
+              entregas: (entregasPorItem[item.id] ?? [])
+                .filter((e) => Number(e.cantidad) > 0 && e.fechaTentativa)
+                .map((e) => ({
+                  cantidad: Number(e.cantidad),
+                  fechaTentativa: new Date(e.fechaTentativa) as unknown as Date,
+                })),
             };
           }),
           ...nuevasFilas.map((f) => ({
@@ -270,6 +305,12 @@ export function OrdenCompraEditarForm({
             precioUnitario: Number(f.precioUnitario),
             gravado: f.gravado,
             descripcion: f.descripcionServicio,
+            entregas: (entregasPorItem[f.tempId] ?? [])
+              .filter((e) => Number(e.cantidad) > 0 && e.fechaTentativa)
+              .map((e) => ({
+                cantidad: Number(e.cantidad),
+                fechaTentativa: new Date(e.fechaTentativa) as unknown as Date,
+              })),
           })),
         ],
       });
@@ -290,6 +331,8 @@ export function OrdenCompraEditarForm({
 
   return (
     <div className="space-y-6">
+      {paso === "datos" && (
+      <>
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos de la orden</CardTitle>
@@ -560,10 +603,27 @@ export function OrdenCompraEditarForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="button" disabled={enviando} onClick={handleSubmit}>
-          {enviando ? "Guardando..." : "Guardar cambios"}
+        <Button type="button" onClick={irAPrograma}>
+          Ver plan de entrega
         </Button>
       </div>
+      </>
+      )}
+
+      {paso === "programa" && (
+        <ProgramaEntregasStep
+          items={itemsParaPrograma}
+          entregasPorItem={entregasPorItem}
+          onChange={(key, entregas) => setEntregasPorItem((prev) => ({ ...prev, [key]: entregas }))}
+          onAnterior={() => setPaso("datos")}
+          onConfirmar={handleGuardarCambios}
+          enviando={enviando}
+          tituloBotonAgendar="Guardar cambios"
+          tituloDialogo="¿Guardar cambios?"
+          descripcionDialogo="Se guardarán los cambios de la orden junto con su programa de entregas actualizado."
+          textoBotonConfirmar="Guardar cambios"
+        />
+      )}
 
       {!esDirecta && (
         <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>

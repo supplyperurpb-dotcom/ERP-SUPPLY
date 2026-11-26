@@ -194,6 +194,11 @@ const itemOrdenCompraEditSchema = z.object({
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   gravado: z.coerce.boolean().default(true),
   descripcion: z.string().max(500).optional().or(z.literal("")),
+  // Programa de Entregas (pedido explícito, 2026-11-25): al editar, el
+  // usuario pasa por el mismo paso y reemplaza el programa completo de
+  // cada línea (ver editarOrdenCompraAction) — no se "parchea" entrega por
+  // entrega.
+  entregas: z.array(entregaProgramadaSchema).default([]),
 });
 
 export const editarOrdenCompraSchema = z
@@ -218,6 +223,7 @@ export const editarOrdenCompraSchema = z
         });
       }
     });
+    validarEntregasNoSuperanCantidad(data.items, ctx);
   });
 
 export type EditarOrdenCompraInput = z.infer<typeof editarOrdenCompraSchema>;

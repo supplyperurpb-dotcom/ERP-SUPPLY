@@ -561,10 +561,7 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
     const usuario = await getUsuarioActual();
     if (!usuario) return { error: "Debes iniciar sesión para editar una orden." };
 
-    const orden = await prisma.ordenCompra.findUnique({
-      where: { id },
-      include: { items: { include: { entregas: true } } },
-    });
+    const orden = await prisma.ordenCompra.findUnique({ where: { id }, include: { items: true } });
     if (!orden) return { error: "La orden ya no existe." };
     if (!puedeEditarOrden(usuario, orden)) {
       return { error: "No tienes permiso para editar esta orden." };
@@ -586,25 +583,6 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
     const idsEnviados = new Set(itemsExistentes.map((i) => i.id!));
     if (idsEnviados.size !== idsExistentes.size || [...idsEnviados].some((itemId) => !idsExistentes.has(itemId))) {
       return { error: "Los ítems de la orden cambiaron desde que abriste esta página. Actualízala e intenta de nuevo." };
-    }
-
-    // Programa de Entregas (pedido explícito, 2026-11-25): no se puede
-    // reducir la cantidad de una línea por debajo de lo que ya tiene
-    // programado (en PROGRAMADA) en Programa de Entregas — ver
-    // programa-entregas-step.tsx. El programa en sí no se edita acá (no
-    // se pidió un reprogramador al editar, solo esta consistencia).
-    const ordenItemPorId = new Map(orden.items.map((i) => [i.id, i]));
-    for (const item of itemsExistentes) {
-      const original = ordenItemPorId.get(item.id!);
-      if (!original) continue;
-      const programado = original.entregas
-        .filter((e) => e.estado === "PROGRAMADA")
-        .reduce((acc, e) => acc + Number(e.cantidad), 0);
-      if (programado > item.cantidad) {
-        return {
-          error: `No puedes dejar una línea en ${item.cantidad}: ya tiene ${programado} programado en Programa de Entregas. Reduce primero su programa de entregas.`,
-        };
-      }
     }
 
     // Si dos líneas nuevas repiten el mismo ítem de solicitud, se valida la suma.
@@ -687,11 +665,27 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
             descripcion: item.descripcion || null,
           },
         });
+        // Programa de Entregas (pedido explícito, 2026-11-25): al editar se
+        // reemplaza el programa completo de la línea por el que llega del
+        // paso "Ver plan de entrega" — nunca se "parchea" entrega por
+        // entrega, así que se borra y se vuelve a crear, dentro de la
+        // misma transacción que el resto de la edición.
+        await tx.ordenCompraEntrega.deleteMany({ where: { ordenCompraItemId: item.id! } });
+        if (item.entregas.length > 0) {
+          await tx.ordenCompraEntrega.createMany({
+            data: item.entregas.map((e) => ({
+              ordenCompraItemId: item.id!,
+              cantidad: e.cantidad,
+              fechaTentativa: e.fechaTentativa,
+              creadoPorId: usuario.id,
+            })),
+          });
+        }
       }
 
       for (let i = 0; i < itemsNuevos.length; i++) {
         const item = itemsNuevos[i];
-        await tx.ordenCompraItem.create({
+        const itemCreado = await tx.ordenCompraItem.create({
           data: {
             ordenCompraId: id,
             solicitudPedidoItemId: item.solicitudPedidoItemId || null,
@@ -705,6 +699,16 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
             descripcion: item.descripcion || null,
           },
         });
+        if (item.entregas.length > 0) {
+          await tx.ordenCompraEntrega.createMany({
+            data: item.entregas.map((e) => ({
+              ordenCompraItemId: itemCreado.id,
+              cantidad: e.cantidad,
+              fechaTentativa: e.fechaTentativa,
+              creadoPorId: usuario.id,
+            })),
+          });
+        }
       }
 
       await tx.ordenCompraFirma.deleteMany({ where: { ordenCompraId: id } });
@@ -712,6 +716,7 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
 
     revalidatePath("/logistica/ordenes-compra");
     revalidatePath(`/logistica/ordenes-compra/${id}`);
+    revalidatePath("/logistica/programa-entregas");
     return { id };
   } catch (e) {
     console.error("Error inesperado en editarOrdenCompraAction:", e);

@@ -13,7 +13,7 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
 
   const orden = await prisma.ordenCompra.findUnique({
     where: { id },
-    include: { items: { include: { sku: true } } },
+    include: { items: { include: { sku: true, entregas: true } } },
   });
   if (!orden) notFound();
 
@@ -63,6 +63,7 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
           id: item.id,
           codigo: item.sku.codigo,
           descripcion: item.sku.descripcion,
+          unidadMedida: item.sku.unidadMedida,
           centroCosto: item.centroCosto,
           campo: item.campo,
         }))}
@@ -91,6 +92,15 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
             ])
           ),
         }}
+        entregasIniciales={Object.fromEntries(
+          orden.items.map((item) => [
+            item.id,
+            item.entregas.map((e) => ({
+              cantidad: String(Number(e.cantidad)),
+              fechaTentativa: fechaInputValue(e.fechaTentativa),
+            })),
+          ])
+        )}
       />
     </div>
   );

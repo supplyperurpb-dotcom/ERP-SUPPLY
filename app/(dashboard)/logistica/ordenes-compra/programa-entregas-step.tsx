@@ -38,6 +38,10 @@ export function ProgramaEntregasStep({
   onAnterior,
   onConfirmar,
   enviando,
+  tituloBotonAgendar = "Agendar Programa",
+  tituloDialogo = "¿Agendar programa de entregas?",
+  descripcionDialogo = "Se guardará la orden junto con su programa de entregas, en estado Borrador.",
+  textoBotonConfirmar = "Guardar como borrador",
 }: {
   items: ItemParaPrograma[];
   entregasPorItem: Record<string, FilaEntregaProgramada[]>;
@@ -45,6 +49,11 @@ export function ProgramaEntregasStep({
   onAnterior: () => void;
   onConfirmar: () => void;
   enviando: boolean;
+  /** Personalización del botón/diálogo final (p. ej. al editar una OC ya creada). */
+  tituloBotonAgendar?: string;
+  tituloDialogo?: string;
+  descripcionDialogo?: string;
+  textoBotonConfirmar?: string;
 }) {
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
 
@@ -176,24 +185,22 @@ export function ProgramaEntregasStep({
           Anterior
         </Button>
         <Button type="button" disabled={!puedeAgendar} onClick={() => setDialogoAbierto(true)}>
-          Agendar Programa
+          {tituloBotonAgendar}
         </Button>
       </div>
 
       <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>¿Agendar programa de entregas?</DialogTitle>
-            <DialogDescription>
-              Se guardará la orden junto con su programa de entregas, en estado Borrador.
-            </DialogDescription>
+            <DialogTitle>{tituloDialogo}</DialogTitle>
+            <DialogDescription>{descripcionDialogo}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={enviando} onClick={() => setDialogoAbierto(false)}>
               Cancelar
             </Button>
             <Button type="button" disabled={enviando} onClick={onConfirmar}>
-              {enviando ? "Guardando..." : "Guardar como borrador"}
+              {enviando ? "Guardando..." : textoBotonConfirmar}
             </Button>
           </DialogFooter>
         </DialogContent>
