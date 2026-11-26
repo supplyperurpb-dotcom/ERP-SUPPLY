@@ -14,7 +14,16 @@ import { SkuFormDialog } from "./sku-form-dialog";
 
 const POR_PAGINA = 50;
 
-export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
+export function SkuTable({
+  skus,
+  esAdmin,
+  puedeEditar,
+}: {
+  skus: Sku[];
+  esAdmin: boolean;
+  /** Cualquier Comprador puede editar un SKU (no solo ADMIN) — crear código no valorado y eliminar siguen siendo solo ADMIN. */
+  puedeEditar: boolean;
+}) {
   const [isPending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
@@ -99,7 +108,7 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
               <TableHead>Unidad</TableHead>
               <TableHead>Subfamilia</TableHead>
               <TableHead>Estado</TableHead>
-              {esAdmin && <TableHead className="text-right">Acciones</TableHead>}
+              {(esAdmin || puedeEditar) && <TableHead className="text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -113,9 +122,9 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
                 <TableCell>
                   <Badge variant={sku.activo ? "success" : "secondary"}>{sku.activo ? "Activo" : "Inactivo"}</Badge>
                 </TableCell>
-                {esAdmin && (
+                {(esAdmin || puedeEditar) && (
                   <TableCell className="flex justify-end gap-1">
-                    {puedeCrearNv(sku) && (
+                    {esAdmin && puedeCrearNv(sku) && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -126,15 +135,17 @@ export function SkuTable({ skus, esAdmin }: { skus: Sku[]; esAdmin: boolean }) {
                         NV
                       </Button>
                     )}
-                    <SkuFormDialog sku={sku} />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={isPending}
-                      onClick={() => handleEliminar(sku.id, sku.codigo)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {puedeEditar && <SkuFormDialog sku={sku} />}
+                    {esAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={isPending}
+                        onClick={() => handleEliminar(sku.id, sku.codigo)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </TableCell>
                 )}
               </TableRow>

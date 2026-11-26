@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { esComprador } from "@/lib/compras";
 import { siguienteNumero } from "@/lib/utils";
 import {
   skuSchema,
@@ -254,17 +255,18 @@ export async function crearSkusNoValoradosAction(ids: string[]): Promise<CrearSk
   return { creados, omitidos: omitidos.length > 0 ? omitidos : undefined };
 }
 
-// Editar o eliminar un SKU (de cualquier categoría: Agroquímicos,
-// Fertilizantes, Ósmosis, Suministros o Servicios) es solo para
-// administradores; el resto de usuarios solo puede crear SKU nuevos.
+// Editar un SKU (de cualquier categoría: Agroquímicos, Fertilizantes,
+// Ósmosis, Suministros o Servicios) está habilitado para cualquier
+// Comprador, no solo administradores (pedido explícito, 2026-11-27).
+// Eliminar sigue siendo solo para administradores (ver eliminarSkuAction).
 export async function actualizarSkuAction(
   id: string,
   _prevState: SkuActionState,
   formData: FormData
 ): Promise<SkuActionState> {
   const usuario = await getUsuarioActual();
-  if (!usuario || !usuario.roles.includes("ADMIN")) {
-    return { error: "Solo un administrador puede editar un SKU." };
+  if (!usuario || !esComprador(usuario)) {
+    return { error: "Solo un Comprador puede editar un SKU." };
   }
 
   const parsed = skuSchema.safeParse(Object.fromEntries(formData));
