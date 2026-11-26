@@ -498,6 +498,98 @@ export async function calcularStockPorLote(almacenId: string, skuId: string, db:
     .sort((a, b) => a.lote.localeCompare(b.lote));
 }
 
+export type FilaReporteStock = {
+  almacenId: string;
+  almacenCodigo: string;
+  almacenNombre: string;
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  /** null si este sku+almacén no exige lote. */
+  lote: string | null;
+  fechaProduccion: Date | null;
+  fechaVencimiento: Date | null;
+  cantidad: number;
+  precioUnitarioPonderado: number | null;
+  /** cantidad * precioUnitarioPonderado (USD) — null si todavía no hay costo (sin ingresos valorados). */
+  valorizado: number | null;
+};
+
+// Reporte de stock (pedido explícito, 2026-11-25): una fila por cada
+// sku+almacén+lote con stock > 0, para el listado total de productos del
+// módulo Inventario. Reusa calcularStockAlmacen (cantidad + ponderado por
+// sku+almacén) y calcularStockPorLote (desglose por lote, donde aplica)
+// en vez de recalcular nada — nunca inventa un costo ni una cantidad
+// nuevos. Si un sku+almacén exige lote pero no aparece ningún lote con
+// stock (dato histórico sin lote registrado), igual se incluye una fila
+// sin lote con la cantidad agregada, para no perder esa cantidad del
+// reporte.
+export async function calcularReporteStock(db: Db = prisma): Promise<FilaReporteStock[]> {
+  const [almacenes, skus] = await Promise.all([
+    db.almacen.findMany({ where: { activo: true } }),
+    db.sku.findMany({ select: { id: true, requiereLote: true } }),
+  ]);
+  const requiereLotePorSku = new Map(skus.map((s) => [s.id, s.requiereLote]));
+
+  const resultado: FilaReporteStock[] = [];
+  for (const almacen of almacenes) {
+    const filasStock = await calcularStockAlmacen(almacen.id, db);
+    if (filasStock.length === 0) continue;
+
+    const categoriaEfectiva = await categoriaEfectivaAlmacen(almacen, db);
+    const almacenExigeLote = categoriaEfectiva === "PESTICIDAS" || categoriaEfectiva === "FERTILIZANTES";
+
+    for (const fila of filasStock) {
+      const valorizado = (cantidad: number) =>
+        fila.precioUnitarioPonderado !== null ? Math.round(cantidad * fila.precioUnitarioPonderado * 100) / 100 : null;
+
+      const exigeLote = almacenExigeLote || (requiereLotePorSku.get(fila.skuId) ?? false);
+      const lotes = exigeLote ? await calcularStockPorLote(almacen.id, fila.skuId, db) : [];
+
+      if (lotes.length > 0) {
+        for (const l of lotes) {
+          resultado.push({
+            almacenId: almacen.id,
+            almacenCodigo: almacen.codigo,
+            almacenNombre: almacen.nombre,
+            skuId: fila.skuId,
+            codigo: fila.codigo,
+            descripcion: fila.descripcion,
+            unidadMedida: l.unidadMedida,
+            lote: l.lote,
+            fechaProduccion: l.fechaProduccion,
+            fechaVencimiento: l.fechaVencimiento,
+            cantidad: l.cantidad,
+            precioUnitarioPonderado: fila.precioUnitarioPonderado,
+            valorizado: valorizado(l.cantidad),
+          });
+        }
+      } else {
+        resultado.push({
+          almacenId: almacen.id,
+          almacenCodigo: almacen.codigo,
+          almacenNombre: almacen.nombre,
+          skuId: fila.skuId,
+          codigo: fila.codigo,
+          descripcion: fila.descripcion,
+          unidadMedida: fila.unidadMedida,
+          lote: null,
+          fechaProduccion: null,
+          fechaVencimiento: null,
+          cantidad: fila.cantidad,
+          precioUnitarioPonderado: fila.precioUnitarioPonderado,
+          valorizado: valorizado(fila.cantidad),
+        });
+      }
+    }
+  }
+
+  return resultado.sort(
+    (a, b) => a.codigo.localeCompare(b.codigo) || a.almacenNombre.localeCompare(b.almacenNombre) || (a.lote ?? "").localeCompare(b.lote ?? "")
+  );
+}
+
 // ---------------------------------------------------------------------
 // Consumo desde Solicitud de Despacho: la cantidad pendiente de atender de
 // un SolicitudDespachoItem es su cantidad menos la suma de
