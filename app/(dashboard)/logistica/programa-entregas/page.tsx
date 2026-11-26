@@ -32,6 +32,8 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
   // nunca se desalineen entre sí.
   const hoyIso = new Date().toISOString().slice(0, 10);
   const productosDistintos = new Set(filas.map((f) => f.codigo)).size;
+  const productosHoy = new Set<string>();
+  const productosPendientes = new Set<string>();
   let valorTotalUsd = 0;
   let entregasHoy = 0;
   let valorHoyUsd = 0;
@@ -44,10 +46,12 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
     if (fechaIso === hoyIso) {
       entregasHoy++;
       valorHoyUsd += valorUsd;
+      productosHoy.add(f.codigo);
     }
     if (fechaIso >= hoyIso) {
       entregasPendientes++;
       valorPendientesUsd += valorUsd;
+      productosPendientes.add(f.codigo);
     }
   }
 
@@ -94,12 +98,14 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
           label="Entregas para Hoy"
           value={String(entregasHoy)}
           valueSuffix={formatMoneda(valorHoyUsd, "USD")}
+          secondaryLine={`${productosHoy.size} producto${productosHoy.size === 1 ? "" : "s"}`}
           icon={CalendarClock}
         />
         <KPICard
           label="Entregas Pendientes"
           value={String(entregasPendientes)}
           valueSuffix={formatMoneda(valorPendientesUsd, "USD")}
+          secondaryLine={`${productosPendientes.size} producto${productosPendientes.size === 1 ? "" : "s"}`}
           icon={CalendarClock}
         />
       </div>

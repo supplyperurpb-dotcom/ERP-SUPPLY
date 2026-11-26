@@ -55,7 +55,12 @@ export function KPICard({
       <CardContent className="space-y-0.5 p-3 pt-0 sm:space-y-1 sm:p-6 sm:pt-0">
         <p className="flex items-baseline gap-2">
           <span className="text-lg font-semibold tabular-nums sm:text-2xl">{value}</span>
-          {valueSuffix && <span className="text-xs text-muted-foreground tabular-nums sm:text-sm">{valueSuffix}</span>}
+          {valueSuffix && (
+            <>
+              <span className="text-lg font-semibold text-muted-foreground sm:text-2xl">|</span>
+              <span className="text-lg font-semibold tabular-nums text-muted-foreground sm:text-2xl">{valueSuffix}</span>
+            </>
+          )}
         </p>
         {secondaryLine && (
           <p
