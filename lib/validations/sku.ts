@@ -47,6 +47,7 @@ export const SUBFAMILIAS_SKU = ["Materiales de Empaque"] as const;
 // ---------------------------------------------------------------------
 export const skuSuministroSchema = z.object({
   subfamiliaId: z.string().min(1, "Selecciona la subfamilia"),
+  grupoId: z.string().min(1, "Selecciona el grupo"),
   producto: z.string().min(1, "El producto es obligatorio").max(100),
   material: z.string().max(60).optional().or(z.literal("")),
   marca: z.string().max(60).optional().or(z.literal("")),

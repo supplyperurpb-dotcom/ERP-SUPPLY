@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -14,15 +14,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UNIDADES_MEDIDA } from "@/lib/validations/sku";
 import { skuSuministroSchema, type SkuSuministroInput } from "@/lib/validations/sku";
 import { crearSkuSuministroAction } from "@/lib/actions/sku-actions";
-import type { Subfamilia } from "@prisma/client";
+import type { Subfamilia, Grupo } from "@prisma/client";
 
-export function SuministroForm({ subfamilias }: { subfamilias: Subfamilia[] }) {
+type SubfamiliaConGrupos = Subfamilia & { grupos: Grupo[] };
+
+export function SuministroForm({ subfamilias }: { subfamilias: SubfamiliaConGrupos[] }) {
   const router = useRouter();
 
   const form = useForm<SkuSuministroInput>({
     resolver: zodResolver(skuSuministroSchema),
     defaultValues: {
       subfamiliaId: subfamilias[0]?.id ?? "",
+      grupoId: subfamilias[0]?.grupos[0]?.id ?? "",
       producto: "",
       material: "",
       marca: "",
@@ -38,7 +41,17 @@ export function SuministroForm({ subfamilias }: { subfamilias: Subfamilia[] }) {
 
   const campos = form.watch();
   const subfamiliaElegida = subfamilias.find((s) => s.id === campos.subfamiliaId);
+  const grupoElegido = subfamiliaElegida?.grupos.find((g) => g.id === campos.grupoId);
   const prefijo = subfamiliaElegida ? `SU${subfamiliaElegida.prefijo ?? ""}` : "SU";
+
+  // Si cambia la subfamilia, el grupo elegido puede no pertenecerle: se
+  // cambia al primero de la nueva subfamilia.
+  useEffect(() => {
+    if (subfamiliaElegida && !grupoElegido) {
+      form.setValue("grupoId", subfamiliaElegida.grupos[0]?.id ?? "");
+    }
+  }, [subfamiliaElegida, grupoElegido, form]);
+
   const descripcionPreview = useMemo(
     () =>
       [campos.producto, campos.material, campos.marca, campos.medida, campos.destinoDescripcion, campos.codigoParte, campos.color, campos.presentacion]
@@ -100,6 +113,31 @@ export function SuministroForm({ subfamilias }: { subfamilias: Subfamilia[] }) {
             />
             <p className="text-xs text-muted-foreground">
               ¿Falta una subfamilia? Agrégala en Logística &gt; Listas &gt; Categorías.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Grupo</Label>
+            <Controller
+              control={form.control}
+              name="grupoId"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(subfamiliaElegida?.grupos ?? []).map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              ¿Falta un grupo? Agrégalo en Logística &gt; Listas &gt; Categorías.
             </p>
           </div>
 
@@ -199,7 +237,10 @@ export function SuministroForm({ subfamilias }: { subfamilias: Subfamilia[] }) {
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting || subfamilias.length === 0}>
+        <Button
+          type="submit"
+          disabled={form.formState.isSubmitting || subfamilias.length === 0 || !subfamiliaElegida?.grupos.length}
+        >
           {form.formState.isSubmitting ? "Creando..." : "Crear código"}
         </Button>
       </div>

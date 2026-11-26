@@ -5,7 +5,9 @@ import { CategoriasView } from "./categorias-view";
 export default async function CategoriasPage() {
   const familias = await prisma.familia.findMany({
     orderBy: { orden: "asc" },
-    include: { subfamilias: { orderBy: { orden: "asc" } } },
+    include: {
+      subfamilias: { orderBy: { orden: "asc" }, include: { grupos: { orderBy: { orden: "asc" } } } },
+    },
   });
 
   return (

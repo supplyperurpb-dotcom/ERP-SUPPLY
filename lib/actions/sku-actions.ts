@@ -34,6 +34,7 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
   }
   const {
     subfamiliaId,
+    grupoId,
     producto,
     material,
     marca,
@@ -58,6 +59,8 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
     const nuevoSku = await prisma.$transaction(async (tx) => {
       const subfamilia = await tx.subfamilia.findUnique({ where: { id: subfamiliaId }, include: { familia: true } });
       if (!subfamilia) throw new Error("La subfamilia seleccionada no existe.");
+      const grupo = await tx.grupo.findUnique({ where: { id: grupoId } });
+      if (!grupo || grupo.subfamiliaId !== subfamiliaId) throw new Error("El grupo seleccionado no existe.");
 
       const prefijo = `${subfamilia.familia.prefijo}${subfamilia.prefijo || prefijoDeNombre(subfamilia.nombre)}`;
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
@@ -69,6 +72,7 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
           descripcion,
           categoria: "Suministros",
           subfamilia: subfamilia.nombre,
+          grupo: grupo.nombre,
           unidadMedida,
           stockMinimo: stockMinimo ?? null,
           requiereLote,

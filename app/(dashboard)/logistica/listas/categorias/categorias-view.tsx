@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { Plus, Power } from "lucide-react";
 import { toast } from "sonner";
-import type { Familia, Subfamilia } from "@prisma/client";
+import type { Familia, Subfamilia, Grupo } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,9 +23,17 @@ import {
   crearSubfamiliaAction,
   cambiarActivoFamiliaAction,
   cambiarActivoSubfamiliaAction,
+  crearGrupoAction,
+  cambiarActivoGrupoAction,
 } from "@/lib/actions/familia-actions";
 
-type FamiliaConSubfamilias = Familia & { subfamilias: Subfamilia[] };
+type SubfamiliaConGrupos = Subfamilia & { grupos: Grupo[] };
+type FamiliaConSubfamilias = Familia & { subfamilias: SubfamiliaConGrupos[] };
+
+// Tercer nivel, debajo de Subfamilia — hoy solo tiene sentido (y datos)
+// para la familia Suministros (pedido explícito del usuario), así que la
+// fila de Grupos solo se muestra ahí.
+const FAMILIA_CON_GRUPO = "Suministros";
 
 export function CategoriasView({ familias }: { familias: FamiliaConSubfamilias[] }) {
   const [isPending, startTransition] = useTransition();
@@ -49,6 +57,17 @@ export function CategoriasView({ familias }: { familias: FamiliaConSubfamilias[]
         return;
       }
       toast.success(s.activo ? `"${s.nombre}" desactivada` : `"${s.nombre}" activada`);
+    });
+  }
+
+  function handleToggleGrupo(g: Grupo) {
+    startTransition(async () => {
+      const resultado = await cambiarActivoGrupoAction(g.id, !g.activo);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success(g.activo ? `"${g.nombre}" desactivado` : `"${g.nombre}" activado`);
     });
   }
 
@@ -90,18 +109,44 @@ export function CategoriasView({ familias }: { familias: FamiliaConSubfamilias[]
                   </TableRow>
                 )}
                 {f.subfamilias.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.nombre}</TableCell>
-                    <TableCell>{s.prefijo ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={s.activo ? "success" : "secondary"}>{s.activo ? "Activa" : "Inactiva"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" disabled={isPending} onClick={() => handleToggleSubfamilia(s)}>
-                        <Power className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  <Fragment key={s.id}>
+                    <TableRow>
+                      <TableCell className="font-medium">{s.nombre}</TableCell>
+                      <TableCell>{s.prefijo ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={s.activo ? "success" : "secondary"}>{s.activo ? "Activa" : "Inactiva"}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" disabled={isPending} onClick={() => handleToggleSubfamilia(s)}>
+                          <Power className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                    {f.nombre === FAMILIA_CON_GRUPO && (
+                      <TableRow className="bg-muted/30">
+                        <TableCell colSpan={4}>
+                          <div className="flex flex-wrap items-center gap-2 pl-4">
+                            <span className="text-xs text-muted-foreground">Grupo:</span>
+                            {s.grupos.length === 0 && (
+                              <span className="text-xs text-muted-foreground">Sin grupos.</span>
+                            )}
+                            {s.grupos.map((g) => (
+                              <Badge
+                                key={g.id}
+                                variant={g.activo ? "outline" : "secondary"}
+                                className="flex items-center gap-1 cursor-pointer"
+                                onClick={() => handleToggleGrupo(g)}
+                              >
+                                {g.nombre}
+                                {!g.activo && " (inactivo)"}
+                              </Badge>
+                            ))}
+                            <GrupoFormDialog subfamiliaId={s.id} subfamiliaNombre={s.nombre} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -229,6 +274,56 @@ function SubfamiliaFormDialog({ familiaId, familiaNombre }: { familiaId: string;
               maxLength={6}
               placeholder="Se deriva del nombre si se deja vacío"
             />
+          </div>
+          {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Guardando..." : "Crear"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GrupoFormDialog({ subfamiliaId, subfamiliaNombre }: { subfamiliaId: string; subfamiliaNombre: string }) {
+  const [open, setOpen] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(undefined);
+    startTransition(async () => {
+      const resultado = await crearGrupoAction({ subfamiliaId, nombre });
+      if (resultado?.error) {
+        setError(resultado.error);
+        return;
+      }
+      toast.success("Grupo creado");
+      setOpen(false);
+      setNombre("");
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+          <Plus className="mr-1 h-3 w-3" />
+          Nuevo grupo
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nuevo grupo de {subfamiliaNombre}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="grupo-nombre">Nombre</Label>
+            <Input id="grupo-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus />
           </div>
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}
           <DialogFooter>

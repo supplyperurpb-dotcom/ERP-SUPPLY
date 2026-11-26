@@ -321,6 +321,10 @@ model Sku {
   descripcion  String
   categoria    String
   subfamilia   String
+  // Tercer nivel debajo de Subfamilia, solo para la familia Suministros
+  // (ver Logística > Listas > Categorías) — null para los demás flujos de
+  // Creación de Materiales, que no lo usan.
+  grupo        String?
   unidadMedida String // catálogo SUNAT simplificado (KGM, NIU, BX, LTR, ...)
   stockMinimo  Decimal? @db.Decimal(12, 3)
   // Si está marcado, un ingreso a almacén de este SKU exige lote/fecha de
@@ -378,9 +382,28 @@ model Subfamilia {
   orden     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  grupos    Grupo[]
 
   @@unique([familiaId, nombre])
   @@map("subfamilias")
+}
+
+// Tercer nivel, debajo de Subfamilia — hoy solo se usa (y se muestra en el
+// formulario de Creación de Materiales) para la familia Suministros; se
+// sembró un Grupo por cada Subfamilia existente de Suministros, con el
+// mismo nombre, para que ninguna quede sin al menos uno.
+model Grupo {
+  id           String     @id @default(cuid())
+  subfamiliaId String
+  subfamilia   Subfamilia @relation(fields: [subfamiliaId], references: [id])
+  nombre       String
+  activo       Boolean    @default(true)
+  orden        Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([subfamiliaId, nombre])
+  @@map("grupos")
 }
 
 // Un almacén "general" es donde se registran los ingresos (ver
