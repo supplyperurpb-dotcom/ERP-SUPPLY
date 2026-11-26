@@ -58,7 +58,7 @@ export const solicitudPedidoSchema = z
     hora: z.string().optional().or(z.literal("")),
     fechaNecesidad: z.coerce.date({ required_error: "La fecha estimada de necesidad es obligatoria" }),
     tipoNecesidad: z.enum(["URGENTE", "ESTANDAR"], { required_error: "Selecciona el tipo de necesidad" }),
-    justificacion: z.string().trim().min(1, "Especifica el uso").max(500),
+    justificacion: z.string().trim().min(15, "Especifica el uso con al menos 15 caracteres").max(500),
     items: z.array(itemSolicitudPedidoSchema).min(1, "Agrega al menos un producto"),
   })
   .superRefine((data, ctx) => {
@@ -154,7 +154,7 @@ export const ordenCompraSchema = z
     // "Comentario" en la UI — reemplaza lo que antes era la justificación
     // (auto-pulled de la Solped) mostrada de solo lectura; ahora es un
     // comentario propio de la OC/OS, escrito a mano y obligatorio.
-    observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
+    observaciones: z.string().trim().min(15, "El comentario debe tener al menos 15 caracteres").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),
     items: z.array(itemOrdenCompraSchema).min(1, "Selecciona al menos un ítem pendiente"),
     // Sustento obligatorio (pedido explícito, 2026-11-25): ruta ya subida
@@ -209,7 +209,7 @@ export const editarOrdenCompraSchema = z
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
-    observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
+    observaciones: z.string().trim().min(15, "El comentario debe tener al menos 15 caracteres").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),
     items: z.array(itemOrdenCompraEditSchema).min(1, "La orden debe tener al menos un ítem"),
   })
@@ -258,7 +258,7 @@ export const ordenCompraDirectaSchema = z
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
     condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
-    observaciones: z.string().trim().min(1, "El comentario es obligatorio").max(500),
+    observaciones: z.string().trim().min(15, "El comentario debe tener al menos 15 caracteres").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),
     items: z.array(itemOrdenCompraDirectaSchema).min(1, "Agrega al menos un producto"),
     // Sustento obligatorio (pedido explícito, 2026-11-25): ver mismo

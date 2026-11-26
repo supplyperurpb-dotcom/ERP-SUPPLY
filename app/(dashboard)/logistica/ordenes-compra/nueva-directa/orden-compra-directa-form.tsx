@@ -155,8 +155,8 @@ export function OrdenCompraDirectaForm({
       toast.error("Selecciona el lugar de entrega");
       return;
     }
-    if (!comentario.trim()) {
-      toast.error("El comentario es obligatorio");
+    if (comentario.trim().length < 15) {
+      toast.error("El comentario debe tener al menos 15 caracteres");
       return;
     }
     if (tipoOrden === "ABIERTA" && !vigenteHasta) {
@@ -362,7 +362,7 @@ export function OrdenCompraDirectaForm({
             </Select>
           </div>
           <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="observaciones">Comentario</Label>
+            <Label htmlFor="observaciones">Comentario (mínimo 15 caracteres)</Label>
             <Textarea
               id="observaciones"
               rows={3}

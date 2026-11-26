@@ -218,8 +218,8 @@ export function OrdenCompraEditarForm({
       toast.error("Selecciona el lugar de entrega");
       return;
     }
-    if (!comentario.trim()) {
-      toast.error("El comentario es obligatorio");
+    if (comentario.trim().length < 15) {
+      toast.error("El comentario debe tener al menos 15 caracteres");
       return;
     }
     for (const item of items) {
@@ -400,7 +400,7 @@ export function OrdenCompraEditarForm({
             </Select>
           </div>
           <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="observaciones">Comentario</Label>
+            <Label htmlFor="observaciones">Comentario (mínimo 15 caracteres)</Label>
             <Textarea id="observaciones" rows={3} value={comentario} onChange={(e) => setComentario(e.target.value)} />
           </div>
         </CardContent>
