@@ -752,7 +752,8 @@ export function ConsumoAlmacenForm({
                     <TableHead className="w-44">Campo *</TableHead>
                     {muestraLote && (
                       <>
-                        <TableHead className="w-48">Lote *</TableHead>
+                        <TableHead className="w-40">Lote *</TableHead>
+                        <TableHead className="w-44">Proveedor</TableHead>
                         <TableHead className="w-32">F. producción</TableHead>
                         <TableHead className="w-32">F. vencimiento</TableHead>
                       </>
@@ -892,53 +893,67 @@ export function ConsumoAlmacenForm({
                                 // El lote ya se eligió en "Ver Productos" (reparto por
                                 // almacén/lote) — acá solo se muestra; para cambiarlo hay
                                 // que usar el botón "Editar" de esta fila.
-                                <p className="pt-2 text-sm">
-                                  {loteElegido
-                                    ? `${loteElegido} — ${items[index]?.proveedorId ? proveedorNombrePorId.get(items[index].proveedorId!) ?? "—" : "Sin proveedor"}`
-                                    : "—"}
-                                </p>
+                                <p className="pt-2 text-sm">{loteElegido || "—"}</p>
                               ) : filaRequiereLote ? (
                                 <Controller
                                   control={form.control}
                                   name={`items.${index}.lote`}
-                                  render={({ field: loteField }) => (
-                                    <Select
-                                      value={loteField.value ? claveLote(loteField.value, items[index]?.proveedorId) : ""}
-                                      onValueChange={(valor) => {
-                                        const lote = lotesSku.find((l) => claveLote(l.lote, l.proveedorId) === valor);
-                                        loteField.onChange(lote?.lote ?? "");
-                                        form.setValue(`items.${index}.proveedorId`, lote?.proveedorId ?? "");
-                                        form.setValue(
-                                          `items.${index}.fechaProduccion`,
-                                          lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
-                                        );
-                                        form.setValue(
-                                          `items.${index}.fechaVencimiento`,
-                                          lote?.fechaVencimiento ? (soloFecha(lote.fechaVencimiento) as unknown as Date) : undefined
-                                        );
-                                      }}
-                                      disabled={!skuId}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un lote" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {lotesSku.length === 0 ? (
-                                          <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
-                                        ) : (
-                                          lotesSku.map((l) => (
-                                            <SelectItem key={claveLote(l.lote, l.proveedorId)} value={claveLote(l.lote, l.proveedorId)}>
-                                              {l.lote} — {l.proveedorNombre ?? "Sin proveedor"} — {formatCantidad(l.cantidad)} {l.unidadMedida}
-                                            </SelectItem>
-                                          ))
-                                        )}
-                                      </SelectContent>
-                                    </Select>
-                                  )}
+                                  render={({ field: loteField }) => {
+                                    const valorLote = loteField.value;
+                                    const loteSeleccionado = valorLote
+                                      ? lotesSku.find(
+                                          (l) => claveLote(l.lote, l.proveedorId) === claveLote(valorLote, items[index]?.proveedorId)
+                                        )
+                                      : undefined;
+                                    return (
+                                      <Select
+                                        value={loteField.value ? claveLote(loteField.value, items[index]?.proveedorId) : ""}
+                                        onValueChange={(valor) => {
+                                          const lote = lotesSku.find((l) => claveLote(l.lote, l.proveedorId) === valor);
+                                          loteField.onChange(lote?.lote ?? "");
+                                          form.setValue(`items.${index}.proveedorId`, lote?.proveedorId ?? "");
+                                          form.setValue(
+                                            `items.${index}.fechaProduccion`,
+                                            lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
+                                          );
+                                          form.setValue(
+                                            `items.${index}.fechaVencimiento`,
+                                            lote?.fechaVencimiento ? (soloFecha(lote.fechaVencimiento) as unknown as Date) : undefined
+                                          );
+                                        }}
+                                        disabled={!skuId}
+                                      >
+                                        <SelectTrigger>
+                                          {/* El Select muestra solo el lote (el proveedor va en su
+                                              propia columna, al lado); la lista completa sigue
+                                              mostrando lote — proveedor — cantidad para elegir. */}
+                                          <SelectValue placeholder="Selecciona un lote">
+                                            {loteSeleccionado
+                                              ? `${loteSeleccionado.lote} — ${formatCantidad(loteSeleccionado.cantidad)} ${loteSeleccionado.unidadMedida}`
+                                              : undefined}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {lotesSku.length === 0 ? (
+                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
+                                          ) : (
+                                            lotesSku.map((l) => (
+                                              <SelectItem key={claveLote(l.lote, l.proveedorId)} value={claveLote(l.lote, l.proveedorId)}>
+                                                {l.lote} — {l.proveedorNombre ?? "Sin proveedor"} — {formatCantidad(l.cantidad)} {l.unidadMedida}
+                                              </SelectItem>
+                                            ))
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    );
+                                  }}
                                 />
                               ) : (
                                 <span className="text-sm text-muted-foreground">—</span>
                               )}
+                            </TableCell>
+                            <TableCell className="align-top pt-4 text-sm text-muted-foreground">
+                              {items[index]?.proveedorId ? proveedorNombrePorId.get(items[index].proveedorId!) ?? "—" : "—"}
                             </TableCell>
                             <TableCell className="align-top pt-4 text-sm text-muted-foreground">
                               {soloFecha(items[index]?.fechaProduccion as unknown as string) || "—"}
