@@ -114,6 +114,7 @@ export async function generarOrdenCompraPdf({
   usuarioSolped = usuarioSolped?.toUpperCase() ?? null;
   usuarioCreacion = usuarioCreacion?.toUpperCase() ?? null;
   solpedAprobadoPor = solpedAprobadoPor?.toUpperCase() ?? null;
+  tipoOrdenLabel = tipoOrdenLabel.toUpperCase();
   lineas = lineas.map((l) => ({
     ...l,
     codigo: l.codigo.toUpperCase(),
