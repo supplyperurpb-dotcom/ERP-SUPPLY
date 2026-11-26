@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FileDown, Check, X as XIcon, Clock, Pencil } from "lucide-react";
+import { FileDown, Check, X as XIcon, Clock, Pencil, ShoppingCart } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -211,6 +211,12 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         descripcion={`${orden.proveedor.razonSocial} · ${formatDate(orden.fecha)}${descripcionTipoOrden}`}
         acciones={
           <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/logistica/ordenes-compra">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Ir a Órdenes de Compra
+              </Link>
+            </Button>
             {puedeEditar && (
               <Button variant="outline" asChild>
                 <Link href={`/logistica/ordenes-compra/${orden.id}/editar`}>
