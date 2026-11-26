@@ -11,8 +11,11 @@ export function cn(...inputs: ClassValue[]) {
 // "CGOZZER"; "Jorge" "Quijano" -> "JQUIJANO".
 export function codigoAprobador(nombres: string, apellidos: string): string {
   const inicial = nombres.trim().charAt(0);
-  const apellido = apellidos.replace(/\s+/g, "");
-  return `${inicial}${apellido}`.toUpperCase();
+  // Solo el primer apellido (paterno) — `apellidos` puede traer los dos
+  // juntos separados por espacio (p. ej. "Camasca Rafael"), y antes se
+  // unían ambos sin espacio (bug: "SCAMASCARAFAEL" en vez de "SCAMASCA").
+  const primerApellido = apellidos.trim().split(/\s+/)[0] ?? "";
+  return `${inicial}${primerApellido}`.toUpperCase();
 }
 
 // Nombre completo de un RetiradorAutorizado (apellidoMaterno es opcional,
