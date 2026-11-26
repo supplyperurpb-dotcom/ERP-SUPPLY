@@ -203,6 +203,17 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="cuentaInterbancariaCci">Cuenta interbancaria (CCI) (opcional)</Label>
+            <Input
+              id="cuentaInterbancariaCci"
+              name="cuentaInterbancariaCci"
+              defaultValue={proveedor?.cuentaInterbancariaCci ?? ""}
+              maxLength={20}
+              placeholder="20 dígitos"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="direccion">Dirección</Label>
             <Input id="direccion" name="direccion" defaultValue={proveedor?.direccion ?? ""} required />
           </div>

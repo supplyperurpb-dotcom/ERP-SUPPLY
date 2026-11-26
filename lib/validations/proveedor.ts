@@ -39,6 +39,10 @@ export const proveedorSchema = z
     // normal, "OTRO" nunca se guarda literal.
     banco: z.string().trim().min(1, "El banco es obligatorio").max(100),
     numeroCuenta: z.string().trim().min(1, "El número de cuenta es obligatorio").max(50),
+    // Código de Cuenta Interbancaria: opcional (no todos los proveedores ya
+    // registrados lo tienen), pero si se escribe debe ser el formato
+    // peruano (20 dígitos).
+    cuentaInterbancariaCci: opcional(20),
     activo: z.coerce.boolean().default(true),
   })
   .superRefine((data, ctx) => {
@@ -47,6 +51,13 @@ export const proveedorSchema = z
         code: z.ZodIssueCode.custom,
         message: "El RUC debe tener 11 dígitos",
         path: ["numeroDocumento"],
+      });
+    }
+    if (data.cuentaInterbancariaCci && !/^\d{20}$/.test(data.cuentaInterbancariaCci)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El CCI debe tener 20 dígitos",
+        path: ["cuentaInterbancariaCci"],
       });
     }
   });

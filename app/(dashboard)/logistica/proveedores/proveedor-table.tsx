@@ -89,6 +89,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
         Ubicación: ubicacion(p) === "—" ? "" : ubicacion(p),
         Banco: p.banco ?? "",
         "Número de cuenta": p.numeroCuenta ?? "",
+        CCI: p.cuentaInterbancariaCci ?? "",
         Teléfono: p.telefono,
         Email: p.email,
         Contacto: p.contactoNombre,
