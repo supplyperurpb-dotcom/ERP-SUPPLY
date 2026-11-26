@@ -367,51 +367,99 @@ export async function generarOrdenCompraPdf({
   // su altura exacta primero (dibujar=false) y luego se dibuja ya
   // sabiendo desde dónde arrancar para que la última línea quede a
   // PIE_MARGEN del borde inferior.
-  if (categoriaEsCompra) {
-    const bloqueCondiciones = (yInicio: number | null): number => {
-      let yLocal = yInicio ?? 0;
-      const dibujar = yInicio !== null;
-      const linea = (texto: string, x: number, font: PDFFont) => {
-        if (dibujar) page.drawText(texto, { x, y: yLocal, size: 8, font, color: NEGRO });
-        yLocal -= 11;
-      };
-      const parrafo = (texto: string, negrita = false) => {
-        for (const l of envolverTextoPx(texto, negrita ? bold : regular, 8, ANCHO_TABLA)) {
-          linea(l, MARGEN_X, negrita ? bold : regular);
-        }
-      };
-      const bullet = (texto: string) => {
-        const lineasTexto = envolverTextoPx(texto, regular, 8, ANCHO_TABLA - 24);
-        lineasTexto.forEach((l, i) => {
-          if (i === 0 && dibujar) page.drawText("•", { x: MARGEN_X + 6, y: yLocal, size: 8, font: regular, color: NEGRO });
-          linea(l, MARGEN_X + 18, regular);
-        });
-      };
+  // ---------------------------------------------------------------------
+  // Términos y condiciones: hoja completa aparte (pedido explícito,
+  // 2026-11-26), igual para OC y OS — siempre en la hoja siguiente a
+  // donde termina el detalle de arriba, nunca compartiendo página con él.
+  // Texto tomado tal cual de una OC/OS real ya emitida en Word (ver
+  // "CONDICIONES COMERCIALES CONTRATADAS" en los formatos usados hasta
+  // ahora), limpiando solo los espacios sueltos que trae ese Word.
+  // ---------------------------------------------------------------------
+  page = pdfDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+  y = ALTO_PAGINA - 40;
 
-      parrafo("Las facturas solo deben ser enviadas al siguiente correo facturas.peru@berry.net adjuntando:");
-      yLocal -= 3;
-      bullet("Factura electrónica en PDF y archivo XML");
-      bullet("Orden de Compra");
-      bullet("Guía de Remisión firmada y sellada por almacén de RPB");
-      yLocal -= 3;
-      parrafo("Para facturar deben referenciar el número de orden de compra u orden de servicio emitido por RPB.");
-      yLocal -= 3;
-      parrafo("No se recepcionarán productos sin Orden de Compra, FT, HS y Certificado de metales pesados.");
-      yLocal -= 3;
-      parrafo(
-        "No se aceptarán productos cuyo periodo de vida útil desde la fecha de recepción a la fecha de vencimiento sea menor a 18 meses.",
-        true
-      );
-      return (yInicio ?? 0) - yLocal;
-    };
-
-    const PIE_MARGEN = 30;
-    const alturaCondiciones = bloqueCondiciones(null);
-    const yAnclado = PIE_MARGEN + alturaCondiciones;
-    if (y < yAnclado) nuevaPagina();
-    y = yAnclado;
-    bloqueCondiciones(y);
+  function nuevaPaginaTerminos() {
+    page = pdfDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+    y = ALTO_PAGINA - 40;
   }
+
+  function lineaTerminos(texto: string, x: number, font: PDFFont, size: number) {
+    if (y < MARGEN_INFERIOR) nuevaPaginaTerminos();
+    page.drawText(texto, { x, y, size, font, color: NEGRO });
+    y -= size + 3;
+  }
+
+  function parrafoTerminos(texto: string) {
+    for (const l of envolverTextoPx(texto, regular, 8, ANCHO_TABLA)) {
+      lineaTerminos(l, MARGEN_X, regular, 8);
+    }
+  }
+
+  function tituloSeccion(texto: string) {
+    y -= 6;
+    lineaTerminos(texto, MARGEN_X, bold, 9);
+  }
+
+  function bulletTerminos(texto: string) {
+    const lineasTexto = envolverTextoPx(texto, regular, 8, ANCHO_TABLA - 24);
+    lineasTexto.forEach((l, i) => {
+      if (i === 0) {
+        if (y < MARGEN_INFERIOR) nuevaPaginaTerminos();
+        page.drawText("•", { x: MARGEN_X + 6, y, size: 8, font: regular, color: NEGRO });
+      }
+      lineaTerminos(l, MARGEN_X + 18, regular, 8);
+    });
+  }
+
+  lineaTerminos("CONDICIONES COMERCIALES CONTRATADAS", MARGEN_X, bold, 12);
+  y -= 6;
+
+  tituloSeccion("FECHA DE VENCIMIENTO DE PRODUCTOS");
+  parrafoTerminos(
+    "Las fechas de fabricación/producción y vencimiento deben ser debidamente rotuladas en los productos. No se aceptarán productos próximos a vencer y como mínimo estos deberán tener un periodo de vida útil de 18 meses desde la fecha de recepción. En caso este periodo sea menor, REITER PERUVIAN BERRY S.A. se reserva el derecho de rechazar la entrega y el proveedor deberá reemplazar el producto."
+  );
+
+  tituloSeccion("GARANTÍA");
+  parrafoTerminos(
+    "Los productos deberán estar adecuadamente embalados y/o rotulados, de acuerdo con sus características. Cualquier avería y/o reparación de los mismos durante el transporte, o atribuible a un mal embalaje y/o rotulado, es responsabilidad del fabricante. Adicionalmente, el proveedor deberá garantizar el material adquirido contra todo defecto de fabricación y/o vicios ocultos."
+  );
+
+  tituloSeccion("DOCUMENTACIÓN");
+  parrafoTerminos(
+    "Los comprobantes de pago deben ser electrónicos y enviados a facturas.peru@berry.net con copia a su comprador. Deben incluir, por cada documento presentado:"
+  );
+  bulletTerminos("Productos: Factura, Guía de Remisión y Orden de Compra debidamente firmada.");
+  bulletTerminos(
+    "Servicio: Factura, Acta de conformidad / informe / resultado de análisis (firmado por el encargado del área) y Orden de Servicio debidamente firmada."
+  );
+
+  tituloSeccion("ACEPTACIÓN / CANCELACIÓN DE LA O/C Y O/S");
+  parrafoTerminos(
+    "En el supuesto caso de no existir conformidad con las condiciones detalladas de la presente Orden de Compra/Servicio, su rechazo total deberá ser comunicado por escrito dentro de las 24 horas de recibida la misma. Caso contrario, la presente Orden de Compra/Servicio se considerará tácitamente aceptada en todos sus términos y el cumplimiento de la misma será plenamente exigible. Queda establecido que, en caso el proveedor incumpla parcial o totalmente con algunas condiciones, REITER PERUVIAN BERRY S.A. se reserva el derecho de cancelarla, parcial o totalmente, sin que esto represente reclamo o reconocimiento alguno por parte del proveedor."
+  );
+
+  tituloSeccion("NORMAS DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE");
+  parrafoTerminos(
+    "Además de las normas legales vigentes referidas a Seguridad y Salud en el Trabajo, tales como la Ley N° 29783, su Reglamento, el D.S. N° 005-2012-TR y demás normas conexas, así como medioambientales, EL PROVEEDOR se compromete a respetar y hacer cumplir a su personal los lineamientos de Seguridad, Salud Ocupacional y Medio Ambiente establecidos por REITER PERUVIAN BERRY S.A. para el cabal desempeño de sus funciones, independientemente de si se llegase a formalizar un contrato de prestación de servicios, manifestando que el presente documento tiene plena vigencia y eficacia para los fines que se persiguen, siendo plenamente ejecutable ante las instancias administrativas y/o judiciales correspondientes."
+  );
+  y -= 3;
+  parrafoTerminos(
+    "Para el efectivo cumplimiento de lo señalado en el párrafo precedente, REITER PERUVIAN BERRY S.A. brindará, a solicitud del proveedor, la inducción, formatos y documentación que resulten necesarios a través de su área de Seguridad y Salud Ocupacional."
+  );
+  y -= 3;
+  parrafoTerminos(
+    "El incumplimiento, así como el cumplimiento parcial, tardío y/o defectuoso de lo prescrito en la presente cláusula, generará la resolución inmediata del vínculo entre las partes, dando pase a la indemnización por daños y perjuicios a favor de REITER PERUVIAN BERRY S.A. y/o terceros que pudieran haberse visto afectados con el actuar negligente de El Proveedor, que corresponda."
+  );
+  y -= 3;
+  parrafoTerminos(
+    "Para todos los efectos de este documento, las partes se someten a la competencia de la Corte Superior de Justicia de Ica o Lima, renunciando a la competencia que pudiera corresponder a sus respectivos domicilios."
+  );
+
+  tituloSeccion("REQUISITOS BÁSICOS DE SEGURIDAD PARA VISITA A PLANTA Y/O CAMPO");
+  bulletTerminos("Contar con SCTR.");
+  bulletTerminos("Contar con EPPs completos.");
+  bulletTerminos("Conocer el manejo de residuos sólidos.");
+  bulletTerminos("Gestión adecuada de recursos (agua, energía, combustibles, etc.).");
 
   if (anulado) dibujarMarcaDeAgua(pdfDoc, bold, "ANULADA");
   else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
