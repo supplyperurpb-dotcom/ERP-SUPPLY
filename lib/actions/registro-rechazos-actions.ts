@@ -212,8 +212,12 @@ export async function confirmarRegistroRechazoAction(
       : null;
     const embarqueId = palletResuelto?.embarqueId ?? null;
 
-    const ruta = `comex/rechazos/${encabezado.poNumber ?? "sin-ship-number"}/${Date.now()}-${archivo.name}`;
-    await subirArchivo(ruta, archivo);
+    // subirArchivo sanea la ruta (espacios, paréntesis, etc. se vuelven
+    // "_") y es la ruta REAL donde queda el archivo — hay que guardar lo
+    // que devuelve, no la ruta pedida (mismo bug corregido en
+    // importar-pl-actions.ts, 2026-11-26).
+    const rutaPedida = `comex/rechazos/${encabezado.poNumber ?? "sin-ship-number"}/${Date.now()}-${archivo.name}`;
+    const ruta = await subirArchivo(rutaPedida, archivo);
 
     const creado = await prisma.rechazoCorreo.create({
       data: {

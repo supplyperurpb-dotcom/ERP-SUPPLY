@@ -89,8 +89,13 @@ export async function confirmarImportacionPackingListAction(formData: FormData):
     const existentes = await prisma.embarque.findMany({ select: { numero: true } });
     const numero = siguienteNumero(existentes.map((e) => e.numero), "EMB-");
 
-    const ruta = `comex/embarques/${resultado.embarque.shipNumber}/${Date.now()}-${archivo.name}`;
-    await subirArchivo(ruta, archivo);
+    // subirArchivo sanea la ruta (espacios, paréntesis, etc. se vuelven
+    // "_") y es la ruta REAL donde queda el archivo — hay que guardar lo
+    // que devuelve, no la ruta pedida, o después no se encuentra el
+    // archivo al generar la URL firmada (bug detectado 2026-11-26: así
+    // quedaron mal 74 de 75 embarques ya importados).
+    const rutaPedida = `comex/embarques/${resultado.embarque.shipNumber}/${Date.now()}-${archivo.name}`;
+    const ruta = await subirArchivo(rutaPedida, archivo);
 
     const { embarque, pallets } = resultado;
     const creado = await prisma.embarque.create({

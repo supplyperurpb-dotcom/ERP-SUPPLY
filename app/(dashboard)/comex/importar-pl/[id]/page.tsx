@@ -20,7 +20,18 @@ export default async function DetalleImportacionPLPage({ params }: { params: Pro
 
   const embarque = embarqueDb;
   const pallets = embarqueDb.pallets.map((p) => ({ ...p, cases: p.cases, pesoNetoKg: Number(p.pesoNetoKg) }));
-  const urlArchivo = embarque.archivoOriginalUrl ? await obtenerUrlFirmadaArchivo(embarque.archivoOriginalUrl, 300) : null;
+  // Si el archivo ya no existe en el storage (borrado o nunca llegó a
+  // subirse bien), no debe tumbar toda la página — solo se deja de
+  // mostrar el botón de descarga, en vez de un error genérico sin
+  // explicación.
+  let urlArchivo: string | null = null;
+  if (embarque.archivoOriginalUrl) {
+    try {
+      urlArchivo = await obtenerUrlFirmadaArchivo(embarque.archivoOriginalUrl, 300);
+    } catch (e) {
+      console.error(`No se pudo generar la URL firmada de ${embarque.archivoOriginalUrl}:`, e);
+    }
+  }
 
   const totalCases = pallets.reduce((acc, p) => acc + p.cases, 0);
   const totalNetWeight = pallets.reduce((acc, p) => acc + p.pesoNetoKg, 0);

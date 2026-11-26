@@ -19,7 +19,15 @@ export default async function DetalleRechazoPage({ params }: { params: Promise<{
   });
   if (!correo) notFound();
 
-  const urlImagen = await obtenerUrlFirmadaArchivo(correo.archivoOriginalUrl, 300);
+  // Si el archivo ya no existe en el storage (borrado o nunca llegó a
+  // subirse bien), no debe tumbar toda la página — solo se deja de
+  // mostrar la captura, en vez de un error genérico sin explicación.
+  let urlImagen: string | null = null;
+  try {
+    urlImagen = await obtenerUrlFirmadaArchivo(correo.archivoOriginalUrl, 300);
+  } catch (e) {
+    console.error(`No se pudo generar la URL firmada de ${correo.archivoOriginalUrl}:`, e);
+  }
   const items = correo.items.map((it) => ({
     id: it.id,
     lpn: it.lpn,
@@ -54,8 +62,14 @@ export default async function DetalleRechazoPage({ params }: { params: Promise<{
             <CardTitle className="text-base">Captura original</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* eslint-disable-next-line @next/next/no-img-element -- imagen firmada temporal, no apta para el optimizador de next/image */}
-            <img src={urlImagen} alt="Captura del correo de rechazo" className="w-full rounded-md border" />
+            {urlImagen ? (
+              // eslint-disable-next-line @next/next/no-img-element -- imagen firmada temporal, no apta para el optimizador de next/image
+              <img src={urlImagen} alt="Captura del correo de rechazo" className="w-full rounded-md border" />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                El archivo original ya no está disponible en el almacenamiento.
+              </p>
+            )}
           </CardContent>
         </Card>
 
