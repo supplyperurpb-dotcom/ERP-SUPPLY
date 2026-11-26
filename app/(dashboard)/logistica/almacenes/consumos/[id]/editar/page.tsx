@@ -4,13 +4,14 @@ import { prisma } from "@/lib/db/prisma";
 import { calcularStockAlmacen, calcularStockPorLote, almacenPermitidoParaConsumo, type FilaStockAlmacen } from "@/lib/stock-almacen";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
 import { nombreCompletoRetirador } from "@/lib/utils";
+import { obtenerValoresActivos } from "@/lib/listas";
 import { ConsumoAlmacenForm } from "../../nuevo/consumo-almacen-form";
 import type { ConsumoAlmacenInput } from "@/lib/validations/almacen";
 
 export default async function EditarConsumoAlmacenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [consumo, almacenesActivos, retiradores, vehiculos] = await Promise.all([
+  const [consumo, almacenesActivos, retiradores, vehiculos, campos] = await Promise.all([
     prisma.consumoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true, proveedor: true } } } }),
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
@@ -19,6 +20,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
       orderBy: { apellidoPaterno: "asc" },
     }),
     prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
+    obtenerValoresActivos("CAMPO"),
   ]);
   if (!consumo) notFound();
   // Entre los almacenes de Empaques, solo Producción se puede usar para
@@ -127,6 +129,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
       fechaProduccion: item.fechaProduccion ? (item.fechaProduccion.toISOString().slice(0, 10) as unknown as Date) : undefined,
       fechaVencimiento: item.fechaVencimiento ? (item.fechaVencimiento.toISOString().slice(0, 10) as unknown as Date) : undefined,
       solicitudDespachoItemId: item.solicitudDespachoItemId ?? "",
+      campo: item.campo ?? "",
     })),
   };
 
@@ -140,6 +143,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
         almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
+        campos={campos}
         retiradores={retiradores.map((r) => ({
           id: r.id,
           nombreCompleto: nombreCompletoRetirador(r),

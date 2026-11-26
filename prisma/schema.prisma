@@ -1346,6 +1346,13 @@ model ConsumoAlmacenItem {
   // Proveedor del lote del que se despachó (pedido explícito,
   // 2026-11-25) — ver mismo comentario en TrasladoAlmacenItem.proveedorId.
   proveedorId             String?
+  // Campo/fundo al que corresponde este consumo (pedido explícito,
+  // 2026-11-25): nombre de un valor activo de ListaValor con tipo CAMPO
+  // — obligatorio a nivel de aplicación (ver itemConsumoSchema en
+  // lib/validations/almacen.ts), igual que OrdenCompraItem.campo. En el
+  // flujo manual se elige directo; atendiendo una Solicitud de Despacho se
+  // hereda del campo de esa misma solicitud (ver consumo-almacen-form.tsx).
+  campo                   String?
 
   consumoAlmacen        ConsumoAlmacen         @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
   almacenOrigen         Almacen                @relation("ConsumosAlmacenItems", fields: [almacenOrigenId], references: [id])

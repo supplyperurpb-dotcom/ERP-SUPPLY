@@ -156,6 +156,11 @@ const itemConsumoSchema = z.object({
   // Si esta línea atiende (total o parcialmente) un ítem de una Solicitud
   // de Despacho, de cuál — ver crearConsumoAlmacenAction.
   solicitudDespachoItemId: z.string().optional().or(z.literal("")),
+  // Campo/fundo al que corresponde (pedido explícito, 2026-11-25) —
+  // obligatorio en todo consumo: en el flujo manual se elige directo, y
+  // atendiendo una Solicitud de Despacho se hereda del campo de esa misma
+  // solicitud (ver consumo-almacen-form.tsx).
+  campo: z.string().trim().min(1, "Selecciona el campo"),
 });
 
 export const consumoAlmacenSchema = z

@@ -240,7 +240,10 @@ const itemOrdenCompraDirectaSchema = z.object({
   precioUnitario: z.coerce.number().min(0, "El precio unitario no puede ser negativo"),
   gravado: z.coerce.boolean().default(true),
   centroCosto: z.string().min(1, "Selecciona el centro de costo"),
-  campo: z.string().optional().or(z.literal("")),
+  // Obligatorio en una orden Directa (pedido explícito, 2026-11-25) — a
+  // diferencia de una orden "con Solped", donde viene fijo de la
+  // solicitud de pedido y no se vuelve a pedir acá.
+  campo: z.string().trim().min(1, "Selecciona el campo"),
   descripcion: z.string().max(500).optional().or(z.literal("")),
   entregas: z.array(entregaProgramadaSchema).default([]),
 });

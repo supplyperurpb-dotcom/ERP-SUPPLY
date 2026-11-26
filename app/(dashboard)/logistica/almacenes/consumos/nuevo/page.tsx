@@ -8,6 +8,7 @@ import {
   almacenPermitidoParaConsumo,
 } from "@/lib/stock-almacen";
 import { siguienteNumero, nombreCompletoRetirador } from "@/lib/utils";
+import { obtenerValoresActivos } from "@/lib/listas";
 import { AREAS_EMPRESA } from "@/lib/constants/compras";
 import { PERMITIR_ATENDER_SOLICITUD_DESPACHO_EN_CONSUMO } from "@/lib/constants/almacenes";
 import { TIPOS_VEHICULO } from "@/lib/validations/vehiculo";
@@ -32,7 +33,7 @@ export default async function NuevoConsumoAlmacenPage({
       ].filter(Boolean)
     : [];
 
-  const [almacenesActivos, retiradores, vehiculos, existentes] = await Promise.all([
+  const [almacenesActivos, retiradores, vehiculos, existentes, campos] = await Promise.all([
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
@@ -41,6 +42,7 @@ export default async function NuevoConsumoAlmacenPage({
     }),
     prisma.vehiculo.findMany({ where: { activo: true }, orderBy: { placa: "asc" } }),
     prisma.consumoAlmacen.findMany({ select: { numero: true } }),
+    obtenerValoresActivos("CAMPO"),
   ]);
   // Entre los almacenes de Empaques, solo Producción se puede usar para
   // consumos — ver almacenPermitidoParaConsumo.
@@ -122,6 +124,7 @@ export default async function NuevoConsumoAlmacenPage({
         almacenes={almacenes.map((a) => ({ id: a.id, codigo: a.codigo, nombre: a.nombre, categoriaGeneral: a.categoriaGeneral }))}
         stockPorAlmacen={stockPorAlmacen}
         lotesPorAlmacen={lotesPorAlmacen}
+        campos={campos}
         retiradores={retiradores.map((r) => ({
           id: r.id,
           nombreCompleto: nombreCompletoRetirador(r),

@@ -45,6 +45,7 @@ function itemVacio(almacenOrigenId: string) {
     fechaProduccion: undefined,
     fechaVencimiento: undefined,
     solicitudDespachoItemId: "",
+    campo: "",
   };
 }
 
@@ -67,6 +68,7 @@ type PendienteDespacho = {
   subfamilia: string;
   unidadMedida: string;
   centroCosto: string;
+  campo: string | null;
   cantidadPendiente: number;
 };
 
@@ -86,6 +88,7 @@ export function ConsumoAlmacenForm({
   almacenes,
   stockPorAlmacen,
   lotesPorAlmacen,
+  campos,
   retiradores,
   vehiculos,
   almacenIdInicial,
@@ -102,6 +105,10 @@ export function ConsumoAlmacenForm({
    * elegido en el flujo manual, o cualquiera de los elegibles si se están
    * atendiendo Solicitudes de Despacho). */
   lotesPorAlmacen: Record<string, Record<string, LoteStock[]>>;
+  /** Valores activos de la lista editable Campo (pedido explícito,
+   * 2026-11-25): obligatorio en cada línea, igual que en la Orden de
+   * Compra/Servicio Directa — solo se usa en el flujo manual. */
+  campos: string[];
   retiradores: RetiradorOpcion[];
   vehiculos: VehiculoOpcionCombobox[];
   almacenIdInicial?: string;
@@ -400,6 +407,7 @@ export function ConsumoAlmacenForm({
         fechaProduccion: fila.fechaProduccion ? (soloFecha(fila.fechaProduccion) as unknown as Date) : undefined,
         fechaVencimiento: fila.fechaVencimiento ? (soloFecha(fila.fechaVencimiento) as unknown as Date) : undefined,
         solicitudDespachoItemId: productoElegido.id,
+        campo: productoElegido.campo ?? "",
       });
     }
     toast.success(editandoPendienteId === productoElegido.id ? "Producto actualizado" : "Producto agregado");
@@ -468,6 +476,10 @@ export function ConsumoAlmacenForm({
     });
     if (faltaLote) {
       toast.error("Selecciona el lote de cada producto que lo exige (lote, fecha de producción y vencimiento).");
+      return;
+    }
+    if (data.items.some((item) => !item.campo?.trim())) {
+      toast.error("Selecciona el campo de cada producto.");
       return;
     }
     if (esCombustible && !data.vehiculoPlaca?.trim()) {
@@ -737,6 +749,7 @@ export function ConsumoAlmacenForm({
                     <TableHead className="w-20">U.M.</TableHead>
                     {!sinAlmacenGeneral && <TableHead className="w-28">Stock disponible</TableHead>}
                     {atendiendoSolicitudes && <TableHead className="w-36">Centro de costo</TableHead>}
+                    <TableHead className="w-44">Campo *</TableHead>
                     {muestraLote && (
                       <>
                         <TableHead className="w-48">Lote *</TableHead>
@@ -848,6 +861,30 @@ export function ConsumoAlmacenForm({
                             {pendienteDeLaFila?.centroCosto ?? "—"}
                           </TableCell>
                         )}
+                        <TableCell className="align-top">
+                          {sinAlmacenGeneral ? (
+                            <p className="pt-2 text-sm">{(pendienteDeLaFila?.campo ?? items[index]?.campo) || "—"}</p>
+                          ) : (
+                            <Controller
+                              control={form.control}
+                              name={`items.${index}.campo`}
+                              render={({ field: campoField }) => (
+                                <Select value={campoField.value || ""} onValueChange={campoField.onChange}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {campos.map((c) => (
+                                      <SelectItem key={c} value={c}>
+                                        {c}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                          )}
+                        </TableCell>
                         {muestraLote && (
                           <>
                             <TableCell className="align-top">

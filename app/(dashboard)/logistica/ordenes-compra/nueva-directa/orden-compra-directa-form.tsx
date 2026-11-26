@@ -30,7 +30,6 @@ import { ProgramaEntregasStep, type FilaEntregaProgramada, type ItemParaPrograma
 
 type SkuOpcion = SkuOpcionCombobox & { categoria: string };
 
-const SIN_CAMPO = "__sin_campo__";
 
 type FilaItem = {
   skuId: string;
@@ -180,6 +179,10 @@ export function OrdenCompraDirectaForm({
         toast.error(`La cantidad de ${f.codigo} debe ser mayor a 0`);
         return;
       }
+      if (!f.campo.trim()) {
+        toast.error(`Selecciona el campo de ${f.codigo}`);
+        return;
+      }
       if (categoria === "SERVICIO" && !f.descripcion.trim()) {
         toast.error(`Describe el detalle del servicio de ${f.codigo}`);
         return;
@@ -217,7 +220,7 @@ export function OrdenCompraDirectaForm({
           precioUnitario: Number(f.precioUnitario),
           gravado: f.gravado,
           centroCosto: f.centroCosto,
-          campo: f.campo || undefined,
+          campo: f.campo,
           descripcion: f.descripcion,
           entregas: (entregasPorItem[String(index)] ?? [])
             .filter((e) => Number(e.cantidad) > 0 && e.fechaTentativa)
@@ -487,15 +490,11 @@ export function OrdenCompraDirectaForm({
                       </Select>
                     </TableCell>
                     <TableCell className="align-top">
-                      <Select
-                        value={fila.campo || SIN_CAMPO}
-                        onValueChange={(v) => actualizarFila(index, { campo: v === SIN_CAMPO ? "" : v })}
-                      >
+                      <Select value={fila.campo} onValueChange={(v) => actualizarFila(index, { campo: v })}>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Selecciona..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={SIN_CAMPO}>—</SelectItem>
                           {campos.map((c) => (
                             <SelectItem key={c} value={c}>
                               {c}
