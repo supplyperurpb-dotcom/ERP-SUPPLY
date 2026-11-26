@@ -2,10 +2,9 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { esComprador } from "@/lib/compras";
+import { esComprador, siguienteNumeroOrden } from "@/lib/compras";
 import { obtenerValoresActivos } from "@/lib/listas";
-import { siguienteNumero } from "@/lib/utils";
-import { NOMBRE_ORDEN, PREFIJO_ORDEN, type CategoriaCompraCodigo, type TipoOrdenCodigo } from "@/lib/constants/compras";
+import { NOMBRE_ORDEN, type CategoriaCompraCodigo, type TipoOrdenCodigo } from "@/lib/constants/compras";
 import { OrdenCompraDirectaForm } from "./orden-compra-directa-form";
 
 export default async function NuevaOrdenCompraDirectaPage({
@@ -33,8 +32,8 @@ export default async function NuevaOrdenCompraDirectaPage({
   // formulario (acá no hay botón "Nueva Compra"/"Nuevo Servicio" por
   // separado que la fije de antemano).
   const numerosTentativos = {
-    COMPRA: siguienteNumero(ordenesCompra.map((o) => o.numero), PREFIJO_ORDEN.COMPRA, 9),
-    SERVICIO: siguienteNumero(ordenesServicio.map((o) => o.numero), PREFIJO_ORDEN.SERVICIO, 9),
+    COMPRA: siguienteNumeroOrden(ordenesCompra.map((o) => o.numero), "COMPRA"),
+    SERVICIO: siguienteNumeroOrden(ordenesServicio.map((o) => o.numero), "SERVICIO"),
   };
 
   return (

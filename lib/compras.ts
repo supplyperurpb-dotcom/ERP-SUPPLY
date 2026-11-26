@@ -1,12 +1,24 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ROLES, type RolNombre } from "@/lib/auth/constants";
+import { maximoNumero } from "@/lib/utils";
 import {
   TIPO_CAMBIO_USD_APROBACION,
+  PREFIJO_ORDEN,
+  CORRELATIVO_INICIAL_ORDEN,
   type AreaEmpresaCodigo,
   type CategoriaCompraCodigo,
   type RolAprobadorEspecialCodigo,
 } from "@/lib/constants/compras";
+
+// Siguiente número de OC/OS de una categoría: igual que siguienteNumero
+// (lib/utils.ts), pero con un piso de CORRELATIVO_INICIAL_ORDEN en vez de
+// 1, para continuar la numeración que ya se usaba fuera del sistema.
+export function siguienteNumeroOrden(numerosExistentes: string[], categoria: CategoriaCompraCodigo): string {
+  const prefijo = PREFIJO_ORDEN[categoria];
+  const siguiente = Math.max(maximoNumero(numerosExistentes, prefijo), CORRELATIVO_INICIAL_ORDEN - 1) + 1;
+  return `${prefijo}${String(siguiente).padStart(9, "0")}`;
+}
 
 type Db = PrismaClient | Prisma.TransactionClient;
 

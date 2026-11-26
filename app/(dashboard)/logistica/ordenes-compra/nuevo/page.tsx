@@ -2,10 +2,9 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { calcularSolicitudesConPendientes, esComprador } from "@/lib/compras";
+import { calcularSolicitudesConPendientes, esComprador, siguienteNumeroOrden } from "@/lib/compras";
 import { obtenerValoresActivos } from "@/lib/listas";
-import { siguienteNumero } from "@/lib/utils";
-import { NOMBRE_ORDEN, PREFIJO_ORDEN, type CategoriaCompraCodigo, type TipoOrdenCodigo } from "@/lib/constants/compras";
+import { NOMBRE_ORDEN, type CategoriaCompraCodigo, type TipoOrdenCodigo } from "@/lib/constants/compras";
 import { OrdenCompraForm } from "./orden-compra-form";
 
 export default async function NuevaOrdenCompraPage({
@@ -30,7 +29,7 @@ export default async function NuevaOrdenCompraPage({
   // de la misma transacción) para no pisarse si dos personas crean una
   // orden al mismo tiempo. Si eso llega a pasar, el guardado igual asigna
   // el correlativo correcto aunque no coincida exactamente con este preview.
-  const numeroTentativo = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoriaSeleccionada], 9);
+  const numeroTentativo = siguienteNumeroOrden(existentes.map((o) => o.numero), categoriaSeleccionada);
 
   return (
     <div>

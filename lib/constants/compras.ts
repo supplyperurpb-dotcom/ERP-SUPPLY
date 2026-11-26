@@ -169,6 +169,11 @@ export const PREFIJO_ORDEN: Record<CategoriaCompraCodigo, string> = {
   SERVICIO: "OS-",
 };
 
+// Piso del correlativo de OC y OS (pedido explícito, 2026-11-27): cada una
+// arranca en este número en vez de en 1, para continuar la numeración que
+// ya se usaba fuera del sistema (ver siguienteNumeroOrden en lib/compras.ts).
+export const CORRELATIVO_INICIAL_ORDEN = 4660;
+
 export const NOMBRE_SOLICITUD: Record<CategoriaCompraCodigo, string> = {
   COMPRA: "Solicitud de compra",
   SERVICIO: "Solicitud de servicio",

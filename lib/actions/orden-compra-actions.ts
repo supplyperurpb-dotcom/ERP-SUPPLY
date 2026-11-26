@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import type { RolNombre } from "@/lib/auth/constants";
-import { siguienteNumero } from "@/lib/utils";
 import { subirArchivo } from "@/lib/storage";
-import { IGV_TASA, PREFIJO_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { IGV_TASA, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import {
   cantidadPendiente,
   categoriaDeItem,
@@ -15,6 +14,7 @@ import {
   obtenerAprobadoresEspeciales,
   resolverAprobadorEfectivo,
   rolesFirmaRequeridos,
+  siguienteNumeroOrden,
 } from "@/lib/compras";
 import {
   ordenCompraSchema,
@@ -144,7 +144,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
       }
 
       const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria], 9);
+      const numero = siguienteNumeroOrden(existentes.map((o) => o.numero), categoria);
 
       const orden = await tx.ordenCompra.create({
         data: {
@@ -265,7 +265,7 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
   try {
     const nuevaOrden = await prisma.$transaction(async (tx) => {
       const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria], 9);
+      const numero = siguienteNumeroOrden(existentes.map((o) => o.numero), categoria);
 
       const orden = await tx.ordenCompra.create({
         data: {
