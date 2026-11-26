@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generarOrdenCompraPdf } from "@/lib/pdf/orden-compra-pdf";
-import { NOMBRE_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { NOMBRE_ORDEN, TIPOS_ORDEN, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { codigoAprobador } from "@/lib/utils";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -78,7 +78,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     nombreDocumento: NOMBRE_ORDEN[orden.categoria as CategoriaCompraCodigo],
     numero: orden.numero,
     fecha: orden.fecha,
-    hora: orden.hora,
+    tipoOrdenLabel: TIPOS_ORDEN.find((t) => t.valor === orden.tipoOrden)?.nombre ?? orden.tipoOrden,
     fechaEntrega: orden.fechaEntrega,
     condicionPago: orden.condicionPago,
     lugarEntrega: orden.lugarEntrega,

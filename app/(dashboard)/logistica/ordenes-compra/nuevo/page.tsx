@@ -23,14 +23,14 @@ export default async function NuevaOrdenCompraPage({
   const [solicitudes, proveedores, existentes, centrosCosto] = await Promise.all([
     calcularSolicitudesConPendientes(prisma, categoriaSeleccionada),
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
-    prisma.ordenCompra.findMany({ where: { categoria: categoriaSeleccionada, tipoOrden }, select: { numero: true } }),
+    prisma.ordenCompra.findMany({ where: { categoria: categoriaSeleccionada }, select: { numero: true } }),
     obtenerValoresActivos("CENTRO_COSTO"),
   ]);
   // Solo un adelanto: el número real se asigna recién al guardar (dentro
   // de la misma transacción) para no pisarse si dos personas crean una
   // orden al mismo tiempo. Si eso llega a pasar, el guardado igual asigna
   // el correlativo correcto aunque no coincida exactamente con este preview.
-  const numeroTentativo = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoriaSeleccionada][tipoOrden], 9);
+  const numeroTentativo = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoriaSeleccionada], 9);
 
   return (
     <div>

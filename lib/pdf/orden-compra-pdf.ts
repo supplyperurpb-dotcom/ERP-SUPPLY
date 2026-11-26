@@ -40,7 +40,7 @@ export async function generarOrdenCompraPdf({
   nombreDocumento,
   numero,
   fecha,
-  hora,
+  tipoOrdenLabel,
   fechaEntrega,
   condicionPago,
   lugarEntrega,
@@ -66,7 +66,10 @@ export async function generarOrdenCompraPdf({
   nombreDocumento: string;
   numero: string;
   fecha: Date;
-  hora: string | null;
+  // "Estándar" o "Abierta" (ver TIPOS_ORDEN en lib/constants/compras.ts) —
+  // reemplaza al campo Hora, que ya no se muestra (pedido explícito,
+  // 2026-11-26).
+  tipoOrdenLabel: string;
   fechaEntrega: Date | null;
   condicionPago: string | null;
   lugarEntrega: string | null;
@@ -217,7 +220,7 @@ export async function generarOrdenCompraPdf({
 
   let yDer = yInicioBloques;
   yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "FECHA EMISIÓN:", fecha.toLocaleDateString("es-PE"), yDer);
-  yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "HORA:", hora ?? "—", yDer);
+  yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "TIPO DE ORDEN:", tipoOrdenLabel, yDer);
   yDer = dibujarFila(
     xEtiquetaDer,
     xValorDer,

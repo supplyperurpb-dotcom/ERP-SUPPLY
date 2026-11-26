@@ -143,8 +143,8 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
         throw new Error("No se pudo determinar la categoría (Compra/Servicio) de los ítems seleccionados.");
       }
 
-      const existentes = await tx.ordenCompra.findMany({ where: { categoria, tipoOrden }, select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria][tipoOrden], 9);
+      const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
+      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria], 9);
 
       const orden = await tx.ordenCompra.create({
         data: {
@@ -264,8 +264,8 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
 
   try {
     const nuevaOrden = await prisma.$transaction(async (tx) => {
-      const existentes = await tx.ordenCompra.findMany({ where: { categoria, tipoOrden }, select: { numero: true } });
-      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria][tipoOrden], 9);
+      const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
+      const numero = siguienteNumero(existentes.map((o) => o.numero), PREFIJO_ORDEN[categoria], 9);
 
       const orden = await tx.ordenCompra.create({
         data: {

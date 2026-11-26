@@ -22,8 +22,8 @@ export default async function NuevaOrdenCompraDirectaPage({
 
   const [skus, ordenesCompra, ordenesServicio, proveedores, centrosCosto, campos] = await Promise.all([
     prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
-    prisma.ordenCompra.findMany({ where: { categoria: "COMPRA", tipoOrden }, select: { numero: true } }),
-    prisma.ordenCompra.findMany({ where: { categoria: "SERVICIO", tipoOrden }, select: { numero: true } }),
+    prisma.ordenCompra.findMany({ where: { categoria: "COMPRA" }, select: { numero: true } }),
+    prisma.ordenCompra.findMany({ where: { categoria: "SERVICIO" }, select: { numero: true } }),
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     obtenerValoresActivos("CENTRO_COSTO"),
     obtenerValoresActivos("CAMPO"),
@@ -33,8 +33,8 @@ export default async function NuevaOrdenCompraDirectaPage({
   // formulario (acá no hay botón "Nueva Compra"/"Nuevo Servicio" por
   // separado que la fije de antemano).
   const numerosTentativos = {
-    COMPRA: siguienteNumero(ordenesCompra.map((o) => o.numero), PREFIJO_ORDEN.COMPRA[tipoOrden], 9),
-    SERVICIO: siguienteNumero(ordenesServicio.map((o) => o.numero), PREFIJO_ORDEN.SERVICIO[tipoOrden], 9),
+    COMPRA: siguienteNumero(ordenesCompra.map((o) => o.numero), PREFIJO_ORDEN.COMPRA, 9),
+    SERVICIO: siguienteNumero(ordenesServicio.map((o) => o.numero), PREFIJO_ORDEN.SERVICIO, 9),
   };
 
   return (

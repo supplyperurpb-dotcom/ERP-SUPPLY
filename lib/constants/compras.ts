@@ -151,10 +151,12 @@ export const PREFIJO_SOLICITUD: Record<CategoriaCompraCodigo, string> = {
   SERVICIO: "SS-",
 };
 
-// Una orden Abierta (con plazo de vigencia) y una Estándar (sin plazo)
-// llevan series de numeración separadas: NB para Abierta, FO para
-// Estándar, siempre después de OC-/OS- (ver TipoOrdenCompra en el schema
-// y TIPOS_ORDEN más abajo).
+// Una orden puede ser Abierta (con plazo de vigencia) o Estándar (sin
+// plazo) — ver TipoOrdenCompra en el schema y TIPOS_ORDEN más abajo. Ya no
+// llevan series de numeración separadas por tipo (antes NB para Abierta,
+// FO para Estándar): desde 2026-11-26 todas las OC comparten un único
+// correlativo (igual todas las OS, por separado) — el tipo se distingue
+// mostrando el campo "Tipo de Orden", no en el número.
 export const TIPOS_ORDEN = [
   { valor: "ABIERTA", nombre: "Abierta" },
   { valor: "ESTANDAR", nombre: "Estándar" },
@@ -162,9 +164,9 @@ export const TIPOS_ORDEN = [
 
 export type TipoOrdenCodigo = (typeof TIPOS_ORDEN)[number]["valor"];
 
-export const PREFIJO_ORDEN: Record<CategoriaCompraCodigo, Record<TipoOrdenCodigo, string>> = {
-  COMPRA: { ABIERTA: "OC-NB-", ESTANDAR: "OC-FO-" },
-  SERVICIO: { ABIERTA: "OS-NB-", ESTANDAR: "OS-FO-" },
+export const PREFIJO_ORDEN: Record<CategoriaCompraCodigo, string> = {
+  COMPRA: "OC-",
+  SERVICIO: "OS-",
 };
 
 export const NOMBRE_SOLICITUD: Record<CategoriaCompraCodigo, string> = {
