@@ -1,8 +1,10 @@
-import { ArrowLeftRight } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeftRight, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { prisma } from "@/lib/db/prisma";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime, formatCantidad, serializar } from "@/lib/utils";
@@ -45,7 +47,7 @@ export default async function InventarioPage() {
           <TabsTrigger value="movimientos">Movimientos</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="stock">
+        <TabsContent value="stock" className="space-y-3">
           {filasStock.length === 0 ? (
             <EmptyState
               icono={ArrowLeftRight}
@@ -53,7 +55,17 @@ export default async function InventarioPage() {
               descripcion="El stock se calcula automáticamente a partir de los ingresos, traslados y consumos de almacén."
             />
           ) : (
-            <ReporteStockTable filas={serializar(filasStock)} />
+            <>
+              <div className="flex justify-end">
+                <Button variant="outline" asChild>
+                  <Link href="/api/excel/inventario">
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar a Excel
+                  </Link>
+                </Button>
+              </div>
+              <ReporteStockTable filas={serializar(filasStock)} />
+            </>
           )}
         </TabsContent>
 
