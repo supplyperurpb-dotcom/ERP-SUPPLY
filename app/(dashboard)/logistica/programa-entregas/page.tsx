@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { FiltroRangoFecha } from "@/components/shared/filtro-rango-fecha";
 import { KPICard } from "@/components/ui/cards/kpi-card";
 import { formatMoneda } from "@/lib/utils";
+import { convertirAUsd, type MonedaCodigo } from "@/lib/constants/moneda";
 import { obtenerEntregasProgramadas } from "@/lib/programa-entregas";
 import { ProgramaEntregasView } from "./programa-entregas-view";
 
@@ -31,11 +32,11 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
   // nunca se desalineen entre sí.
   const hoyIso = new Date().toISOString().slice(0, 10);
   const productosDistintos = new Set(filas.map((f) => f.codigo)).size;
-  const valorPorMoneda = new Map<string, number>();
+  let valorTotalUsd = 0;
   let entregasHoy = 0;
   let entregasPendientes = 0;
   for (const f of filas) {
-    valorPorMoneda.set(f.moneda, (valorPorMoneda.get(f.moneda) ?? 0) + f.valor);
+    valorTotalUsd += convertirAUsd(f.valor, f.moneda as MonedaCodigo);
     const fechaIso = f.fechaTentativa.toISOString().slice(0, 10);
     if (fechaIso === hoyIso) entregasHoy++;
     if (fechaIso >= hoyIso) entregasPendientes++;
@@ -74,11 +75,9 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <KPICard label="Entregas" value={String(filas.length)} icon={CalendarDays} />
-        <KPICard label="Productos distintos" value={String(productosDistintos)} icon={Package} />
-        {[...valorPorMoneda.entries()].map(([moneda, valor]) => (
-          <KPICard key={moneda} label={`Valor programado ${moneda}`} value={formatMoneda(valor, moneda)} icon={DollarSign} />
-        ))}
-        <KPICard label="Entregas de hoy" value={String(entregasHoy)} icon={CalendarClock} />
+        <KPICard label="Productos" value={String(productosDistintos)} icon={Package} />
+        <KPICard label="Valor de entrega" value={formatMoneda(valorTotalUsd, "USD")} icon={DollarSign} />
+        <KPICard label="Entregas para hoy" value={String(entregasHoy)} icon={CalendarClock} />
         <KPICard label="Entregas pendientes" value={String(entregasPendientes)} icon={CalendarClock} />
       </div>
 
