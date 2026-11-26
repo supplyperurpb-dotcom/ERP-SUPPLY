@@ -154,8 +154,11 @@ export function parsearPackingListExcel(buffer: Buffer): ResultadoParsePL {
     variedad: buscarColumna(encabezados, ["Variety"]),
     label: buscarColumna(encabezados, ["Label"]),
     fruitType: buscarColumna(encabezados, ["Fruit Type"]),
-    palletNumber: buscarColumna(encabezados, ["Pallet Number"]),
-    cases: buscarColumna(encabezados, ["Cases"]),
+    // Algunas plantillas traen estas dos columnas en español en vez de
+    // inglés (pedido explícito, 2026-11-26) — se agregan como criterios
+    // alternativos, mismo mecanismo ya usado para "Kg / SKU"/"Code".
+    palletNumber: buscarColumna(encabezados, ["Pallet Number", "N°Pallet", "N° Pallet", "Nº Pallet", "Nº de Pallet"]),
+    cases: buscarColumna(encabezados, ["Cases", "N° de cajas", "N° Cajas", "Nº de cajas", "Nº Cajas"]),
     kgPorSku: buscarColumna(encabezados, ["Kg / SKU", "Kg/SKU"]),
     pesoNetoKg: buscarColumna(encabezados, ["Net weight"]),
     thermographRecorder: buscarColumna(encabezados, ["Thermograph Recorder"]),
