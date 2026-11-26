@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { prefijoDeNombre } from "@/lib/constants/sku";
 import {
   skuSchema,
   skuSuministroSchema,
@@ -19,13 +18,15 @@ export type SkuActionState = { error?: string; success?: boolean } | undefined;
 export type SkuCreacionState = { error?: string; id?: string; codigo?: string } | undefined;
 
 // ---------------------------------------------------------------------
-// Suministros: SU + 2 letras de la subfamilia + correlativo de 4 dígitos
-// (p. ej. SURI0001 = Riego, SUMC0001 = Materiales de construcción). Una
-// serie independiente por subfamilia — el prefijo sale de Subfamilia.prefijo
-// (catálogo editable en Logística > Listas > Categorías), o se deriva del
-// nombre si no tiene uno (ver prefijoDeNombre). La versión "no valorada"
-// (NV) ya no se crea aquí — ver crearSkusNoValoradosAction, que la genera a
-// partir de un SKU existente.
+// Suministros: SU + correlativo único de 6 dígitos (p. ej. SU000001,
+// SU000002...), una sola serie para toda la categoría — pedido explícito
+// del usuario, 2026-11-26: antes había una serie por subfamilia (p. ej.
+// SURI0001), ya no. Esos códigos antiguos (con letras de subfamilia) se
+// mantienen tal cual en los SKU ya creados; el nuevo correlativo numérico
+// nunca choca con ellos porque maximoNumero (lib/utils.ts) descarta
+// cualquier código cuyo resto después del prefijo no sea puramente
+// numérico. La versión "no valorada" (NV) ya no se crea aquí — ver
+// crearSkusNoValoradosAction, que la genera a partir de un SKU existente.
 // ---------------------------------------------------------------------
 export async function crearSkuSuministroAction(data: SkuSuministroInput): Promise<SkuCreacionState> {
   const parsed = skuSuministroSchema.safeParse(data);
@@ -62,9 +63,9 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
       const grupo = await tx.grupo.findUnique({ where: { id: grupoId } });
       if (!grupo || grupo.subfamiliaId !== subfamiliaId) throw new Error("El grupo seleccionado no existe.");
 
-      const prefijo = `${subfamilia.familia.prefijo}${subfamilia.prefijo || prefijoDeNombre(subfamilia.nombre)}`;
+      const prefijo = subfamilia.familia.prefijo;
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
-      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
+      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 6);
 
       return tx.sku.create({
         data: {
@@ -90,13 +91,14 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
 }
 
 // ---------------------------------------------------------------------
-// Agroquímicos, Fertilizantes y Ósmosis: AG/FE/OS según la familia + 2
-// letras de la subfamilia + correlativo de 4 dígitos (p. ej. AGFO0001,
-// FEBE0002). Una serie independiente por combinación familia+subfamilia —
-// ambos prefijos salen del catálogo editable en Logística > Listas >
-// Categorías (Familia.prefijo + Subfamilia.prefijo). La versión "no
-// valorada" (NV) ya no se crea aquí — ver crearSkusNoValoradosAction, que
-// la genera a partir de un SKU existente.
+// Agroquímicos, Fertilizantes y Ósmosis: AG/FE/OS según la familia +
+// correlativo único de 6 dígitos (p. ej. AG000001, FE000001, OS000001),
+// una sola serie por familia — ya no depende de la subfamilia (pedido
+// explícito del usuario, 2026-11-26; antes era AGFO0001, con 2 letras de
+// la subfamilia). Los códigos antiguos se mantienen tal cual; ver la nota
+// en crearSkuSuministroAction sobre por qué el correlativo numérico nunca
+// choca con ellos. La versión "no valorada" (NV) ya no se crea aquí — ver
+// crearSkusNoValoradosAction, que la genera a partir de un SKU existente.
 // ---------------------------------------------------------------------
 export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Promise<SkuCreacionState> {
   const parsed = skuAgroquimicoSchema.safeParse(data);
@@ -118,9 +120,9 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
       const subfamilia = await tx.subfamilia.findUnique({ where: { id: subfamiliaId } });
       if (!subfamilia || subfamilia.familiaId !== familiaId) throw new Error("La subfamilia seleccionada no existe.");
 
-      const prefijo = `${familia.prefijo}${subfamilia.prefijo || prefijoDeNombre(subfamilia.nombre)}`;
+      const prefijo = familia.prefijo;
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
-      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
+      const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 6);
 
       return tx.sku.create({
         data: {

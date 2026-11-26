@@ -1,15 +1,3 @@
-// Prefijo de 2 letras para una subfamilia que no trae uno propio (campo
-// Subfamilia.prefijo = NULL en el catálogo editable de Logística > Listas
-// > Categorías) — las 2 primeras letras del nombre, en mayúscula.
-export function prefijoDeNombre(nombre: string): string {
-  return nombre
-    .trim()
-    .replace(/[^\p{L}]/gu, "")
-    .slice(0, 2)
-    .toUpperCase()
-    .padEnd(2, "X");
-}
-
 // Tipo de Agroquímico/Fertilizante/Ósmosis: define el prefijo de 2 letras
 // del código (AG/FE/OS + correlativo de 6 dígitos — no depende de la
 // subfamilia).

@@ -42,7 +42,7 @@ export function SuministroForm({ subfamilias }: { subfamilias: SubfamiliaConGrup
   const campos = form.watch();
   const subfamiliaElegida = subfamilias.find((s) => s.id === campos.subfamiliaId);
   const grupoElegido = subfamiliaElegida?.grupos.find((g) => g.id === campos.grupoId);
-  const prefijo = subfamiliaElegida ? `SU${subfamiliaElegida.prefijo ?? ""}` : "SU";
+  const prefijo = "SU";
 
   // Si cambia la subfamilia, el grupo elegido puede no pertenecerle: se
   // cambia al primero de la nueva subfamilia.
@@ -85,9 +85,9 @@ export function SuministroForm({ subfamilias }: { subfamilias: SubfamiliaConGrup
         <CardHeader>
           <CardTitle className="text-base">Suministros</CardTitle>
           <p className="text-sm text-muted-foreground">
-            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (4 dígitos) de esa
-            subfamilia. Para crear la versión no valorada (NV), usa el botón &quot;Crear Código No Valorado&quot; en
-            la lista de SKU.
+            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo único de 6 dígitos de
+            Suministros (no depende de la subfamilia ni del grupo elegidos). Para crear la versión no valorada (NV),
+            usa el botón &quot;Crear Código No Valorado&quot; en la lista de SKU.
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">

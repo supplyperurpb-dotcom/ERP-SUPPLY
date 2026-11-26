@@ -266,13 +266,13 @@ function SubfamiliaFormDialog({ familiaId, familiaNombre }: { familiaId: string;
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="subfamilia-prefijo">Prefijo del código (2 letras, opcional)</Label>
+            <Label htmlFor="subfamilia-prefijo">Prefijo histórico (2 letras, opcional)</Label>
             <Input
               id="subfamilia-prefijo"
               value={prefijo}
               onChange={(e) => setPrefijo(e.target.value.toUpperCase())}
               maxLength={6}
-              placeholder="Se deriva del nombre si se deja vacío"
+              placeholder="Ya no se usa para el código del SKU, solo de referencia"
             />
           </div>
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}

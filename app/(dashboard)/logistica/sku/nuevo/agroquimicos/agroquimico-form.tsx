@@ -38,10 +38,7 @@ export function AgroquimicoForm({ familias }: { familias: FamiliaConSubfamilias[
   const campos = form.watch();
   const familiaElegida = familias.find((f) => f.id === campos.familiaId);
   const subfamiliaElegida = familiaElegida?.subfamilias.find((s) => s.id === campos.subfamiliaId);
-  const prefijo = useMemo(
-    () => `${familiaElegida?.prefijo ?? ""}${subfamiliaElegida?.prefijo ?? ""}`,
-    [familiaElegida, subfamiliaElegida]
-  );
+  const prefijo = familiaElegida?.prefijo ?? "";
   const descripcionPreview = useMemo(() => campos.producto?.trim() ?? "", [campos.producto]);
 
   // Si cambia la familia, la subfamilia elegida puede no pertenecerle:
@@ -76,9 +73,10 @@ export function AgroquimicoForm({ familias }: { familias: FamiliaConSubfamilias[
         <CardHeader>
           <CardTitle className="text-base">Agroquímicos, Fertilizantes y Ósmosis</CardTitle>
           <p className="text-sm text-muted-foreground">
-            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (4 dígitos) de ese tipo y
-            subfamilia. Para crear la versión no valorada (NV), usa el botón &quot;Crear Código No Valorado&quot; en
-            la lista de SKU. ¿Falta un tipo o subfamilia? Agrégalo en Logística &gt; Listas &gt; Categorías.
+            El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo único de 6 dígitos de este
+            tipo (no depende de la subfamilia elegida). Para crear la versión no valorada (NV), usa el botón
+            &quot;Crear Código No Valorado&quot; en la lista de SKU. ¿Falta un tipo o subfamilia? Agrégalo en
+            Logística &gt; Listas &gt; Categorías.
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -124,7 +122,7 @@ export function AgroquimicoForm({ familias }: { familias: FamiliaConSubfamilias[
                 </Select>
               )}
             />
-            <p className="text-xs text-muted-foreground">Define las 2 letras del código (p. ej. Foliar → FO).</p>
+            <p className="text-xs text-muted-foreground">Solo clasifica el producto, ya no define el código.</p>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

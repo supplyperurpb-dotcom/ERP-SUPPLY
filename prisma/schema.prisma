@@ -374,9 +374,12 @@ model Subfamilia {
   familiaId String
   familia   Familia  @relation(fields: [familiaId], references: [id])
   nombre    String
-  // Prefijo de 2 letras para el código (p. ej. Foliar -> FO). Si es NULL,
-  // se deriva de las 2 primeras letras del nombre (ver prefijoDeNombre en
-  // lib/constants/sku.ts).
+  // Prefijo de 2 letras heredado de códigos ya creados antes del
+  // 2026-11-26 (p. ej. Foliar -> FO en "AGFO0001"). El código de un SKU
+  // nuevo ya NO lo usa — desde esa fecha es solo prefijo de Familia +
+  // correlativo único por categoría (ver crearSkuAgroquimicoAction /
+  // crearSkuSuministroAction en lib/actions/sku-actions.ts) — se conserva
+  // únicamente como referencia histórica.
   prefijo   String?
   activo    Boolean  @default(true)
   orden     Int      @default(0)
