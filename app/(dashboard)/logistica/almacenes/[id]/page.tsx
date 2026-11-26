@@ -2,14 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PackagePlus, ArrowLeftRight, PackageMinus, Undo2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db/prisma";
 import { calcularReporteStock, calcularMovimientosAlmacen } from "@/lib/stock-almacen";
 import { serializar } from "@/lib/utils";
-import { ReporteStockTable } from "../../inventario/reporte-stock-table";
-import { HistorialMovimientosTable } from "./historial-movimientos-table";
+import { AlmacenStockMovimientos } from "./almacen-stock-movimientos";
 
 export default async function AlmacenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -64,23 +62,7 @@ export default async function AlmacenDetallePage({ params }: { params: Promise<{
         </p>
       )}
 
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Stock actual</h2>
-        {stock.length === 0 ? (
-          <EmptyState
-            icono={PackagePlus}
-            titulo="Sin stock registrado"
-            descripcion="Registra un ingreso para este almacén y aparecerá aquí."
-          />
-        ) : (
-          <ReporteStockTable filas={serializar(stock)} ocultarColumnaAlmacen />
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Historial de movimientos</h2>
-        <HistorialMovimientosTable filas={serializar(movimientos)} />
-      </section>
+      <AlmacenStockMovimientos stock={serializar(stock)} movimientos={serializar(movimientos)} />
     </div>
   );
 }

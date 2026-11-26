@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -49,18 +49,47 @@ function hrefDocumento(tipo: TipoMovimientoAlmacen, documentoId: string): string
   }
 }
 
-export function HistorialMovimientosTable({ filas }: { filas: FilaMovimientoAlmacen[] }) {
+export function HistorialMovimientosTable({
+  filas,
+  busqueda = "",
+}: {
+  filas: FilaMovimientoAlmacen[];
+  /** Filtra por código, producto, lote o N.º de documento — pensado para compartir un solo buscador con "Stock actual" (ver AlmacenStockMovimientos). */
+  busqueda?: string;
+}) {
   const [pagina, setPagina] = useState(1);
 
-  const totalPaginas = Math.max(1, Math.ceil(filas.length / POR_PAGINA));
+  const filasFiltradas = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase();
+    if (!termino) return filas;
+    return filas.filter(
+      (f) =>
+        f.codigo.toLowerCase().includes(termino) ||
+        f.descripcion.toLowerCase().includes(termino) ||
+        (f.lote ?? "").toLowerCase().includes(termino) ||
+        f.documentoNumero.toLowerCase().includes(termino)
+    );
+  }, [filas, busqueda]);
+
+  useEffect(() => setPagina(1), [busqueda]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filasFiltradas.length / POR_PAGINA));
   const paginaActual = Math.min(pagina, totalPaginas);
   const filasPagina = useMemo(
-    () => filas.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA),
-    [filas, paginaActual]
+    () => filasFiltradas.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA),
+    [filasFiltradas, paginaActual]
   );
 
   if (filas.length === 0) {
     return <p className="text-sm text-muted-foreground">Sin movimientos registrados en este almacén.</p>;
+  }
+
+  if (filasFiltradas.length === 0) {
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        Ningún movimiento coincide con &quot;{busqueda}&quot;.
+      </p>
+    );
   }
 
   return (
@@ -123,7 +152,7 @@ export function HistorialMovimientosTable({ filas }: { filas: FilaMovimientoAlma
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
         <p>
-          {filas.length} movimiento{filas.length === 1 ? "" : "s"} · Página {paginaActual} de {totalPaginas}
+          {filasFiltradas.length} movimiento{filasFiltradas.length === 1 ? "" : "s"} · Página {paginaActual} de {totalPaginas}
         </p>
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" disabled={paginaActual <= 1} onClick={() => setPagina((p) => p - 1)}>

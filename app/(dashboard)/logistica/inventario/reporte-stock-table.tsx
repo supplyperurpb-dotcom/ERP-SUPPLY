@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,18 +13,32 @@ const POR_PAGINA = 50;
 export function ReporteStockTable({
   filas,
   ocultarColumnaAlmacen = false,
+  busquedaExterna,
 }: {
   filas: FilaReporteStock[];
   /** El detalle de un almacén puntual ya sabe de cuál se trata — no hace falta repetirlo en cada fila. */
   ocultarColumnaAlmacen?: boolean;
+  /**
+   * Si se pasa (aunque sea ""), esta tabla deja de mostrar su propio campo
+   * de búsqueda y filtra por este término en su lugar — para el detalle de
+   * Almacén, donde un solo buscador filtra Stock actual e Historial de
+   * movimientos a la vez (ver AlmacenStockMovimientos).
+   */
+  busquedaExterna?: string;
 }) {
-  const [busqueda, setBusqueda] = useState("");
+  const controlado = busquedaExterna !== undefined;
+  const [busquedaPropia, setBusquedaPropia] = useState("");
+  const busqueda = controlado ? busquedaExterna : busquedaPropia;
   const [pagina, setPagina] = useState(1);
 
   function cambiarBusqueda(valor: string) {
-    setBusqueda(valor);
+    setBusquedaPropia(valor);
     setPagina(1);
   }
+
+  useEffect(() => {
+    if (controlado) setPagina(1);
+  }, [controlado, busqueda]);
 
   const filasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
@@ -46,15 +60,17 @@ export function ReporteStockTable({
 
   return (
     <div className="space-y-3">
-      <div className="relative max-w-sm">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por código, producto o almacén..."
-          value={busqueda}
-          onChange={(e) => cambiarBusqueda(e.target.value)}
-          className="pl-8"
-        />
-      </div>
+      {!controlado && (
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por código, producto o almacén..."
+            value={busqueda}
+            onChange={(e) => cambiarBusqueda(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      )}
 
       {filasFiltradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
