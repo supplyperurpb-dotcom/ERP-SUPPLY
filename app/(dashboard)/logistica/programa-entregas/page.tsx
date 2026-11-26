@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CalendarDays, Package, Search } from "lucide-react";
+import { CalendarClock, CalendarDays, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -84,21 +84,22 @@ export default async function ProgramaEntregasPage({ searchParams }: { searchPar
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KPICard
-          label="Productos"
-          value={String(productosDistintos)}
-          secondaryLine={`${filas.length} entrega${filas.length === 1 ? "" : "s"} · ${formatMoneda(valorTotalUsd, "USD")}`}
-          icon={Package}
+          label="Entregas"
+          value={String(filas.length)}
+          valueSuffix={formatMoneda(valorTotalUsd, "USD")}
+          secondaryLine={`${productosDistintos} producto${productosDistintos === 1 ? "" : "s"}`}
+          icon={CalendarDays}
         />
         <KPICard
           label="Entregas para Hoy"
           value={String(entregasHoy)}
-          secondaryLine={formatMoneda(valorHoyUsd, "USD")}
+          valueSuffix={formatMoneda(valorHoyUsd, "USD")}
           icon={CalendarClock}
         />
         <KPICard
           label="Entregas Pendientes"
           value={String(entregasPendientes)}
-          secondaryLine={formatMoneda(valorPendientesUsd, "USD")}
+          valueSuffix={formatMoneda(valorPendientesUsd, "USD")}
           icon={CalendarClock}
         />
       </div>

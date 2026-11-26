@@ -15,6 +15,7 @@ export type PaletaTarjetaKPI = {
 export function KPICard({
   label,
   value,
+  valueSuffix,
   secondaryLine,
   paleta,
   icon: Icon,
@@ -22,6 +23,8 @@ export function KPICard({
 }: {
   label: string;
   value: string;
+  /** Texto más chico, al costado del valor principal (en la misma línea) — p. ej. un valorizado en dólares junto al conteo. */
+  valueSuffix?: string;
   secondaryLine?: string;
   /** Si no se pasa, usa el estilo default de Card (sin tinte, sin colorear texto). */
   paleta?: PaletaTarjetaKPI;
@@ -50,7 +53,10 @@ export function KPICard({
         {Icon && <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" style={colorAcento ? { color: colorAcento } : undefined} />}
       </CardHeader>
       <CardContent className="space-y-0.5 p-3 pt-0 sm:space-y-1 sm:p-6 sm:pt-0">
-        <p className="text-lg font-semibold tabular-nums sm:text-2xl">{value}</p>
+        <p className="flex items-baseline gap-2">
+          <span className="text-lg font-semibold tabular-nums sm:text-2xl">{value}</span>
+          {valueSuffix && <span className="text-xs text-muted-foreground tabular-nums sm:text-sm">{valueSuffix}</span>}
+        </p>
         {secondaryLine && (
           <p
             className={cn("text-xs tabular-nums sm:text-sm", colorAcento ? "font-medium" : "text-muted-foreground")}
