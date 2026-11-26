@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import type { Familia, Subfamilia } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,18 +13,20 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CLASIFICACIONES_AGROQUIMICO, SUBFAMILIAS_AGROQUIMICO, TIPOS_AGROQUIMICO, UNIDADES_MEDIDA_AGROQUIMICO, prefijoSubfamilia } from "@/lib/constants/sku";
+import { CLASIFICACIONES_AGROQUIMICO, UNIDADES_MEDIDA_AGROQUIMICO } from "@/lib/constants/sku";
 import { skuAgroquimicoSchema, type SkuAgroquimicoInput } from "@/lib/validations/sku";
 import { crearSkuAgroquimicoAction } from "@/lib/actions/sku-actions";
 
-export function AgroquimicoForm() {
+type FamiliaConSubfamilias = Familia & { subfamilias: Subfamilia[] };
+
+export function AgroquimicoForm({ familias }: { familias: FamiliaConSubfamilias[] }) {
   const router = useRouter();
 
   const form = useForm<SkuAgroquimicoInput>({
     resolver: zodResolver(skuAgroquimicoSchema),
     defaultValues: {
-      tipo: "FERTILIZANTE",
-      subfamilia: SUBFAMILIAS_AGROQUIMICO[0],
+      familiaId: familias[0]?.id ?? "",
+      subfamiliaId: familias[0]?.subfamilias[0]?.id ?? "",
       producto: "",
       activo: "",
       clasificacion: CLASIFICACIONES_AGROQUIMICO[0],
@@ -33,12 +36,21 @@ export function AgroquimicoForm() {
   });
 
   const campos = form.watch();
-  const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === campos.tipo);
+  const familiaElegida = familias.find((f) => f.id === campos.familiaId);
+  const subfamiliaElegida = familiaElegida?.subfamilias.find((s) => s.id === campos.subfamiliaId);
   const prefijo = useMemo(
-    () => `${tipoInfo?.prefijo ?? ""}${prefijoSubfamilia(campos.subfamilia ?? "")}`,
-    [campos.subfamilia, tipoInfo]
+    () => `${familiaElegida?.prefijo ?? ""}${subfamiliaElegida?.prefijo ?? ""}`,
+    [familiaElegida, subfamiliaElegida]
   );
   const descripcionPreview = useMemo(() => campos.producto?.trim() ?? "", [campos.producto]);
+
+  // Si cambia la familia, la subfamilia elegida puede no pertenecerle:
+  // se cambia a la primera de la nueva familia.
+  useEffect(() => {
+    if (familiaElegida && !subfamiliaElegida) {
+      form.setValue("subfamiliaId", familiaElegida.subfamilias[0]?.id ?? "");
+    }
+  }, [familiaElegida, subfamiliaElegida, form]);
 
   async function onSubmit(data: SkuAgroquimicoInput) {
     let resultado;
@@ -66,7 +78,7 @@ export function AgroquimicoForm() {
           <p className="text-sm text-muted-foreground">
             El código se arma solo: <strong>{prefijo}</strong> + el siguiente correlativo (4 dígitos) de ese tipo y
             subfamilia. Para crear la versión no valorada (NV), usa el botón &quot;Crear Código No Valorado&quot; en
-            la lista de SKU.
+            la lista de SKU. ¿Falta un tipo o subfamilia? Agrégalo en Logística &gt; Listas &gt; Categorías.
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -74,16 +86,16 @@ export function AgroquimicoForm() {
             <Label>Tipo</Label>
             <Controller
               control={form.control}
-              name="tipo"
+              name="familiaId"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIPOS_AGROQUIMICO.map((t) => (
-                      <SelectItem key={t.valor} value={t.valor}>
-                        {t.nombre}
+                    {familias.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -96,16 +108,16 @@ export function AgroquimicoForm() {
             <Label>Subfamilia</Label>
             <Controller
               control={form.control}
-              name="subfamilia"
+              name="subfamiliaId"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {SUBFAMILIAS_AGROQUIMICO.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                    {(familiaElegida?.subfamilias ?? []).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -209,7 +221,7 @@ export function AgroquimicoForm() {
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" disabled={form.formState.isSubmitting || familias.length === 0}>
           {form.formState.isSubmitting ? "Creando..." : "Crear código"}
         </Button>
       </div>

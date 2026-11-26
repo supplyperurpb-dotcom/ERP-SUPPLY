@@ -11,18 +11,18 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SUBFAMILIAS_SUMINISTROS, prefijoSubfamiliaSuministro } from "@/lib/constants/sku";
 import { UNIDADES_MEDIDA } from "@/lib/validations/sku";
 import { skuSuministroSchema, type SkuSuministroInput } from "@/lib/validations/sku";
 import { crearSkuSuministroAction } from "@/lib/actions/sku-actions";
+import type { Subfamilia } from "@prisma/client";
 
-export function SuministroForm() {
+export function SuministroForm({ subfamilias }: { subfamilias: Subfamilia[] }) {
   const router = useRouter();
 
   const form = useForm<SkuSuministroInput>({
     resolver: zodResolver(skuSuministroSchema),
     defaultValues: {
-      subfamilia: SUBFAMILIAS_SUMINISTROS[0],
+      subfamiliaId: subfamilias[0]?.id ?? "",
       producto: "",
       material: "",
       marca: "",
@@ -37,7 +37,8 @@ export function SuministroForm() {
   });
 
   const campos = form.watch();
-  const prefijo = useMemo(() => `SU${prefijoSubfamiliaSuministro(campos.subfamilia ?? "")}`, [campos.subfamilia]);
+  const subfamiliaElegida = subfamilias.find((s) => s.id === campos.subfamiliaId);
+  const prefijo = subfamiliaElegida ? `SU${subfamiliaElegida.prefijo ?? ""}` : "SU";
   const descripcionPreview = useMemo(
     () =>
       [campos.producto, campos.material, campos.marca, campos.medida, campos.destinoDescripcion, campos.codigoParte, campos.color, campos.presentacion]
@@ -81,22 +82,25 @@ export function SuministroForm() {
             <Label>Subfamilia</Label>
             <Controller
               control={form.control}
-              name="subfamilia"
+              name="subfamiliaId"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {SUBFAMILIAS_SUMINISTROS.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                    {subfamilias.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             />
+            <p className="text-xs text-muted-foreground">
+              ¿Falta una subfamilia? Agrégala en Logística &gt; Listas &gt; Categorías.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -195,7 +199,7 @@ export function SuministroForm() {
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" disabled={form.formState.isSubmitting || subfamilias.length === 0}>
           {form.formState.isSubmitting ? "Creando..." : "Crear código"}
         </Button>
       </div>

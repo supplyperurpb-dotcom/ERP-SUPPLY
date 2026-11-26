@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { SUBFAMILIAS_SUMINISTROS, TIPOS_AGROQUIMICO } from "@/lib/constants/sku";
 
 export const skuSchema = z.object({
   codigo: z.string().min(1, "El código es obligatorio").max(30),
@@ -47,7 +46,7 @@ export const SUBFAMILIAS_SKU = ["Materiales de Empaque"] as const;
 // Suministros: (NV si no valorado) + SU + correlativo.
 // ---------------------------------------------------------------------
 export const skuSuministroSchema = z.object({
-  subfamilia: z.enum(SUBFAMILIAS_SUMINISTROS, { required_error: "Selecciona la subfamilia" }),
+  subfamiliaId: z.string().min(1, "Selecciona la subfamilia"),
   producto: z.string().min(1, "El producto es obligatorio").max(100),
   material: z.string().max(60).optional().or(z.literal("")),
   marca: z.string().max(60).optional().or(z.literal("")),
@@ -69,11 +68,9 @@ export type SkuSuministroInput = z.infer<typeof skuSuministroSchema>;
 // Agroquímicos, Fertilizantes y Ósmosis: [AG|FE|OS] (+ NV si no valorado)
 // + 2 primeras letras de la subfamilia + correlativo.
 // ---------------------------------------------------------------------
-const TIPOS_AGROQUIMICO_VALORES = TIPOS_AGROQUIMICO.map((t) => t.valor) as [string, ...string[]];
-
 export const skuAgroquimicoSchema = z.object({
-  tipo: z.enum(TIPOS_AGROQUIMICO_VALORES, { required_error: "Selecciona el tipo" }),
-  subfamilia: z.string().min(1, "Selecciona la subfamilia").max(100),
+  familiaId: z.string().min(1, "Selecciona el tipo"),
+  subfamiliaId: z.string().min(1, "Selecciona la subfamilia"),
   producto: z.string().min(1, "El producto es obligatorio").max(100),
   activo: z.string().max(300).optional().or(z.literal("")),
   clasificacion: z.string().max(60).optional().or(z.literal("")),
@@ -90,7 +87,7 @@ export type SkuAgroquimicoInput = z.infer<typeof skuAgroquimicoSchema>;
 // describe al crear la solicitud, no aquí — por eso no lleva comentario.
 // ---------------------------------------------------------------------
 export const skuServicioSchema = z.object({
-  subfamilia: z.string().trim().min(1, "Escribe el nombre de la subfamilia").max(100),
+  subfamiliaId: z.string().min(1, "Selecciona la subfamilia"),
   unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10).default("UND"),
 });
 

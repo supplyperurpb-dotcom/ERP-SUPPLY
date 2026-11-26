@@ -283,6 +283,10 @@ model Proveedor {
   // en este mismo campo, nunca "OTRO" literal.
   banco           String?
   numeroCuenta    String?
+  // Código de Cuenta Interbancaria (CCI, 20 dígitos en Perú) — permite
+  // transferencias desde cualquier banco, no solo el mismo banco del
+  // proveedor.
+  cuentaInterbancariaCci String?
   // Condición de pago por defecto de este proveedor (p. ej. "CREDITO 30
   // DIAS"), de una lista fija (ver CONDICIONES_PAGO en
   // lib/constants/compras.ts). Al crear una Orden de Compra se precarga
@@ -340,6 +344,43 @@ model Sku {
   solicitudDespachoItems SolicitudDespachoItem[]
 
   @@map("skus")
+}
+
+// Agrupador de más alto nivel al crear un SKU (Agroquímico, Fertilizante,
+// Ósmosis, Suministros, Servicios) — editable desde Logística > Listas >
+// Categorías. Nunca se borra un valor en uso: se desactiva (activo=false),
+// igual que ListaValor.
+model Familia {
+  id          String       @id @default(cuid())
+  nombre      String       @unique
+  // Prefijo de 2 letras que arma el código del SKU junto con el de la
+  // subfamilia (AG, FE, OS, SU) — Servicios no lo usa (siempre "SERV").
+  prefijo     String
+  activo      Boolean      @default(true)
+  orden       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  subfamilias Subfamilia[]
+
+  @@map("familias")
+}
+
+model Subfamilia {
+  id        String   @id @default(cuid())
+  familiaId String
+  familia   Familia  @relation(fields: [familiaId], references: [id])
+  nombre    String
+  // Prefijo de 2 letras para el código (p. ej. Foliar -> FO). Si es NULL,
+  // se deriva de las 2 primeras letras del nombre (ver prefijoDeNombre en
+  // lib/constants/sku.ts).
+  prefijo   String?
+  activo    Boolean  @default(true)
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([familiaId, nombre])
+  @@map("subfamilias")
 }
 
 // Un almacén "general" es donde se registran los ingresos (ver

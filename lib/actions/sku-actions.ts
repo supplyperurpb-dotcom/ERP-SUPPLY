@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { siguienteNumero } from "@/lib/utils";
-import { TIPOS_AGROQUIMICO, prefijoSubfamilia, prefijoSubfamiliaSuministro, type TipoAgroquimicoCodigo } from "@/lib/constants/sku";
+import { prefijoDeNombre } from "@/lib/constants/sku";
 import {
   skuSchema,
   skuSuministroSchema,
@@ -21,9 +21,11 @@ export type SkuCreacionState = { error?: string; id?: string; codigo?: string } 
 // ---------------------------------------------------------------------
 // Suministros: SU + 2 letras de la subfamilia + correlativo de 4 dígitos
 // (p. ej. SURI0001 = Riego, SUMC0001 = Materiales de construcción). Una
-// serie independiente por subfamilia — ver prefijoSubfamiliaSuministro en
-// lib/constants/sku.ts. La versión "no valorada" (NV) ya no se crea aquí —
-// ver crearSkusNoValoradosAction, que la genera a partir de un SKU existente.
+// serie independiente por subfamilia — el prefijo sale de Subfamilia.prefijo
+// (catálogo editable en Logística > Listas > Categorías), o se deriva del
+// nombre si no tiene uno (ver prefijoDeNombre). La versión "no valorada"
+// (NV) ya no se crea aquí — ver crearSkusNoValoradosAction, que la genera a
+// partir de un SKU existente.
 // ---------------------------------------------------------------------
 export async function crearSkuSuministroAction(data: SkuSuministroInput): Promise<SkuCreacionState> {
   const parsed = skuSuministroSchema.safeParse(data);
@@ -31,7 +33,7 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   const {
-    subfamilia,
+    subfamiliaId,
     producto,
     material,
     marca,
@@ -50,12 +52,14 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
     .filter((v): v is string => !!v)
     .join(" ");
 
-  const prefijo = `SU${prefijoSubfamiliaSuministro(subfamilia)}`;
-
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoSku = await prisma.$transaction(async (tx) => {
+      const subfamilia = await tx.subfamilia.findUnique({ where: { id: subfamiliaId }, include: { familia: true } });
+      if (!subfamilia) throw new Error("La subfamilia seleccionada no existe.");
+
+      const prefijo = `${subfamilia.familia.prefijo}${subfamilia.prefijo || prefijoDeNombre(subfamilia.nombre)}`;
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
       const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
 
@@ -64,7 +68,7 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
           codigo,
           descripcion,
           categoria: "Suministros",
-          subfamilia,
+          subfamilia: subfamilia.nombre,
           unidadMedida,
           stockMinimo: stockMinimo ?? null,
           requiereLote,
@@ -82,33 +86,35 @@ export async function crearSkuSuministroAction(data: SkuSuministroInput): Promis
 }
 
 // ---------------------------------------------------------------------
-// Agroquímicos, Fertilizantes y Ósmosis: AG/FE/OS según el tipo + 2 letras
-// de la subfamilia + correlativo de 4 dígitos (p. ej. AGFO0001, FEBE0002).
-// Una serie independiente por combinación tipo+subfamilia — ver
-// prefijoSubfamilia en lib/constants/sku.ts. La versión "no valorada" (NV)
-// ya no se crea aquí — ver crearSkusNoValoradosAction, que la genera a
-// partir de un SKU existente.
+// Agroquímicos, Fertilizantes y Ósmosis: AG/FE/OS según la familia + 2
+// letras de la subfamilia + correlativo de 4 dígitos (p. ej. AGFO0001,
+// FEBE0002). Una serie independiente por combinación familia+subfamilia —
+// ambos prefijos salen del catálogo editable en Logística > Listas >
+// Categorías (Familia.prefijo + Subfamilia.prefijo). La versión "no
+// valorada" (NV) ya no se crea aquí — ver crearSkusNoValoradosAction, que
+// la genera a partir de un SKU existente.
 // ---------------------------------------------------------------------
 export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Promise<SkuCreacionState> {
   const parsed = skuAgroquimicoSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { tipo, subfamilia, producto, activo, clasificacion, unidadMedida, stockMinimo, requiereLote } = parsed.data;
-
-  const tipoInfo = TIPOS_AGROQUIMICO.find((t) => t.valor === (tipo as TipoAgroquimicoCodigo));
-  if (!tipoInfo) return { error: "Tipo inválido." };
+  const { familiaId, subfamiliaId, producto, activo, clasificacion, unidadMedida, stockMinimo, requiereLote } = parsed.data;
 
   // El nombre del producto sale solo de "Producto"; activo/clasificación son
   // solo para clasificar, no forman parte del nombre.
   const descripcion = producto.trim();
 
-  const prefijo = `${tipoInfo.prefijo}${prefijoSubfamilia(subfamilia)}`;
-
   try {
     const usuario = await getUsuarioActual();
 
     const nuevoSku = await prisma.$transaction(async (tx) => {
+      const familia = await tx.familia.findUnique({ where: { id: familiaId } });
+      if (!familia) throw new Error("La familia (tipo) seleccionada no existe.");
+      const subfamilia = await tx.subfamilia.findUnique({ where: { id: subfamiliaId } });
+      if (!subfamilia || subfamilia.familiaId !== familiaId) throw new Error("La subfamilia seleccionada no existe.");
+
+      const prefijo = `${familia.prefijo}${subfamilia.prefijo || prefijoDeNombre(subfamilia.nombre)}`;
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
       const codigo = siguienteNumero(existentes.map((s) => s.codigo), prefijo, 4);
 
@@ -117,7 +123,7 @@ export async function crearSkuAgroquimicoAction(data: SkuAgroquimicoInput): Prom
           codigo,
           descripcion,
           categoria: "Agroquímicos, Fertilizantes y Ósmosis",
-          subfamilia,
+          subfamilia: subfamilia.nombre,
           unidadMedida,
           stockMinimo: stockMinimo ?? null,
           requiereLote,
@@ -144,20 +150,24 @@ export async function crearSkuServicioAction(data: SkuServicioInput): Promise<Sk
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { subfamilia, unidadMedida } = parsed.data;
-
-  const descripcion = subfamilia;
+  const { subfamiliaId, unidadMedida } = parsed.data;
   const prefijo = "SERV";
 
   try {
+    const subfamiliaElegida = await prisma.subfamilia.findUnique({ where: { id: subfamiliaId } });
+    if (!subfamiliaElegida) return { error: "La subfamilia seleccionada no existe." };
+
     const existente = await prisma.sku.findFirst({
-      where: { categoria: "Servicios", subfamilia: { equals: subfamilia, mode: "insensitive" } },
+      where: { categoria: "Servicios", subfamilia: { equals: subfamiliaElegida.nombre, mode: "insensitive" } },
     });
     if (existente) {
-      return { error: `Ya existe un SKU para "${subfamilia}": ${existente.codigo}. Úsalo al registrar la solicitud.` };
+      return {
+        error: `Ya existe un SKU para "${subfamiliaElegida.nombre}": ${existente.codigo}. Úsalo al registrar la solicitud.`,
+      };
     }
 
     const usuario = await getUsuarioActual();
+    const descripcion = subfamiliaElegida.nombre;
 
     const nuevoSku = await prisma.$transaction(async (tx) => {
       const existentes = await tx.sku.findMany({ where: { codigo: { startsWith: prefijo } }, select: { codigo: true } });
@@ -168,7 +178,7 @@ export async function crearSkuServicioAction(data: SkuServicioInput): Promise<Sk
           codigo,
           descripcion,
           categoria: "Servicios",
-          subfamilia,
+          subfamilia: subfamiliaElegida.nombre,
           unidadMedida,
           creadoPorId: usuario?.id,
         },
