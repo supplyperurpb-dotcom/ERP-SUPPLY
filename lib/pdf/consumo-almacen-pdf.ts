@@ -130,6 +130,8 @@ export async function generarConsumoAlmacenPdf({
   observaciones,
   lineas,
   firmaPngBytes,
+  fotoEvidenciaBytes,
+  fotoEvidenciaRuta,
 }: {
   numero: string;
   fecha: Date;
@@ -142,6 +144,10 @@ export async function generarConsumoAlmacenPdf({
   observaciones: string | null;
   lineas: LineaConsumoPdf[];
   firmaPngBytes: Uint8Array | null;
+  /** Foto de evidencia del despacho, ya descargada del storage — si se pasa, se agrega una segunda hoja con el mismo encabezado (fecha/hora, retirado/registrado, firma) y la foto debajo. */
+  fotoEvidenciaBytes?: Uint8Array | null;
+  /** Ruta/nombre del archivo de la foto, solo para saber su extensión (jpg/png) — ver subirEvidenciaConsumoAction en lib/actions/consumo-almacen-actions.ts, que solo admite esas dos. */
+  fotoEvidenciaRuta?: string | null;
 }): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -341,13 +347,68 @@ export async function generarConsumoAlmacenPdf({
     y = ALTO_PAGINA - MARGEN;
   }
   page.drawLine({ start: { x: MARGEN, y: y + 6 }, end: { x: ANCHO_PAGINA - MARGEN, y: y + 6 }, thickness: 0.5, color: GRIS_CLARO });
-  page.drawText("Evidencia fotográfica del despacho adjunta en el sistema.", {
-    x: MARGEN,
-    y,
-    size: TAM_PIE,
-    font: regular,
-    color: GRIS,
-  });
+  page.drawText(
+    fotoEvidenciaBytes ? "Evidencia fotográfica del despacho en la página siguiente." : "Evidencia fotográfica del despacho adjunta en el sistema.",
+    { x: MARGEN, y, size: TAM_PIE, font: regular, color: GRIS }
+  );
+
+  // ---------------------------------------------------------------------
+  // Segunda hoja (pedido explícito, 2026-11-27): repite el mismo
+  // encabezado del consumo (fecha/hora, retirado/registrado, firma) y
+  // debajo la foto de evidencia real, no solo el aviso de que existe.
+  // Reutiliza filaDato/filaRetiradoRegistrado, que dibujan sobre `page` (el
+  // cierre las toma por referencia, así que ya apuntan a la hoja nueva en
+  // cuanto se reasigna más abajo).
+  // ---------------------------------------------------------------------
+  if (fotoEvidenciaBytes) {
+    page = pdfDoc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
+    y = ALTO_PAGINA - MARGEN;
+
+    page.drawImage(logo, { x: MARGEN, y: y - logoAltura, width: logoAncho, height: logoAltura });
+    page.drawText(tituloConsumo, {
+      x: ANCHO_PAGINA - MARGEN - codigoAncho,
+      y: y - (logoAltura + TAM_CODIGO_HEADER) / 2 + 1,
+      size: TAM_CODIGO_HEADER,
+      font: bold,
+      color: NEGRO,
+    });
+    y -= logoAltura + 6;
+    page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.75, color: NEGRO });
+    y -= 14;
+
+    filaDato("FECHA Y HORA", `${fecha.toLocaleDateString("es-PE")}${horaRetiro ? ` ${horaRetiro}` : ""}`);
+    filaRetiradoRegistrado(retiradoPorNombre, retiradoPorDni, registradoPor);
+
+    page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.5, color: GRIS_CLARO });
+    y -= 16;
+    page.drawText("FIRMA DE QUIEN RETIRA", { x: MARGEN, y, size: TAM_SECCION, font: bold, color: GRIS });
+    y -= 12;
+    if (firma) {
+      page.drawImage(firma, { x: MARGEN, y: y - firmaAlto, width: firmaAncho, height: firmaAlto });
+      y -= firmaAlto + 10;
+    } else {
+      page.drawText("(sin firma)", { x: MARGEN, y: y - 8, size: TAM_VALOR - 1, font: regular, color: GRIS });
+      y -= 20;
+    }
+
+    page.drawLine({ start: { x: MARGEN, y }, end: { x: ANCHO_PAGINA - MARGEN, y }, thickness: 0.5, color: GRIS_CLARO });
+    y -= 16;
+    page.drawText("EVIDENCIA FOTOGRÁFICA", { x: MARGEN, y, size: TAM_SECCION, font: bold, color: GRIS });
+    y -= 12;
+
+    try {
+      const ext = (fotoEvidenciaRuta ?? "").toLowerCase().endsWith(".png") ? "png" : "jpg";
+      const imagen = ext === "png" ? await pdfDoc.embedPng(fotoEvidenciaBytes) : await pdfDoc.embedJpg(fotoEvidenciaBytes);
+      const maxAncho = ANCHO_UTIL;
+      const maxAlto = y - MARGEN;
+      const escala = Math.min(maxAncho / imagen.width, maxAlto / imagen.height, 1);
+      const w = imagen.width * escala;
+      const h = imagen.height * escala;
+      page.drawImage(imagen, { x: MARGEN + (maxAncho - w) / 2, y: y - h, width: w, height: h });
+    } catch {
+      page.drawText("No se pudo cargar la foto de evidencia.", { x: MARGEN, y: y - 8, size: TAM_VALOR - 1, font: regular, color: GRIS });
+    }
+  }
 
   return pdfDoc.save();
 }

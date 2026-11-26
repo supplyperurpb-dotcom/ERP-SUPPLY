@@ -20,6 +20,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     : null;
 
   const firmaPngBytes = consumo.firmaArchivo ? await descargarArchivo(consumo.firmaArchivo) : null;
+  // Si el archivo ya no existe en el storage (caso excepcional), el PDF se
+  // sigue generando sin la segunda hoja en vez de romperse entero.
+  const fotoEvidenciaBytes = consumo.fotoEvidenciaArchivo
+    ? await descargarArchivo(consumo.fotoEvidenciaArchivo).catch(() => null)
+    : null;
 
   const bytes = await generarConsumoAlmacenPdf({
     numero: consumo.numero,
@@ -39,6 +44,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       unidadMedida: item.unidadMedida,
     })),
     firmaPngBytes,
+    fotoEvidenciaBytes,
+    fotoEvidenciaRuta: consumo.fotoEvidenciaArchivo,
   });
 
   return new NextResponse(new Uint8Array(bytes), {
