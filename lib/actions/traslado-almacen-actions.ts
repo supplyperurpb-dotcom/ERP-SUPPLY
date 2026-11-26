@@ -71,14 +71,14 @@ async function validarLotesSiAplica(
 
   const cantidadPorSkuLote = new Map<string, number>();
   for (const item of items) {
-    const clave = `${item.skuId}::${item.lote}`;
+    const clave = `${item.skuId}::${item.lote}::${item.proveedorId ?? ""}`;
     cantidadPorSkuLote.set(clave, (cantidadPorSkuLote.get(clave) ?? 0) + item.cantidad);
   }
   for (const item of items) {
-    const clave = `${item.skuId}::${item.lote}`;
+    const clave = `${item.skuId}::${item.lote}::${item.proveedorId ?? ""}`;
     const cantidadSolicitada = cantidadPorSkuLote.get(clave)!;
     const lotes = await calcularStockPorLote(almacenOrigen.id, item.skuId, db);
-    const disponible = lotes.find((l) => l.lote === item.lote)?.cantidad ?? 0;
+    const disponible = lotes.find((l) => l.lote === item.lote && (l.proveedorId ?? "") === (item.proveedorId ?? ""))?.cantidad ?? 0;
     if (cantidadSolicitada > disponible) {
       const sku = await db.sku.findUnique({ where: { id: item.skuId }, select: { codigo: true } });
       return {
@@ -236,6 +236,7 @@ export async function crearTrasladoAlmacenAction(data: TrasladoAlmacenInput): Pr
             fleteAsignado: fletePorItem[i],
             fleteAsignadoUsd: fletePorItemUsd[i],
             lote: item.lote || null,
+            proveedorId: item.proveedorId || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
           },
@@ -390,6 +391,7 @@ export async function actualizarTrasladoAlmacenAction(
             fleteAsignado: fletePorItem[i],
             fleteAsignadoUsd: fletePorItemUsd[i],
             lote: item.lote || null,
+            proveedorId: item.proveedorId || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
           },

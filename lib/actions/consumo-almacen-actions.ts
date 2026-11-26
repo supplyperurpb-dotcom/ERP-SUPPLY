@@ -41,14 +41,14 @@ async function validarLotesSiAplica(almacen: Almacen, items: Item[], db: Db): Pr
 
   const cantidadPorSkuLote = new Map<string, number>();
   for (const item of items) {
-    const clave = `${item.skuId}::${item.lote}`;
+    const clave = `${item.skuId}::${item.lote}::${item.proveedorId ?? ""}`;
     cantidadPorSkuLote.set(clave, (cantidadPorSkuLote.get(clave) ?? 0) + item.cantidad);
   }
   for (const item of items) {
-    const clave = `${item.skuId}::${item.lote}`;
+    const clave = `${item.skuId}::${item.lote}::${item.proveedorId ?? ""}`;
     const cantidadSolicitada = cantidadPorSkuLote.get(clave)!;
     const lotes = await calcularStockPorLote(almacen.id, item.skuId, db);
-    const disponible = lotes.find((l) => l.lote === item.lote)?.cantidad ?? 0;
+    const disponible = lotes.find((l) => l.lote === item.lote && (l.proveedorId ?? "") === (item.proveedorId ?? ""))?.cantidad ?? 0;
     if (cantidadSolicitada > disponible) {
       const sku = await db.sku.findUnique({ where: { id: item.skuId }, select: { codigo: true } });
       return {
@@ -383,6 +383,7 @@ export async function crearConsumoAlmacenAction(data: ConsumoAlmacenInput): Prom
             precioUnitarioPonderado: item.precioUnitarioPonderado,
             valorConsumido: item.valorConsumido,
             lote: item.lote || null,
+            proveedorId: item.proveedorId || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
             solicitudDespachoItemId: item.solicitudDespachoItemId || null,
@@ -493,6 +494,7 @@ export async function actualizarConsumoAlmacenAction(
             precioUnitarioPonderado: item.precioUnitarioPonderado,
             valorConsumido: item.valorConsumido,
             lote: item.lote || null,
+            proveedorId: item.proveedorId || null,
             fechaProduccion: item.fechaProduccion ?? null,
             fechaVencimiento: item.fechaVencimiento ?? null,
             solicitudDespachoItemId: item.solicitudDespachoItemId || null,

@@ -11,7 +11,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
   const { id } = await params;
 
   const [consumo, almacenesActivos, retiradores, vehiculos] = await Promise.all([
-    prisma.consumoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true } } } }),
+    prisma.consumoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true, proveedor: true } } } }),
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
     prisma.retiradorAutorizado.findMany({
       where: { activo: true },
@@ -90,9 +90,18 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
       if (item.almacenOrigenId !== almacenId || !item.lote) continue;
       const lotes = mapa[item.skuId];
       if (!lotes) continue;
-      const lote = lotes.find((l) => l.lote === item.lote);
+      const lote = lotes.find((l) => l.lote === item.lote && l.proveedorId === item.proveedorId);
       if (lote) lote.cantidad += Number(item.cantidad);
-      else lotes.push({ lote: item.lote, fechaProduccion: item.fechaProduccion, fechaVencimiento: item.fechaVencimiento, cantidad: Number(item.cantidad), unidadMedida: item.unidadMedida });
+      else
+        lotes.push({
+          lote: item.lote,
+          proveedorId: item.proveedorId,
+          proveedorNombre: item.proveedor?.razonSocial ?? null,
+          fechaProduccion: item.fechaProduccion,
+          fechaVencimiento: item.fechaVencimiento,
+          cantidad: Number(item.cantidad),
+          unidadMedida: item.unidadMedida,
+        });
     }
     lotesPorAlmacen[almacenId] = mapa;
   }
@@ -114,6 +123,7 @@ export default async function EditarConsumoAlmacenPage({ params }: { params: Pro
       cantidad: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
       lote: item.lote ?? "",
+      proveedorId: item.proveedorId ?? "",
       fechaProduccion: item.fechaProduccion ? (item.fechaProduccion.toISOString().slice(0, 10) as unknown as Date) : undefined,
       fechaVencimiento: item.fechaVencimiento ? (item.fechaVencimiento.toISOString().slice(0, 10) as unknown as Date) : undefined,
       solicitudDespachoItemId: item.solicitudDespachoItemId ?? "",

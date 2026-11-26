@@ -300,6 +300,8 @@ model Proveedor {
   ingresosAlmacen     IngresoAlmacen[]
   devolucionesAlmacen DevolucionAlmacen[]
   conductores         Conductor[]
+  trasladoAlmacenItems TrasladoAlmacenItem[]
+  consumoAlmacenItems  ConsumoAlmacenItem[]
 
   @@unique([tipoDocumento, numeroDocumento])
   @@map("proveedores")
@@ -1247,9 +1249,18 @@ model TrasladoAlmacenItem {
   lote              String?
   fechaProduccion   DateTime?
   fechaVencimiento  DateTime?
+  // Proveedor del lote que viaja en esta línea (pedido explícito,
+  // 2026-11-25): igual que el costoUnitario, "viaja" con el producto desde
+  // el almacén de origen — se jala del lote elegido en el formulario (ver
+  // calcularStockPorLote en lib/stock-almacen.ts, que ahora agrupa por
+  // lote+proveedor) y permite reconstruir la trazabilidad completa aunque
+  // el producto ya no esté en un Ingreso. Null si el lote de origen no
+  // tenía proveedor registrado.
+  proveedorId       String?
 
   trasladoAlmacen TrasladoAlmacen @relation(fields: [trasladoAlmacenId], references: [id], onDelete: Cascade)
   sku             Sku             @relation(fields: [skuId], references: [id])
+  proveedor       Proveedor?      @relation(fields: [proveedorId], references: [id])
 
   @@map("traslado_almacen_items")
 }
@@ -1332,11 +1343,15 @@ model ConsumoAlmacenItem {
   // de Despacho, de cuál — ver calcularSolicitudesDespachoPendientes en
   // lib/stock-almacen.ts, que resta lo ya atendido de lo solicitado.
   solicitudDespachoItemId String?
+  // Proveedor del lote del que se despachó (pedido explícito,
+  // 2026-11-25) — ver mismo comentario en TrasladoAlmacenItem.proveedorId.
+  proveedorId             String?
 
   consumoAlmacen        ConsumoAlmacen         @relation(fields: [consumoAlmacenId], references: [id], onDelete: Cascade)
   almacenOrigen         Almacen                @relation("ConsumosAlmacenItems", fields: [almacenOrigenId], references: [id])
   sku                   Sku                    @relation(fields: [skuId], references: [id])
   solicitudDespachoItem SolicitudDespachoItem? @relation(fields: [solicitudDespachoItemId], references: [id])
+  proveedor             Proveedor?             @relation(fields: [proveedorId], references: [id])
 
   @@map("consumo_almacen_items")
 }

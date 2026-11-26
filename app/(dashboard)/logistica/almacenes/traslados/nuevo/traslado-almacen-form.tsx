@@ -26,11 +26,26 @@ import type { FilaStockAlmacen, LoteStock } from "@/lib/stock-almacen";
 
 type Opcion = { id: string; codigo: string; nombre: string; categoriaGeneral: string | null };
 
-const ITEM_VACIO = { skuId: "", cantidad: 0, unidadMedida: "", lote: "", fechaProduccion: undefined, fechaVencimiento: undefined };
+const ITEM_VACIO = {
+  skuId: "",
+  cantidad: 0,
+  unidadMedida: "",
+  lote: "",
+  proveedorId: "",
+  fechaProduccion: undefined,
+  fechaVencimiento: undefined,
+};
 
 function soloFecha(d: Date | string | undefined): string {
   if (!d) return "";
   return (typeof d === "string" ? d : d.toISOString()).slice(0, 10);
+}
+
+// El mismo string de lote puede repetirse entre dos proveedores distintos
+// (ver calcularStockPorLote en lib/stock-almacen.ts) — se identifica cada
+// opción del selector por lote+proveedor, no solo por lote.
+function claveLote(lote: string, proveedorId: string | null | undefined): string {
+  return `${lote}::${proveedorId ?? ""}`;
 }
 
 export function TrasladoAlmacenForm({
@@ -114,9 +129,9 @@ export function TrasladoAlmacenForm({
     return lotesPorAlmacen[almacenOrigenId]?.[skuId] ?? [];
   }
 
-  function stockDisponibleEfectivo(skuId: string, lote: string) {
+  function stockDisponibleEfectivo(skuId: string, lote: string, proveedorId?: string | null) {
     if (!muestraLote) return stockDisponibleDe(skuId);
-    return lotesDe(skuId).find((l) => l.lote === lote)?.cantidad ?? 0;
+    return lotesDe(skuId).find((l) => l.lote === lote && (l.proveedorId ?? "") === (proveedorId ?? ""))?.cantidad ?? 0;
   }
 
   async function handleSubmitConArchivo(e: React.FormEvent) {
@@ -147,7 +162,7 @@ export function TrasladoAlmacenForm({
 
   async function onSubmit(data: TrasladoAlmacenInput) {
     const excedeAlgunaLinea = data.items.some(
-      (item) => item.cantidad > stockDisponibleEfectivo(item.skuId, item.lote ?? "")
+      (item) => item.cantidad > stockDisponibleEfectivo(item.skuId, item.lote ?? "", item.proveedorId)
     );
     if (excedeAlgunaLinea) {
       toast.error("Hay productos cuya cantidad excede el stock disponible en el almacén de origen. Corrígelo antes de guardar.");
@@ -376,7 +391,7 @@ export function TrasladoAlmacenForm({
                     const skuId = items[index]?.skuId ?? "";
                     const loteElegido = items[index]?.lote ?? "";
                     const lotesSku = lotesDe(skuId);
-                    const disponible = stockDisponibleEfectivo(skuId, loteElegido);
+                    const disponible = stockDisponibleEfectivo(skuId, loteElegido, items[index]?.proveedorId);
                     const cantidad = Number(items[index]?.cantidad) || 0;
                     const excede = skuId !== "" && cantidad > disponible;
                     return (
@@ -398,6 +413,7 @@ export function TrasladoAlmacenForm({
                                   form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
                                   // Los lotes dependen del producto: se limpian al cambiarlo.
                                   form.setValue(`items.${index}.lote`, "");
+                                  form.setValue(`items.${index}.proveedorId`, "");
                                   form.setValue(`items.${index}.fechaProduccion`, undefined);
                                   form.setValue(`items.${index}.fechaVencimiento`, undefined);
                                 }}
@@ -445,10 +461,11 @@ export function TrasladoAlmacenForm({
                                 name={`items.${index}.lote`}
                                 render={({ field: loteField }) => (
                                   <Select
-                                    value={loteField.value || ""}
+                                    value={loteField.value ? claveLote(loteField.value, items[index]?.proveedorId) : ""}
                                     onValueChange={(valor) => {
-                                      loteField.onChange(valor);
-                                      const lote = lotesSku.find((l) => l.lote === valor);
+                                      const lote = lotesSku.find((l) => claveLote(l.lote, l.proveedorId) === valor);
+                                      loteField.onChange(lote?.lote ?? "");
+                                      form.setValue(`items.${index}.proveedorId`, lote?.proveedorId ?? "");
                                       form.setValue(
                                         `items.${index}.fechaProduccion`,
                                         lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
@@ -468,8 +485,8 @@ export function TrasladoAlmacenForm({
                                         <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
                                       ) : (
                                         lotesSku.map((l) => (
-                                          <SelectItem key={l.lote} value={l.lote}>
-                                            {l.lote} — {formatCantidad(l.cantidad)} {l.unidadMedida}
+                                          <SelectItem key={claveLote(l.lote, l.proveedorId)} value={claveLote(l.lote, l.proveedorId)}>
+                                            {l.lote} — {l.proveedorNombre ?? "Sin proveedor"} — {formatCantidad(l.cantidad)} {l.unidadMedida}
                                           </SelectItem>
                                         ))
                                       )}

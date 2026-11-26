@@ -41,10 +41,18 @@ function itemVacio(almacenOrigenId: string) {
     cantidad: 0,
     unidadMedida: "",
     lote: "",
+    proveedorId: "",
     fechaProduccion: undefined,
     fechaVencimiento: undefined,
     solicitudDespachoItemId: "",
   };
+}
+
+// El mismo string de lote puede repetirse entre dos proveedores distintos
+// (ver calcularStockPorLote en lib/stock-almacen.ts) — se identifica cada
+// opción/fila de lote por lote+proveedor, no solo por lote.
+function claveLote(lote: string, proveedorId: string | null | undefined): string {
+  return `${lote}::${proveedorId ?? ""}`;
 }
 
 // Una línea pendiente de atender, de alguna de las Solicitudes de Despacho
@@ -211,11 +219,29 @@ export function ConsumoAlmacenForm({
     return lotesPorAlmacen[almacenId]?.[skuId] ?? [];
   }
 
-  function stockDisponibleEfectivo(almacenId: string, skuId: string, lote: string) {
+  // Para mostrar el nombre del proveedor en la columna "Lote" de una fila
+  // que ya viene armada desde "Ver Productos" (ahí solo se guarda el
+  // proveedorId, ver agregarSplit) — se arma una sola vez a partir de
+  // todos los lotes que ya trae `lotesPorAlmacen`.
+  const proveedorNombrePorId = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const porSku of Object.values(lotesPorAlmacen)) {
+      for (const lotes of Object.values(porSku)) {
+        for (const l of lotes) {
+          if (l.proveedorId && l.proveedorNombre) mapa.set(l.proveedorId, l.proveedorNombre);
+        }
+      }
+    }
+    return mapa;
+  }, [lotesPorAlmacen]);
+
+  function stockDisponibleEfectivo(almacenId: string, skuId: string, lote: string, proveedorId?: string | null) {
     const almacen = almacenPorId.get(almacenId);
     const requiereLote = almacen?.categoriaGeneral === "PESTICIDAS" || almacen?.categoriaGeneral === "FERTILIZANTES";
     if (!requiereLote) return sinAlmacenGeneral ? Infinity : stockDisponibleManual(skuId);
-    return lotesDe(almacenId, skuId).find((l) => l.lote === lote)?.cantidad ?? 0;
+    return (
+      lotesDe(almacenId, skuId).find((l) => l.lote === lote && (l.proveedorId ?? "") === (proveedorId ?? ""))?.cantidad ?? 0
+    );
   }
 
   // --- "Ver Productos": categoría -> producto pendiente -> reparto por
@@ -283,7 +309,7 @@ export function ConsumoAlmacenForm({
   // calcularStockPorAlmacenParaSku) — se identifica cada fila por
   // almacén+lote, no solo por almacén, para no mezclar sus cantidades.
   function claveSplit(fila: StockPorAlmacen): string {
-    return `${fila.almacenId}::${fila.lote ?? "__sin_lote__"}`;
+    return `${fila.almacenId}::${fila.lote ?? "__sin_lote__"}::${fila.proveedorId ?? "__sin_proveedor__"}`;
   }
 
   async function elegirProducto(p: PendienteDespacho) {
@@ -307,7 +333,7 @@ export function ConsumoAlmacenForm({
     const cantidadesPrevias: Record<string, string> = {};
     for (const item of items) {
       if (item.solicitudDespachoItemId !== pendiente.id) continue;
-      const clave = `${item.almacenOrigenId}::${item.lote || "__sin_lote__"}`;
+      const clave = `${item.almacenOrigenId}::${item.lote || "__sin_lote__"}::${item.proveedorId || "__sin_proveedor__"}`;
       cantidadesPrevias[clave] = String((Number(cantidadesPrevias[clave]) || 0) + (Number(item.cantidad) || 0));
     }
     setEditandoPendienteId(pendiente.id);
@@ -370,6 +396,7 @@ export function ConsumoAlmacenForm({
         cantidad,
         unidadMedida: productoElegido.unidadMedida,
         lote: fila.lote ?? "",
+        proveedorId: fila.proveedorId ?? "",
         fechaProduccion: fila.fechaProduccion ? (soloFecha(fila.fechaProduccion) as unknown as Date) : undefined,
         fechaVencimiento: fila.fechaVencimiento ? (soloFecha(fila.fechaVencimiento) as unknown as Date) : undefined,
         solicitudDespachoItemId: productoElegido.id,
@@ -428,7 +455,7 @@ export function ConsumoAlmacenForm({
       return;
     }
     const excedeAlgunaLinea = data.items.some(
-      (item) => item.cantidad > stockDisponibleEfectivo(item.almacenOrigenId, item.skuId, item.lote ?? "")
+      (item) => item.cantidad > stockDisponibleEfectivo(item.almacenOrigenId, item.skuId, item.lote ?? "", item.proveedorId)
     );
     if (excedeAlgunaLinea) {
       toast.error("Hay productos cuya cantidad excede el stock disponible en su almacén. Corrígelo antes de guardar.");
@@ -727,7 +754,9 @@ export function ConsumoAlmacenForm({
                     const skuId = items[index]?.skuId ?? "";
                     const loteElegido = items[index]?.lote ?? "";
                     const lotesSku = lotesDe(itemAlmacenId, skuId);
-                    const disponible = sinAlmacenGeneral ? null : stockDisponibleEfectivo(itemAlmacenId, skuId, loteElegido);
+                    const disponible = sinAlmacenGeneral
+                      ? null
+                      : stockDisponibleEfectivo(itemAlmacenId, skuId, loteElegido, items[index]?.proveedorId);
                     const cantidad = Number(items[index]?.cantidad) || 0;
                     const excede = !sinAlmacenGeneral && skuId !== "" && disponible !== null && cantidad > disponible;
                     const filaRequiereLote =
@@ -764,6 +793,7 @@ export function ConsumoAlmacenForm({
                                       form.setValue(`items.${index}.unidadMedida`, sku.unidadMedida);
                                       // Los lotes dependen del producto: se limpian al cambiarlo.
                                       form.setValue(`items.${index}.lote`, "");
+                                      form.setValue(`items.${index}.proveedorId`, "");
                                       form.setValue(`items.${index}.fechaProduccion`, undefined);
                                       form.setValue(`items.${index}.fechaVencimiento`, undefined);
                                     }}
@@ -825,17 +855,22 @@ export function ConsumoAlmacenForm({
                                 // El lote ya se eligió en "Ver Productos" (reparto por
                                 // almacén/lote) — acá solo se muestra; para cambiarlo hay
                                 // que usar el botón "Editar" de esta fila.
-                                <p className="pt-2 text-sm">{loteElegido || "—"}</p>
+                                <p className="pt-2 text-sm">
+                                  {loteElegido
+                                    ? `${loteElegido} — ${items[index]?.proveedorId ? proveedorNombrePorId.get(items[index].proveedorId!) ?? "—" : "Sin proveedor"}`
+                                    : "—"}
+                                </p>
                               ) : filaRequiereLote ? (
                                 <Controller
                                   control={form.control}
                                   name={`items.${index}.lote`}
                                   render={({ field: loteField }) => (
                                     <Select
-                                      value={loteField.value || ""}
+                                      value={loteField.value ? claveLote(loteField.value, items[index]?.proveedorId) : ""}
                                       onValueChange={(valor) => {
-                                        loteField.onChange(valor);
-                                        const lote = lotesSku.find((l) => l.lote === valor);
+                                        const lote = lotesSku.find((l) => claveLote(l.lote, l.proveedorId) === valor);
+                                        loteField.onChange(lote?.lote ?? "");
+                                        form.setValue(`items.${index}.proveedorId`, lote?.proveedorId ?? "");
                                         form.setValue(
                                           `items.${index}.fechaProduccion`,
                                           lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
@@ -855,8 +890,8 @@ export function ConsumoAlmacenForm({
                                           <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
                                         ) : (
                                           lotesSku.map((l) => (
-                                            <SelectItem key={l.lote} value={l.lote}>
-                                              {l.lote} — {formatCantidad(l.cantidad)} {l.unidadMedida}
+                                            <SelectItem key={claveLote(l.lote, l.proveedorId)} value={claveLote(l.lote, l.proveedorId)}>
+                                              {l.lote} — {l.proveedorNombre ?? "Sin proveedor"} — {formatCantidad(l.cantidad)} {l.unidadMedida}
                                             </SelectItem>
                                           ))
                                         )}
@@ -1008,7 +1043,12 @@ export function ConsumoAlmacenForm({
                       <div className="flex-1">
                         <p className="text-sm font-medium">
                           <span className="font-mono text-muted-foreground">{fila.codigo}</span> {fila.nombre}
-                          {fila.lote && <span className="text-muted-foreground"> — Lote {fila.lote}</span>}
+                          {fila.lote && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              — Lote {fila.lote} ({fila.proveedorNombre ?? "Sin proveedor"})
+                            </span>
+                          )}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Disponible: {formatCantidad(fila.cantidad)}

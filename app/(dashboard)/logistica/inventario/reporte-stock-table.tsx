@@ -10,7 +10,14 @@ import type { FilaReporteStock } from "@/lib/stock-almacen";
 
 const POR_PAGINA = 50;
 
-export function ReporteStockTable({ filas }: { filas: FilaReporteStock[] }) {
+export function ReporteStockTable({
+  filas,
+  ocultarColumnaAlmacen = false,
+}: {
+  filas: FilaReporteStock[];
+  /** El detalle de un almacén puntual ya sabe de cuál se trata — no hace falta repetirlo en cada fila. */
+  ocultarColumnaAlmacen?: boolean;
+}) {
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
 
@@ -26,7 +33,8 @@ export function ReporteStockTable({ filas }: { filas: FilaReporteStock[] }) {
       (f) =>
         f.codigo.toLowerCase().includes(termino) ||
         f.descripcion.toLowerCase().includes(termino) ||
-        f.almacenNombre.toLowerCase().includes(termino)
+        f.almacenNombre.toLowerCase().includes(termino) ||
+        (f.proveedorNombre ?? "").toLowerCase().includes(termino)
     );
   }, [filas, busqueda]);
 
@@ -60,7 +68,8 @@ export function ReporteStockTable({ filas }: { filas: FilaReporteStock[] }) {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Producto</TableHead>
-                  <TableHead>Almacén</TableHead>
+                  {!ocultarColumnaAlmacen && <TableHead>Almacén</TableHead>}
+                  <TableHead>Proveedor</TableHead>
                   <TableHead>Lote</TableHead>
                   <TableHead>F. Producción</TableHead>
                   <TableHead>F. Vencimiento</TableHead>
@@ -75,7 +84,8 @@ export function ReporteStockTable({ filas }: { filas: FilaReporteStock[] }) {
                   <TableRow key={`${f.skuId}-${f.almacenId}-${f.lote ?? "sinlote"}-${i}`}>
                     <TableCell className="font-medium">{f.codigo}</TableCell>
                     <TableCell>{f.descripcion}</TableCell>
-                    <TableCell>{f.almacenNombre}</TableCell>
+                    {!ocultarColumnaAlmacen && <TableCell>{f.almacenNombre}</TableCell>}
+                    <TableCell>{f.proveedorNombre ?? "—"}</TableCell>
                     <TableCell>{f.lote ?? "—"}</TableCell>
                     <TableCell>{f.fechaProduccion ? formatDate(f.fechaProduccion) : "—"}</TableCell>
                     <TableCell>{f.fechaVencimiento ? formatDate(f.fechaVencimiento) : "—"}</TableCell>

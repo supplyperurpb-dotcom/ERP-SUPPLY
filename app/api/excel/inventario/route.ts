@@ -10,6 +10,7 @@ export async function GET() {
     Código: string;
     Producto: string;
     Almacén: string;
+    Proveedor: string;
     Lote: string;
     "Fecha de Producción": string;
     "Fecha de Vencimiento": string;
@@ -23,6 +24,7 @@ export async function GET() {
     Código: f.codigo,
     Producto: f.descripcion,
     Almacén: f.almacenNombre,
+    Proveedor: f.proveedorNombre ?? "",
     Lote: f.lote ?? "",
     "Fecha de Producción": f.fechaProduccion ? formatDate(f.fechaProduccion) : "",
     "Fecha de Vencimiento": f.fechaVencimiento ? formatDate(f.fechaVencimiento) : "",
@@ -36,6 +38,7 @@ export async function GET() {
   hoja["!cols"] = [
     { wch: 14 },
     { wch: 32 },
+    { wch: 26 },
     { wch: 26 },
     { wch: 14 },
     { wch: 16 },

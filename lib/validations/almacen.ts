@@ -103,6 +103,10 @@ const itemTrasladoSchema = z.object({
   // crearTrasladoAlmacenAction) — de qué lote sale, y ese mismo lote viaja
   // con el ítem hasta el almacén de destino. Igual que en ingreso/consumo.
   lote: z.string().max(60).optional().or(z.literal("")),
+  // Proveedor del lote elegido (pedido explícito, 2026-11-25): "viaja" con
+  // el producto igual que el costo unitario — ver calcularStockPorLote en
+  // lib/stock-almacen.ts, que ahora agrupa por lote+proveedor.
+  proveedorId: z.string().optional().or(z.literal("")),
   fechaProduccion: z.coerce.date().optional(),
   fechaVencimiento: z.coerce.date().optional(),
 });
@@ -144,6 +148,9 @@ const itemConsumoSchema = z.object({
   // (lo exige el servidor, ver crearConsumoAlmacenAction) — igual que en el
   // ingreso, acá quedan opcionales porque en los demás almacenes no aplican.
   lote: z.string().max(60).optional().or(z.literal("")),
+  // Proveedor del lote del que se despacha (pedido explícito,
+  // 2026-11-25) — ver mismo comentario en itemTrasladoSchema.
+  proveedorId: z.string().optional().or(z.literal("")),
   fechaProduccion: z.coerce.date().optional(),
   fechaVencimiento: z.coerce.date().optional(),
   // Si esta línea atiende (total o parcialmente) un ítem de una Solicitud

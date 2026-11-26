@@ -9,7 +9,7 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
   const { id } = await params;
 
   const [traslado, almacenes] = await Promise.all([
-    prisma.trasladoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true } } } }),
+    prisma.trasladoAlmacen.findUnique({ where: { id }, include: { items: { include: { sku: true, proveedor: true } } } }),
     prisma.almacen.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
   ]);
   if (!traslado) notFound();
@@ -57,12 +57,14 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
       for (const item of traslado.items) {
         if (!item.lote) continue;
         const lotes = porSku[item.skuId] ?? [];
-        const idx = lotes.findIndex((l) => l.lote === item.lote);
+        const idx = lotes.findIndex((l) => l.lote === item.lote && l.proveedorId === item.proveedorId);
         if (idx >= 0) {
           lotes[idx] = { ...lotes[idx], cantidad: lotes[idx].cantidad + Number(item.cantidad) };
         } else {
           lotes.push({
             lote: item.lote,
+            proveedorId: item.proveedorId,
+            proveedorNombre: item.proveedor?.razonSocial ?? null,
             fechaProduccion: item.fechaProduccion,
             fechaVencimiento: item.fechaVencimiento,
             cantidad: Number(item.cantidad),
@@ -88,6 +90,7 @@ export default async function EditarTrasladoAlmacenPage({ params }: { params: Pr
       cantidad: Number(item.cantidad),
       unidadMedida: item.unidadMedida,
       lote: item.lote ?? "",
+      proveedorId: item.proveedorId ?? "",
       fechaProduccion: item.fechaProduccion ? (item.fechaProduccion.toISOString().slice(0, 10) as unknown as Date) : undefined,
       fechaVencimiento: item.fechaVencimiento ? (item.fechaVencimiento.toISOString().slice(0, 10) as unknown as Date) : undefined,
     })),

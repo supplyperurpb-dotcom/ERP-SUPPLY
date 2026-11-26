@@ -267,6 +267,8 @@ export type StockPorAlmacen = {
   nombre: string;
   /** null si este almacén no exige lote (no es de categoría PESTICIDAS/FERTILIZANTES). */
   lote: string | null;
+  proveedorId: string | null;
+  proveedorNombre: string | null;
   fechaProduccion: Date | null;
   fechaVencimiento: Date | null;
   cantidad: number;
@@ -300,6 +302,8 @@ export async function calcularStockPorAlmacenParaSku(
           codigo: almacen.codigo,
           nombre: almacen.nombre,
           lote: l.lote,
+          proveedorId: l.proveedorId,
+          proveedorNombre: l.proveedorNombre,
           fechaProduccion: l.fechaProduccion,
           fechaVencimiento: l.fechaVencimiento,
           cantidad: l.cantidad,
@@ -313,6 +317,8 @@ export async function calcularStockPorAlmacenParaSku(
           codigo: almacen.codigo,
           nombre: almacen.nombre,
           lote: null,
+          proveedorId: null,
+          proveedorNombre: null,
           fechaProduccion: null,
           fechaVencimiento: null,
           cantidad,
@@ -439,8 +445,19 @@ export async function calcularOcPendientesIngreso(db: Db = prisma): Promise<Orde
 // por lote si llegó por traslado — ver crearTrasladoAlmacenAction, que
 // exige lote cuando el origen es de esa categoría y lo hace viajar hasta
 // el ítem de traslado, igual que el costo unitario.
+//
+// Se agrupa por (lote, proveedor) y no solo por lote (pedido explícito,
+// 2026-11-25): el mismo número de lote puede repetirse entre dos
+// proveedores distintos (p. ej. 40 Kg de un proveedor y 20 Kg de otro,
+// mismo lote) y deben quedar como dos filas separadas, con trazabilidad
+// completa — el proveedor de un ingreso es el de su IngresoAlmacen; el de
+// un traslado/consumo es el que quedó guardado en esa misma línea al
+// crearla (ver crearTrasladoAlmacenAction/crearConsumoAlmacenAction, que
+// lo jalan de este mismo lote elegido en el formulario).
 export type LoteStock = {
   lote: string;
+  proveedorId: string | null;
+  proveedorNombre: string | null;
   fechaProduccion: Date | null;
   fechaVencimiento: Date | null;
   cantidad: number;
@@ -451,51 +468,96 @@ export async function calcularStockPorLote(almacenId: string, skuId: string, db:
   const [ingresos, consumos, trasladosEntrantes, trasladosSalientes] = await Promise.all([
     db.ingresoAlmacenItem.findMany({
       where: { skuId, lote: { not: null }, ingresoAlmacen: { almacenId } },
-      select: { lote: true, fechaProduccion: true, fechaVencimiento: true, cantidad: true, unidadMedida: true },
+      select: {
+        lote: true,
+        fechaProduccion: true,
+        fechaVencimiento: true,
+        cantidad: true,
+        unidadMedida: true,
+        ingresoAlmacen: { select: { proveedorId: true, proveedor: { select: { razonSocial: true } } } },
+      },
     }),
     db.consumoAlmacenItem.findMany({
       where: { skuId, lote: { not: null }, almacenOrigenId: almacenId },
-      select: { lote: true, cantidad: true },
+      select: { lote: true, cantidad: true, proveedorId: true },
     }),
     db.trasladoAlmacenItem.findMany({
       where: { skuId, lote: { not: null }, trasladoAlmacen: { almacenDestinoId: almacenId } },
-      select: { lote: true, fechaProduccion: true, fechaVencimiento: true, cantidad: true, unidadMedida: true },
+      select: {
+        lote: true,
+        fechaProduccion: true,
+        fechaVencimiento: true,
+        cantidad: true,
+        unidadMedida: true,
+        proveedorId: true,
+        proveedor: { select: { razonSocial: true } },
+      },
     }),
     db.trasladoAlmacenItem.findMany({
       where: { skuId, lote: { not: null }, trasladoAlmacen: { almacenOrigenId: almacenId } },
-      select: { lote: true, cantidad: true },
+      select: { lote: true, cantidad: true, proveedorId: true },
     }),
   ]);
 
   const porLote = new Map<string, LoteStock>();
-  function sumar(lote: string, cantidad: number, fechaProduccion: Date | null, fechaVencimiento: Date | null, unidadMedida: string) {
-    const existente = porLote.get(lote);
+  function clave(lote: string, proveedorId: string | null): string {
+    return `${lote}::${proveedorId ?? ""}`;
+  }
+  function sumar(
+    lote: string,
+    proveedorId: string | null,
+    proveedorNombre: string | null,
+    cantidad: number,
+    fechaProduccion: Date | null,
+    fechaVencimiento: Date | null,
+    unidadMedida: string
+  ) {
+    const k = clave(lote, proveedorId);
+    const existente = porLote.get(k);
     if (existente) {
       existente.cantidad += cantidad;
     } else {
-      porLote.set(lote, { lote, fechaProduccion, fechaVencimiento, cantidad, unidadMedida });
+      porLote.set(k, { lote, proveedorId, proveedorNombre, fechaProduccion, fechaVencimiento, cantidad, unidadMedida });
     }
+  }
+  function restar(lote: string, proveedorId: string | null, cantidad: number) {
+    const existente = porLote.get(clave(lote, proveedorId));
+    if (existente) existente.cantidad -= cantidad;
   }
 
   for (const ing of ingresos) {
-    sumar(ing.lote!, Number(ing.cantidad), ing.fechaProduccion, ing.fechaVencimiento, ing.unidadMedida);
+    sumar(
+      ing.lote!,
+      ing.ingresoAlmacen.proveedorId,
+      ing.ingresoAlmacen.proveedor?.razonSocial ?? null,
+      Number(ing.cantidad),
+      ing.fechaProduccion,
+      ing.fechaVencimiento,
+      ing.unidadMedida
+    );
   }
   for (const t of trasladosEntrantes) {
-    sumar(t.lote!, Number(t.cantidad), t.fechaProduccion, t.fechaVencimiento, t.unidadMedida);
+    sumar(
+      t.lote!,
+      t.proveedorId,
+      t.proveedor?.razonSocial ?? null,
+      Number(t.cantidad),
+      t.fechaProduccion,
+      t.fechaVencimiento,
+      t.unidadMedida
+    );
   }
   for (const c of consumos) {
-    const existente = porLote.get(c.lote!);
-    if (existente) existente.cantidad -= Number(c.cantidad);
+    restar(c.lote!, c.proveedorId, Number(c.cantidad));
   }
   for (const t of trasladosSalientes) {
-    const existente = porLote.get(t.lote!);
-    if (existente) existente.cantidad -= Number(t.cantidad);
+    restar(t.lote!, t.proveedorId, Number(t.cantidad));
   }
 
   return [...porLote.values()]
     .map((l) => ({ ...l, cantidad: Math.round(l.cantidad * 1000) / 1000 }))
     .filter((l) => l.cantidad > 0)
-    .sort((a, b) => a.lote.localeCompare(b.lote));
+    .sort((a, b) => a.lote.localeCompare(b.lote) || (a.proveedorNombre ?? "").localeCompare(b.proveedorNombre ?? ""));
 }
 
 export type FilaReporteStock = {
@@ -508,6 +570,9 @@ export type FilaReporteStock = {
   unidadMedida: string;
   /** null si este sku+almacén no exige lote. */
   lote: string | null;
+  proveedorId: string | null;
+  /** "Varios" si este sku sin lote tiene más de un proveedor distinto en su historial de ingresos a este almacén. */
+  proveedorNombre: string | null;
   fechaProduccion: Date | null;
   fechaVencimiento: Date | null;
   cantidad: number;
@@ -517,17 +582,29 @@ export type FilaReporteStock = {
 };
 
 // Reporte de stock (pedido explícito, 2026-11-25): una fila por cada
-// sku+almacén+lote con stock > 0, para el listado total de productos del
-// módulo Inventario. Reusa calcularStockAlmacen (cantidad + ponderado por
-// sku+almacén) y calcularStockPorLote (desglose por lote, donde aplica)
-// en vez de recalcular nada — nunca inventa un costo ni una cantidad
-// nuevos. Si un sku+almacén exige lote pero no aparece ningún lote con
-// stock (dato histórico sin lote registrado), igual se incluye una fila
-// sin lote con la cantidad agregada, para no perder esa cantidad del
-// reporte.
-export async function calcularReporteStock(db: Db = prisma): Promise<FilaReporteStock[]> {
+// sku+almacén+lote(+proveedor) con stock > 0, para el listado total de
+// productos del módulo Inventario y del detalle de cada almacén. Reusa
+// calcularStockAlmacen (cantidad + ponderado por sku+almacén) y
+// calcularStockPorLote (desglose por lote+proveedor, donde aplica) en vez
+// de recalcular nada — nunca inventa un costo ni una cantidad nuevos. Si
+// un sku+almacén exige lote pero no aparece ningún lote con stock (dato
+// histórico sin lote registrado), igual se incluye una fila sin lote con
+// la cantidad agregada, para no perder esa cantidad del reporte.
+//
+// El proveedor de una fila CON lote viene exacto de calcularStockPorLote
+// (trazabilidad real, ver su comentario). El de una fila SIN lote es una
+// aproximación: el único proveedor que aparece en el historial de
+// ingresos de ese sku a este almacén, o "Varios" si hay más de uno, o
+// null si no hay ninguno — no se pidió rastrear proveedor fuera del
+// flujo de lote, así que no se inventa una trazabilidad exacta ahí.
+//
+// `almacenId`, si se pasa, acota el cálculo a un solo almacén (lo usa el
+// detalle de Almacén, para no recalcular los demás).
+export async function calcularReporteStock(almacenId?: string, db: Db = prisma): Promise<FilaReporteStock[]> {
   const [almacenes, skus] = await Promise.all([
-    db.almacen.findMany({ where: { activo: true } }),
+    almacenId
+      ? db.almacen.findMany({ where: { id: almacenId } })
+      : db.almacen.findMany({ where: { activo: true } }),
     db.sku.findMany({ select: { id: true, requiereLote: true } }),
   ]);
   const requiereLotePorSku = new Map(skus.map((s) => [s.id, s.requiereLote]));
@@ -539,6 +616,26 @@ export async function calcularReporteStock(db: Db = prisma): Promise<FilaReporte
 
     const categoriaEfectiva = await categoriaEfectivaAlmacen(almacen, db);
     const almacenExigeLote = categoriaEfectiva === "PESTICIDAS" || categoriaEfectiva === "FERTILIZANTES";
+
+    // Proveedor aproximado para skus SIN lote en este almacén: todos los
+    // proveedores distintos que aparecen en su historial de ingresos acá.
+    const ingresosDelAlmacen = await db.ingresoAlmacenItem.findMany({
+      where: { ingresoAlmacen: { almacenId: almacen.id } },
+      select: { skuId: true, ingresoAlmacen: { select: { proveedor: { select: { id: true, razonSocial: true } } } } },
+    });
+    const proveedoresPorSkuSinLote = new Map<string, Map<string, string>>();
+    for (const ing of ingresosDelAlmacen) {
+      if (!ing.ingresoAlmacen.proveedor) continue;
+      const mapa = proveedoresPorSkuSinLote.get(ing.skuId) ?? new Map<string, string>();
+      mapa.set(ing.ingresoAlmacen.proveedor.id, ing.ingresoAlmacen.proveedor.razonSocial);
+      proveedoresPorSkuSinLote.set(ing.skuId, mapa);
+    }
+    function proveedorSinLote(skuId: string): { proveedorId: string | null; proveedorNombre: string | null } {
+      const distintos = [...(proveedoresPorSkuSinLote.get(skuId)?.entries() ?? [])];
+      if (distintos.length === 0) return { proveedorId: null, proveedorNombre: null };
+      if (distintos.length === 1) return { proveedorId: distintos[0][0], proveedorNombre: distintos[0][1] };
+      return { proveedorId: null, proveedorNombre: "Varios" };
+    }
 
     for (const fila of filasStock) {
       const valorizado = (cantidad: number) =>
@@ -558,6 +655,8 @@ export async function calcularReporteStock(db: Db = prisma): Promise<FilaReporte
             descripcion: fila.descripcion,
             unidadMedida: l.unidadMedida,
             lote: l.lote,
+            proveedorId: l.proveedorId,
+            proveedorNombre: l.proveedorNombre,
             fechaProduccion: l.fechaProduccion,
             fechaVencimiento: l.fechaVencimiento,
             cantidad: l.cantidad,
@@ -566,6 +665,7 @@ export async function calcularReporteStock(db: Db = prisma): Promise<FilaReporte
           });
         }
       } else {
+        const { proveedorId, proveedorNombre } = proveedorSinLote(fila.skuId);
         resultado.push({
           almacenId: almacen.id,
           almacenCodigo: almacen.codigo,
@@ -575,6 +675,8 @@ export async function calcularReporteStock(db: Db = prisma): Promise<FilaReporte
           descripcion: fila.descripcion,
           unidadMedida: fila.unidadMedida,
           lote: null,
+          proveedorId,
+          proveedorNombre,
           fechaProduccion: null,
           fechaVencimiento: null,
           cantidad: fila.cantidad,
@@ -588,6 +690,198 @@ export async function calcularReporteStock(db: Db = prisma): Promise<FilaReporte
   return resultado.sort(
     (a, b) => a.codigo.localeCompare(b.codigo) || a.almacenNombre.localeCompare(b.almacenNombre) || (a.lote ?? "").localeCompare(b.lote ?? "")
   );
+}
+
+export type TipoMovimientoAlmacen = "INGRESO" | "TRASLADO_ENTRADA" | "TRASLADO_SALIDA" | "CONSUMO" | "DEVOLUCION";
+
+export type FilaMovimientoAlmacen = {
+  id: string;
+  fecha: Date;
+  tipo: TipoMovimientoAlmacen;
+  documentoId: string;
+  documentoNumero: string;
+  skuId: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  lote: string | null;
+  fechaProduccion: Date | null;
+  fechaVencimiento: Date | null;
+  /** Con signo: positiva en Ingreso/Devolución/Traslado entrante, negativa en Consumo/Traslado saliente. */
+  cantidad: number;
+  /** El precio tal cual quedó grabado en la línea (precio de compra en el Ingreso; costo/ponderado ya guardado en Traslado/Consumo/Devolución). */
+  precioUnitario: number;
+  /** Ponderado del almacén de origen de este movimiento, EN LA FECHA del movimiento (ver precioUnitarioPonderadoAFecha) — recalculado en vivo, no el guardado. */
+  precioPonderado: number | null;
+  /** cantidad (con signo) * precioPonderado — null si no se pudo determinar el ponderado. */
+  valorizado: number | null;
+};
+
+// Historial de movimientos de UN almacén, valorizado (pedido explícito,
+// 2026-11-25): junta Ingreso/Traslado/Consumo/Devolución en un solo
+// arreglo ordenado por fecha descendente. El "almacén de origen" para el
+// ponderado de cada línea es: el propio almacén en Ingreso y Devolución;
+// SIEMPRE almacenOrigenId en un Traslado (sin importar si este almacén es
+// el origen o el destino); y almacenOrigenId de la línea en un Consumo.
+// El ponderado se recalcula en vivo con precioUnitarioPonderadoAFecha
+// (memoizado por almacén+sku+día dentro de esta misma llamada) en vez de
+// reusar el que quedó grabado en la línea, para que siempre responda
+// exactamente al pedido: "el precio ponderado del día en que se ejecuta
+// el movimiento, del almacén en el que se dio el movimiento de origen".
+export async function calcularMovimientosAlmacen(almacenId: string, db: Db = prisma): Promise<FilaMovimientoAlmacen[]> {
+  const [ingresos, trasladosEntrantes, trasladosSalientes, consumos, devoluciones] = await Promise.all([
+    db.ingresoAlmacenItem.findMany({
+      where: { ingresoAlmacen: { almacenId } },
+      include: { sku: true, ingresoAlmacen: true },
+    }),
+    db.trasladoAlmacenItem.findMany({
+      where: { trasladoAlmacen: { almacenDestinoId: almacenId } },
+      include: { sku: true, trasladoAlmacen: true },
+    }),
+    db.trasladoAlmacenItem.findMany({
+      where: { trasladoAlmacen: { almacenOrigenId: almacenId } },
+      include: { sku: true, trasladoAlmacen: true },
+    }),
+    db.consumoAlmacenItem.findMany({
+      where: { almacenOrigenId: almacenId },
+      include: { sku: true, consumoAlmacen: true },
+    }),
+    db.devolucionAlmacenItem.findMany({
+      where: { devolucionAlmacen: { almacenId } },
+      include: { sku: true, devolucionAlmacen: true },
+    }),
+  ]);
+
+  // Memoiza el ponderado por almacén+sku+día: varias líneas de un mismo
+  // documento (o de documentos distintos el mismo día) suelen repetir la
+  // misma combinación.
+  const cachePonderado = new Map<string, number | null>();
+  async function ponderadoAFechaCache(origenAlmacenId: string, skuId: string, fecha: Date): Promise<number | null> {
+    const k = `${origenAlmacenId}::${skuId}::${fecha.toISOString().slice(0, 10)}`;
+    if (!cachePonderado.has(k)) {
+      cachePonderado.set(k, await precioUnitarioPonderadoAFecha(origenAlmacenId, skuId, fecha, db));
+    }
+    return cachePonderado.get(k)!;
+  }
+
+  const filas: FilaMovimientoAlmacen[] = [];
+
+  for (const ing of ingresos) {
+    const cantidad = Number(ing.cantidad);
+    const ponderado = await ponderadoAFechaCache(almacenId, ing.skuId, ing.ingresoAlmacen.fecha);
+    filas.push({
+      id: ing.id,
+      fecha: ing.ingresoAlmacen.fecha,
+      tipo: "INGRESO",
+      documentoId: ing.ingresoAlmacenId,
+      documentoNumero: ing.ingresoAlmacen.numero,
+      skuId: ing.skuId,
+      codigo: ing.sku.codigo,
+      descripcion: ing.sku.descripcion,
+      unidadMedida: ing.unidadMedida,
+      lote: ing.lote,
+      fechaProduccion: ing.fechaProduccion,
+      fechaVencimiento: ing.fechaVencimiento,
+      cantidad,
+      precioUnitario: Number(ing.precioUnitarioUsd),
+      precioPonderado: ponderado,
+      valorizado: ponderado !== null ? Math.round(cantidad * ponderado * 100) / 100 : null,
+    });
+  }
+
+  for (const t of trasladosEntrantes) {
+    const cantidad = Number(t.cantidad);
+    const ponderado = await ponderadoAFechaCache(t.trasladoAlmacen.almacenOrigenId, t.skuId, t.trasladoAlmacen.fecha);
+    filas.push({
+      id: t.id,
+      fecha: t.trasladoAlmacen.fecha,
+      tipo: "TRASLADO_ENTRADA",
+      documentoId: t.trasladoAlmacenId,
+      documentoNumero: t.trasladoAlmacen.numero,
+      skuId: t.skuId,
+      codigo: t.sku.codigo,
+      descripcion: t.sku.descripcion,
+      unidadMedida: t.unidadMedida,
+      lote: t.lote,
+      fechaProduccion: t.fechaProduccion,
+      fechaVencimiento: t.fechaVencimiento,
+      cantidad,
+      precioUnitario: Number(t.costoUnitario),
+      precioPonderado: ponderado,
+      valorizado: ponderado !== null ? Math.round(cantidad * ponderado * 100) / 100 : null,
+    });
+  }
+
+  for (const t of trasladosSalientes) {
+    const cantidad = -Number(t.cantidad);
+    const ponderado = await ponderadoAFechaCache(t.trasladoAlmacen.almacenOrigenId, t.skuId, t.trasladoAlmacen.fecha);
+    filas.push({
+      id: t.id,
+      fecha: t.trasladoAlmacen.fecha,
+      tipo: "TRASLADO_SALIDA",
+      documentoId: t.trasladoAlmacenId,
+      documentoNumero: t.trasladoAlmacen.numero,
+      skuId: t.skuId,
+      codigo: t.sku.codigo,
+      descripcion: t.sku.descripcion,
+      unidadMedida: t.unidadMedida,
+      lote: t.lote,
+      fechaProduccion: t.fechaProduccion,
+      fechaVencimiento: t.fechaVencimiento,
+      cantidad,
+      precioUnitario: Number(t.costoUnitario),
+      precioPonderado: ponderado,
+      valorizado: ponderado !== null ? Math.round(cantidad * ponderado * 100) / 100 : null,
+    });
+  }
+
+  for (const c of consumos) {
+    const cantidad = -Number(c.cantidad);
+    const ponderado = await ponderadoAFechaCache(c.almacenOrigenId, c.skuId, c.consumoAlmacen.fecha);
+    filas.push({
+      id: c.id,
+      fecha: c.consumoAlmacen.fecha,
+      tipo: "CONSUMO",
+      documentoId: c.consumoAlmacenId,
+      documentoNumero: c.consumoAlmacen.numero,
+      skuId: c.skuId,
+      codigo: c.sku.codigo,
+      descripcion: c.sku.descripcion,
+      unidadMedida: c.unidadMedida,
+      lote: c.lote,
+      fechaProduccion: c.fechaProduccion,
+      fechaVencimiento: c.fechaVencimiento,
+      cantidad,
+      precioUnitario: Number(c.precioUnitarioPonderado),
+      precioPonderado: ponderado,
+      valorizado: ponderado !== null ? Math.round(cantidad * ponderado * 100) / 100 : null,
+    });
+  }
+
+  for (const d of devoluciones) {
+    const cantidad = Number(d.cantidad);
+    const ponderado = await ponderadoAFechaCache(almacenId, d.skuId, d.devolucionAlmacen.fecha);
+    filas.push({
+      id: d.id,
+      fecha: d.devolucionAlmacen.fecha,
+      tipo: "DEVOLUCION",
+      documentoId: d.devolucionAlmacenId,
+      documentoNumero: d.devolucionAlmacen.numero,
+      skuId: d.skuId,
+      codigo: d.sku.codigo,
+      descripcion: d.sku.descripcion,
+      unidadMedida: d.unidadMedida,
+      lote: d.lote,
+      fechaProduccion: d.fechaProduccion,
+      fechaVencimiento: d.fechaVencimiento,
+      cantidad,
+      precioUnitario: Number(d.precioUnitario),
+      precioPonderado: ponderado,
+      valorizado: ponderado !== null ? Math.round(cantidad * ponderado * 100) / 100 : null,
+    });
+  }
+
+  return filas.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
 }
 
 // ---------------------------------------------------------------------
