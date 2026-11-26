@@ -41,12 +41,9 @@ function soloFecha(d: Date | string | undefined): string {
   return (typeof d === "string" ? d : d.toISOString()).slice(0, 10);
 }
 
-// El mismo string de lote puede repetirse entre dos proveedores distintos
-// (ver calcularStockPorLote en lib/stock-almacen.ts) — se identifica cada
-// opción del selector por lote+proveedor, no solo por lote.
-function claveLote(lote: string, proveedorId: string | null | undefined): string {
-  return `${lote}::${proveedorId ?? ""}`;
-}
+// Sentinel para el <Select> de Proveedor (Radix no admite value="" en un
+// SelectItem).
+const SIN_PROVEEDOR = "__sin_proveedor__";
 
 export function TrasladoAlmacenForm({
   almacenes,
@@ -170,6 +167,17 @@ export function TrasladoAlmacenForm({
     }
     if (muestraLote && data.items.some((item) => !item.lote?.trim() || !item.fechaProduccion || !item.fechaVencimiento)) {
       toast.error("Selecciona el lote de cada producto en este almacén (exige lote, fecha de producción y vencimiento).");
+      return;
+    }
+    if (
+      muestraLote &&
+      data.items.some((item) => {
+        if (!item.lote?.trim()) return false;
+        const opciones = lotesDe(item.skuId).filter((l) => l.lote === item.lote);
+        return opciones.some((l) => l.proveedorId) && !item.proveedorId;
+      })
+    ) {
+      toast.error("Selecciona el proveedor del lote de cada producto.");
       return;
     }
 
@@ -461,47 +469,54 @@ export function TrasladoAlmacenForm({
                                 control={form.control}
                                 name={`items.${index}.lote`}
                                 render={({ field: loteField }) => {
-                                  const valorLote = loteField.value;
-                                  const loteSeleccionado = valorLote
-                                    ? lotesSku.find(
-                                        (l) => claveLote(l.lote, l.proveedorId) === claveLote(valorLote, items[index]?.proveedorId)
-                                      )
-                                    : undefined;
+                                  // Solo el lote en la lista (el proveedor se elige aparte, en
+                                  // su propia columna) — un mismo lote puede repetirse con
+                                  // proveedores distintos, así que se agrupa por lote nomás.
+                                  const lotesUnicos = Array.from(new Set(lotesSku.map((l) => l.lote))).map((nombre) => {
+                                    const entradas = lotesSku.filter((l) => l.lote === nombre);
+                                    return {
+                                      lote: nombre,
+                                      cantidadTotal: entradas.reduce((acc, l) => acc + l.cantidad, 0),
+                                      unidadMedida: entradas[0]?.unidadMedida ?? "",
+                                    };
+                                  });
+                                  const loteSeleccionado = lotesUnicos.find((l) => l.lote === loteField.value);
                                   return (
                                     <Select
-                                      value={loteField.value ? claveLote(loteField.value, items[index]?.proveedorId) : ""}
+                                      value={loteField.value || ""}
                                       onValueChange={(valor) => {
-                                        const lote = lotesSku.find((l) => claveLote(l.lote, l.proveedorId) === valor);
-                                        loteField.onChange(lote?.lote ?? "");
-                                        form.setValue(`items.${index}.proveedorId`, lote?.proveedorId ?? "");
+                                        loteField.onChange(valor);
+                                        const entradasDelLote = lotesSku.filter((l) => l.lote === valor);
+                                        const primero = entradasDelLote[0];
+                                        form.setValue(
+                                          `items.${index}.proveedorId`,
+                                          entradasDelLote.length === 1 ? primero?.proveedorId ?? "" : ""
+                                        );
                                         form.setValue(
                                           `items.${index}.fechaProduccion`,
-                                          lote?.fechaProduccion ? (soloFecha(lote.fechaProduccion) as unknown as Date) : undefined
+                                          primero?.fechaProduccion ? (soloFecha(primero.fechaProduccion) as unknown as Date) : undefined
                                         );
                                         form.setValue(
                                           `items.${index}.fechaVencimiento`,
-                                          lote?.fechaVencimiento ? (soloFecha(lote.fechaVencimiento) as unknown as Date) : undefined
+                                          primero?.fechaVencimiento ? (soloFecha(primero.fechaVencimiento) as unknown as Date) : undefined
                                         );
                                       }}
                                       disabled={!skuId}
                                     >
                                       <SelectTrigger>
-                                        {/* El Select muestra solo el lote (el proveedor va en su
-                                            propia columna, al lado); la lista completa sigue
-                                            mostrando lote — proveedor — cantidad para elegir. */}
                                         <SelectValue placeholder="Selecciona un lote">
                                           {loteSeleccionado
-                                            ? `${loteSeleccionado.lote} — ${formatCantidad(loteSeleccionado.cantidad)} ${loteSeleccionado.unidadMedida}`
+                                            ? `${loteSeleccionado.lote} — ${formatCantidad(loteSeleccionado.cantidadTotal)} ${loteSeleccionado.unidadMedida}`
                                             : undefined}
                                         </SelectValue>
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {lotesSku.length === 0 ? (
+                                        {lotesUnicos.length === 0 ? (
                                           <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin lotes con stock</div>
                                         ) : (
-                                          lotesSku.map((l) => (
-                                            <SelectItem key={claveLote(l.lote, l.proveedorId)} value={claveLote(l.lote, l.proveedorId)}>
-                                              {l.lote} — {l.proveedorNombre ?? "Sin proveedor"} — {formatCantidad(l.cantidad)} {l.unidadMedida}
+                                          lotesUnicos.map((l) => (
+                                            <SelectItem key={l.lote} value={l.lote}>
+                                              {l.lote} — {formatCantidad(l.cantidadTotal)} {l.unidadMedida}
                                             </SelectItem>
                                           ))
                                         )}
@@ -511,13 +526,54 @@ export function TrasladoAlmacenForm({
                                 }}
                               />
                             </TableCell>
-                            <TableCell className="align-top pt-4 text-sm text-muted-foreground">
-                              {(() => {
-                                const lote = lotesSku.find(
-                                  (l) => l.lote === loteElegido && l.proveedorId === (items[index]?.proveedorId || null)
-                                );
-                                return lote?.proveedorNombre ?? "—";
-                              })()}
+                            <TableCell className="align-top">
+                              {loteElegido ? (
+                                <Controller
+                                  control={form.control}
+                                  name={`items.${index}.proveedorId`}
+                                  render={({ field: provField }) => {
+                                    const opciones = lotesSku.filter((l) => l.lote === loteElegido);
+                                    if (opciones.length <= 1) {
+                                      return (
+                                        <p className="pt-2 text-sm text-muted-foreground">
+                                          {opciones[0]?.proveedorNombre ?? "Sin proveedor"}
+                                        </p>
+                                      );
+                                    }
+                                    return (
+                                      <Select
+                                        value={provField.value || SIN_PROVEEDOR}
+                                        onValueChange={(valor) => {
+                                          const real = valor === SIN_PROVEEDOR ? "" : valor;
+                                          provField.onChange(real);
+                                          const entrada = opciones.find((o) => (o.proveedorId ?? "") === real);
+                                          form.setValue(
+                                            `items.${index}.fechaProduccion`,
+                                            entrada?.fechaProduccion ? (soloFecha(entrada.fechaProduccion) as unknown as Date) : undefined
+                                          );
+                                          form.setValue(
+                                            `items.${index}.fechaVencimiento`,
+                                            entrada?.fechaVencimiento ? (soloFecha(entrada.fechaVencimiento) as unknown as Date) : undefined
+                                          );
+                                        }}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Selecciona proveedor" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {opciones.map((o) => (
+                                            <SelectItem key={o.proveedorId ?? SIN_PROVEEDOR} value={o.proveedorId ?? SIN_PROVEEDOR}>
+                                              {o.proveedorNombre ?? "Sin proveedor"}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    );
+                                  }}
+                                />
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="align-top pt-4 text-sm text-muted-foreground">
                               {soloFecha(items[index]?.fechaProduccion as unknown as string) || "—"}
