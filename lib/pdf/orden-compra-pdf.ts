@@ -185,41 +185,52 @@ export async function generarOrdenCompraPdf({
   const xValorIzq = MARGEN_X + 95;
   const xEtiquetaDer = MARGEN_X + 300;
   const xValorDer = xEtiquetaDer + 105;
+  // Ancho disponible de cada columna antes de toparse con la etiqueta de
+  // al lado (izquierda) o el margen derecho de la hoja — el valor se
+  // envuelve por ancho real en puntos (no por cantidad de caracteres), así
+  // nunca se superpone con la columna vecina sin importar qué tan largo
+  // sea el texto (p. ej. una razón social o dirección larga).
+  const anchoValorIzq = xEtiquetaDer - xValorIzq - 10;
+  const anchoValorDer = ANCHO_PAGINA - MARGEN_X - xValorDer;
+  const ALTO_LINEA = 11;
 
-  const filaIzq = (label: string, value: string) => {
-    page.drawText(label, { x: xEtiquetaIzq, y, size: 8, font: bold, color: GRIS });
-    page.drawText(value, { x: xValorIzq, y, size: 8, font: regular, color: NEGRO });
-    y -= 13;
+  // Dibuja una fila "etiqueta: valor", envolviendo el valor en tantas
+  // líneas como haga falta, y devuelve cuánto bajó `y` (para que, si el
+  // valor ocupó más de una línea, el siguiente campo —de esta columna o
+  // de la otra— también baje y no quede superpuesto).
+  const dibujarFila = (x: number, xValor: number, anchoMax: number, label: string, value: string, yFila: number): number => {
+    const lineas = envolverTextoPx(value, regular, 8, anchoMax);
+    page.drawText(label, { x, y: yFila, size: 8, font: bold, color: GRIS });
+    let yLinea = yFila;
+    for (const linea of lineas.length > 0 ? lineas : ["—"]) {
+      page.drawText(linea, { x: xValor, y: yLinea, size: 8, font: regular, color: NEGRO });
+      yLinea -= ALTO_LINEA;
+    }
+    return yFila - Math.max(lineas.length, 1) * ALTO_LINEA - 2;
   };
 
-  filaIzq("RUC:", rucProveedor || "—");
-  filaIzq("RAZÓN SOCIAL:", truncar(proveedor, 42));
-  const lineasDireccion = partirTexto(direccionProveedor || "—", 44);
-  page.drawText("DIRECCIÓN:", { x: xEtiquetaIzq, y, size: 8, font: bold, color: GRIS });
-  page.drawText(lineasDireccion[0] ?? "—", { x: xValorIzq, y, size: 8, font: regular, color: NEGRO });
-  y -= 11;
-  if (lineasDireccion[1]) {
-    page.drawText(lineasDireccion[1], { x: xValorIzq, y, size: 8, font: regular, color: NEGRO });
-    y -= 11;
-  }
-  y -= 2;
-  filaIzq("EMAIL:", emailProveedor || "—");
-  filaIzq("TELÉFONO:", telefonoProveedor || "—");
+  y = dibujarFila(xEtiquetaIzq, xValorIzq, anchoValorIzq, "RUC:", rucProveedor || "—", y);
+  y = dibujarFila(xEtiquetaIzq, xValorIzq, anchoValorIzq, "RAZÓN SOCIAL:", proveedor, y);
+  y = dibujarFila(xEtiquetaIzq, xValorIzq, anchoValorIzq, "DIRECCIÓN:", direccionProveedor || "—", y);
+  y = dibujarFila(xEtiquetaIzq, xValorIzq, anchoValorIzq, "EMAIL:", emailProveedor || "—", y);
+  y = dibujarFila(xEtiquetaIzq, xValorIzq, anchoValorIzq, "TELÉFONO:", telefonoProveedor || "—", y);
 
   let yDer = yInicioBloques;
-  const filaDer = (label: string, value: string) => {
-    page.drawText(label, { x: xEtiquetaDer, y: yDer, size: 8, font: bold, color: GRIS });
-    page.drawText(value, { x: xValorDer, y: yDer, size: 8, font: regular, color: NEGRO });
-    yDer -= 13;
-  };
-  filaDer("FECHA EMISIÓN:", fecha.toLocaleDateString("es-PE"));
-  filaDer("HORA:", hora ?? "—");
-  filaDer("FECHA ENTREGA:", fechaEntrega ? fechaEntrega.toLocaleDateString("es-PE") : "—");
-  filaDer("CONDICIÓN DE PAGO:", condicionPago || "—");
-  filaDer("MONEDA:", moneda);
-  filaDer("ENTREGA:", lugarEntrega || "—");
+  yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "FECHA EMISIÓN:", fecha.toLocaleDateString("es-PE"), yDer);
+  yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "HORA:", hora ?? "—", yDer);
+  yDer = dibujarFila(
+    xEtiquetaDer,
+    xValorDer,
+    anchoValorDer,
+    "FECHA ENTREGA:",
+    fechaEntrega ? fechaEntrega.toLocaleDateString("es-PE") : "—",
+    yDer
+  );
+  yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "CONDICIÓN DE PAGO:", condicionPago || "—", yDer);
+  yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "MONEDA:", moneda, yDer);
+  yDer = dibujarFila(xEtiquetaDer, xValorDer, anchoValorDer, "ENTREGA:", lugarEntrega || "—", yDer);
 
-  y = Math.min(y, yDer) - 14;
+  y = Math.min(y, yDer) - 12;
 
   // ---------------------------------------------------------------------
   // Tabla de ítems.
@@ -402,10 +413,6 @@ export async function generarOrdenCompraPdf({
   else if (!aprobado) dibujarMarcaDeAgua(pdfDoc, bold);
 
   return pdfDoc.save();
-}
-
-function truncar(texto: string, max: number): string {
-  return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
 }
 
 // Como partirTexto, pero envuelve por ancho real en puntos (no por cantidad
