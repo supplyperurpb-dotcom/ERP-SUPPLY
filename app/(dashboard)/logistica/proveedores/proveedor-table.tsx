@@ -37,7 +37,13 @@ function ubicacion(p: Proveedor): string {
   );
 }
 
-export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
+export function ProveedorTable({
+  proveedores,
+  condicionesPago,
+}: {
+  proveedores: Proveedor[];
+  condicionesPago: string[];
+}) {
   const [isPending, startTransition] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(1);
@@ -152,7 +158,7 @@ export function ProveedorTable({ proveedores }: { proveedores: Proveedor[] }) {
               </TableCell>
               <TableCell>
                 <TableActions>
-                  <ProveedorFormDialog proveedor={proveedor} />
+                  <ProveedorFormDialog proveedor={proveedor} condicionesPago={condicionesPago} />
                   <IconButton disabled={isPending} onClick={() => handleEliminar(proveedor.id, proveedor.razonSocial)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </IconButton>

@@ -19,11 +19,12 @@ export default async function NuevaOrdenCompraPage({
   const categoriaSeleccionada: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
   const tipoOrden: TipoOrdenCodigo = tipo === "ABIERTA" ? "ABIERTA" : "ESTANDAR";
 
-  const [solicitudes, proveedores, existentes, centrosCosto] = await Promise.all([
+  const [solicitudes, proveedores, existentes, centrosCosto, condicionesPago] = await Promise.all([
     calcularSolicitudesConPendientes(prisma, categoriaSeleccionada),
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     prisma.ordenCompra.findMany({ where: { categoria: categoriaSeleccionada }, select: { numero: true } }),
     obtenerValoresActivos("CENTRO_COSTO"),
+    obtenerValoresActivos("CONDICION_PAGO"),
   ]);
   // Solo un adelanto: el número real se asigna recién al guardar (dentro
   // de la misma transacción) para no pisarse si dos personas crean una
@@ -49,6 +50,7 @@ export default async function NuevaOrdenCompraPage({
           condicionPago: p.condicionPago,
         }))}
         centrosCosto={centrosCosto}
+        condicionesPago={condicionesPago}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CONDICIONES_PAGO, LUGARES_ENTREGA, areasDeGerenciaSolped, type GerenciaSolpedCodigo, type AreaSolpedCodigo } from "@/lib/constants/compras";
+import { LUGARES_ENTREGA, areasDeGerenciaSolped, type GerenciaSolpedCodigo, type AreaSolpedCodigo } from "@/lib/constants/compras";
 
 // Uno o más sustentos adjuntos al generar una OC/OS (pedido explícito,
 // 2026-11-27: antes un solo archivo obligatorio, ahora se puede "Añadir
@@ -161,7 +161,9 @@ export const ordenCompraSchema = z
     // igual que ConsumoAlmacen.horaRetiro.
     hora: z.string().optional().or(z.literal("")),
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
-    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    // Texto libre validado contra el catálogo CONDICION_PAGO en la UI, no un
+    // enum fijo (pedido explícito, 2026-11-27 — ver proveedorSchema).
+    condicionPago: z.string().trim().min(1, "Selecciona la condición de pago").max(60),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
     // "Comentario" en la UI — reemplaza lo que antes era la justificación
     // (auto-pulled de la Solped) mostrada de solo lectura; ahora es un
@@ -218,7 +220,9 @@ export const editarOrdenCompraSchema = z
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
     hora: z.string().optional().or(z.literal("")),
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
-    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    // Texto libre validado contra el catálogo CONDICION_PAGO en la UI, no un
+    // enum fijo (pedido explícito, 2026-11-27 — ver proveedorSchema).
+    condicionPago: z.string().trim().min(1, "Selecciona la condición de pago").max(60),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
     observaciones: z.string().trim().min(15, "El comentario debe tener al menos 15 caracteres").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),
@@ -273,7 +277,9 @@ export const ordenCompraDirectaSchema = z
     fecha: z.coerce.date({ required_error: "La fecha es obligatoria" }),
     hora: z.string().optional().or(z.literal("")),
     fechaEntrega: z.coerce.date({ required_error: "La fecha de entrega es obligatoria" }),
-    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    // Texto libre validado contra el catálogo CONDICION_PAGO en la UI, no un
+    // enum fijo (pedido explícito, 2026-11-27 — ver proveedorSchema).
+    condicionPago: z.string().trim().min(1, "Selecciona la condición de pago").max(60),
     lugarEntrega: z.enum(LUGARES_ENTREGA, { required_error: "Selecciona el lugar de entrega" }),
     observaciones: z.string().trim().min(15, "El comentario debe tener al menos 15 caracteres").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),

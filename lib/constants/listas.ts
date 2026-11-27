@@ -6,6 +6,7 @@
 export const TIPOS_LISTA = [
   { tipo: "CENTRO_COSTO", slug: "centro-costos", nombre: "Centro de costos", nombreSingular: "centro de costo" },
   { tipo: "CAMPO", slug: "campos", nombre: "Campo / Fundo", nombreSingular: "campo" },
+  { tipo: "CONDICION_PAGO", slug: "condiciones-pago", nombre: "Condición de pago", nombreSingular: "condición de pago" },
 ] as const;
 
 export type TipoListaCodigo = (typeof TIPOS_LISTA)[number]["tipo"];

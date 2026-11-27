@@ -17,7 +17,6 @@ import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { SkuCombobox, type SkuOpcionCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, fechaLocalManana, formatMoneda, horaLocalAhora } from "@/lib/utils";
 import {
-  CONDICIONES_PAGO,
   CONDICION_PAGO_POR_DEFECTO,
   IGV_TASA,
   LUGARES_ENTREGA,
@@ -68,6 +67,7 @@ export function OrdenCompraDirectaForm({
   proveedores,
   centrosCosto,
   campos,
+  condicionesPago,
   numerosTentativos,
 }: {
   skus: SkuOpcion[];
@@ -78,6 +78,7 @@ export function OrdenCompraDirectaForm({
   proveedores: ProveedorOpcionSelect[];
   centrosCosto: string[];
   campos: string[];
+  condicionesPago: string[];
   numerosTentativos: Record<CategoriaCompraCodigo, string>;
 }) {
   const router = useRouter();
@@ -192,7 +193,7 @@ export function OrdenCompraDirectaForm({
         fecha: new Date(fecha) as unknown as Date,
         hora,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
-        condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
+        condicionPago,
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
         observaciones: comentario,
         moneda,
@@ -317,7 +318,7 @@ export function OrdenCompraDirectaForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CONDICIONES_PAGO.map((c) => (
+                {condicionesPago.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>

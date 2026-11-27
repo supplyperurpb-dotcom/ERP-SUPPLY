@@ -17,7 +17,7 @@ import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/component
 import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { SkuCombobox, type SkuOpcionCombobox } from "@/components/shared/sku-combobox";
 import { formatMoneda } from "@/lib/utils";
-import { CONDICIONES_PAGO, IGV_TASA, LUGARES_ENTREGA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
+import { IGV_TASA, LUGARES_ENTREGA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
 import { editarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
@@ -89,6 +89,7 @@ export function OrdenCompraEditarForm({
   skus,
   centrosCosto,
   campos,
+  condicionesPago,
   solicitudesPendientes,
   valoresIniciales,
   entregasIniciales,
@@ -103,6 +104,7 @@ export function OrdenCompraEditarForm({
   skus: SkuOpcion[];
   centrosCosto: string[];
   campos: string[];
+  condicionesPago: string[];
   solicitudesPendientes: SolicitudConPendientes[];
   sustentos: SustentoOrdenGuardado[];
   sustentoLegado: { nombreArchivo: string } | null;
@@ -315,7 +317,7 @@ export function OrdenCompraEditarForm({
         fecha: new Date(fecha) as unknown as Date,
         hora,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
-        condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
+        condicionPago,
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
         observaciones: comentario,
         moneda,
@@ -422,7 +424,7 @@ export function OrdenCompraEditarForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CONDICIONES_PAGO.map((c) => (
+                {condicionesPago.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>

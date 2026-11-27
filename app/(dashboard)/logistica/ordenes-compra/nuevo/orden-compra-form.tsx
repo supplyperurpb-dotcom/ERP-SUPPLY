@@ -17,7 +17,6 @@ import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/component
 import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { fechaLocalHoy, fechaLocalManana, formatMoneda, horaLocalAhora } from "@/lib/utils";
 import {
-  CONDICIONES_PAGO,
   CONDICION_PAGO_POR_DEFECTO,
   IGV_TASA,
   LUGARES_ENTREGA,
@@ -75,6 +74,7 @@ export function OrdenCompraForm({
   proveedores,
   solicitudIdInicial,
   centrosCosto,
+  condicionesPago,
 }: {
   solicitudes: SolicitudConPendientes[];
   categoria: CategoriaCompraCodigo;
@@ -83,6 +83,7 @@ export function OrdenCompraForm({
   /** Si se llega desde el botón "Generar OC/OS" de una solicitud puntual, sus ítems se precargan ya marcados. */
   solicitudIdInicial?: string;
   centrosCosto: string[];
+  condicionesPago: string[];
 }) {
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
@@ -289,7 +290,7 @@ export function OrdenCompraForm({
         fecha: new Date(fecha) as unknown as Date,
         hora,
         fechaEntrega: new Date(fechaEntrega) as unknown as Date,
-        condicionPago: condicionPago as (typeof CONDICIONES_PAGO)[number],
+        condicionPago,
         lugarEntrega: lugarEntrega as (typeof LUGARES_ENTREGA)[number],
         observaciones: comentario,
         moneda,
@@ -414,7 +415,7 @@ export function OrdenCompraForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CONDICIONES_PAGO.map((c) => (
+                {condicionesPago.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>

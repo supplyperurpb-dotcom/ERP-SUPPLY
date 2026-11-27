@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CONDICIONES_PAGO } from "@/lib/constants/compras";
 
 // Campo de texto opcional: normaliza "" (lo que llega de un <input> vacío
 // en el FormData) a undefined para que Prisma guarde null en vez de "".
@@ -33,7 +32,12 @@ export const proveedorSchema = z
     telefono: z.string().trim().min(1, "El teléfono es obligatorio").max(60),
     email: z.string().trim().min(1, "El email es obligatorio").max(200),
     contactoNombre: z.string().trim().min(1, "El nombre de contacto es obligatorio").max(150),
-    condicionPago: z.enum(CONDICIONES_PAGO, { required_error: "Selecciona la condición de pago" }),
+    // Texto libre validado contra el catálogo CONDICION_PAGO en la UI (ver
+    // ProveedorFormDialog) — no es un enum fijo: pedido explícito,
+    // 2026-11-27, se puede escribir una nueva condición de pago acá mismo
+    // (ver crearProveedorAction/actualizarProveedorAction, que la crean en
+    // el catálogo si no existe ya).
+    condicionPago: z.string().trim().min(1, "Selecciona la condición de pago").max(60),
     // Banco: uno de BANCOS_PROVEEDOR, o el texto libre que se escribió al
     // elegir "Otro" (ver ProveedorFormDialog) — siempre llega como texto
     // normal, "OTRO" nunca se guarda literal.

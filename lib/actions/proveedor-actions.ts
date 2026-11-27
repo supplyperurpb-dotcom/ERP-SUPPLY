@@ -7,6 +7,22 @@ import { proveedorSchema } from "@/lib/validations/proveedor";
 
 export type ProveedorActionState = { error?: string; success?: boolean } | undefined;
 
+// Crea la condición de pago en el catálogo (Logística > Listas) si todavía
+// no existe con ese nombre (sin distinguir mayúsculas) — pedido explícito,
+// 2026-11-27: se puede escribir una nueva acá mismo, al crear o editar un
+// proveedor, sin pasar por esa pantalla.
+async function aseguraCondicionPago(nombre: string): Promise<void> {
+  const existente = await prisma.listaValor.findFirst({
+    where: { tipo: "CONDICION_PAGO", nombre: { equals: nombre, mode: "insensitive" } },
+  });
+  if (existente) return;
+  const ultimo = await prisma.listaValor.findFirst({ where: { tipo: "CONDICION_PAGO" }, orderBy: { orden: "desc" } });
+  await prisma.listaValor.create({
+    data: { tipo: "CONDICION_PAGO", nombre, orden: (ultimo?.orden ?? -1) + 1 },
+  });
+  revalidatePath("/logistica/listas/condiciones-pago");
+}
+
 export async function crearProveedorAction(
   _prevState: ProveedorActionState,
   formData: FormData
@@ -15,6 +31,7 @@ export async function crearProveedorAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
+  await aseguraCondicionPago(parsed.data.condicionPago);
 
   const usuario = await getUsuarioActual();
 
@@ -49,6 +66,7 @@ export async function actualizarProveedorAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
+  await aseguraCondicionPago(parsed.data.condicionPago);
 
   await prisma.proveedor.update({ where: { id }, data: parsed.data });
 

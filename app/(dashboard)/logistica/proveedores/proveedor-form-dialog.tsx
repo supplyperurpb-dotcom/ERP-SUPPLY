@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
 import { BANCOS_PROVEEDOR } from "@/lib/validations/proveedor";
-import { CONDICIONES_PAGO, CONDICION_PAGO_POR_DEFECTO } from "@/lib/constants/compras";
+import { CONDICION_PAGO_POR_DEFECTO } from "@/lib/constants/compras";
 import { PAISES } from "@/lib/constants/paises";
 import {
   crearProveedorAction,
@@ -28,13 +28,32 @@ import {
 } from "@/lib/actions/proveedor-actions";
 
 const OTRO_BANCO = "OTRO";
+const NUEVA_CONDICION_PAGO = "__nueva__";
 const PAIS_NACIONAL = "Perú";
 
-export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
+export function ProveedorFormDialog({
+  proveedor,
+  condicionesPago,
+}: {
+  proveedor?: Proveedor;
+  condicionesPago: string[];
+}) {
   const [open, setOpen] = useState(false);
   const esEdicion = !!proveedor;
   const action = esEdicion ? actualizarProveedorAction.bind(null, proveedor.id) : crearProveedorAction;
   const [state, formAction] = useFormState<ProveedorActionState, FormData>(action, undefined);
+
+  // Condición de pago: si el valor guardado está en el catálogo, el select
+  // arranca ahí; si no (proveedor antiguo con un texto que ya no está
+  // activo en la lista, o recién escrito), arranca en "Nueva" con ese texto
+  // precargado — mismo patrón que Banco, pero esto SÍ se guarda en el
+  // catálogo al enviar el formulario (ver aseguraCondicionPago).
+  const condicionPagoGuardada = proveedor?.condicionPago ?? CONDICION_PAGO_POR_DEFECTO;
+  const condicionPagoListada = condicionesPago.includes(condicionPagoGuardada);
+  const [condicionPagoSeleccion, setCondicionPagoSeleccion] = useState<string>(
+    condicionPagoListada ? condicionPagoGuardada : NUEVA_CONDICION_PAGO
+  );
+  const [condicionPagoNueva, setCondicionPagoNueva] = useState(condicionPagoListada ? "" : condicionPagoGuardada);
 
   const [procedencia, setProcedencia] = useState<"NACIONAL" | "EXTRANJERO">(proveedor?.procedencia ?? "NACIONAL");
   // Nacional siempre es RUC (ya no se elige DNI); Extranjero usa su propio
@@ -145,18 +164,37 @@ export function ProveedorFormDialog({ proveedor }: { proveedor?: Proveedor }) {
 
           <div className="space-y-2">
             <Label htmlFor="condicionPago">Condición de pago</Label>
-            <Select name="condicionPago" defaultValue={proveedor?.condicionPago ?? CONDICION_PAGO_POR_DEFECTO}>
+            <Select
+              value={condicionPagoSeleccion}
+              onValueChange={(v) => {
+                setCondicionPagoSeleccion(v);
+                if (v !== NUEVA_CONDICION_PAGO) setCondicionPagoNueva("");
+              }}
+            >
               <SelectTrigger id="condicionPago">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CONDICIONES_PAGO.map((c) => (
+                {condicionesPago.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>
                 ))}
+                <SelectItem value={NUEVA_CONDICION_PAGO}>+ Nueva condición de pago...</SelectItem>
               </SelectContent>
             </Select>
+            {condicionPagoSeleccion === NUEVA_CONDICION_PAGO ? (
+              <Input
+                name="condicionPago"
+                value={condicionPagoNueva}
+                onChange={(e) => setCondicionPagoNueva(e.target.value)}
+                placeholder="Nombre de la nueva condición de pago"
+                required
+                className="mt-2"
+              />
+            ) : (
+              <input type="hidden" name="condicionPago" value={condicionPagoSeleccion} />
+            )}
             <p className="text-xs text-muted-foreground">
               Se precarga al generar una Orden de Compra para este proveedor (se puede cambiar ahí sin afectar este valor).
             </p>

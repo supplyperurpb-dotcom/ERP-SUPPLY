@@ -505,6 +505,7 @@ enum AreaEmpresa {
 enum TipoLista {
   CENTRO_COSTO
   CAMPO
+  CONDICION_PAGO
 }
 
 // Valor de una lista editable (p. ej. "Producción" para CENTRO_COSTO,

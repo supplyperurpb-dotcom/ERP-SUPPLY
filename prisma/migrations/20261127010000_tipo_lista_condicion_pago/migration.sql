@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TipoLista" ADD VALUE 'CONDICION_PAGO';

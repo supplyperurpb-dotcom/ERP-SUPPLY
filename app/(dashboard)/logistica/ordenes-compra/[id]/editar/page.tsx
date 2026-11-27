@@ -35,12 +35,13 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
   // pendiente de una Solped.
   const esDirecta = orden.items.every((item) => !item.solicitudPedidoItemId);
 
-  const [proveedores, skus, solicitudesPendientes, centrosCosto, campos] = await Promise.all([
+  const [proveedores, skus, solicitudesPendientes, centrosCosto, campos, condicionesPago] = await Promise.all([
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     esDirecta ? prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }) : Promise.resolve([]),
     esDirecta ? Promise.resolve([]) : calcularSolicitudesConPendientes(prisma, categoria),
     esDirecta ? obtenerValoresActivos("CENTRO_COSTO") : Promise.resolve([]),
     esDirecta ? obtenerValoresActivos("CAMPO") : Promise.resolve([]),
+    obtenerValoresActivos("CONDICION_PAGO"),
   ]);
 
   return (
@@ -72,6 +73,7 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
         skus={skus.map((s) => ({ id: s.id, codigo: s.codigo, descripcion: s.descripcion, unidadMedida: s.unidadMedida, categoria: s.categoria }))}
         centrosCosto={centrosCosto}
         campos={campos}
+        condicionesPago={condicionesPago}
         solicitudesPendientes={solicitudesPendientes}
         valoresIniciales={{
           proveedorId: orden.proveedorId,
