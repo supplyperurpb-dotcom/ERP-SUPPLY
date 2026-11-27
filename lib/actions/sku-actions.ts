@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { esComprador } from "@/lib/compras";
@@ -157,12 +158,34 @@ export async function crearSkuServicioAction(data: SkuServicioInput): Promise<Sk
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { subfamiliaId, unidadMedida } = parsed.data;
+  const { subfamiliaId, subfamiliaNueva, unidadMedida } = parsed.data;
   const prefijo = "SERV";
 
   try {
-    const subfamiliaElegida = await prisma.subfamilia.findUnique({ where: { id: subfamiliaId } });
-    if (!subfamiliaElegida) return { error: "La subfamilia seleccionada no existe." };
+    let subfamiliaElegida;
+    if (subfamiliaNueva?.trim()) {
+      // Crea la subfamilia en el catálogo de Servicios si no existe ya con
+      // ese nombre (pedido explícito, 2026-11-27: se puede escribir una
+      // nueva acá mismo, sin pasar por Logística > Listas > Categorías).
+      const familiaServicios = await prisma.familia.findUnique({ where: { nombre: "Servicios" } });
+      if (!familiaServicios) return { error: "No se encontró la familia Servicios en el catálogo." };
+      subfamiliaElegida = await prisma.subfamilia.findFirst({
+        where: { familiaId: familiaServicios.id, nombre: { equals: subfamiliaNueva.trim(), mode: "insensitive" } },
+      });
+      if (!subfamiliaElegida) {
+        const ultima = await prisma.subfamilia.findFirst({
+          where: { familiaId: familiaServicios.id },
+          orderBy: { orden: "desc" },
+          select: { orden: true },
+        });
+        subfamiliaElegida = await prisma.subfamilia.create({
+          data: { familiaId: familiaServicios.id, nombre: subfamiliaNueva.trim(), orden: (ultima?.orden ?? -1) + 1 },
+        });
+      }
+    } else {
+      subfamiliaElegida = await prisma.subfamilia.findUnique({ where: { id: subfamiliaId } });
+      if (!subfamiliaElegida) return { error: "La subfamilia seleccionada no existe." };
+    }
 
     const existente = await prisma.sku.findFirst({
       where: { categoria: "Servicios", subfamilia: { equals: subfamiliaElegida.nombre, mode: "insensitive" } },
@@ -274,7 +297,14 @@ export async function actualizarSkuAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  await prisma.sku.update({ where: { id }, data: parsed.data });
+  try {
+    await prisma.sku.update({ where: { id }, data: parsed.data });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { error: `Ya existe un SKU con el código "${parsed.data.codigo}".` };
+    }
+    throw e;
+  }
 
   revalidatePath("/logistica/sku");
   return { success: true };

@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { fechaLocalHoy, fechaLocalManana, formatMoneda, horaLocalAhora } from "@/lib/utils";
 import {
   CONDICIONES_PAGO,
@@ -85,6 +86,7 @@ export function OrdenCompraForm({
 }) {
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
+  const confirmar = useConfirm();
   const [proveedorId, setProveedorId] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<ProveedorOpcionSelect | null>(null);
   // Fecha de emisión: siempre la de hoy, bloqueada -- no se puede
@@ -214,7 +216,7 @@ export function OrdenCompraForm({
     return true;
   });
 
-  function irAPrograma() {
+  async function irAPrograma() {
     if (!proveedorId) {
       toast.error("Selecciona un proveedor");
       return;
@@ -254,6 +256,13 @@ export function OrdenCompraForm({
         toast.error(`La cantidad de ${item.codigo} no puede superar lo pendiente (${item.cantidadPendiente})`);
         return;
       }
+    }
+    // El Programa de Entregas es solo para Compras (pedido explícito,
+    // 2026-11-27): una orden de Servicio se guarda directo, sin ese paso.
+    if (categoria === "SERVICIO") {
+      if (!(await confirmar(`¿Guardar ${nombreDocumento.toLowerCase()} como borrador?`))) return;
+      await handleAgendarPrograma();
+      return;
     }
     setPaso("programa");
   }
@@ -363,7 +372,6 @@ export function OrdenCompraForm({
             <Input
               id="fechaEntrega"
               type="date"
-              required
               value={fechaEntrega}
               onChange={(e) => setFechaEntrega(e.target.value)}
             />
@@ -374,7 +382,6 @@ export function OrdenCompraForm({
               <Input
                 id="vigenteHasta"
                 type="date"
-                required
                 min={fecha}
                 value={vigenteHasta}
                 onChange={(e) => setVigenteHasta(e.target.value)}
@@ -576,8 +583,8 @@ export function OrdenCompraForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="button" onClick={irAPrograma}>
-          Siguiente
+        <Button type="button" disabled={enviando} onClick={irAPrograma}>
+          {categoria === "SERVICIO" ? (enviando ? "Guardando..." : "Guardar como borrador") : "Siguiente"}
         </Button>
       </div>
       </>

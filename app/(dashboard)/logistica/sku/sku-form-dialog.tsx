@@ -53,14 +53,18 @@ export function SkuFormDialog({ sku }: { sku: Sku }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="codigo">Código</Label>
-              <Input
-                id="codigo"
-                name="codigo"
-                defaultValue={sku.codigo}
-                required
-                readOnly
-                className="cursor-not-allowed bg-muted opacity-70"
-              />
+              {sku.categoria === "Servicios" ? (
+                <Input id="codigo" name="codigo" defaultValue={sku.codigo} required />
+              ) : (
+                <Input
+                  id="codigo"
+                  name="codigo"
+                  defaultValue={sku.codigo}
+                  required
+                  readOnly
+                  className="cursor-not-allowed bg-muted opacity-70"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="categoria">Categoría</Label>

@@ -8,6 +8,7 @@ import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +18,8 @@ import { crearSkuServicioAction } from "@/lib/actions/sku-actions";
 import type { Subfamilia } from "@prisma/client";
 
 type SkuExistente = { codigo: string; descripcion: string };
+
+const NUEVA_SUBFAMILIA = "__nueva__";
 
 export function ServicioForm({
   skusExistentes,
@@ -42,15 +45,23 @@ export function ServicioForm({
     resolver: zodResolver(skuServicioSchema),
     defaultValues: {
       subfamiliaId: subfamilias[0]?.id ?? "",
+      subfamiliaNueva: "",
       unidadMedida: "UND",
     },
   });
 
+  const subfamiliaIdActual = form.watch("subfamiliaId");
+  const escribiendoNueva = subfamiliaIdActual === NUEVA_SUBFAMILIA;
+
   async function onSubmit(data: SkuServicioInput) {
     const subfamiliaElegida = subfamilias.find((s) => s.id === data.subfamiliaId);
+    const nombreElegido = escribiendoNueva ? data.subfamiliaNueva?.trim() : subfamiliaElegida?.nombre;
     let resultado;
     try {
-      resultado = await crearSkuServicioAction(data);
+      resultado = await crearSkuServicioAction({
+        ...data,
+        subfamiliaId: escribiendoNueva ? "" : data.subfamiliaId,
+      });
     } catch (err) {
       console.error("Error al crear el SKU:", err);
       const detalle = err instanceof Error ? err.message : String(err);
@@ -61,11 +72,11 @@ export function ServicioForm({
       toast.error(resultado?.error ?? "No se pudo crear el SKU");
       return;
     }
-    const nuevo = { codigo: resultado.codigo, descripcion: subfamiliaElegida?.nombre ?? resultado.codigo };
+    const nuevo = { codigo: resultado.codigo, descripcion: nombreElegido ?? resultado.codigo };
     toast.success(`SKU ${nuevo.codigo} creado`);
     setCreado(nuevo);
     setLista((prev) => [...prev, nuevo].sort((a, b) => a.descripcion.localeCompare(b.descripcion)));
-    form.reset({ subfamiliaId: subfamilias[0]?.id ?? "", unidadMedida: "UND" });
+    form.reset({ subfamiliaId: subfamilias[0]?.id ?? "", subfamiliaNueva: "", unidadMedida: "UND" });
   }
 
   return (
@@ -144,7 +155,13 @@ export function ServicioForm({
               control={form.control}
               name="subfamiliaId"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  onValueChange={(valor) => {
+                    field.onChange(valor);
+                    if (valor !== NUEVA_SUBFAMILIA) form.setValue("subfamiliaNueva", "");
+                  }}
+                >
                   <SelectTrigger id="subfamiliaId">
                     <SelectValue />
                   </SelectTrigger>
@@ -154,10 +171,18 @@ export function ServicioForm({
                         {s.nombre}
                       </SelectItem>
                     ))}
+                    <SelectItem value={NUEVA_SUBFAMILIA}>+ Nueva subfamilia...</SelectItem>
                   </SelectContent>
                 </Select>
               )}
             />
+            {escribiendoNueva && (
+              <Input
+                placeholder="Nombre de la nueva subfamilia"
+                autoFocus
+                {...form.register("subfamiliaNueva")}
+              />
+            )}
             {form.formState.errors.subfamiliaId && (
               <p className="text-sm font-medium text-destructive">{form.formState.errors.subfamiliaId.message}</p>
             )}

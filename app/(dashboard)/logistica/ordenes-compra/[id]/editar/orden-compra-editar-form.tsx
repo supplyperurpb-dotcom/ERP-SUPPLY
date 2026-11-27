@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { SkuCombobox, type SkuOpcionCombobox } from "@/components/shared/sku-combobox";
 import { formatMoneda } from "@/lib/utils";
 import { CONDICIONES_PAGO, IGV_TASA, LUGARES_ENTREGA, NOMBRE_ORDEN, NOMBRE_SOLICITUD, type CategoriaCompraCodigo } from "@/lib/constants/compras";
@@ -118,6 +119,7 @@ export function OrdenCompraEditarForm({
 }) {
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const router = useRouter();
+  const confirmar = useConfirm();
   const [proveedorId, setProveedorId] = useState(valoresIniciales.proveedorId);
   // Fecha de emisión: se mantiene fija en la original, bloqueada -- no se
   // puede retrofechar ni adelantar una OC/OS, ni siquiera al editarla.
@@ -210,7 +212,7 @@ export function OrdenCompraEditarForm({
   const igvRedondeado = Math.round(igv * 100) / 100;
   const total = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
-  function irAPrograma() {
+  async function irAPrograma() {
     if (!proveedorId) {
       toast.error("Selecciona un proveedor");
       return;
@@ -251,6 +253,13 @@ export function OrdenCompraEditarForm({
         toast.error(`Describe el detalle del servicio de ${f.codigo}`);
         return;
       }
+    }
+    // El Programa de Entregas es solo para Compras (pedido explícito,
+    // 2026-11-27): una orden de Servicio se guarda directo, sin ese paso.
+    if (categoria === "SERVICIO") {
+      if (!(await confirmar(`¿Guardar los cambios de esta ${nombreDocumento.toLowerCase()}?`))) return;
+      await handleGuardarCambios();
+      return;
     }
     setPaso("programa");
   }
@@ -357,7 +366,7 @@ export function OrdenCompraEditarForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="fechaEntrega">Fecha de entrega</Label>
-            <Input id="fechaEntrega" type="date" required value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
+            <Input id="fechaEntrega" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Moneda</Label>
@@ -609,8 +618,8 @@ export function OrdenCompraEditarForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="button" onClick={irAPrograma}>
-          Ver plan de entrega
+        <Button type="button" disabled={enviando} onClick={irAPrograma}>
+          {categoria === "SERVICIO" ? (enviando ? "Guardando..." : "Guardar cambios") : "Ver plan de entrega"}
         </Button>
       </div>
       </>

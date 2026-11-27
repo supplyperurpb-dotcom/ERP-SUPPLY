@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProveedorSelectCombobox, type ProveedorOpcionSelect } from "@/components/shared/proveedor-select-combobox";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { SkuCombobox, type SkuOpcionCombobox } from "@/components/shared/sku-combobox";
 import { fechaLocalHoy, fechaLocalManana, formatMoneda, horaLocalAhora } from "@/lib/utils";
 import {
@@ -80,6 +81,7 @@ export function OrdenCompraDirectaForm({
   numerosTentativos: Record<CategoriaCompraCodigo, string>;
 }) {
   const router = useRouter();
+  const confirmar = useConfirm();
   const [proveedorId, setProveedorId] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<ProveedorOpcionSelect | null>(null);
   const fecha = fechaLocalHoy();
@@ -118,7 +120,7 @@ export function OrdenCompraDirectaForm({
   const igvRedondeado = Math.round(igv * 100) / 100;
   const total = Math.round((subtotal + igvRedondeado) * 100) / 100;
 
-  function irAPrograma() {
+  async function irAPrograma() {
     if (!proveedorId) {
       toast.error("Selecciona un proveedor");
       return;
@@ -160,6 +162,13 @@ export function OrdenCompraDirectaForm({
         toast.error(`Describe el detalle del servicio de ${f.codigo}`);
         return;
       }
+    }
+    // El Programa de Entregas es solo para Compras (pedido explícito,
+    // 2026-11-27): una orden de Servicio se guarda directo, sin ese paso.
+    if (categoria === "SERVICIO") {
+      if (!(await confirmar(`¿Guardar ${nombreDocumento.toLowerCase()} como borrador?`))) return;
+      await handleAgendarPrograma();
+      return;
     }
     setPaso("programa");
   }
@@ -266,7 +275,6 @@ export function OrdenCompraDirectaForm({
             <Input
               id="fechaEntrega"
               type="date"
-              required
               value={fechaEntrega}
               onChange={(e) => setFechaEntrega(e.target.value)}
             />
@@ -277,7 +285,6 @@ export function OrdenCompraDirectaForm({
               <Input
                 id="vigenteHasta"
                 type="date"
-                required
                 min={fecha}
                 value={vigenteHasta}
                 onChange={(e) => setVigenteHasta(e.target.value)}
@@ -496,8 +503,8 @@ export function OrdenCompraDirectaForm({
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
         </Button>
-        <Button type="button" onClick={irAPrograma}>
-          Siguiente
+        <Button type="button" disabled={enviando} onClick={irAPrograma}>
+          {categoria === "SERVICIO" ? (enviando ? "Guardando..." : "Guardar como borrador") : "Siguiente"}
         </Button>
       </div>
       </>
