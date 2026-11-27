@@ -665,15 +665,18 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
       return { error: "El proveedor seleccionado ya no existe. Actualiza la página e intenta de nuevo." };
     }
 
-    // Las líneas ya existentes no se pueden quitar (solo ajustar) — las
-    // que llegan sin id son nuevas y se crean aparte, ver más abajo.
+    // Las líneas ya existentes se pueden ajustar o quitar (pedido
+    // explícito, 2026-11-27); las que llegan sin id son nuevas y se crean
+    // aparte, ver más abajo. Lo único que se valida es que ningún id
+    // enviado sea ajeno a esta orden (la página pudo quedar desactualizada).
     const idsExistentes = new Set(orden.items.map((i) => i.id));
     const itemsExistentes = items.filter((i) => i.id);
     const itemsNuevos = items.filter((i) => !i.id);
     const idsEnviados = new Set(itemsExistentes.map((i) => i.id!));
-    if (idsEnviados.size !== idsExistentes.size || [...idsEnviados].some((itemId) => !idsExistentes.has(itemId))) {
+    if ([...idsEnviados].some((itemId) => !idsExistentes.has(itemId))) {
       return { error: "Los ítems de la orden cambiaron desde que abriste esta página. Actualízala e intenta de nuevo." };
     }
+    const idsAEliminar = [...idsExistentes].filter((itemId) => !idsEnviados.has(itemId));
 
     // Si dos líneas nuevas repiten el mismo ítem de solicitud, se valida la suma.
     const cantidadNuevaPorItemSolped = new Map<string, number>();
@@ -743,6 +746,14 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
         },
       });
 
+      // Quitar una línea ya existente (pedido explícito, 2026-11-27): solo
+      // puede pasar acá (orden BORRADOR/PENDIENTE, nunca aprobada), así que
+      // ningún ingreso/registro de avance pudo haberla referenciado todavía
+      // — el cascade de OrdenCompraEntrega se encarga de su programa.
+      if (idsAEliminar.length > 0) {
+        await tx.ordenCompraItem.deleteMany({ where: { id: { in: idsAEliminar } } });
+      }
+
       for (let i = 0; i < itemsExistentes.length; i++) {
         const item = itemsExistentes[i];
         await tx.ordenCompraItem.update({
@@ -753,6 +764,12 @@ export async function editarOrdenCompraAction(id: string, data: EditarOrdenCompr
             subtotal: subtotalesExistentes[i],
             gravado: item.gravado,
             descripcion: item.descripcion || null,
+            // Editable solo en una orden Directa (pedido explícito,
+            // 2026-11-27) — en una "con Solped" el cliente manda el mismo
+            // valor que ya tenía (ahí no se renderiza el Select), así que
+            // esto no la desvía del centro de costo/campo aprobado.
+            ...(item.centroCosto && { centroCosto: item.centroCosto }),
+            ...(item.campo !== undefined && { campo: item.campo || null }),
           },
         });
         // Programa de Entregas (pedido explícito, 2026-11-25): al editar se

@@ -52,8 +52,11 @@ const itemSolicitudPedidoSchema = z.object({
   // (el SKU solo agrupa, p. ej. "Apicultura").
   descripcion: z.string().max(500).optional().or(z.literal("")),
   // Campo/fundo al que corresponde el pedido: nombre de un valor de la
-  // lista editable Campo (ver lib/listas.ts).
-  campo: z.string().optional().or(z.literal("")),
+  // lista editable Campo (ver lib/listas.ts). Obligatorio (pedido
+  // explícito, 2026-11-27): toda Solicitud de Pedido que termine en una
+  // Orden de Compra/Servicio debe traer el campo definido, igual que
+  // centroCosto.
+  campo: z.string().trim().min(1, "Selecciona el campo"),
 });
 
 export const solicitudPedidoSchema = z
@@ -223,10 +226,13 @@ export const editarOrdenCompraSchema = z
   })
   .superRefine((data, ctx) => {
     data.items.forEach((item, i) => {
-      if (!item.id && (!item.skuId || !item.centroCosto)) {
+      // Línea nueva en una orden Directa (pedido explícito, 2026-11-27): el
+      // campo es tan obligatorio acá como en itemOrdenCompraDirectaSchema —
+      // una línea nueva con Solped sigue sin pedirlo (viene fijo de ahí).
+      if (!item.id && (!item.skuId || !item.centroCosto || (!item.solicitudPedidoItemId && !item.campo))) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Falta el producto o el centro de costo de la línea nueva",
+          message: "Falta el producto, el centro de costo o el campo de la línea nueva",
           path: ["items", i],
         });
       }

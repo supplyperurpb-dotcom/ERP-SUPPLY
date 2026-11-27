@@ -48,14 +48,14 @@ type ItemInicial = {
   campo: string;
 };
 
-function itemVacio(centroCostoInicial: string) {
+function itemVacio(centroCostoInicial: string, campoInicial: string) {
   return {
     skuId: "",
     cantidad: 0,
     unidadMedida: "",
     centroCosto: centroCostoInicial,
     descripcion: "",
-    campo: "",
+    campo: campoInicial,
   };
 }
 
@@ -103,6 +103,7 @@ export function SolicitudPedidoForm({
   const modoEdicion = !!solicitudId && !!valoresIniciales;
   const skuPorId = new Map(skus.map((s) => [s.id, s]));
   const centroCostoInicial = centrosCosto[0] ?? "";
+  const campoInicial = campos[0] ?? "";
   const areaDetalleInicialResuelta: AreaSolpedCodigo =
     areaDetalleInicial ?? areasDeGerenciaSolped(areaInicial)[0]?.valor ?? "COMPRAS";
 
@@ -132,7 +133,7 @@ export function SolicitudPedidoForm({
           fechaNecesidad: fechaLocalEnDias(7) as unknown as Date,
           tipoNecesidad: "ESTANDAR",
           justificacion: "",
-          items: [itemVacio(centroCostoInicial)],
+          items: [itemVacio(centroCostoInicial, campoInicial)],
         },
   });
 
@@ -368,7 +369,7 @@ export function SolicitudPedidoForm({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Productos</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={() => append(itemVacio(centroCostoInicial))}>
+          <Button type="button" variant="outline" size="sm" onClick={() => append(itemVacio(centroCostoInicial, campoInicial))}>
             <Plus className="mr-2 h-4 w-4" />
             Agregar producto
           </Button>
@@ -478,12 +479,11 @@ export function SolicitudPedidoForm({
                           control={form.control}
                           name={`items.${index}.campo`}
                           render={({ field: selectField }) => (
-                            <Select value={selectField.value || "__ninguno__"} onValueChange={(v) => selectField.onChange(v === "__ninguno__" ? "" : v)}>
+                            <Select value={selectField.value} onValueChange={selectField.onChange}>
                               <SelectTrigger>
-                                <SelectValue placeholder="Selecciona..." />
+                                <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__ninguno__">—</SelectItem>
                                 {campos.map((c) => (
                                   <SelectItem key={c} value={c}>
                                     {c}

@@ -47,7 +47,7 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
     <div>
       <PageHeader
         titulo={`Editar ${NOMBRE_ORDEN[categoria].toLowerCase()} — ${orden.numero}`}
-        descripcion="Se puede editar mientras no esté aprobada, rechazada o anulada. Si ya estaba enviada a aprobación, al guardar vuelve a Borrador y hay que volver a enviarla. Se pueden agregar productos nuevos, pero no quitar los ya existentes."
+        descripcion="Se puede editar mientras no esté aprobada, rechazada o anulada. Si ya estaba enviada a aprobación, al guardar vuelve a Borrador y hay que volver a enviarla. Se pueden agregar, ajustar o quitar productos."
       />
       <OrdenCompraEditarForm
         ordenId={orden.id}
@@ -90,6 +90,8 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
                 precioUnitario: String(Number(item.precioUnitario)),
                 gravado: item.gravado,
                 descripcion: item.descripcion ?? "",
+                centroCosto: item.centroCosto,
+                campo: item.campo ?? "",
               },
             ])
           ),

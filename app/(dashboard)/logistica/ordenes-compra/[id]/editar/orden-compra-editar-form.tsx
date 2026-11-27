@@ -33,13 +33,16 @@ type ItemEditable = {
   campo: string | null;
 };
 
-const SIN_CAMPO = "__sin_campo__";
-
 type FilaEditable = {
   cantidad: string;
   precioUnitario: string;
   gravado: boolean;
   descripcion: string;
+  // Solo editables en una orden Directa (pedido explícito, 2026-11-27); en
+  // una orden "con Solped" se muestran de solo lectura, vienen fijas de la
+  // solicitud y no se mandan al guardar — ver el render de esta fila.
+  centroCosto: string;
+  campo: string;
 };
 
 type SkuOpcion = SkuOpcionCombobox & { categoria: string };
@@ -62,7 +65,7 @@ type FilaNueva = {
   cantidadPendiente?: number;
 };
 
-function nuevaFilaDesdeSku(sku: SkuOpcion, centroCostoInicial: string): FilaNueva {
+function nuevaFilaDesdeSku(sku: SkuOpcion, centroCostoInicial: string, campoInicial: string): FilaNueva {
   return {
     tempId: crypto.randomUUID(),
     skuId: sku.id,
@@ -73,7 +76,7 @@ function nuevaFilaDesdeSku(sku: SkuOpcion, centroCostoInicial: string): FilaNuev
     gravado: true,
     descripcionServicio: "",
     centroCosto: centroCostoInicial,
-    campo: "",
+    campo: campoInicial,
   };
 }
 
@@ -133,7 +136,14 @@ export function OrdenCompraEditarForm({
   const [enviando, setEnviando] = useState(false);
   const [filas, setFilas] = useState<Record<string, FilaEditable>>(valoresIniciales.filas);
   const [nuevasFilas, setNuevasFilas] = useState<FilaNueva[]>([]);
+  // Quitar una línea ya existente (pedido explícito, 2026-11-27): no se
+  // borra del arreglo `items` (prop), solo se oculta y se excluye del
+  // guardado — itemsVisibles es la única lista que se usa de ahí en
+  // adelante, tanto para renderizar como para calcular/enviar.
+  const [idsEliminados, setIdsEliminados] = useState<Set<string>>(new Set());
+  const itemsVisibles = items.filter((item) => !idsEliminados.has(item.id));
   const centroCostoInicial = centrosCosto[0] ?? "";
+  const campoInicial = campos[0] ?? "";
   // Paso "Ver plan de entrega" (pedido explícito, 2026-11-25): los cambios
   // recién se guardan ahí, igual que al crear la orden.
   const [paso, setPaso] = useState<"datos" | "programa">("datos");
@@ -169,11 +179,27 @@ export function OrdenCompraEditarForm({
   }
 
   function quitarFilaNueva(tempId: string) {
+    if (itemsVisibles.length + nuevasFilas.length <= 1) {
+      toast.error("La orden debe tener al menos un producto.");
+      return;
+    }
     setNuevasFilas((prev) => prev.filter((f) => f.tempId !== tempId));
   }
 
+  async function quitarItemExistente(itemId: string, codigo: string) {
+    if (itemsVisibles.length + nuevasFilas.length <= 1) {
+      toast.error("La orden debe tener al menos un producto.");
+      return;
+    }
+    if (!(await confirmar(`¿Quitar ${codigo} de esta ${nombreDocumento.toLowerCase()}? Se perderá su programa de entregas.`))) return;
+    setIdsEliminados((prev) => new Set(prev).add(itemId));
+  }
+
   function agregarDesdeDirecta() {
-    setNuevasFilas((prev) => [...prev, nuevaFilaDesdeSku({ id: "", codigo: "", descripcion: "", unidadMedida: "", categoria: "" }, centroCostoInicial)]);
+    setNuevasFilas((prev) => [
+      ...prev,
+      nuevaFilaDesdeSku({ id: "", codigo: "", descripcion: "", unidadMedida: "", categoria: "" }, centroCostoInicial, campoInicial),
+    ]);
   }
 
   function agregarDesdeSolped(item: (typeof itemsPendientesPlanos)[number]) {
@@ -197,7 +223,7 @@ export function OrdenCompraEditarForm({
   }
 
   const subtotalesPorFila = new Map<string, number>();
-  for (const item of items) {
+  for (const item of itemsVisibles) {
     const fila = filas[item.id];
     const cantidad = Number(fila.cantidad) || 0;
     const precio = Number(fila.precioUnitario) || 0;
@@ -207,7 +233,7 @@ export function OrdenCompraEditarForm({
 
   const subtotal = [...subtotalesPorFila.values()].reduce((a, b) => a + b, 0) + subtotalesNuevos.reduce((a, b) => a + b, 0);
   const igv =
-    items.reduce((acc, item) => (filas[item.id].gravado ? acc + (subtotalesPorFila.get(item.id) ?? 0) * IGV_TASA : acc), 0) +
+    itemsVisibles.reduce((acc, item) => (filas[item.id].gravado ? acc + (subtotalesPorFila.get(item.id) ?? 0) * IGV_TASA : acc), 0) +
     nuevasFilas.reduce((acc, f, i) => (f.gravado ? acc + subtotalesNuevos[i] * IGV_TASA : acc), 0);
   const igvRedondeado = Math.round(igv * 100) / 100;
   const total = Math.round((subtotal + igvRedondeado) * 100) / 100;
@@ -229,7 +255,7 @@ export function OrdenCompraEditarForm({
       toast.error("El comentario debe tener al menos 15 caracteres");
       return;
     }
-    for (const item of items) {
+    for (const item of itemsVisibles) {
       const cantidad = Number(filas[item.id].cantidad) || 0;
       if (cantidad <= 0) {
         toast.error(`La cantidad de ${item.codigo} debe ser mayor a 0`);
@@ -265,7 +291,7 @@ export function OrdenCompraEditarForm({
   }
 
   const itemsParaPrograma: ItemParaPrograma[] = [
-    ...items.map((item) => ({
+    ...itemsVisibles.map((item) => ({
       key: item.id,
       codigo: item.codigo,
       descripcion: item.descripcion,
@@ -294,7 +320,7 @@ export function OrdenCompraEditarForm({
         observaciones: comentario,
         moneda,
         items: [
-          ...items.map((item) => {
+          ...itemsVisibles.map((item) => {
             const fila = filas[item.id];
             return {
               id: item.id,
@@ -302,6 +328,12 @@ export function OrdenCompraEditarForm({
               precioUnitario: Number(fila.precioUnitario),
               gravado: fila.gravado,
               descripcion: fila.descripcion,
+              // Solo tienen efecto en una orden Directa (ver
+              // editarOrdenCompraAction) — en una "con Solped" el Select no
+              // se renderiza y fila.centroCosto/campo quedan con el valor
+              // original, así que mandarlos no cambia nada ahí.
+              centroCosto: fila.centroCosto,
+              campo: fila.campo || undefined,
               entregas: (entregasPorItem[item.id] ?? [])
                 .filter((e) => Number(e.cantidad) > 0 && e.fechaTentativa)
                 .map((e) => ({
@@ -426,8 +458,9 @@ export function OrdenCompraEditarForm({
           <div>
             <CardTitle className="text-base">Productos de la orden</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Se puede editar cantidad, precio, gravado{categoria === "SERVICIO" ? " y descripción del servicio" : ""} de las
-              líneas ya existentes, y agregar productos nuevos — pero no quitar los ya existentes.
+              Se puede editar cantidad, precio, gravado{categoria === "SERVICIO" ? ", descripción del servicio" : ""}
+              {esDirecta ? ", centro de costo y campo" : ""} de las líneas ya existentes, agregar productos nuevos y
+              quitar líneas (debe quedar al menos una).
             </p>
           </div>
           {esDirecta ? (
@@ -460,7 +493,7 @@ export function OrdenCompraEditarForm({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => {
+                {itemsVisibles.map((item) => {
                   const fila = filas[item.id];
                   return (
                     <TableRow key={item.id}>
@@ -475,8 +508,42 @@ export function OrdenCompraEditarForm({
                           />
                         </TableCell>
                       )}
-                      <TableCell className="align-top">{item.centroCosto}</TableCell>
-                      <TableCell className="align-top">{item.campo ?? "—"}</TableCell>
+                      <TableCell className="align-top">
+                        {esDirecta ? (
+                          <Select value={fila.centroCosto} onValueChange={(v) => actualizarFila(item.id, { centroCosto: v })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {centrosCosto.map((c) => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          item.centroCosto
+                        )}
+                      </TableCell>
+                      <TableCell className="align-top">
+                        {esDirecta ? (
+                          <Select value={fila.campo} onValueChange={(v) => actualizarFila(item.id, { campo: v })}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {campos.map((c) => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          item.campo ?? "—"
+                        )}
+                      </TableCell>
                       <TableCell className="align-top">
                         <NumberInput value={fila.cantidad} onChange={(v) => actualizarFila(item.id, { cantidad: v })} />
                       </TableCell>
@@ -494,7 +561,17 @@ export function OrdenCompraEditarForm({
                       <TableCell className="text-right align-top pt-4 font-medium">
                         {formatMoneda(subtotalesPorFila.get(item.id) ?? 0, moneda)}
                       </TableCell>
-                      <TableCell />
+                      <TableCell className="align-top">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title={itemsVisibles.length + nuevasFilas.length <= 1 ? "La orden debe tener al menos un producto" : undefined}
+                          onClick={() => quitarItemExistente(item.id, item.codigo)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -549,15 +626,11 @@ export function OrdenCompraEditarForm({
                     </TableCell>
                     <TableCell className="align-top">
                       {esDirecta ? (
-                        <Select
-                          value={f.campo || SIN_CAMPO}
-                          onValueChange={(v) => actualizarFilaNueva(f.tempId, { campo: v === SIN_CAMPO ? "" : v })}
-                        >
+                        <Select value={f.campo} onValueChange={(v) => actualizarFilaNueva(f.tempId, { campo: v })}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={SIN_CAMPO}>—</SelectItem>
                             {campos.map((c) => (
                               <SelectItem key={c} value={c}>
                                 {c}
