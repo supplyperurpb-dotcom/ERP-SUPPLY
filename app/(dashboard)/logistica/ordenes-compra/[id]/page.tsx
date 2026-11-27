@@ -81,6 +81,7 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
         },
       },
       firmas: true,
+      sustentos: { orderBy: { numero: "asc" } },
     },
   });
 
@@ -121,10 +122,17 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
   // creó) — ver cerrarPosicionOrdenCompraItemAction.
   const puedeCerrarPosiciones = !!usuario && esComprador(usuario);
 
-  // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
-  // estado de la orden.
+  // Anular una OC/OS es para Compradores y el Gerente de Supply Chain
+  // (pedido explícito, 2026-11-27); solo si no está ya aprobada — si lo
+  // está, primero hay que deshacer su(s) firma(s) de aprobación (ver mismo
+  // criterio en anularOrdenCompraAction).
+  const esGerenteSupply = usuario ? resolverAprobadorEfectivo("GERENTE_SUPPLY", aprobadoresEspeciales)?.usuarioId === usuario.id : false;
   const puedeAnular =
-    (usuario?.roles.includes("ANULADOR") ?? false) && orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
+    !!usuario &&
+    (esComprador(usuario) || esGerenteSupply) &&
+    orden.estado !== "RECHAZADO" &&
+    orden.estado !== "ANULADO" &&
+    orden.estado !== "APROBADO";
   const esServicio = orden.categoria === "SERVICIO";
 
   // Firma(s) que el usuario actual puede resolver ahora mismo: la de su
@@ -312,18 +320,38 @@ export default async function OrdenCompraDetallePage({ params }: { params: Promi
               <p className="font-medium">{orden.observaciones}</p>
             </div>
           )}
-          {orden.archivo && (
-            <div>
-              <p className="text-muted-foreground">Sustento</p>
-              <a
-                href={`/api/logistica/ordenes-compra/${orden.id}/sustento`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium underline underline-offset-2"
-              >
-                {orden.nombreArchivo ?? "Ver archivo"}
-              </a>
+          {orden.sustentos.length > 0 ? (
+            <div className="sm:col-span-2 lg:col-span-4">
+              <p className="text-muted-foreground">Sustento{orden.sustentos.length > 1 ? "s" : ""}</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {orden.sustentos.map((s) => (
+                  <a
+                    key={s.id}
+                    href={`/api/logistica/ordenes-compra/sustento/${s.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline underline-offset-2"
+                  >
+                    {orden.sustentos.length > 1 ? `${s.numero}. ` : ""}
+                    {s.nombreArchivo}
+                  </a>
+                ))}
+              </div>
             </div>
+          ) : (
+            orden.archivo && (
+              <div>
+                <p className="text-muted-foreground">Sustento</p>
+                <a
+                  href={`/api/logistica/ordenes-compra/${orden.id}/sustento`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium underline underline-offset-2"
+                >
+                  {orden.nombreArchivo ?? "Ver archivo"}
+                </a>
+              </div>
+            )
           )}
           {aprobador && orden.fechaAprobacion && (
             <div>

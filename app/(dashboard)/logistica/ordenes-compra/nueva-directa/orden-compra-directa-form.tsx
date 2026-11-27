@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
@@ -25,8 +25,9 @@ import {
   type TipoOrdenCodigo,
 } from "@/lib/constants/compras";
 import { MONEDAS } from "@/lib/constants/moneda";
-import { crearOrdenCompraDirectaAction, subirArchivoSustentoOrdenAction } from "@/lib/actions/orden-compra-actions";
+import { crearOrdenCompraDirectaAction } from "@/lib/actions/orden-compra-actions";
 import { ProgramaEntregasStep, type FilaEntregaProgramada, type ItemParaPrograma } from "../programa-entregas-step";
+import { SustentosOrdenField, type SustentoOrden } from "../sustentos-orden-field";
 
 type SkuOpcion = SkuOpcionCombobox & { categoria: string };
 
@@ -92,33 +93,9 @@ export function OrdenCompraDirectaForm({
   const [enviando, setEnviando] = useState(false);
   const centroCostoInicial = centrosCosto[0] ?? "";
   const [filas, setFilas] = useState<FilaItem[]>([filaVacia(centroCostoInicial)]);
-  const [sustentoPath, setSustentoPath] = useState("");
-  const [sustentoNombre, setSustentoNombre] = useState("");
-  const [subiendoSustento, setSubiendoSustento] = useState(false);
-  const inputSustentoRef = useRef<HTMLInputElement>(null);
+  const [sustentos, setSustentos] = useState<SustentoOrden[]>([]);
   const [paso, setPaso] = useState<"datos" | "programa">("datos");
   const [entregasPorItem, setEntregasPorItem] = useState<Record<string, FilaEntregaProgramada[]>>({});
-
-  async function handleArchivoSustento(archivo: File | undefined) {
-    if (!archivo) return;
-    setSustentoPath("");
-    setSustentoNombre("");
-    setSubiendoSustento(true);
-    try {
-      const formData = new FormData();
-      formData.set("archivo", archivo);
-      const resultado = await subirArchivoSustentoOrdenAction(formData);
-      if (resultado.error || !resultado.path || !resultado.nombreArchivo) {
-        toast.error(resultado.error ?? "No se pudo subir el archivo");
-        if (inputSustentoRef.current) inputSustentoRef.current.value = "";
-        return;
-      }
-      setSustentoPath(resultado.path);
-      setSustentoNombre(resultado.nombreArchivo);
-    } finally {
-      setSubiendoSustento(false);
-    }
-  }
 
   const nombreDocumento = NOMBRE_ORDEN[categoria];
   const skusDeCategoria = skus.filter((s) => (categoria === "SERVICIO" ? s.categoria === "Servicios" : s.categoria !== "Servicios"));
@@ -162,12 +139,8 @@ export function OrdenCompraDirectaForm({
       toast.error("Selecciona el plazo de vigencia de la orden abierta");
       return;
     }
-    if (subiendoSustento) {
-      toast.error("Espera a que termine de subir el sustento");
-      return;
-    }
-    if (!sustentoPath) {
-      toast.error("Debes adjuntar el sustento de la orden");
+    if (sustentos.length === 0) {
+      toast.error("Debes adjuntar al menos un sustento de la orden");
       return;
     }
     for (const f of filas) {
@@ -229,8 +202,7 @@ export function OrdenCompraDirectaForm({
               fechaTentativa: new Date(e.fechaTentativa) as unknown as Date,
             })),
         })),
-        archivo: sustentoPath,
-        nombreArchivo: sustentoNombre,
+        sustentos,
       });
       if (resultado?.error) {
         toast.error(resultado.error);
@@ -374,24 +346,7 @@ export function OrdenCompraDirectaForm({
               onChange={(e) => setComentario(e.target.value)}
             />
           </div>
-          <div className="space-y-2 sm:col-span-3">
-            <Label htmlFor="sustento">Sustento (obligatorio)</Label>
-            <Input
-              id="sustento"
-              ref={inputSustentoRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-              disabled={subiendoSustento}
-              onChange={(e) => handleArchivoSustento(e.target.files?.[0])}
-            />
-            <p className="text-xs text-muted-foreground">
-              {subiendoSustento
-                ? "Subiendo..."
-                : sustentoNombre
-                  ? `Adjunto: ${sustentoNombre}`
-                  : "PDF, Word, Excel o una imagen, hasta 15 MB."}
-            </p>
-          </div>
+          <SustentosOrdenField value={sustentos} onChange={setSustentos} />
         </CardContent>
       </Card>
 

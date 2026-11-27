@@ -41,10 +41,12 @@ const TIPOS_SUSTENTO_PERMITIDOS = [
   "image/webp",
 ];
 
-// Sube el sustento ANTES de crear la orden (el formulario arma el payload
-// a mano, no FormData — ver orden-compra-form.tsx/orden-compra-directa-
-// form.tsx): devuelve la ruta en el bucket privado para que el submit
-// final la incluya como archivo/nombreArchivo en crearOrdenCompra(Directa)Action.
+// Sube un sustento ANTES de crear la orden (el formulario arma el payload
+// a mano, no FormData — ver SustentosOrdenField, usado por orden-compra-
+// form.tsx y orden-compra-directa-form.tsx): se llama una vez por cada
+// sustento que se adjunte ("Añadir sustento" agrega otro selector), y
+// cada ruta devuelta se junta en el arreglo `sustentos` que el submit
+// final manda a crearOrdenCompra(Directa)Action.
 export async function subirArchivoSustentoOrdenAction(
   formData: FormData
 ): Promise<{ path?: string; nombreArchivo?: string; error?: string }> {
@@ -85,8 +87,7 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
     observaciones,
     moneda,
     items,
-    archivo,
-    nombreArchivo,
+    sustentos,
   } = parsed.data;
 
   const usuario = await getUsuarioActual();
@@ -167,9 +168,11 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
           igv: igvRedondeado,
           montoTotal,
           creadoPorId: usuario?.id,
-          archivo,
-          nombreArchivo,
         },
+      });
+
+      await tx.ordenCompraSustento.createMany({
+        data: sustentos.map((s, i) => ({ ordenCompraId: orden.id, numero: i + 1, archivo: s.archivo, nombreArchivo: s.nombreArchivo })),
       });
 
       for (let i = 0; i < items.length; i++) {
@@ -243,8 +246,7 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
     observaciones,
     moneda,
     items,
-    archivo,
-    nombreArchivo,
+    sustentos,
   } = parsed.data;
 
   const usuario = await getUsuarioActual();
@@ -288,9 +290,11 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
           igv: igvRedondeado,
           montoTotal,
           creadoPorId: usuario?.id,
-          archivo,
-          nombreArchivo,
         },
+      });
+
+      await tx.ordenCompraSustento.createMany({
+        data: sustentos.map((s, i) => ({ ordenCompraId: orden.id, numero: i + 1, archivo: s.archivo, nombreArchivo: s.nombreArchivo })),
       });
 
       for (let i = 0; i < items.length; i++) {
@@ -735,14 +739,28 @@ export async function anularOrdenCompraAction(id: string, comentario?: string): 
   try {
     const usuario = await getUsuarioActual();
     if (!usuario) return { error: "Debes iniciar sesión para anular una orden." };
-    if (!usuario.roles.includes("ANULADOR")) {
-      return { error: "No tienes permiso para anular órdenes de compra." };
+
+    // Anular una OC/OS es para Compradores y el Gerente de Supply Chain
+    // (pedido explícito, 2026-11-27) — ya no exige el rol ANULADOR aparte.
+    const aprobadoresEspeciales = await obtenerAprobadoresEspeciales();
+    const esGerenteSupply = resolverAprobadorEfectivo("GERENTE_SUPPLY", aprobadoresEspeciales)?.usuarioId === usuario.id;
+    if (!esComprador(usuario) && !esGerenteSupply) {
+      return { error: "Solo un Comprador o el Gerente de Supply Chain puede anular órdenes de compra." };
     }
 
     const orden = await prisma.ordenCompra.findUnique({ where: { id } });
     if (!orden) return { error: "La orden ya no existe." };
     if (orden.estado === "RECHAZADO" || orden.estado === "ANULADO") {
       return { error: "Esta orden ya no está activa." };
+    }
+    // Pedido explícito: una orden ya aprobada no se puede anular
+    // directamente — primero hay que deshacer su(s) firma(s) de
+    // aprobación (ver anularFirmaOrdenCompraAction), que la regresa a
+    // BORRADOR o PENDIENTE según queden o no otras firmas vigentes.
+    if (orden.estado === "APROBADO") {
+      return {
+        error: "Esta orden ya está aprobada. Para anularla, primero anula su(s) firma(s) de aprobación.",
+      };
     }
 
     await prisma.$transaction(async (tx) => {

@@ -41,10 +41,6 @@ export default async function OrdenesCompraPage() {
     take: 100,
   });
 
-  // Anular es exclusivo de quien tenga el rol ANULADOR, sin importar el
-  // estado de la orden.
-  const puedeAnularGlobal = usuario?.roles.includes("ANULADOR") ?? false;
-
   // Casillas de aprobación masiva (pedido explícito, 2026-11-25: para el
   // usuario del Gerente de Supply Chain, u otro aprobador especial, no solo
   // ADMIN) — mismo criterio que el botón "Aprobar" del detalle
@@ -52,8 +48,15 @@ export default async function OrdenesCompraPage() {
   // solo para quien tiene su propio rol de aprobación pendiente.
   const aprobadoresEspeciales = await obtenerAprobadoresEspeciales();
 
+  // Anular una OC/OS es para Compradores y el Gerente de Supply Chain
+  // (pedido explícito, 2026-11-27); solo si no está ya aprobada (ver el
+  // mismo criterio en anularOrdenCompraAction) — si lo está, primero hay
+  // que deshacer su(s) firma(s) de aprobación.
+  const esGerenteSupply = usuario ? resolverAprobadorEfectivo("GERENTE_SUPPLY", aprobadoresEspeciales)?.usuarioId === usuario.id : false;
+  const puedeAnularGlobal = esCompradorUsuario || esGerenteSupply;
+
   const filas: FilaOrdenCompra[] = ordenes.map((orden) => {
-    const puedeAnular = puedeAnularGlobal && orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO";
+    const puedeAnular = puedeAnularGlobal && orden.estado !== "RECHAZADO" && orden.estado !== "ANULADO" && orden.estado !== "APROBADO";
     const firmaPendientePropia =
       usuario && (orden.estado === "BORRADOR" || orden.estado === "PENDIENTE")
         ? orden.firmas.find(

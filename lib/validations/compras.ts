@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { CONDICIONES_PAGO, LUGARES_ENTREGA, areasDeGerenciaSolped, type GerenciaSolpedCodigo, type AreaSolpedCodigo } from "@/lib/constants/compras";
 
+// Uno o más sustentos adjuntos al generar una OC/OS (pedido explícito,
+// 2026-11-27: antes un solo archivo obligatorio, ahora se puede "Añadir
+// sustento" como en Registro de Avance) — cada uno ya subido al bucket
+// privado (ver subirArchivoSustentoOrdenAction), nunca el File en sí.
+const sustentoOrdenSchema = z.object({
+  archivo: z.string().min(1),
+  nombreArchivo: z.string().min(1),
+});
+
 const AREAS = [
   "PRODUCCION",
   "SUPPLY_CHAIN",
@@ -161,8 +170,7 @@ export const ordenCompraSchema = z
     // al bucket privado (ver subirArchivoOrdenCompraAction), nunca el File
     // en sí — el upload va antes, por separado, igual que en Sustentos de
     // Registro de Avance.
-    archivo: z.string().min(1, "Debes adjuntar el sustento de la orden"),
-    nombreArchivo: z.string().min(1),
+    sustentos: z.array(sustentoOrdenSchema).min(1, "Debes adjuntar al menos un sustento de la orden"),
   })
   .superRefine((data, ctx) => {
     if (data.tipoOrden === "ABIERTA" && !data.vigenteHasta) {
@@ -264,10 +272,7 @@ export const ordenCompraDirectaSchema = z
     observaciones: z.string().trim().min(15, "El comentario debe tener al menos 15 caracteres").max(500),
     moneda: z.enum(["PEN", "USD"]).default("PEN"),
     items: z.array(itemOrdenCompraDirectaSchema).min(1, "Agrega al menos un producto"),
-    // Sustento obligatorio (pedido explícito, 2026-11-25): ver mismo
-    // comentario en ordenCompraSchema.
-    archivo: z.string().min(1, "Debes adjuntar el sustento de la orden"),
-    nombreArchivo: z.string().min(1),
+    sustentos: z.array(sustentoOrdenSchema).min(1, "Debes adjuntar al menos un sustento de la orden"),
   })
   .superRefine((data, ctx) => {
     if (data.tipoOrden === "ABIERTA" && !data.vigenteHasta) {

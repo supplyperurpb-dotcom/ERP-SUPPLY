@@ -951,22 +951,41 @@ model OrdenCompra {
   aprobadoPorId     String?
   fechaAprobacion   DateTime?
   comentarioRechazo String?
-  // Sustento adjunto al generar la orden (pedido explícito, 2026-11-25):
-  // obligatorio para toda OC/OS nueva, un solo archivo (PDF/Word/Excel/
-  // imagen) en el bucket privado — ver lib/storage.ts. Nullable solo para
-  // no romper las órdenes creadas antes de este campo.
+  // Sustento adjunto al generar la orden, de antes de admitir varios (ver
+  // OrdenCompraSustento más abajo, 2026-11-27) — se mantiene solo para no
+  // romper las órdenes creadas antes de ese cambio (ya no se escribe en
+  // órdenes nuevas).
   archivo           String?
   nombreArchivo     String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  proveedor          Proveedor           @relation(fields: [proveedorId], references: [id])
+  proveedor          Proveedor              @relation(fields: [proveedorId], references: [id])
   items              OrdenCompraItem[]
   firmas             OrdenCompraFirma[]
   ingresosAlmacen    IngresoAlmacen[]
   servicioGestionado ServicioGestionado?
+  sustentos          OrdenCompraSustento[]
 
   @@map("ordenes_compra")
+}
+
+// Sustento(s) adjuntos al generar una OC/OS (pedido explícito,
+// 2026-11-25; ampliado a varios el 2026-11-27, igual que Sustento de
+// Registro de Avance — ver SustentoRegistroAvance). Al menos uno es
+// obligatorio para toda OC/OS nueva; `numero` es el correlativo en el que
+// se adjuntaron.
+model OrdenCompraSustento {
+  id            String   @id @default(cuid())
+  ordenCompraId String
+  numero        Int
+  archivo       String
+  nombreArchivo String
+  createdAt     DateTime @default(now())
+
+  ordenCompra OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+
+  @@map("orden_compra_sustentos")
 }
 
 model OrdenCompraItem {

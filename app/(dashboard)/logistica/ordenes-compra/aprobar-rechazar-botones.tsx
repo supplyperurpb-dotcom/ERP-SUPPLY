@@ -130,10 +130,11 @@ export function AnularFirmaBoton({ id, firmaId, numero, rolLabel }: { id: string
   );
 }
 
-// Exclusivo de quien tenga el rol ANULADOR (la acción en el servidor
-// vuelve a verificar el permiso). Nunca borra el registro: en cualquier
-// estado solo lo bloquea, pasando a ANULADO, y sus cantidades jaladas
-// vuelven a quedar pendientes en sus solicitudes de origen.
+// Para Compradores y el Gerente de Supply Chain, solo si la orden no está
+// ya aprobada (la acción en el servidor vuelve a verificar ambas cosas).
+// Nunca borra el registro: solo lo bloquea, pasando a ANULADO, y sus
+// cantidades jaladas vuelven a quedar pendientes en sus solicitudes de
+// origen.
 export function AnularOrdenBoton({
   id,
   numero,
