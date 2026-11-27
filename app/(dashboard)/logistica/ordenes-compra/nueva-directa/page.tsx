@@ -19,10 +19,11 @@ export default async function NuevaOrdenCompraDirectaPage({
   const categoriaSeleccionada: CategoriaCompraCodigo = categoria === "SERVICIO" ? "SERVICIO" : "COMPRA";
   const tipoOrden: TipoOrdenCodigo = tipo === "ABIERTA" ? "ABIERTA" : "ESTANDAR";
 
-  const [skus, ordenesCompra, ordenesServicio, proveedores, centrosCosto, campos, condicionesPago] = await Promise.all([
+  const [skus, ordenes, proveedores, centrosCosto, campos, condicionesPago] = await Promise.all([
     prisma.sku.findMany({ where: { activo: true }, orderBy: { codigo: "asc" } }),
-    prisma.ordenCompra.findMany({ where: { categoria: "COMPRA" }, select: { numero: true } }),
-    prisma.ordenCompra.findMany({ where: { categoria: "SERVICIO" }, select: { numero: true } }),
+    // Correlativo COMPARTIDO entre OC y OS (pedido explícito, 2026-11-27):
+    // ya no se filtra por categoría.
+    prisma.ordenCompra.findMany({ select: { numero: true } }),
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
     obtenerValoresActivos("CENTRO_COSTO"),
     obtenerValoresActivos("CAMPO"),
@@ -32,9 +33,10 @@ export default async function NuevaOrdenCompraDirectaPage({
   // recién al guardar, según la categoría que el usuario elija en el
   // formulario (acá no hay botón "Nueva Compra"/"Nuevo Servicio" por
   // separado que la fije de antemano).
+  const numerosExistentes = ordenes.map((o) => o.numero);
   const numerosTentativos = {
-    COMPRA: siguienteNumeroOrden(ordenesCompra.map((o) => o.numero), "COMPRA"),
-    SERVICIO: siguienteNumeroOrden(ordenesServicio.map((o) => o.numero), "SERVICIO"),
+    COMPRA: siguienteNumeroOrden(numerosExistentes, "COMPRA"),
+    SERVICIO: siguienteNumeroOrden(numerosExistentes, "SERVICIO"),
   };
 
   return (

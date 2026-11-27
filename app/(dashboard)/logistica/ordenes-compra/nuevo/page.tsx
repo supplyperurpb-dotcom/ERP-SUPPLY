@@ -22,7 +22,9 @@ export default async function NuevaOrdenCompraPage({
   const [solicitudes, proveedores, existentes, centrosCosto, condicionesPago] = await Promise.all([
     calcularSolicitudesConPendientes(prisma, categoriaSeleccionada),
     prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } }),
-    prisma.ordenCompra.findMany({ where: { categoria: categoriaSeleccionada }, select: { numero: true } }),
+    // Correlativo COMPARTIDO entre OC y OS (pedido explícito, 2026-11-27):
+    // ya no se filtra por categoría.
+    prisma.ordenCompra.findMany({ select: { numero: true } }),
     obtenerValoresActivos("CENTRO_COSTO"),
     obtenerValoresActivos("CONDICION_PAGO"),
   ]);

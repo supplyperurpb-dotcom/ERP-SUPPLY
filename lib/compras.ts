@@ -11,12 +11,18 @@ import {
   type RolAprobadorEspecialCodigo,
 } from "@/lib/constants/compras";
 
-// Siguiente número de OC/OS de una categoría: igual que siguienteNumero
-// (lib/utils.ts), pero con un piso de CORRELATIVO_INICIAL_ORDEN en vez de
-// 1, para continuar la numeración que ya se usaba fuera del sistema.
+// Siguiente número de OC/OS: un solo correlativo COMPARTIDO entre Compra y
+// Servicio (pedido explícito, 2026-11-27) — ej. OC-4660, OC-4661, OS-4662;
+// antes cada categoría tenía su propia serie independiente. Solo cambia el
+// prefijo según la categoría; el número sigue el máximo ya usado por
+// CUALQUIERA de los 2 prefijos, nunca solo el de esta categoría — por eso
+// `numerosExistentes` debe traer los números de ambas (ver los call sites).
+// Mismo piso CORRELATIVO_INICIAL_ORDEN de siempre, para continuar la
+// numeración que ya se usaba fuera del sistema.
 export function siguienteNumeroOrden(numerosExistentes: string[], categoria: CategoriaCompraCodigo): string {
   const prefijo = PREFIJO_ORDEN[categoria];
-  const siguiente = Math.max(maximoNumero(numerosExistentes, prefijo), CORRELATIVO_INICIAL_ORDEN - 1) + 1;
+  const maximoCompartido = Math.max(...Object.values(PREFIJO_ORDEN).map((p) => maximoNumero(numerosExistentes, p)));
+  const siguiente = Math.max(maximoCompartido, CORRELATIVO_INICIAL_ORDEN - 1) + 1;
   return `${prefijo}${String(siguiente).padStart(9, "0")}`;
 }
 

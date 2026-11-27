@@ -230,7 +230,10 @@ export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<Or
         throw new Error("No se pudo determinar la categoría (Compra/Servicio) de los ítems seleccionados.");
       }
 
-      const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
+      // Correlativo COMPARTIDO entre OC y OS (pedido explícito, 2026-11-27):
+      // ya no se filtra por categoría, siguienteNumeroOrden calcula el
+      // máximo entre ambos prefijos.
+      const existentes = await tx.ordenCompra.findMany({ select: { numero: true } });
       const numero = siguienteNumeroOrden(existentes.map((o) => o.numero), categoria);
 
       const orden = await tx.ordenCompra.create({
@@ -352,7 +355,10 @@ export async function crearOrdenCompraDirectaAction(data: OrdenCompraDirectaInpu
 
   try {
     const nuevaOrden = await prisma.$transaction(async (tx) => {
-      const existentes = await tx.ordenCompra.findMany({ where: { categoria }, select: { numero: true } });
+      // Correlativo COMPARTIDO entre OC y OS (pedido explícito, 2026-11-27):
+      // ya no se filtra por categoría, siguienteNumeroOrden calcula el
+      // máximo entre ambos prefijos.
+      const existentes = await tx.ordenCompra.findMany({ select: { numero: true } });
       const numero = siguienteNumeroOrden(existentes.map((o) => o.numero), categoria);
 
       const orden = await tx.ordenCompra.create({
