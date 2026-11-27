@@ -136,7 +136,7 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
         </p>
       ) : (
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead>
                 <button
