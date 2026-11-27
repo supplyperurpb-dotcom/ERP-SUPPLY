@@ -217,13 +217,13 @@ export function IngresoAlmacenWizard({
     setResultado(null);
   }
 
-  // Paso 1: "Anterior" (pedido explícito: vuelve a la lista de Almacenes,
+  // Paso 1: "Anterior" (pedido explícito: vuelve a la lista de Movimientos,
   // no solo desbloquea el campo) y "Siguiente" (pasa al paso 2) van
   // juntos arriba a la derecha, a la altura del título.
   const accionesPaso1 = (
     <>
       <Button type="button" variant="outline" asChild>
-        <Link href="/logistica/almacenes">Anterior</Link>
+        <Link href="/logistica/almacenes/movimientos">Anterior</Link>
       </Button>
       <Button type="button" onClick={irAPaso2}>
         Siguiente
@@ -232,8 +232,11 @@ export function IngresoAlmacenWizard({
   );
 
   const volverAAlmacenes = (
-    <Link href="/logistica/almacenes" className="mb-3 inline-block text-sm text-muted-foreground hover:text-foreground">
-      ← Volver a Almacenes
+    <Link
+      href="/logistica/almacenes/movimientos"
+      className="mb-3 inline-block text-sm text-muted-foreground hover:text-foreground"
+    >
+      ← Volver a Movimientos
     </Link>
   );
 

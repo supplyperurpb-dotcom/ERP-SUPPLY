@@ -884,6 +884,166 @@ export async function calcularMovimientosAlmacen(almacenId: string, db: Db = pri
   return filas.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
 }
 
+export type TipoMovimientoGlobal = "INGRESO" | "TRASLADO" | "CONSUMO" | "DEVOLUCION";
+
+export type FilaMovimientoGlobal = {
+  id: string;
+  fecha: Date;
+  tipo: TipoMovimientoGlobal;
+  documentoId: string;
+  documentoNumero: string;
+  /** Nombre del almacén (Ingreso/Consumo/Devolución) o "Origen → Destino" (Traslado). */
+  almacen: string;
+  codigo: string;
+  descripcion: string;
+  unidadMedida: string;
+  /** Siempre positiva (a diferencia de FilaMovimientoAlmacen): acá no hay "almacén de referencia" del que restar o sumar. */
+  cantidad: number;
+  proveedorId: string | null;
+  proveedorNombre: string | null;
+};
+
+export type FiltrosMovimientosGlobal = {
+  proveedorId?: string;
+  numero?: string;
+  tipo?: TipoMovimientoGlobal;
+  desde?: string;
+  hasta?: string;
+};
+
+// Resumen de movimientos de TODOS los almacenes en un solo listado (pedido
+// explícito, 2026-11-27, para el submódulo "Movimientos" dentro de
+// Almacenes) — a diferencia de calcularMovimientosAlmacen (que es por
+// almacén y valoriza cada línea con el ponderado "en vivo" de ese almacén),
+// acá no se valoriza nada: es un listado de trazabilidad/búsqueda, no un
+// reporte de costos, así que evita recalcular el ponderado de cada línea
+// (sería carísimo sin un almacén de referencia fijo). Un Traslado aparece
+// una sola vez (no dos, como en la vista por almacén): una línea con
+// "Origen → Destino".
+export async function calcularMovimientosGlobal(
+  filtros: FiltrosMovimientosGlobal = {},
+  db: Db = prisma
+): Promise<FilaMovimientoGlobal[]> {
+  const rangoFecha =
+    filtros.desde || filtros.hasta
+      ? {
+          ...(filtros.desde && { gte: new Date(`${filtros.desde}T00:00:00`) }),
+          ...(filtros.hasta && { lte: new Date(`${filtros.hasta}T23:59:59`) }),
+        }
+      : undefined;
+  const numero = filtros.numero?.trim() ? { contains: filtros.numero.trim(), mode: "insensitive" as const } : undefined;
+  const incluirTipo = (t: TipoMovimientoGlobal) => !filtros.tipo || filtros.tipo === t;
+
+  const [ingresos, traslados, consumos, devoluciones] = await Promise.all([
+    incluirTipo("INGRESO")
+      ? db.ingresoAlmacenItem.findMany({
+          where: {
+            ingresoAlmacen: { ...(numero && { numero }), ...(filtros.proveedorId && { proveedorId: filtros.proveedorId }), ...(rangoFecha && { fecha: rangoFecha }) },
+          },
+          include: { sku: true, ingresoAlmacen: { include: { almacen: true, proveedor: true } } },
+        })
+      : [],
+    incluirTipo("TRASLADO")
+      ? db.trasladoAlmacenItem.findMany({
+          where: {
+            ...(filtros.proveedorId && { proveedorId: filtros.proveedorId }),
+            trasladoAlmacen: { ...(numero && { numero }), ...(rangoFecha && { fecha: rangoFecha }) },
+          },
+          include: { sku: true, proveedor: true, trasladoAlmacen: { include: { almacenOrigen: true, almacenDestino: true } } },
+        })
+      : [],
+    incluirTipo("CONSUMO")
+      ? db.consumoAlmacenItem.findMany({
+          where: {
+            ...(filtros.proveedorId && { proveedorId: filtros.proveedorId }),
+            consumoAlmacen: { ...(numero && { numero }), ...(rangoFecha && { fecha: rangoFecha }) },
+          },
+          include: { sku: true, proveedor: true, almacenOrigen: true, consumoAlmacen: true },
+        })
+      : [],
+    incluirTipo("DEVOLUCION")
+      ? db.devolucionAlmacenItem.findMany({
+          where: {
+            devolucionAlmacen: { ...(numero && { numero }), ...(filtros.proveedorId && { proveedorId: filtros.proveedorId }), ...(rangoFecha && { fecha: rangoFecha }) },
+          },
+          include: { sku: true, devolucionAlmacen: { include: { almacen: true, proveedor: true } } },
+        })
+      : [],
+  ]);
+
+  const filas: FilaMovimientoGlobal[] = [];
+
+  for (const ing of ingresos) {
+    filas.push({
+      id: ing.id,
+      fecha: ing.ingresoAlmacen.fecha,
+      tipo: "INGRESO",
+      documentoId: ing.ingresoAlmacenId,
+      documentoNumero: ing.ingresoAlmacen.numero,
+      almacen: ing.ingresoAlmacen.almacen.nombre,
+      codigo: ing.sku.codigo,
+      descripcion: ing.sku.descripcion,
+      unidadMedida: ing.unidadMedida,
+      cantidad: Number(ing.cantidad),
+      proveedorId: ing.ingresoAlmacen.proveedorId,
+      proveedorNombre: ing.ingresoAlmacen.proveedor?.razonSocial ?? null,
+    });
+  }
+
+  for (const t of traslados) {
+    filas.push({
+      id: t.id,
+      fecha: t.trasladoAlmacen.fecha,
+      tipo: "TRASLADO",
+      documentoId: t.trasladoAlmacenId,
+      documentoNumero: t.trasladoAlmacen.numero,
+      almacen: `${t.trasladoAlmacen.almacenOrigen.nombre} → ${t.trasladoAlmacen.almacenDestino.nombre}`,
+      codigo: t.sku.codigo,
+      descripcion: t.sku.descripcion,
+      unidadMedida: t.unidadMedida,
+      cantidad: Number(t.cantidad),
+      proveedorId: t.proveedorId,
+      proveedorNombre: t.proveedor?.razonSocial ?? null,
+    });
+  }
+
+  for (const c of consumos) {
+    filas.push({
+      id: c.id,
+      fecha: c.consumoAlmacen.fecha,
+      tipo: "CONSUMO",
+      documentoId: c.consumoAlmacenId,
+      documentoNumero: c.consumoAlmacen.numero,
+      almacen: c.almacenOrigen.nombre,
+      codigo: c.sku.codigo,
+      descripcion: c.sku.descripcion,
+      unidadMedida: c.unidadMedida,
+      cantidad: Number(c.cantidad),
+      proveedorId: c.proveedorId,
+      proveedorNombre: c.proveedor?.razonSocial ?? null,
+    });
+  }
+
+  for (const d of devoluciones) {
+    filas.push({
+      id: d.id,
+      fecha: d.devolucionAlmacen.fecha,
+      tipo: "DEVOLUCION",
+      documentoId: d.devolucionAlmacenId,
+      documentoNumero: d.devolucionAlmacen.numero,
+      almacen: d.devolucionAlmacen.almacen.nombre,
+      codigo: d.sku.codigo,
+      descripcion: d.sku.descripcion,
+      unidadMedida: d.unidadMedida,
+      cantidad: Number(d.cantidad),
+      proveedorId: d.devolucionAlmacen.proveedorId,
+      proveedorNombre: d.devolucionAlmacen.proveedor?.razonSocial ?? null,
+    });
+  }
+
+  return filas.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+}
+
 // ---------------------------------------------------------------------
 // Consumo desde Solicitud de Despacho: la cantidad pendiente de atender de
 // un SolicitudDespachoItem es su cantidad menos la suma de

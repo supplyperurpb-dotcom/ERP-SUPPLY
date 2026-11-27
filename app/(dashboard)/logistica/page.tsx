@@ -49,7 +49,7 @@ const TILES = [
   },
   {
     titulo: "Almacenes",
-    descripcion: "Catálogo de almacenes generales y sub-almacenes.",
+    descripcion: "Movimientos de inventario y catálogo de almacenes.",
     href: "/logistica/almacenes",
     icono: Warehouse,
   },
