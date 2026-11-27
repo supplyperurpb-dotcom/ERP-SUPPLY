@@ -111,8 +111,8 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="relative max-w-sm flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -135,7 +135,7 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
           No se encontró ninguna orden que coincida con &quot;{busqueda}&quot;.
         </p>
       ) : (
-        <Table>
+        <Table containerClassName="min-h-0 flex-1 rounded-md border">
           <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead>

@@ -80,19 +80,21 @@ export default async function OrdenesCompraPage() {
   });
 
   return (
-    <div>
-      <PageHeader
-        titulo="Órdenes de compra"
-        descripcion="Órdenes de compra emitidas a proveedores de insumos, generadas a partir de solicitudes de pedido."
-        acciones={
-          esCompradorUsuario && (
-            <div className="flex items-center gap-2">
-              <NuevaOrdenDialog etiqueta="Con Solped" basePath="/logistica/ordenes-compra/nuevo" variant="default" />
-              <NuevaOrdenDialog etiqueta="Directa" basePath="/logistica/ordenes-compra/nueva-directa" />
-            </div>
-          )
-        }
-      />
+    <div className="flex h-full flex-col">
+      <div className="shrink-0">
+        <PageHeader
+          titulo="Órdenes de compra"
+          descripcion="Órdenes de compra emitidas a proveedores de insumos, generadas a partir de solicitudes de pedido."
+          acciones={
+            esCompradorUsuario && (
+              <div className="flex items-center gap-2">
+                <NuevaOrdenDialog etiqueta="Con Solped" basePath="/logistica/ordenes-compra/nuevo" variant="default" />
+                <NuevaOrdenDialog etiqueta="Directa" basePath="/logistica/ordenes-compra/nueva-directa" />
+              </div>
+            )
+          }
+        />
+      </div>
 
       {ordenes.length === 0 ? (
         <EmptyState
