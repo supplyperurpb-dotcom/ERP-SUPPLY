@@ -38,7 +38,6 @@ export default async function OrdenesCompraPage() {
     },
     include: { proveedor: true, firmas: true },
     orderBy: { createdAt: "desc" },
-    take: 100,
   });
 
   // Casillas de aprobación masiva (pedido explícito, 2026-11-25: para el

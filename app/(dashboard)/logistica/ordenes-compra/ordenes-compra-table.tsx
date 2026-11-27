@@ -56,10 +56,13 @@ function correlativo(numero: string): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+const POR_PAGINA = 40;
+
 export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
   const [busqueda, setBusqueda] = useState("");
   const [seleccionadas, setSeleccionadas] = useState<string[]>([]);
   const [ordenNumero, setOrdenNumero] = useState<"asc" | "desc" | null>(null);
+  const [pagina, setPagina] = useState(1);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const confirmar = useConfirm();
@@ -77,8 +80,18 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
     );
   }, [filas, busqueda, ordenNumero]);
 
+  const totalPaginas = Math.max(1, Math.ceil(filasFiltradas.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const filasPagina = filasFiltradas.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+
+  function cambiarBusqueda(valor: string) {
+    setBusqueda(valor);
+    setPagina(1);
+  }
+
   function alternarOrdenNumero() {
     setOrdenNumero((prev) => (prev === "asc" ? "desc" : "asc"));
+    setPagina(1);
   }
 
   const filasFirmables = useMemo(() => filasFiltradas.filter((f) => f.puedeFirmar), [filasFiltradas]);
@@ -118,7 +131,7 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
           <Input
             placeholder="Buscar por número de OC/OS o proveedor..."
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(e) => cambiarBusqueda(e.target.value)}
             className="pl-8"
           />
         </div>
@@ -175,7 +188,7 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filasFiltradas.map((f) => (
+            {filasPagina.map((f) => (
               <TableRow key={f.id}>
                 <TableCell className="font-medium">{f.numero}</TableCell>
                 <TableCell>
@@ -212,6 +225,34 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {filasFiltradas.length > 0 && (
+        <div className="flex shrink-0 items-center justify-between gap-3 text-sm text-muted-foreground">
+          <p>
+            {filasFiltradas.length} orden{filasFiltradas.length === 1 ? "" : "es"} · Página {paginaActual} de {totalPaginas}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={paginaActual <= 1}
+              onClick={() => setPagina((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={paginaActual >= totalPaginas}
+              onClick={() => setPagina((p) => p + 1)}
+            >
+              Siguiente
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
