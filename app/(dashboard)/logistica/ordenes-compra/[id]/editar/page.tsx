@@ -13,7 +13,7 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
 
   const orden = await prisma.ordenCompra.findUnique({
     where: { id },
-    include: { items: { include: { sku: true, entregas: true } } },
+    include: { items: { include: { sku: true, entregas: true } }, sustentos: { orderBy: { numero: "asc" } } },
   });
   if (!orden) notFound();
 
@@ -53,6 +53,8 @@ export default async function EditarOrdenCompraPage({ params }: { params: Promis
         ordenId={orden.id}
         categoria={categoria}
         esDirecta={esDirecta}
+        sustentos={orden.sustentos.map((s) => ({ id: s.id, numero: s.numero, nombreArchivo: s.nombreArchivo }))}
+        sustentoLegado={orden.sustentos.length === 0 && orden.archivo ? { nombreArchivo: orden.nombreArchivo ?? "Ver archivo" } : null}
         proveedores={proveedores.map((p) => ({
           id: p.id,
           razonSocial: p.razonSocial,

@@ -70,6 +70,92 @@ export async function subirArchivoSustentoOrdenAction(
   }
 }
 
+// Añade un sustento a una OC/OS YA EXISTENTE (editar), para poder
+// corregir un archivo equivocado sin tener que recrear la orden entera —
+// pedido explícito, 2026-11-27. El archivo ya viene subido (ver
+// subirArchivoSustentoOrdenAction); acá solo se persiste la fila.
+export async function agregarSustentoOrdenCompraAction(
+  ordenCompraId: string,
+  archivo: string,
+  nombreArchivo: string
+): Promise<{ error?: string } | undefined> {
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const orden = await prisma.ordenCompra.findUnique({ where: { id: ordenCompraId } });
+  if (!orden) return { error: "La orden ya no existe." };
+  if (!puedeEditarOrden(usuario, orden)) return { error: "No tienes permiso para editar esta orden." };
+  if (orden.estado !== "BORRADOR" && orden.estado !== "PENDIENTE") {
+    return { error: "Esta orden ya no se puede editar (está aprobada, rechazada o anulada)." };
+  }
+
+  const ultimo = await prisma.ordenCompraSustento.findFirst({ where: { ordenCompraId }, orderBy: { numero: "desc" } });
+  await prisma.ordenCompraSustento.create({
+    data: { ordenCompraId, numero: (ultimo?.numero ?? 0) + 1, archivo, nombreArchivo },
+  });
+
+  revalidatePath(`/logistica/ordenes-compra/${ordenCompraId}`);
+  revalidatePath(`/logistica/ordenes-compra/${ordenCompraId}/editar`);
+  return undefined;
+}
+
+// Elimina un sustento de una OC/OS ya existente — los que queden se
+// renumeran para no dejar huecos (mismo criterio que
+// eliminarSustentoRegistroAvanceAction).
+export async function eliminarSustentoOrdenCompraAction(sustentoId: string): Promise<{ error?: string } | undefined> {
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const sustento = await prisma.ordenCompraSustento.findUnique({
+    where: { id: sustentoId },
+    include: { ordenCompra: true },
+  });
+  if (!sustento) return { error: "Este sustento ya no existe." };
+  if (!puedeEditarOrden(usuario, sustento.ordenCompra)) return { error: "No tienes permiso para editar esta orden." };
+  if (sustento.ordenCompra.estado !== "BORRADOR" && sustento.ordenCompra.estado !== "PENDIENTE") {
+    return { error: "Esta orden ya no se puede editar (está aprobada, rechazada o anulada)." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.ordenCompraSustento.delete({ where: { id: sustentoId } });
+    const restantes = await tx.ordenCompraSustento.findMany({
+      where: { ordenCompraId: sustento.ordenCompraId },
+      orderBy: { numero: "asc" },
+    });
+    for (let i = 0; i < restantes.length; i++) {
+      if (restantes[i].numero !== i + 1) {
+        await tx.ordenCompraSustento.update({ where: { id: restantes[i].id }, data: { numero: i + 1 } });
+      }
+    }
+  });
+
+  revalidatePath(`/logistica/ordenes-compra/${sustento.ordenCompraId}`);
+  revalidatePath(`/logistica/ordenes-compra/${sustento.ordenCompraId}/editar`);
+  return undefined;
+}
+
+// Quita el sustento único "legado" (de antes de admitir varios, ver
+// OrdenCompra.archivo/nombreArchivo) para poder reemplazarlo por uno
+// nuevo en OrdenCompraSustento — una orden vieja no tiene otra forma de
+// corregirlo.
+export async function eliminarSustentoLegadoOrdenCompraAction(ordenCompraId: string): Promise<{ error?: string } | undefined> {
+  const usuario = await getUsuarioActual();
+  if (!usuario) return { error: "Debes iniciar sesión." };
+
+  const orden = await prisma.ordenCompra.findUnique({ where: { id: ordenCompraId } });
+  if (!orden) return { error: "La orden ya no existe." };
+  if (!puedeEditarOrden(usuario, orden)) return { error: "No tienes permiso para editar esta orden." };
+  if (orden.estado !== "BORRADOR" && orden.estado !== "PENDIENTE") {
+    return { error: "Esta orden ya no se puede editar (está aprobada, rechazada o anulada)." };
+  }
+
+  await prisma.ordenCompra.update({ where: { id: ordenCompraId }, data: { archivo: null, nombreArchivo: null } });
+
+  revalidatePath(`/logistica/ordenes-compra/${ordenCompraId}`);
+  revalidatePath(`/logistica/ordenes-compra/${ordenCompraId}/editar`);
+  return undefined;
+}
+
 export async function crearOrdenCompraAction(data: OrdenCompraInput): Promise<OrdenCompraActionState> {
   const parsed = ordenCompraSchema.safeParse(data);
   if (!parsed.success) {

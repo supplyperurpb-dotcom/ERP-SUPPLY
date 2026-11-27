@@ -21,6 +21,7 @@ import { MONEDAS } from "@/lib/constants/moneda";
 import { editarOrdenCompraAction } from "@/lib/actions/orden-compra-actions";
 import type { SolicitudConPendientes } from "@/lib/compras";
 import { ProgramaEntregasStep, type FilaEntregaProgramada, type ItemParaPrograma } from "../../programa-entregas-step";
+import { SustentosOrdenEditarSection, type SustentoOrdenGuardado } from "./sustentos-orden-editar-section";
 
 type ItemEditable = {
   id: string;
@@ -87,6 +88,8 @@ export function OrdenCompraEditarForm({
   solicitudesPendientes,
   valoresIniciales,
   entregasIniciales,
+  sustentos,
+  sustentoLegado,
 }: {
   ordenId: string;
   categoria: CategoriaCompraCodigo;
@@ -97,6 +100,8 @@ export function OrdenCompraEditarForm({
   centrosCosto: string[];
   campos: string[];
   solicitudesPendientes: SolicitudConPendientes[];
+  sustentos: SustentoOrdenGuardado[];
+  sustentoLegado: { nombreArchivo: string } | null;
   /** Programa de entregas ya guardado de cada línea existente (clave = item.id). */
   entregasIniciales: Record<string, FilaEntregaProgramada[]>;
   valoresIniciales: {
@@ -403,6 +408,7 @@ export function OrdenCompraEditarForm({
             <Label htmlFor="observaciones">Comentario (mínimo 15 caracteres)</Label>
             <Textarea id="observaciones" rows={3} value={comentario} onChange={(e) => setComentario(e.target.value)} />
           </div>
+          <SustentosOrdenEditarSection ordenCompraId={ordenId} sustentos={sustentos} legado={sustentoLegado} />
         </CardContent>
       </Card>
 
