@@ -1,67 +1,57 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useMemo, useState, useTransition } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSearch } from "@/components/ui/data-table";
+import { useConfirm } from "@/components/shared/confirm-dialog-provider";
 import { skuServicioSchema, type SkuServicioInput } from "@/lib/validations/sku";
-import { crearSkuServicioAction } from "@/lib/actions/sku-actions";
-import type { Subfamilia } from "@prisma/client";
-
-type SkuExistente = { codigo: string; descripcion: string };
-
-const NUEVA_SUBFAMILIA = "__nueva__";
+import { crearSkuServicioAction, eliminarSkuAction } from "@/lib/actions/sku-actions";
+import { SkuFormDialog } from "../../sku-form-dialog";
+import type { Sku, Subfamilia } from "@prisma/client";
 
 export function ServicioForm({
   skusExistentes,
   subfamilias,
+  esAdmin,
+  puedeEditar,
 }: {
-  skusExistentes: SkuExistente[];
+  skusExistentes: Sku[];
   subfamilias: Subfamilia[];
+  esAdmin: boolean;
+  puedeEditar: boolean;
 }) {
   const router = useRouter();
-  const [lista, setLista] = useState(skusExistentes);
-  const [creado, setCreado] = useState<SkuExistente | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const confirmar = useConfirm();
+  const [creado, setCreado] = useState<{ codigo: string; descripcion: string } | null>(null);
   const [busqueda, setBusqueda] = useState("");
 
   const listaFiltrada = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
-    if (!termino) return lista;
-    return lista.filter(
+    if (!termino) return skusExistentes;
+    return skusExistentes.filter(
       (s) => s.codigo.toLowerCase().includes(termino) || s.descripcion.toLowerCase().includes(termino)
     );
-  }, [lista, busqueda]);
+  }, [skusExistentes, busqueda]);
 
   const form = useForm<SkuServicioInput>({
     resolver: zodResolver(skuServicioSchema),
-    defaultValues: {
-      subfamiliaId: subfamilias[0]?.id ?? "",
-      subfamiliaNueva: "",
-      unidadMedida: "UND",
-    },
+    defaultValues: { subfamilia: "", unidadMedida: "UND" },
   });
 
-  const subfamiliaIdActual = form.watch("subfamiliaId");
-  const escribiendoNueva = subfamiliaIdActual === NUEVA_SUBFAMILIA;
-
   async function onSubmit(data: SkuServicioInput) {
-    const subfamiliaElegida = subfamilias.find((s) => s.id === data.subfamiliaId);
-    const nombreElegido = escribiendoNueva ? data.subfamiliaNueva?.trim() : subfamiliaElegida?.nombre;
     let resultado;
     try {
-      resultado = await crearSkuServicioAction({
-        ...data,
-        subfamiliaId: escribiendoNueva ? "" : data.subfamiliaId,
-      });
+      resultado = await crearSkuServicioAction(data);
     } catch (err) {
       console.error("Error al crear el SKU:", err);
       const detalle = err instanceof Error ? err.message : String(err);
@@ -72,11 +62,23 @@ export function ServicioForm({
       toast.error(resultado?.error ?? "No se pudo crear el SKU");
       return;
     }
-    const nuevo = { codigo: resultado.codigo, descripcion: nombreElegido ?? resultado.codigo };
-    toast.success(`SKU ${nuevo.codigo} creado`);
-    setCreado(nuevo);
-    setLista((prev) => [...prev, nuevo].sort((a, b) => a.descripcion.localeCompare(b.descripcion)));
-    form.reset({ subfamiliaId: subfamilias[0]?.id ?? "", subfamiliaNueva: "", unidadMedida: "UND" });
+    toast.success(`SKU ${resultado.codigo} creado`);
+    setCreado({ codigo: resultado.codigo, descripcion: data.subfamilia.trim() });
+    form.reset({ subfamilia: "", unidadMedida: "UND" });
+    router.refresh();
+  }
+
+  async function handleEliminar(id: string, codigo: string) {
+    if (!(await confirmar(`¿Eliminar el SKU ${codigo}? Esta acción no se puede deshacer.`))) return;
+    startTransition(async () => {
+      const resultado = await eliminarSkuAction(id);
+      if (resultado?.error) {
+        toast.error(resultado.error);
+        return;
+      }
+      toast.success("SKU eliminado");
+      router.refresh();
+    });
   }
 
   return (
@@ -90,7 +92,7 @@ export function ServicioForm({
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {lista.length === 0 ? (
+          {skusExistentes.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aún no hay ningún SKU de Servicios creado.</p>
           ) : (
             <>
@@ -105,20 +107,36 @@ export function ServicioForm({
                     <TableRow>
                       <TableHead className="w-28">Código</TableHead>
                       <TableHead>Nombre</TableHead>
+                      {(esAdmin || puedeEditar) && <TableHead className="w-24 text-right">Acciones</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {listaFiltrada.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={3} className="text-center text-sm text-muted-foreground">
                           Ningún servicio coincide con la búsqueda.
                         </TableCell>
                       </TableRow>
                     ) : (
                       listaFiltrada.map((s) => (
-                        <TableRow key={s.codigo}>
+                        <TableRow key={s.id}>
                           <TableCell className="w-28 font-medium">{s.codigo}</TableCell>
                           <TableCell>{s.descripcion}</TableCell>
+                          {(esAdmin || puedeEditar) && (
+                            <TableCell className="flex justify-end gap-1">
+                              {puedeEditar && <SkuFormDialog sku={s} />}
+                              {esAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={isPending}
+                                  onClick={() => handleEliminar(s.id, s.codigo)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}
@@ -146,45 +164,25 @@ export function ServicioForm({
             <p className="text-sm text-muted-foreground">
               El código se arma solo: <strong>SERV</strong> + el siguiente correlativo. Este SKU solo agrupa pedidos de
               este tipo de servicio; el detalle puntual (qué se necesita exactamente) se describe al registrar la
-              solicitud de pedido. ¿Falta una subfamilia? Agrégala en Logística &gt; Listas &gt; Categorías.
+              solicitud de pedido.
             </p>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Label htmlFor="subfamiliaId">Subfamilia</Label>
-            <Controller
-              control={form.control}
-              name="subfamiliaId"
-              render={({ field }) => (
-                <Select
-                  value={field.value}
-                  onValueChange={(valor) => {
-                    field.onChange(valor);
-                    if (valor !== NUEVA_SUBFAMILIA) form.setValue("subfamiliaNueva", "");
-                  }}
-                >
-                  <SelectTrigger id="subfamiliaId">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subfamilias.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.nombre}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value={NUEVA_SUBFAMILIA}>+ Nueva subfamilia...</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
+            <Label htmlFor="subfamilia">Subfamilia</Label>
+            <Input
+              id="subfamilia"
+              list="subfamilias-servicio"
+              placeholder="Escribe la subfamilia (nueva o ya existente)"
+              autoComplete="off"
+              {...form.register("subfamilia")}
             />
-            {escribiendoNueva && (
-              <Input
-                placeholder="Nombre de la nueva subfamilia"
-                autoFocus
-                {...form.register("subfamiliaNueva")}
-              />
-            )}
-            {form.formState.errors.subfamiliaId && (
-              <p className="text-sm font-medium text-destructive">{form.formState.errors.subfamiliaId.message}</p>
+            <datalist id="subfamilias-servicio">
+              {subfamilias.map((s) => (
+                <option key={s.id} value={s.nombre} />
+              ))}
+            </datalist>
+            {form.formState.errors.subfamilia && (
+              <p className="text-sm font-medium text-destructive">{form.formState.errors.subfamilia.message}</p>
             )}
             <input type="hidden" {...form.register("unidadMedida")} />
           </CardContent>
@@ -194,7 +192,7 @@ export function ServicioForm({
           <Button type="button" variant="outline" onClick={() => router.push("/logistica/sku")}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting || subfamilias.length === 0}>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Creando..." : "Crear código"}
           </Button>
         </div>

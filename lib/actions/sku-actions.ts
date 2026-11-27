@@ -158,33 +158,27 @@ export async function crearSkuServicioAction(data: SkuServicioInput): Promise<Sk
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { subfamiliaId, subfamiliaNueva, unidadMedida } = parsed.data;
+  const { subfamilia, unidadMedida } = parsed.data;
   const prefijo = "SERV";
 
   try {
-    let subfamiliaElegida;
-    if (subfamiliaNueva?.trim()) {
-      // Crea la subfamilia en el catálogo de Servicios si no existe ya con
-      // ese nombre (pedido explícito, 2026-11-27: se puede escribir una
-      // nueva acá mismo, sin pasar por Logística > Listas > Categorías).
-      const familiaServicios = await prisma.familia.findUnique({ where: { nombre: "Servicios" } });
-      if (!familiaServicios) return { error: "No se encontró la familia Servicios en el catálogo." };
-      subfamiliaElegida = await prisma.subfamilia.findFirst({
-        where: { familiaId: familiaServicios.id, nombre: { equals: subfamiliaNueva.trim(), mode: "insensitive" } },
+    // Busca la subfamilia por nombre (sin distinguir mayúsculas) y la crea
+    // en el catálogo de la familia Servicios si todavía no existe — el
+    // campo es texto libre, no una lista (pedido explícito, 2026-11-27).
+    const familiaServicios = await prisma.familia.findUnique({ where: { nombre: "Servicios" } });
+    if (!familiaServicios) return { error: "No se encontró la familia Servicios en el catálogo." };
+    let subfamiliaElegida = await prisma.subfamilia.findFirst({
+      where: { familiaId: familiaServicios.id, nombre: { equals: subfamilia, mode: "insensitive" } },
+    });
+    if (!subfamiliaElegida) {
+      const ultima = await prisma.subfamilia.findFirst({
+        where: { familiaId: familiaServicios.id },
+        orderBy: { orden: "desc" },
+        select: { orden: true },
       });
-      if (!subfamiliaElegida) {
-        const ultima = await prisma.subfamilia.findFirst({
-          where: { familiaId: familiaServicios.id },
-          orderBy: { orden: "desc" },
-          select: { orden: true },
-        });
-        subfamiliaElegida = await prisma.subfamilia.create({
-          data: { familiaId: familiaServicios.id, nombre: subfamiliaNueva.trim(), orden: (ultima?.orden ?? -1) + 1 },
-        });
-      }
-    } else {
-      subfamiliaElegida = await prisma.subfamilia.findUnique({ where: { id: subfamiliaId } });
-      if (!subfamiliaElegida) return { error: "La subfamilia seleccionada no existe." };
+      subfamiliaElegida = await prisma.subfamilia.create({
+        data: { familiaId: familiaServicios.id, nombre: subfamilia, orden: (ultima?.orden ?? -1) + 1 },
+      });
     }
 
     const existente = await prisma.sku.findFirst({

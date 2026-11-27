@@ -87,24 +87,13 @@ export type SkuAgroquimicoInput = z.infer<typeof skuAgroquimicoSchema>;
 // El SKU solo agrupa (p. ej. "Apicultura"); el detalle de cada pedido se
 // describe al crear la solicitud, no aquí — por eso no lleva comentario.
 // ---------------------------------------------------------------------
-// Pedido explícito, 2026-11-27: además de elegir una subfamilia ya
-// creada, se puede escribir una nueva acá mismo (sin pasar por Logística
-// > Listas > Categorías) — se manda una o la otra, nunca las dos (ver
-// crearSkuServicioAction, que la crea en el catálogo si no existe ya).
-export const skuServicioSchema = z
-  .object({
-    subfamiliaId: z.string().optional().or(z.literal("")),
-    subfamiliaNueva: z.string().trim().max(100).optional().or(z.literal("")),
-    unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10).default("UND"),
-  })
-  .superRefine((data, ctx) => {
-    if (!data.subfamiliaId && !data.subfamiliaNueva?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Selecciona una subfamilia o escribe una nueva",
-        path: ["subfamiliaId"],
-      });
-    }
-  });
+// Pedido explícito, 2026-11-27: el campo es texto libre (con sugerencias de
+// las ya creadas) en vez de una lista — se manda el nombre tal cual se
+// escribió y crearSkuServicioAction la busca por nombre (sin distinguir
+// mayúsculas) y la crea en el catálogo de la familia Servicios si no existe.
+export const skuServicioSchema = z.object({
+  subfamilia: z.string().trim().min(1, "La subfamilia es obligatoria").max(100),
+  unidadMedida: z.string().min(1, "La unidad de medida es obligatoria").max(10).default("UND"),
+});
 
 export type SkuServicioInput = z.infer<typeof skuServicioSchema>;
