@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Check } from "lucide-react";
+import { Search, Check, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,20 +47,39 @@ export type FilaOrdenCompra = {
   puedeFirmar: boolean;
 };
 
+// Correlativo de "OC-000004669"/"OS-000004670": los últimos dígitos, sin
+// importar el prefijo — para que el orden numérico quede correcto aunque
+// se mezclen OC y OS (comparar el texto completo agruparía todas las OC
+// antes que las OS, por orden alfabético del prefijo).
+function correlativo(numero: string): number {
+  const match = numero.match(/(\d+)$/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
 export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
   const [busqueda, setBusqueda] = useState("");
   const [seleccionadas, setSeleccionadas] = useState<string[]>([]);
+  const [ordenNumero, setOrdenNumero] = useState<"asc" | "desc" | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const confirmar = useConfirm();
 
   const filasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
-    if (!termino) return filas;
-    return filas.filter(
-      (f) => f.numero.toLowerCase().includes(termino) || f.proveedorRazonSocial.toLowerCase().includes(termino)
+    const resultado = termino
+      ? filas.filter(
+          (f) => f.numero.toLowerCase().includes(termino) || f.proveedorRazonSocial.toLowerCase().includes(termino)
+        )
+      : filas;
+    if (!ordenNumero) return resultado;
+    return [...resultado].sort((a, b) =>
+      ordenNumero === "asc" ? correlativo(a.numero) - correlativo(b.numero) : correlativo(b.numero) - correlativo(a.numero)
     );
-  }, [filas, busqueda]);
+  }, [filas, busqueda, ordenNumero]);
+
+  function alternarOrdenNumero() {
+    setOrdenNumero((prev) => (prev === "asc" ? "desc" : "asc"));
+  }
 
   const filasFirmables = useMemo(() => filasFiltradas.filter((f) => f.puedeFirmar), [filasFiltradas]);
   const haySeleccionables = filasFirmables.length > 0;
@@ -119,7 +138,23 @@ export function OrdenesCompraTable({ filas }: { filas: FilaOrdenCompra[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Número</TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 hover:text-foreground"
+                  onClick={alternarOrdenNumero}
+                  title="Ordenar por correlativo"
+                >
+                  Número
+                  {ordenNumero === "asc" ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : ordenNumero === "desc" ? (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowUp className="h-3.5 w-3.5 opacity-30" />
+                  )}
+                </button>
+              </TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Proveedor</TableHead>
               <TableHead>Estatus</TableHead>
