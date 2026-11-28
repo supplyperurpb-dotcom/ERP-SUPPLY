@@ -23,6 +23,7 @@ type TarjaDisponible = {
   palletNumero: string;
   cantidadBandejas: number;
   pesoNetoKg: number;
+  pesoBrutoKg: number;
 };
 type CamionOption = CamionOpcionCombobox;
 type ConductorOption = ConductorOpcionCombobox;
@@ -67,8 +68,12 @@ export function DespachoForm({
 
   const seleccionadas = tarjasDisponibles.filter((t) => tarjaIds.includes(t.id));
   const totales = seleccionadas.reduce(
-    (acc, t) => ({ bandejas: acc.bandejas + t.cantidadBandejas, neto: acc.neto + t.pesoNetoKg }),
-    { bandejas: 0, neto: 0 }
+    (acc, t) => ({
+      bandejas: acc.bandejas + t.cantidadBandejas,
+      neto: acc.neto + t.pesoNetoKg,
+      bruto: acc.bruto + t.pesoBrutoKg,
+    }),
+    { bandejas: 0, neto: 0, bruto: 0 }
   );
 
   async function onSubmit(data: DespachoInput) {
@@ -194,6 +199,7 @@ export function DespachoForm({
                     <TableHead>Pallet</TableHead>
                     <TableHead>Bandejas</TableHead>
                     <TableHead>Peso neto</TableHead>
+                    <TableHead>Peso bruto</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,6 +217,7 @@ export function DespachoForm({
                       <TableCell>{t.palletNumero}</TableCell>
                       <TableCell>{formatCantidad(t.cantidadBandejas)}</TableCell>
                       <TableCell>{formatKg(t.pesoNetoKg)}</TableCell>
+                      <TableCell>{formatKg(t.pesoBrutoKg)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -225,6 +232,9 @@ export function DespachoForm({
                 </p>
                 <p className="text-base">
                   Peso neto total: <span className="font-semibold text-primary">{formatKg(totales.neto)}</span>
+                </p>
+                <p>
+                  Peso bruto total: <span className="font-medium">{formatKg(totales.bruto)}</span>
                 </p>
               </div>
               {form.formState.errors.tarjaIds && (

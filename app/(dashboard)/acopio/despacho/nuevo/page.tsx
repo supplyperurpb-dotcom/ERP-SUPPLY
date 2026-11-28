@@ -17,14 +17,15 @@ export default async function NuevoDespachoPage() {
     prisma.conductor.findMany({ where: { activo: true }, orderBy: { nombre: "asc" } }),
   ]);
 
-  // Se mapea a un objeto plano: pesoNetoKg es Decimal y no se puede pasar
-  // tal cual a un Client Component (ver lib/utils.ts).
+  // Se mapea a un objeto plano: pesoNetoKg/pesoBrutoTotalKg son Decimal y
+  // no se pueden pasar tal cual a un Client Component (ver lib/utils.ts).
   const tarjasDisponibles = tarjasDb.map((t) => ({
     id: t.id,
     numero: t.numero,
     palletNumero: t.pallet.numero,
     cantidadBandejas: t.pallet.cantidadBandejas,
     pesoNetoKg: Number(t.pallet.pesoNetoKg),
+    pesoBrutoKg: Number(t.pallet.pesoBrutoTotalKg),
   }));
   const camiones = camionesDb.map((c) => ({ id: c.id, placa: c.placa, tipo: c.tipo }));
   const conductores = conductoresDb.map((c) => ({ id: c.id, nombre: c.nombre }));
