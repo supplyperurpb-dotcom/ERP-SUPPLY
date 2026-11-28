@@ -172,18 +172,23 @@ export function ReporteAcopioView({
           </Button>
         </div>
 
-        <div ref={refMateriaPrima} className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
-          <Encabezado titulo="Reporte de Recepción" subtitulo={subtitulo} cantidadIngresos={cantidadIngresos} />
+        {/* Reporte a la mitad izquierda de la pantalla, con el mismo espacio
+            reservado a la derecha para otro reporte (pedido explícito,
+            2026-11-28) — por ahora esa segunda columna queda vacía. */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div ref={refMateriaPrima} className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+            <Encabezado titulo="Reporte de Recepción" subtitulo={subtitulo} cantidadIngresos={cantidadIngresos} />
 
-          <div className="my-5 border-t" />
+            <div className="my-5 border-t" />
 
-          <SeccionTitulo numero={1}>Indicadores generales</SeccionTitulo>
-          <IndicadoresGenerales materiaPrima={materiaPrima} cantidadIngresos={cantidadIngresos} />
+            <SeccionTitulo numero={1}>Indicadores generales</SeccionTitulo>
+            <IndicadoresGenerales materiaPrima={materiaPrima} cantidadIngresos={cantidadIngresos} />
 
-          <div className="my-5 border-t" />
+            <div className="my-5 border-t" />
 
-          <SeccionTitulo numero={2}>Resumen por módulo y variedad</SeccionTitulo>
-          <ResumenVariedadModuloTabla resumen={materiaPrima.resumen} materiaPrima={materiaPrima} />
+            <SeccionTitulo numero={2}>Resumen por módulo y variedad</SeccionTitulo>
+            <ResumenVariedadModuloTabla resumen={materiaPrima.resumen} materiaPrima={materiaPrima} />
+          </div>
         </div>
       </TabsContent>
 
@@ -203,20 +208,22 @@ export function ReporteAcopioView({
           </Button>
         </div>
 
-        <div ref={refIndustrial} className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
-          <Encabezado titulo="Resumen de recepción industrial" subtitulo={subtitulo} cantidadIngresos={null} />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div ref={refIndustrial} className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+            <Encabezado titulo="Resumen de recepción industrial" subtitulo={subtitulo} cantidadIngresos={null} />
 
-          <div className="my-5 border-t" />
+            <div className="my-5 border-t" />
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <KpiBloque label="Total recepcionado" valor={formatNumero(industrial.totalKg)} unidad="kg" />
-            <KpiBloque label="Total jabas" valor={industrial.totalJabas.toLocaleString("es-PE")} />
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <KpiBloque label="Total recepcionado" valor={formatNumero(industrial.totalKg)} unidad="kg" />
+              <KpiBloque label="Total jabas" valor={industrial.totalJabas.toLocaleString("es-PE")} />
+            </div>
+
+            <div className="my-5 border-t" />
+
+            <SeccionTitulo>Kg recepcionado por variedad</SeccionTitulo>
+            <IndustrialTabla industrial={industrial} />
           </div>
-
-          <div className="my-5 border-t" />
-
-          <SeccionTitulo>Kg recepcionado por variedad</SeccionTitulo>
-          <IndustrialTabla industrial={industrial} />
         </div>
       </TabsContent>
     </Tabs>
